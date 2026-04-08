@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -8,6 +9,7 @@ prepare_llm_input.py / llm_stage1_classifier.py 산출물을 바탕으로
 - request_id 단독 매칭을 제거하고 incident_ref 기반으로 안전하게 재매칭
 - access/security 중복 row 를 incident 단위로 묶어 distinct incident 중심으로 요약
 - known asset IP(웹서버/DB/LLM 서버 등) 목록을 받아 내부 테스트/자체 호출 가능성을 보고서에 반영
+- filtered_out_breakdown 을 stage2 입력과 Markdown 에 보존해 후보 밖 저신호 요청 분포를 가시화
 """
 
 from __future__ import annotations
@@ -352,6 +354,34 @@ def summarize_ips(results: List[Dict[str, Any]], top_n: int, known_asset_ips: Se
     return rows[:top_n]
 
 
+def normalize_counter_dict(raw: Any) -> Dict[str, int]:
+    if not isinstance(raw, dict):
+        return {}
+    normalized: Dict[str, int] = {}
+    for key, value in raw.items():
+        key_text = normalize_str(key)
+        if not key_text:
+            continue
+        normalized[key_text] = safe_int(value, 0)
+    return dict(sorted(normalized.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def build_filtered_category_rows(filtered_out_breakdown: Dict[str, int], total_filtered_out_rows: int, top_n: int) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    if total_filtered_out_rows <= 0:
+        total_filtered_out_rows = sum(filtered_out_breakdown.values())
+    for category, count in sorted(filtered_out_breakdown.items(), key=lambda kv: (-kv[1], kv[0]))[:top_n]:
+        share = round((count / total_filtered_out_rows) * 100, 1) if total_filtered_out_rows > 0 else 0.0
+        rows.append(
+            {
+                "category": category,
+                "count": count,
+                "share_pct": share,
+            }
+        )
+    return rows
+
+
 def build_report_input(
     stage1_payload: Dict[str, Any],
     llm_input_payload: Optional[Dict[str, Any]],
@@ -367,6 +397,8 @@ def build_report_input(
     counts = llm_meta.get("counts") or {}
     noise_summary = (llm_input_payload or {}).get("noise_summary") or []
     stage1_errors = (stage1_errors_payload or {}).get("errors") or []
+    filtered_out_breakdown = normalize_counter_dict(llm_meta.get("filtered_out_breakdown"))
+    total_filtered_out_rows = safe_int(counts.get("filtered_out_rows"), 0)
 
     deduped_results = dedup_stage1_results(results, known_asset_ips=known_asset_ips)
 
@@ -387,6 +419,11 @@ def build_report_input(
         key=lambda x: safe_int(x.get("count"), 0),
         reverse=True,
     )[:top_noise_groups]
+    top_filtered_categories = build_filtered_category_rows(
+        filtered_out_breakdown=filtered_out_breakdown,
+        total_filtered_out_rows=total_filtered_out_rows,
+        top_n=top_noise_groups,
+    )
 
     matched_known_assets = sorted(
         {
@@ -410,7 +447,8 @@ def build_report_input(
             "total_exported_rows": safe_int(counts.get("total_exported_rows"), 0),
             "candidate_rows": safe_int(counts.get("candidate_rows"), len(results)),
             "distinct_incident_count": len(deduped_results),
-            "filtered_out_rows": safe_int(counts.get("filtered_out_rows"), 0),
+            "filtered_out_rows": total_filtered_out_rows,
+            "filtered_out_non_aggregated_rows": safe_int(counts.get("filtered_out_non_aggregated_rows"), 0),
             "noise_group_count": safe_int(counts.get("noise_group_count"), len(noise_summary)),
             "stage1_success_count": safe_int(meta.get("success_count"), len(results)),
             "stage1_error_count": safe_int(meta.get("error_count"), len(stage1_errors)),
@@ -420,10 +458,12 @@ def build_report_input(
             "severities": dict(severity_counter),
             "source_tables": dict(table_counter),
             "recommended_actions": dict(action_counter),
+            "filtered_out_breakdown": filtered_out_breakdown,
         },
         "top_incidents": briefs,
         "top_src_ips": ip_rows,
         "top_noise_groups": top_noise,
+        "top_filtered_categories": top_filtered_categories,
         "stage1_errors_excerpt": stage1_errors[:5],
         "asset_context": {
             "known_asset_ips": list(known_asset_ips),
@@ -436,6 +476,7 @@ def build_report_input(
             "milestone_presentation_model_default": "gpt-5.4",
             "raw_db_logs_are_not_sent_directly": True,
             "noise_is_aggregated_before_llm": True,
+            "filtered_out_breakdown_is_preserved": bool(llm_meta.get("pipeline_policy", {}).get("filtered_noise_breakdown_is_preserved", False)),
             "dedupe_rule": "request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 incident 병합",
         },
     }
@@ -548,6 +589,8 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "resp_content_type 이 text/html 이거나 HTML fallback 정황이 있으면 시도 탐지와 실제 노출 가능성을 분리해서 서술하라. "
         "동일 파라미터가 반복되면 HPP(HTTP Parameter Pollution) 문맥을 검토하라. "
         "hpp_detected 가 true 이고 embedded_attack_hint 가 있으면, 사건 분류는 기존 SQLi/XSS 체계를 유지하되 보고서 설명에는 '중복 파라미터(HPP)를 이용한 시도' 문맥을 포함하라. "
+        "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 요청의 세부 분포는 실제로 존재하는 것으로 해석하라. "
+        "filtered_out_breakdown 과 top_filtered_categories 는 prepare 단계에서 보존된 사실 정보이므로 noise_interpretation 과 recommended_actions 에 반영하라. "
         "반드시 schema-valid JSON 객체만 반환하라. "
         "자유서술 필드는 모두 한국어로 작성하라."
     )
@@ -568,6 +611,8 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "resp_content_type 이 text/html 이고 likely_html_fallback_response 가 true 면 앱 fallback HTML 가능성을 우선 검토하라.",
             "hpp_detected 가 true 인 incident 는 hpp_param_names 와 embedded_attack_hint 를 함께 보고, 중복 파라미터(HPP)를 통한 공격 시도인지 서술하라.",
             "known_asset_ips 와 일치하는 IP 는 내부 테스트/자체 호출 가능성을 반드시 함께 언급하라.",
+            "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 세부 분포가 존재하는 것으로 서술하라.",
+            "low_signal_fuzzing, low_signal_dir_probe, benign_normal_search, benign_fallback_html 같은 filtered_out_breakdown 카테고리가 있으면 noise_interpretation 에 구체적으로 반영하라.",
             "executive_summary 는 짧고 발표용으로 읽기 쉽게 작성하라.",
             "recommended_actions 는 구체적이고 운영 가능한 형태로 제시하라.",
             "notable_incidents 의 incident_ref 는 report_input.top_incidents 에 있는 값을 그대로 복사하라.",
@@ -649,10 +694,13 @@ def call_responses_api(
 def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], selected_model: str, mode: str) -> str:
     ctx = report_input.get("analysis_context") or {}
     counts = report_input.get("pipeline_counts") or {}
+    distributions = report_input.get("distributions") or {}
     top_incidents = report_input.get("top_incidents") or []
-    verdicts = (report_input.get("distributions") or {}).get("verdicts") or {}
-    severities = (report_input.get("distributions") or {}).get("severities") or {}
-    source_tables = (report_input.get("distributions") or {}).get("source_tables") or {}
+    top_filtered_categories = report_input.get("top_filtered_categories") or []
+    verdicts = distributions.get("verdicts") or {}
+    severities = distributions.get("severities") or {}
+    source_tables = distributions.get("source_tables") or {}
+    filtered_out_breakdown = distributions.get("filtered_out_breakdown") or {}
     asset_context = report_input.get("asset_context") or {}
 
     lines: List[str] = []
@@ -681,6 +729,8 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     lines.append(f"- 전체 export row 수: {safe_int(counts.get('total_exported_rows'), 0)}")
     lines.append(f"- 1차 후보 row 수: {safe_int(counts.get('candidate_rows'), 0)}")
     lines.append(f"- distinct incident 수: {safe_int(counts.get('distinct_incident_count'), 0)}")
+    lines.append(f"- filtered out row 수: {safe_int(counts.get('filtered_out_rows'), 0)}")
+    lines.append(f"- filtered out 비집계 row 수: {safe_int(counts.get('filtered_out_non_aggregated_rows'), 0)}")
     lines.append(f"- noise 집계 그룹 수: {safe_int(counts.get('noise_group_count'), 0)}")
     lines.append(f"- stage1 성공/오류: {safe_int(counts.get('stage1_success_count'), 0)} / {safe_int(counts.get('stage1_error_count'), 0)}")
     if verdicts:
@@ -689,6 +739,14 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
         lines.append(f"- severity 분포: {json.dumps(severities, ensure_ascii=False)}")
     if source_tables:
         lines.append(f"- 대표 source table 분포: {json.dumps(source_tables, ensure_ascii=False)}")
+    if filtered_out_breakdown:
+        lines.append(f"- filtered_out 세부 분포: {json.dumps(filtered_out_breakdown, ensure_ascii=False)}")
+    if top_filtered_categories:
+        top_filtered_text = ", ".join(
+            f"{normalize_str(x.get('category'))} {safe_int(x.get('count'), 0)}건 ({x.get('share_pct', 0)}%)"
+            for x in top_filtered_categories
+        )
+        lines.append(f"- 후보 밖 주요 카테고리: {top_filtered_text}")
     lines.append("")
 
     lines.append("## 4. 핵심 발견")
@@ -739,6 +797,13 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
 
     lines.append("## 7. noise 해석")
     lines.append(normalize_str(report_json.get("noise_interpretation")))
+    if top_filtered_categories:
+        lines.append("")
+        lines.append("후보 밖 세부 분포:")
+        for row in top_filtered_categories:
+            lines.append(
+                f"- {normalize_str(row.get('category'))}: {safe_int(row.get('count'), 0)}건 ({row.get('share_pct', 0)}%)"
+            )
     lines.append("")
 
     lines.append("## 8. 권고 조치")
@@ -763,6 +828,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     ctx = report_input.get("analysis_context") or {}
     counts = report_input.get("pipeline_counts") or {}
     incidents = report_input.get("top_incidents") or []
+    filtered_rows = report_input.get("top_filtered_categories") or []
     asset_context = report_input.get("asset_context") or {}
     lines: List[str] = []
     lines.append("# 드라이런 보안 분석 보고서")
@@ -779,7 +845,14 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append(f"- 전체 export row 수: {safe_int(counts.get('total_exported_rows'), 0)}")
     lines.append(f"- 1차 후보 row 수: {safe_int(counts.get('candidate_rows'), 0)}")
     lines.append(f"- distinct incident 수: {safe_int(counts.get('distinct_incident_count'), 0)}")
+    lines.append(f"- filtered out row 수: {safe_int(counts.get('filtered_out_rows'), 0)}")
     lines.append(f"- stage1 성공/오류: {safe_int(counts.get('stage1_success_count'), 0)} / {safe_int(counts.get('stage1_error_count'), 0)}")
+    if filtered_rows:
+        lines.append("- 후보 밖 주요 카테고리:")
+        for row in filtered_rows:
+            lines.append(
+                f"  - {normalize_str(row.get('category'))}: {safe_int(row.get('count'), 0)}건 ({row.get('share_pct', 0)}%)"
+            )
     lines.append("")
     lines.append("## 상위 incident 미리보기")
     for item in incidents[:5]:
@@ -797,6 +870,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append("## 메모")
     lines.append("- dry-run 이므로 실제 Responses API 호출 없이 요약 입력만 검증했다.")
     lines.append("- incident 는 request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 병합했다.")
+    lines.append("- filtered_out_breakdown 은 noise_summary 와 별도로 보존되며, 보고서 초안에도 함께 노출된다.")
     return "\n".join(lines).strip() + "\n"
 
 
