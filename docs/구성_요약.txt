@@ -1,0 +1,258 @@
+구성_요약
+
+문서 상태: 수정본
+버전: v1.1
+작성일: 2026-04-02
+목적: 현재 프로젝트의 서버 역할, 데이터 흐름, 분석 기준을 한눈에 보이도록 요약한다.
+
+==================================================
+1. 전체 구조 한눈 요약
+==================================================
+
+사용자 / 실험 스크립트 / 공격 도구
+                ↓ HTTP
+웹서버 (juice)
+- Apache Reverse Proxy
+- OWASP Juice Shop Docker
+- app_access.log / app_security.log / app_error.log 생성
+                ↓
+apache_log_shipper.py
+                ↓ INSERT
+DB 서버 (maria)
+- MariaDB web_logs
+- apache_access_logs
+- apache_security_logs
+- apache_error_logs
+                ↓ SELECT
+LLM 서버 (llm)
+- export_db_logs_cli.py
+- prepare_llm_input.py
+- llm_stage1_classifier.py
+- llm_stage2_reporter.py
+- run_analysis_pipeline.py
+                ↓
+JSON 산출물 / Markdown 보고서
+
+핵심 요약:
+- 웹서버는 로그를 만든다.
+- DB 서버는 로그를 저장한다.
+- LLM 서버는 저장된 로그를 export 하고 분석한다.
+
+==================================================
+2. 웹서버 (juice)
+==================================================
+
+- 호스트명: juice
+- 운영체제: Ubuntu 22.04.5
+- IP: 192.168.35.113
+
+역할:
+- 외부 HTTP 요청 수신
+- Apache Reverse Proxy 동작
+- OWASP Juice Shop 서비스 제공
+- Apache 로그 3종 생성
+- shipper 로 DB 서버에 로그 적재
+
+웹 애플리케이션 구성:
+- Apache: 2.4.52
+- VirtualHost: /etc/apache2/sites-available/juice-shop.conf
+- Reverse Proxy 대상: 127.0.0.1:3000
+- Juice Shop 실행 위치: Docker 컨테이너
+
+웹서버에서 생성되는 로그 파일:
+- /var/log/apache2/app_access.log
+- /var/log/apache2/app_security.log
+- /var/log/apache2/app_error.log
+
+웹서버에 설치되는 로그 적재 프로그램:
+- /opt/apache_log_shipper.py
+- state_dir: /var/lib/apache_log_shipper
+- spool_dir: /var/spool/apache_log_shipper
+- app_log: /var/log/apache2/apache_log_shipper.log
+
+웹서버가 접속하는 DB 대상:
+- DB 서버: 192.168.35.223
+- DB 이름: web_logs
+- 사용 계정: log_writer@192.168.35.113
+
+웹서버가 하지 않는 것:
+- DB export 실행
+- LLM 호출
+- 보고서 생성
+
+==================================================
+3. DB 서버 (maria)
+==================================================
+
+- 호스트명: maria
+- 운영체제: Ubuntu 22.04.5
+- IP: 192.168.35.223
+
+역할:
+- Apache 로그 중앙 저장
+- 조회용 원본 데이터 보관
+- 적재용 / 조회용 계정 분리 제공
+
+DB 구성:
+- MariaDB: 10.6.23
+- bind-address: 192.168.35.223
+- DB 이름: web_logs
+
+DB 서버 안에 존재하는 테이블:
+- apache_access_logs
+- apache_security_logs
+- apache_error_logs
+
+DB 계정:
+- log_writer@192.168.35.113
+  - 권한: SELECT, INSERT, UPDATE
+  - 용도: 웹서버 shipper 가 로그 적재
+- log_reader@192.168.35.%
+  - 권한: SELECT
+  - 용도: LLM 서버가 export 및 조회 수행
+
+DB 서버에 존재하는 export 도구:
+- /opt/log_export/export_db_logs_cli.py
+- /opt/log_export/.venv
+- /opt/log_export/output
+
+운영 해석 기준:
+- DB 서버에도 export 도구 사본이 있을 수 있다.
+- 다만 표준 운영 실행 위치는 LLM 서버로 본다.
+- DB 서버의 export 도구는 점검용 / 예비용으로 이해한다.
+
+DB 서버가 하지 않는 것:
+- 웹 요청 처리
+- LLM 분석 수행
+- 보고서 생성
+
+==================================================
+4. LLM 서버 (llm)
+==================================================
+
+- 호스트명: llm
+- 운영체제: Ubuntu 22.04.5
+- IP: 192.168.35.145
+
+역할:
+- DB 서버의 로그 조회 및 export
+- 로그 정제
+- 노이즈 필터링
+- 분석 후보 추출
+- LLM 1차 분류
+- LLM 2차 보고서 생성
+- 통합 파이프라인 실행
+
+LLM 서버의 작업 디렉터리:
+- /opt/web_log_analysis
+- /opt/web_log_analysis/.venv
+- /opt/web_log_analysis/config/llm.env
+
+LLM 서버에 두는 분석 스크립트:
+- /opt/web_log_analysis/src/export_db_logs_cli.py
+- /opt/web_log_analysis/src/prepare_llm_input.py
+- /opt/web_log_analysis/src/llm_stage1_classifier.py
+- /opt/web_log_analysis/src/llm_stage2_reporter.py
+- /opt/web_log_analysis/src/run_analysis_pipeline.py
+
+LLM 서버의 데이터 경로:
+- raw 입력: /opt/web_log_analysis/data/raw
+- 전처리 결과: /opt/web_log_analysis/data/processed
+- 보고서 결과: /opt/web_log_analysis/reports
+- 실행 로그: /opt/web_log_analysis/logs
+
+LLM 서버가 접속하는 DB 대상:
+- DB 서버: 192.168.35.223
+- DB 이름: web_logs
+- 사용 계정: log_reader@192.168.35.%
+
+LLM 모델 사용 정책:
+- routine 분석: gpt-5.4-mini
+- milestone 점검: gpt-5.4
+- presentation / 발표용 최종 분석: gpt-5.4
+
+LLM 서버가 하지 않는 것:
+- Apache 로그 생성
+- shipper 적재
+- Reverse Proxy 처리
+
+==================================================
+5. 전체 데이터 흐름
+==================================================
+
+1) 사용자가 웹서버(juice)로 요청 전송
+2) Apache 가 요청을 받아 Juice Shop 으로 프록시
+3) Apache 가 access / security / error 로그 생성
+4) 웹서버의 apache_log_shipper.py 가 로그를 DB 서버(maria)의 web_logs 에 적재
+5) LLM 서버가 DB 서버의 로그를 log_reader 계정으로 조회하고 export 수행
+6) LLM 서버가 export JSON 을 정제하고 분석 후보 생성
+7) LLM 서버가 LLM 으로 1차 분류 수행
+8) LLM 서버가 최종 Markdown 보고서 생성
+
+짧은 기억용 표현:
+요청 발생 → 로그 생성 → DB 적재 → LLM 서버 export → 정제 → stage1 → stage2
+
+* (윈도우(가상 머신이 아닌 그냥 내 노트북))
+- 운영체제: Windows 11 Pro (버전 25H2, OS 빌드 26200.8037)
+- IP: 192.168.35.27
+- 역할: server 로는 확인하기 불편한 파일확인 등...
+
+==================================================
+6. 로그 3종의 역할
+==================================================
+
+- access
+  - 운영 확인용
+  - 기준선 비교용
+  - 서비스 상태와 기본 요청 흐름 확인용
+
+- security
+  - 탐지 / 분류용 핵심 입력
+  - routine 분석 기본 입력
+  - LLM 1차 분류 기본 대상
+
+- error
+  - 5xx / 예외 조사 보조 입력
+  - request_id / error_link_id 연계 확인용
+
+기본 분석 기준:
+- 기본 입력: apache_security_logs / security export
+- 보조 입력: apache_error_logs
+- 운영 확인용: apache_access_logs
+
+==================================================
+7. 시간 기준
+==================================================
+
+- DB 저장 시각: UTC
+- 사용자가 입력하는 조회 범위: KST
+- export JSON 출력 시간: KST
+
+한 줄 요약:
+저장은 UTC, 사람이 보는 조회와 출력은 KST
+
+==================================================
+8. 분석 운영 메모
+==================================================
+
+- known asset 후보 IP
+  - 192.168.35.113 (juice 웹서버)
+  - 192.168.35.223 (maria DB 서버)
+  - 192.168.35.145 (llm 분석 서버)
+  - 192.168.35.27  (윈도우 노트북 pc)
+
+해석 주의:
+- known asset IP 에서 발생한 요청은 내부 테스트, 자체 호출, 운영 점검 트래픽일 수 있으므로 즉시 외부 공격자로 단정하지 않는다.
+- 특히 웹서버 자신에서 curl 테스트를 수행하면 source IP 가 192.168.35.113 으로 보일 수 있다.
+
+==================================================
+9. 문서 정렬 기준
+==================================================
+
+앞으로 문서를 읽을 때 아래 문장으로 해석을 통일한다.
+
+- 웹서버는 Apache 로그를 생성하고 shipper 로 DB 에 적재한다.
+- DB 서버는 로그를 저장하는 중앙 저장소이며 적재와 조회만 책임진다.
+- LLM 서버는 DB 에 적재된 로그를 export, 정제, 분류, 보고서 생성하는 분석 전용 계층이다.
+- 보안 분석 파이프라인의 기본 입력은 security 로그이며, error 는 보조 근거, access 는 운영 확인용 보조 입력이다.
+

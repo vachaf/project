@@ -1,0 +1,171 @@
+명령_모음
+
+문서 상태: 수정본
+버전: v1.1
+작성일: 2026-04-02
+목적: 수동 점검 시 실제 실행 순서를 서버별로 헷갈리지 않게 정리한다.
+
+==================================================
+0. 공통 원칙
+==================================================
+
+- 웹서버는 로그를 생성하고 DB 로 적재한다.
+- LLM 서버는 DB 에서 export 하고 분석을 수행한다.
+- routine 분석의 기본 입력은 security export 다.
+- 파일명 접두어는 가능하면 security_... 로 통일한다.
+
+==================================================
+1. 보고서 윈도우로 가져오기 (윈도우 PowerShell)
+==================================================
+
+scp -r user@192.168.35.145:/opt/web_log_analysis/reports "$env:USERPROFILE\Downloads\"
+
+==================================================
+2. 공격 또는 테스트 후 수동 절차
+==================================================
+
+[1] 웹서버(juice)에서 로그를 DB 로 적재
+
+sudo python3 /opt/apache_log_shipper.py
+
+확인 포인트:
+- /var/log/apache2/apache_log_shipper.log 에 반복 오류가 없는지 확인
+- DB row 가 증가하는지 확인
+- spool 파일이 계속 쌓이지 않는지 확인
+
+--------------------------------------------------
+
+[2] LLM 서버(llm)에서 security export 실행
+
+cd /opt/web_log_analysis
+source .venv/bin/activate
+set -a
+source ./config/llm.env
+set +a
+
+python ./src/export_db_logs_cli.py \
+  --host "$LOG_DB_HOST" \
+  --port "$LOG_DB_PORT" \
+  --user "$LOG_DB_USER" \
+  --password "$LOG_DB_PASSWORD" \
+  --date 2026-04-02 \
+  --table security \
+  --pretty \
+  --out ./data/raw/security_2026-04-02_kst.json
+
+메모:
+- 표준 실행 위치는 DB 서버가 아니라 LLM 서버로 본다.
+- DB 서버의 /opt/log_export/export_db_logs_cli.py 는 점검용 / 예비용 사본으로 해석한다.
+
+--------------------------------------------------
+
+[3] LLM 서버(llm)에서 전처리 실행
+
+python ./src/prepare_llm_input.py \
+  --input ./data/raw/security_2026-04-02_kst.json \
+  --out-dir ./data/processed \
+  --pretty \
+  --write-filtered-out
+
+생성 기대 파일 예시:
+- ./data/processed/security_2026-04-02_kst_llm_input.json
+- ./data/processed/security_2026-04-02_kst_analysis_candidates.json
+- ./data/processed/security_2026-04-02_kst_noise_summary.json
+- ./data/processed/security_2026-04-02_kst_filtered_out_rows.json
+
+--------------------------------------------------
+
+[4] LLM 서버(llm)에서 1차 분류 실행
+
+python ./src/llm_stage1_classifier.py \
+  --input ./data/processed/security_2026-04-02_kst_llm_input.json \
+  --out-dir ./data/processed \
+  --mode routine \
+  --pretty
+
+--------------------------------------------------
+
+[5] LLM 서버(llm)에서 2차 보고서 생성
+
+python ./src/llm_stage2_reporter.py \
+  --stage1-results ./data/processed/security_2026-04-02_kst_stage1_results.json \
+  --out-dir ./reports \
+  --mode routine \
+  --known-asset-ips 192.168.35.113,192.168.35.145,192.168.35.223,192.168.35.27 \
+  --pretty
+
+--------------------------------------------------
+
+[6] 필요 시 통합 파이프라인 사용
+
+python ./src/run_analysis_pipeline.py \
+  --export-input ./data/raw/security_2026-04-02_kst.json \
+  --work-dir /opt/web_log_analysis \
+  --mode routine \
+  --pretty
+
+==================================================
+3. Dry-run 권장 절차
+==================================================
+
+[1] 전처리 먼저 확인
+python ./src/prepare_llm_input.py \
+  --input ./data/raw/security_2026-04-02_kst.json \
+  --out-dir ./data/processed \
+  --pretty \
+  --write-filtered-out
+
+[2] stage1 dry-run
+python ./src/llm_stage1_classifier.py \
+  --input ./data/processed/security_2026-04-02_kst_llm_input.json \
+  --out-dir ./data/processed \
+  --mode routine \
+  --dry-run \
+  --pretty
+
+[3] stage2 dry-run
+python ./src/llm_stage2_reporter.py \
+  --stage1-results ./data/processed/security_2026-04-02_kst_stage1_results.json \
+  --out-dir ./reports \
+  --mode routine \
+  --dry-run \
+  --pretty
+
+[4] 전체 파이프라인 dry-run
+python ./src/run_analysis_pipeline.py \
+  --export-input ./data/raw/security_2026-04-02_kst.json \
+  --work-dir /opt/web_log_analysis \
+  --mode routine \
+  --dry-run \
+  --pretty
+
+==================================================
+4. 자주 헷갈리는 부분 정리
+==================================================
+
+- 잘못된 이해: DB 서버에서 export 하고, LLM 서버는 prepare 부터 시작한다.
+- 수정 기준: LLM 서버가 DB 에 접속해 export 부터 수행한다.
+
+- 잘못된 파일명 연결:
+  - export 결과: security_2026-04-02_kst.json
+  - prepare 입력: logs_2026-04-02_kst.json
+
+- 수정된 파일명 연결:
+  - export 결과: security_2026-04-02_kst.json
+  - prepare 입력: security_2026-04-02_kst.json
+  - stage1 입력: security_2026-04-02_kst_llm_input.json
+  - stage2 입력: security_2026-04-02_kst_stage1_results.json
+
+==================================================
+5. 짧은 기억용 순서
+==================================================
+
+요청 발생
+→ Apache 로그 생성
+→ shipper DB 적재
+→ LLM 서버 export
+→ prepare
+→ stage1
+→ stage2
+→ 보고서 확인
+
