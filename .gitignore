@@ -8,5 +8,11 @@ reports/
 pipeline_manifest.json
 
 *.log
+*.tmp
+
 .env
+llm.env
 config/*.env
+
+.DS_Store
+Thumbs.db
