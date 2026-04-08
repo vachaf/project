@@ -1,9 +1,9 @@
 # 02_MariaDB_환경_구축_및_설치
 
-- 문서 상태: 통합본
-- 버전: v1.0
-- 작성일: 2026-04-02
-- 적용 대상: Ubuntu 22.04 Server 기반 MariaDB 로그 저장 서버 구축 문서
+- 문서 상태: 통합본(개정)
+- 버전: v1.1
+- 작성일: 2026-04-08
+- 적용 대상: Ubuntu 22.04 Server 기반 MariaDB 로그 저장 서버 구축 및 운영 중 스키마 확장 기준 문서
 - 연계 문서:
   - `01_프로젝트_방향과_실험대상.md`
   - `02_Juice_shop_환경_구축_및_설치.md`
@@ -16,7 +16,7 @@
 
 ## 1. 문서 목적
 
-이 문서는 **Ubuntu 22.04 Server 환경에서 MariaDB를 설치하고, Apache 로그를 중앙 저장할 `web_logs` 데이터베이스를 구축하는 절차**를 정리한 설치 문서다.
+이 문서는 **Ubuntu 22.04 Server 환경에서 MariaDB를 설치하고, Apache 로그를 중앙 저장할 `web_logs` 데이터베이스를 구축·확장하는 절차**를 정리한 설치 문서다.
 
 이번 프로젝트에서 MariaDB 서버의 역할은 단순한 DB 설치가 아니라, **웹서버가 생성한 access / security / error 로그를 안정적으로 적재하고, 이후 export·LLM 분석까지 이어질 수 있는 중앙 저장 계층을 만드는 것**이다.
 
@@ -29,6 +29,7 @@
 - 3개 로그 테이블 생성
 - 적재용 / 조회용 계정 생성
 - 원격 접속 검증
+- 운영 중 스키마 확장 절차
 - 기본 운영 체크포인트 정리
 
 반면 아래 항목은 이 문서의 직접 범위에서 제외한다.
@@ -37,8 +38,9 @@
 - Python shipper 서비스 등록 상세
 - JSON export 및 LLM 분석 상세
 - 공격 탐지 규칙 상세
+- LLM 프롬프트 상세
 
-즉, 이 문서는 **로그 저장 계층을 실제로 구축하는 설치 절차서**다.
+즉, 이 문서는 **로그 저장 계층을 실제로 구축하고, 이후 스키마 확장까지 안전하게 적용하는 절차서**다.
 
 ---
 
@@ -79,6 +81,7 @@
 2. 파일 로그 원본과 DB 저장을 분리하면 **원본 보존과 후처리를 동시에 가져갈 수 있다**.
 3. 3개 로그 테이블로 나누면 운영 확인용 / 분석용 / 장애 확인용 데이터를 **역할별로 분리**할 수 있다.
 4. 이후 export, 통계, LLM 분석, 보고서 생성으로 확장하기 쉽다.
+5. 운영 중 보수적 해석 강화를 위한 추가 메타데이터 컬럼을 안전하게 확장할 수 있다.
 
 ---
 
@@ -106,6 +109,7 @@
   - DB 서버: `192.168.35.223`
 - 원격 `root` 접속은 사용하지 않는다.
 - DB 쓰기 계정과 조회 계정을 분리한다.
+- 구조 변경 시 **nullable 컬럼 추가 → shipper 갱신 → export/분석 반영** 순서를 지킨다.
 
 ---
 
@@ -124,6 +128,7 @@
 9. 웹서버 shipper 연동 점검
 10. export 도구 조회 점검
 11. 운영 체크포인트 확인
+12. 필요 시 운영 중 스키마 확장 적용
 
 ---
 
@@ -501,7 +506,86 @@ python3 /opt/log_export/export_db_logs_cli.py \
 
 ---
 
-## 6. 설치 후 핵심 체크포인트
+## 6. 운영 중 스키마 확장 기준
+
+이 프로젝트는 원본 보존 계층과 분석 계층을 분리하는 구조이므로, 운영 중 신규 컬럼을 추가할 때도 **기존 적재 안정성을 깨지 않도록 nullable 컬럼 추가를 우선**한다.
+
+### 6.1 적용 순서
+
+권장 순서는 아래와 같다.
+
+1. `ALTER TABLE`로 nullable 컬럼 추가
+2. `DESCRIBE`, `SHOW INDEX`로 반영 확인
+3. shipper가 새 컬럼을 채우도록 수정
+4. 최근 샘플 적재로 값 채움 여부 검증
+5. export / prepare / stage1 / stage2 반영 확인
+
+즉, **스키마를 먼저 넓히고, 적재기를 나중에 따라오게 한다.**
+
+### 6.2 HTML fallback fingerprint 확장 컬럼
+
+4단계 path traversal 보수 해석 강화를 위해 `apache_security_logs`에는 아래 확장 컬럼을 둘 수 있다.
+
+```sql
+ALTER TABLE apache_security_logs
+  ADD COLUMN resp_html_norm_fingerprint CHAR(64) NULL COMMENT '정규화 HTML fingerprint (SHA-256 hex)',
+  ADD COLUMN resp_html_fingerprint_version VARCHAR(16) NULL COMMENT 'fingerprint 알고리즘 버전',
+  ADD COLUMN resp_html_baseline_name VARCHAR(64) NULL COMMENT '비교한 baseline 이름',
+  ADD COLUMN resp_html_baseline_match TINYINT(1) NULL COMMENT 'baseline HTML과 fingerprint 일치 여부',
+  ADD COLUMN resp_html_baseline_confidence VARCHAR(16) NULL COMMENT 'none/low/medium/high',
+  ADD COLUMN resp_html_features_json TEXT NULL COMMENT 'HTML 구조 특징 요약(JSON 문자열)';
+```
+
+권장 인덱스는 아래와 같다.
+
+```sql
+ALTER TABLE apache_security_logs
+  ADD KEY idx_security_resp_html_baseline_match (resp_html_baseline_match),
+  ADD KEY idx_security_resp_html_baseline_name (resp_html_baseline_name);
+```
+
+이 확장은 다음 목적을 가진다.
+
+- traversal 200 + `text/html` 응답이 실제 파일이 아니라 **기본 HTML fallback**인지 더 강하게 해석
+- 응답 본문 전체 대신 **정규화된 구조 fingerprint**만 저장
+- 이후 `prepare_llm_input.py`와 LLM 보고서에서 더 보수적인 판단 근거로 사용
+
+중요 원칙:
+
+- 응답 본문 전체는 상시 저장하지 않는다.
+- fingerprint match는 **fallback 가능성 강화** 근거일 뿐, 침해 성공 증거가 아니다.
+- fingerprint mismatch만으로 실제 파일 노출 성공을 단정하지 않는다.
+
+### 6.3 스키마 확장 검증 명령
+
+```bash
+mysqldump -u root -p web_logs apache_security_logs > apache_security_logs_before_schema_change.sql
+```
+
+```sql
+USE web_logs;
+DESCRIBE apache_security_logs;
+SHOW INDEX FROM apache_security_logs;
+```
+
+```sql
+SELECT
+  id, log_time, request_id, uri, resp_content_type,
+  resp_html_norm_fingerprint,
+  resp_html_fingerprint_version,
+  resp_html_baseline_name,
+  resp_html_baseline_match,
+  resp_html_baseline_confidence
+FROM apache_security_logs
+ORDER BY id DESC
+LIMIT 10;
+```
+
+처음 컬럼을 추가한 직후에는 새 값이 모두 `NULL`이어도 정상이다. 값이 채워지는 것은 shipper 갱신 후부터다.
+
+---
+
+## 7. 설치 후 핵심 체크포인트
 
 설치가 끝난 뒤 아래 항목을 점검한다.
 
@@ -514,12 +598,13 @@ python3 /opt/log_export/export_db_logs_cli.py \
 - 웹서버에서 `log_writer`로 접속 가능한가
 - export 도구에서 `log_reader`로 조회 가능한가
 - root 원격 접속을 사용하고 있지 않은가
+- 운영 중 확장 컬럼이 필요할 때 nullable 추가 기준을 지키고 있는가
 
 ---
 
-## 7. 자주 틀리는 부분
+## 8. 자주 틀리는 부분
 
-### 7.1 `bind-address` 를 `127.0.0.1` 로 둔 경우
+### 8.1 `bind-address` 를 `127.0.0.1` 로 둔 경우
 
 이 경우 DB 서버 내부에서는 접속되지만, 웹서버와 LLM 서버에서는 원격 접속이 되지 않는다.
 
@@ -529,7 +614,7 @@ python3 /opt/log_export/export_db_logs_cli.py \
 bind-address = 192.168.35.223
 ```
 
-### 7.2 계정 host 범위를 잘못 주는 경우
+### 8.2 계정 host 범위를 잘못 주는 경우
 
 예를 들어 `log_writer@localhost` 로만 만들면 웹서버 원격 접속이 실패한다.
 
@@ -538,12 +623,12 @@ bind-address = 192.168.35.223
 - `log_writer@192.168.35.113`
 - `log_reader@192.168.35.%`
 
-### 7.3 root 원격 접속으로 진행하는 경우
+### 8.3 root 원격 접속으로 진행하는 경우
 
 실습 초기에는 편해 보여도, 운영 분리 원칙과 맞지 않는다.
 반드시 적재용 계정과 조회용 계정을 분리한다.
 
-### 7.4 테이블 구조와 shipper 컬럼이 안 맞는 경우
+### 8.4 테이블 구조와 shipper 컬럼이 안 맞는 경우
 
 `apache_log_shipper.py` 의 INSERT 대상 컬럼과 실제 테이블 컬럼이 어긋나면 적재가 실패한다.
 
@@ -553,14 +638,25 @@ bind-address = 192.168.35.223
 - security: `attack_label`, `risk_score`, `matched_rule`, `is_suspicious`, `raw_log`
 - error: `message`, `raw_log`
 
-### 7.5 `error` 로그가 비어 있다고 문제라고 보는 경우
+확장 컬럼을 추가하는 경우에는 다음 원칙을 지킨다.
+
+- 먼저 nullable 컬럼으로 추가
+- 그다음 shipper 수정
+- 마지막으로 export / 분석 파이프라인 반영
+
+### 8.5 `error` 로그가 비어 있다고 문제라고 보는 경우
 
 정상 운영 중에는 `apache_error_logs` 가 비어 있을 수 있다.
 이는 장애가 없다는 뜻일 수 있으므로, 자동으로 비정상이라고 판단할 필요는 없다.
 
+### 8.6 fingerprint mismatch 를 성공 증거로 오해하는 경우
+
+HTML fingerprint 확장은 path traversal의 **fallback HTML 가능성 강화용**이다.
+`resp_html_baseline_match = 0` 이라고 해서 곧바로 실제 파일 노출 성공으로 해석하면 안 된다.
+
 ---
 
-## 8. 겸사겸사 같이 해야 할 일
+## 9. 겸사겸사 같이 해야 할 일
 
 MariaDB 서버를 구축할 때 아래 항목도 같이 정리해 두는 편이 좋다.
 
@@ -586,11 +682,14 @@ MariaDB 서버를 구축할 때 아래 항목도 같이 정리해 두는 편이 
    - 웹 요청 발생 → DB 적재 확인 → export → 전처리 → stage1 → stage2
 
 8. **민감정보 최소 저장 원칙 확인**
-   - Authorization, Cookie 전체값, 요청/응답 본문 원문은 기본 상시 저장 대상에서 제외
+   - Authorization, Cookie 전체값, 요청 본문 원문, 응답 본문 전체는 기본 상시 저장 대상에서 제외
+
+9. **구조 fingerprint baseline 확보**
+   - 정상 `/` 또는 대표 fallback HTML의 구조 특징을 baseline 으로 확보
 
 ---
 
-## 9. 이 문서 다음 단계
+## 10. 이 문서 다음 단계
 
 MariaDB 구축이 끝났다면 다음 순서로 진행한다.
 
@@ -599,21 +698,23 @@ MariaDB 구축이 끝났다면 다음 순서로 진행한다.
 3. 실제 요청을 발생시켜 DB 적재 확인
 4. `export_db_logs_cli.py` 로 KST 기준 export 수행
 5. LLM 서버에서 전처리와 단계별 분석 파이프라인 실행
+6. 필요 시 `apache_security_logs` 확장 컬럼과 shipper 동작을 함께 갱신
 
-즉, 이 문서는 **저장 계층을 준비하는 단계**까지를 다루고, 실제 적재·분석 단계는 다음 문서로 넘긴다.
+즉, 이 문서는 **저장 계층을 준비하고 운영 중 스키마 확장까지 안전하게 적용하는 단계**까지를 다룬다.
 
 ---
 
-## 10. 요약
+## 11. 요약
 
 이번 DB 서버는 **Ubuntu 22.04 Server + MariaDB 10.6.x** 조합을 기준으로 구축한다.
 
 핵심은 `web_logs` 데이터베이스를 만들고, `apache_access_logs`, `apache_security_logs`, `apache_error_logs` 3개 테이블을 생성한 뒤, 웹서버의 shipper가 `log_writer` 계정으로 적재하고, export 및 LLM 분석 서버가 `log_reader` 계정으로 조회하는 구조를 만드는 것이다.
 
-설치 단계에서 가장 중요한 것은 다음 다섯 가지다.
+설치 단계에서 가장 중요한 것은 다음 여섯 가지다.
 
 1. `bind-address` 를 DB 서버 IP에 맞출 것
 2. 3개 로그 테이블을 표준 컬럼으로 생성할 것
 3. `log_writer` / `log_reader` 계정을 분리할 것
 4. 웹서버에서 적재 접속, LLM 서버에서 조회 접속을 각각 검증할 것
 5. root 원격 접속 대신 역할 분리 계정 구조를 유지할 것
+6. 운영 중 확장 컬럼은 nullable 추가 → shipper 갱신 → downstream 반영 순서로 적용할 것
