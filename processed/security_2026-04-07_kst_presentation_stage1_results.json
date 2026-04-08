@@ -1,0 +1,204 @@
+{
+  "meta": {
+    "generated_at": "2026-04-07T16:26:39.220+09:00",
+    "input_file": "/opt/web_log_analysis/processed/security_2026-04-07_kst_presentation_llm_input.json",
+    "mode": "presentation",
+    "selected_model": "gpt-5.4",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.openai.com/v1",
+    "source_window": {
+      "start": "2026-04-07T00:00:00.000+09:00",
+      "end_exclusive": "2026-04-08T00:00:00.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-04-07T16:05:28.024+09:00",
+    "source_prepared_at": "2026-04-07T16:26:24.758+09:00",
+    "source_counts": {
+      "total_exported_rows": 26,
+      "selected_source_rows": 26,
+      "filtered_out_rows": 23,
+      "filtered_out_non_aggregated_rows": 23,
+      "noise_group_count": 0,
+      "candidate_rows_before_dedup": 3,
+      "candidate_rows": 3,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 3
+    },
+    "candidate_group_summary_count": 3,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id"
+    ],
+    "processed_candidate_count": 3,
+    "success_count": 3,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:adSsQHDfjjAIUApAjL6IcAAAAA4",
+      "request_id": "adSsQHDfjjAIUApAjL6IcAAAAA4",
+      "error_link_id": "",
+      "model": "gpt-5.4",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        1243
+      ],
+      "log_id": 1243,
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q='union select 1,2,3,4,5,6,7,8,9--'",
+      "log_time": "2026-04-07T16:03:28.097 09:00",
+      "status_code": 500,
+      "score": 19,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "ua:curl(+1)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 파라미터 q에 따옴표 종료, UNION SELECT, SQL 주석(-- ) 형태가 함께 포함되어 있어 SQL 인젝션 페이로드로 해석하는 것이 가장 타당합니다. 요청 결과가 500 오류인 점도 백엔드 쿼리 처리 과정에서 예외를 유발했을 가능성을 시사하지만, 제공된 로그만으로 실제 성공 여부까지는 확정할 수 없습니다.",
+      "evidence_fields": [
+        "query_string에 UNION SELECT 및 SQL 주석 포함",
+        "q 파라미터의 따옴표 종료 형태",
+        "uri가 검색형 API 엔드포인트",
+        "status_code 500 서버 오류 반환",
+        "user_agent가 curl로 수동 테스트 정황",
+        "raw_request에 단일 요청 기반 주입 시도 표현"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "response_id": "resp_002456e3a75ef2810169d4b1a160788197a159137a75f97b39",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 파라미터 q에 따옴표 종료, UNION SELECT, SQL 주석(-- ) 형태가 함께 포함되어 있어 SQL 인젝션 페이로드로 해석하는 것이 가장 타당합니다. 요청 결과가 500 오류인 점도 백엔드 쿼리 처리 과정에서 예외를 유발했을 가능성을 시사하지만, 제공된 로그만으로 실제 성공 여부까지는 확정할 수 없습니다.\",\"evidence_fields\":[\"query_string에 UNION SELECT 및 SQL 주석 포함\",\"q 파라미터의 따옴표 종료 형태\",\"uri가 검색형 API 엔드포인트\",\"status_code 500 서버 오류 반환\",\"user_agent가 curl로 수동 테스트 정황\",\"raw_request에 단일 요청 기반 주입 시도 표현\"],\"recommended_actions\":[\"review_raw_log\",\"review_error_log\",\"correlate_request_id\",\"correlate_src_ip\"]}"
+    },
+    {
+      "candidate_index": 1,
+      "incident_group_key": "rid:adSsSHDfjjAIUApAjL6IcQAAABM",
+      "request_id": "adSsSHDfjjAIUApAjL6IcQAAABM",
+      "error_link_id": "",
+      "model": "gpt-5.4",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        1244
+      ],
+      "log_id": 1244,
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=<script>alert(1)</script>",
+      "log_time": "2026-04-07T16:03:36.489 09:00",
+      "status_code": 200,
+      "score": 12,
+      "verdict_hint": "xss",
+      "reason_hints": [
+        "xss:script_tag(+5)",
+        "xss:alert_call(+3)",
+        "ua:curl(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "verdict": "suspicious_xss",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "query_string에 <script>alert(1)</script> 형태의 전형적인 XSS 페이로드가 직접 포함되어 있어 XSS 시도로 보는 것이 가장 타당하다. 다만 단일 요청 1건이며 응답이 200이라는 점만으로 실제 반사·저장 여부까지는 확인되지 않아 추가 확인이 필요하다.",
+      "evidence_fields": [
+        "query_string에 스크립트 태그와 alert 호출 포함",
+        "uri가 검색 엔드포인트(/rest/products/search)",
+        "raw_request에서 GET 파라미터로 페이로드 전달",
+        "user_agent가 curl/7.81.0",
+        "status_code 200 응답",
+        "단일 로그 1건"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_01a6c4870cddb8b70169d4b1a698c88193b731d9c5592b00c2",
+      "raw_output_text": "{\"verdict\":\"suspicious_xss\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"query_string에 <script>alert(1)</script> 형태의 전형적인 XSS 페이로드가 직접 포함되어 있어 XSS 시도로 보는 것이 가장 타당하다. 다만 단일 요청 1건이며 응답이 200이라는 점만으로 실제 반사·저장 여부까지는 확인되지 않아 추가 확인이 필요하다.\",\"evidence_fields\":[\"query_string에 스크립트 태그와 alert 호출 포함\",\"uri가 검색 엔드포인트(/rest/products/search)\",\"raw_request에서 GET 파라미터로 페이로드 전달\",\"user_agent가 curl/7.81.0\",\"status_code 200 응답\",\"단일 로그 1건\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 2,
+      "incident_group_key": "rid:adSsUHDfjjAIUApAjL6IcgAAABg",
+      "request_id": "adSsUHDfjjAIUApAjL6IcgAAABg",
+      "error_link_id": "",
+      "model": "gpt-5.4",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        1245
+      ],
+      "log_id": 1245,
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/etc/passwd",
+      "query_string": "",
+      "log_time": "2026-04-07T16:03:44.612 09:00",
+      "status_code": 200,
+      "score": 10,
+      "verdict_hint": "path_traversal",
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "ua:curl(+1)"
+      ],
+      "verdict": "suspicious_path_traversal",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "요청 원문에 \"../../etc/passwd\" 형태의 상위 경로 이동과 민감 파일명이 직접 나타나며, 정규화된 uri도 \"/etc/passwd\"로 기록되어 경로 탐색/파일 노출 시도로 보는 것이 타당합니다. 응답이 200이고 전송 바이트가 커 실제 콘텐츠 반환 가능성도 있어 우선 높은 주의가 필요합니다.",
+      "evidence_fields": [
+        "raw_request에 ../../etc/passwd 포함",
+        "uri가 /etc/passwd 로 정규화됨",
+        "status_code 200 응답",
+        "response_body_bytes 약 75KB",
+        "user_agent가 curl",
+        "verdict_hint가 path_traversal"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "investigate_immediately"
+      ],
+      "response_id": "resp_02a82f5d9a8209b30169d4b1ab44f08193bbad3d5ef67d69e5",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"요청 원문에 \\\"../../etc/passwd\\\" 형태의 상위 경로 이동과 민감 파일명이 직접 나타나며, 정규화된 uri도 \\\"/etc/passwd\\\"로 기록되어 경로 탐색/파일 노출 시도로 보는 것이 타당합니다. 응답이 200이고 전송 바이트가 커 실제 콘텐츠 반환 가능성도 있어 우선 높은 주의가 필요합니다.\",\"evidence_fields\":[\"raw_request에 ../../etc/passwd 포함\",\"uri가 /etc/passwd 로 정규화됨\",\"status_code 200 응답\",\"response_body_bytes 약 75KB\",\"user_agent가 curl\",\"verdict_hint가 path_traversal\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"investigate_immediately\"]}"
+    }
+  ]
+}

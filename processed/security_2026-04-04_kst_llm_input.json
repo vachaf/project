@@ -1,0 +1,726 @@
+{
+  "meta": {
+    "query_timezone": "Asia/Seoul",
+    "analysis_window": {
+      "start": "2026-04-04T00:00:00.000+09:00",
+      "end_exclusive": "2026-04-05T00:00:00.000+09:00"
+    },
+    "source_database": "web_logs",
+    "source_table_option": "security",
+    "selected_source_tables": [
+      "security"
+    ],
+    "analysis_primary_table": "security",
+    "exported_at": "2026-04-04T20:04:58.971+09:00",
+    "prepared_at": "2026-04-04T20:06:31.269+09:00",
+    "model_usage_policy": {
+      "routine": "gpt-5.4-mini",
+      "milestone_or_presentation": "gpt-5.4"
+    },
+    "pipeline_policy": {
+      "db_raw_preserved": true,
+      "send_raw_full_export_to_llm": false,
+      "noise_is_aggregated_before_llm": true,
+      "candidate_selection_is_rule_based_first": true
+    },
+    "thresholds": {
+      "candidate_min_score": 4,
+      "noise_min_repeat_aggregate": 3
+    },
+    "counts": {
+      "total_exported_rows": 249,
+      "selected_source_rows": 249,
+      "filtered_out_rows": 236,
+      "filtered_out_non_aggregated_rows": 73,
+      "noise_group_count": 6,
+      "candidate_rows_before_dedup": 13,
+      "candidate_rows": 13,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 13
+    },
+    "filtered_out_breakdown": {
+      "benign_filtered": 91,
+      "socketio_polling": 145
+    }
+  },
+  "noise_summary": [
+    {
+      "category": "socketio_polling",
+      "src_ip": "192.168.35.27",
+      "uri": "/socket.io/",
+      "method": "POST",
+      "status_code": 200,
+      "count": 77,
+      "start": null,
+      "end": null,
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "note": "정상 웹 UI 세션 유지로 보이는 반복 polling 요청"
+    },
+    {
+      "category": "socketio_polling",
+      "src_ip": "192.168.35.27",
+      "uri": "/socket.io/",
+      "method": "GET",
+      "status_code": 200,
+      "count": 68,
+      "start": null,
+      "end": null,
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "note": "정상 웹 UI 세션 유지로 보이는 반복 polling 요청"
+    },
+    {
+      "category": "benign_filtered",
+      "src_ip": "192.168.35.27",
+      "uri": "/rest/admin/application-configuration",
+      "method": "GET",
+      "status_code": 304,
+      "count": 8,
+      "start": null,
+      "end": null,
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "note": "분석 가치가 낮은 정상 요청 반복"
+    },
+    {
+      "category": "benign_filtered",
+      "src_ip": "192.168.35.27",
+      "uri": "/socket.io/",
+      "method": "GET",
+      "status_code": 400,
+      "count": 4,
+      "start": null,
+      "end": null,
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "note": "분석 가치가 낮은 정상 요청 반복"
+    },
+    {
+      "category": "benign_filtered",
+      "src_ip": "192.168.35.27",
+      "uri": "/api/Challenges/",
+      "method": "GET",
+      "status_code": 200,
+      "count": 3,
+      "start": null,
+      "end": null,
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "note": "분석 가치가 낮은 정상 요청 반복"
+    },
+    {
+      "category": "benign_filtered",
+      "src_ip": "192.168.35.27",
+      "uri": "/rest/admin/application-version",
+      "method": "GET",
+      "status_code": 304,
+      "count": 3,
+      "start": null,
+      "end": null,
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "note": "분석 가치가 낮은 정상 요청 반복"
+    }
+  ],
+  "candidate_group_summary": [
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbTAAAABc",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/assets/public/favicon_js.ico",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbTAAAABc",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.176 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbSwAAABg",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/styles.css",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbSwAAABg",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.139 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbSgAAABM",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/scripts.js",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbSgAAABM",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.137 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbSQAAABE",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/main.js",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbSQAAABE",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.130 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbSAAAAAo",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/polyfills.js",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbSAAAAAo",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.126 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbRgAAABU",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/chunk-BBQJZN7H.js",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbRgAAABU",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.022 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbRQAAABQ",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/chunk-TJME2352.js",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbRQAAABQ",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.022 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbRwAAAAs",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/chunk-TWZW5B45.js",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbRwAAAAs",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.022 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbRAAAABA",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/chunk-I2PSG472.js",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbRAAAABA",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.020 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbQwAAABI",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/chunk-24EZLZ4I.js",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbQwAAABI",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.020 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbQgAAAAw",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/passwd",
+      "status_code": 200,
+      "verdict_hint": "suspicious",
+      "request_id": "adDspm-dkGzj96Sh8kJbQgAAAAw",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:49:10.000 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDrtwZkUSDo2JPa7Kx0uwAAAIQ",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "HEAD",
+      "uri": "/etc/passwd",
+      "status_code": 200,
+      "verdict_hint": "path_traversal",
+      "request_id": "adDrtwZkUSDo2JPa7Kx0uwAAAIQ",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:45:11.279 09:00"
+    },
+    {
+      "incident_group_key": "rid:adDrfQZkUSDo2JPa7Kx0uQAAAJI",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/passwd",
+      "status_code": 200,
+      "verdict_hint": "path_traversal",
+      "request_id": "adDrfQZkUSDo2JPa7Kx0uQAAAJI",
+      "error_link_id": "-",
+      "log_time": "2026-04-04T19:44:13.690 09:00"
+    }
+  ],
+  "analysis_candidates": [
+    {
+      "source_table": "security",
+      "log_id": 1084,
+      "log_time": "2026-04-04T19:45:11.279 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "HEAD",
+      "uri": "/etc/passwd",
+      "query_string": "",
+      "status_code": 200,
+      "score": 10,
+      "verdict_hint": "path_traversal",
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "ua:curl(+1)"
+      ],
+      "request_id": "adDrtwZkUSDo2JPa7Kx0uwAAAIQ",
+      "error_link_id": "",
+      "raw_request": "HEAD /public/images/../../etc/passwd HTTP/1.1",
+      "user_agent": "curl/8.18.0",
+      "referer": "",
+      "duration_us": 16140,
+      "ttfb_us": 15958,
+      "raw_log": "log_time=2026-04-04T10:45:11.279 0000 request_id=adDrtwZkUSDo2JPa7Kx0uwAAAIQ error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=HEAD raw_request=\"HEAD /public/images/../../etc/passwd HTTP/1.1\" uri=\"/etc/passwd\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=0 in_bytes=109 out_bytes=454 total_bytes=563 duration_us=16140 ttfb_us=15958 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"curl/8.18.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDrtwZkUSDo2JPa7Kx0uwAAAIQ",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1084
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1079,
+      "log_time": "2026-04-04T19:44:13.690 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/passwd",
+      "query_string": "",
+      "status_code": 200,
+      "score": 10,
+      "verdict_hint": "path_traversal",
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "ua:curl(+1)"
+      ],
+      "request_id": "adDrfQZkUSDo2JPa7Kx0uQAAAJI",
+      "error_link_id": "",
+      "raw_request": "GET /public/images/../../etc/passwd HTTP/1.1",
+      "user_agent": "curl/8.18.0",
+      "referer": "",
+      "duration_us": 18003,
+      "ttfb_us": 16924,
+      "raw_log": "log_time=2026-04-04T10:44:13.690 0000 request_id=adDrfQZkUSDo2JPa7Kx0uQAAAJI error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /public/images/../../etc/passwd HTTP/1.1\" uri=\"/etc/passwd\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=75002 in_bytes=108 out_bytes=75456 total_bytes=75564 duration_us=18003 ttfb_us=16924 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"curl/8.18.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDrfQZkUSDo2JPa7Kx0uQAAAJI",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1079
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1123,
+      "log_time": "2026-04-04T19:49:10.176 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/assets/public/favicon_js.ico",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbTAAAABc",
+      "error_link_id": "",
+      "raw_request": "GET /etc/assets/public/favicon_js.ico HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "http://192.168.35.113/etc/passwd",
+      "duration_us": 20115,
+      "ttfb_us": 18264,
+      "raw_log": "log_time=2026-04-04T10:49:10.176 0000 request_id=adDspm-dkGzj96Sh8kJbTAAAABc error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/assets/public/favicon_js.ico HTTP/1.1\" uri=\"/etc/assets/public/favicon_js.ico\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=766 out_bytes=9571 total_bytes=10337 duration_us=20115 ttfb_us=18264 keepalive_count=3 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"http://192.168.35.113/etc/passwd\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbTAAAABc",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1123
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1121,
+      "log_time": "2026-04-04T19:49:10.139 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/styles.css",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbSwAAABg",
+      "error_link_id": "",
+      "raw_request": "GET /etc/styles.css HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "http://192.168.35.113/etc/passwd",
+      "duration_us": 29969,
+      "ttfb_us": 27607,
+      "raw_log": "log_time=2026-04-04T10:49:10.139 0000 request_id=adDspm-dkGzj96Sh8kJbSwAAABg error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/styles.css HTTP/1.1\" uri=\"/etc/styles.css\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=702 out_bytes=9571 total_bytes=10273 duration_us=29969 ttfb_us=27607 keepalive_count=1 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"http://192.168.35.113/etc/passwd\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbSwAAABg",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1121
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1122,
+      "log_time": "2026-04-04T19:49:10.137 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/scripts.js",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbSgAAABM",
+      "error_link_id": "",
+      "raw_request": "GET /etc/scripts.js HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "http://192.168.35.113/etc/passwd",
+      "duration_us": 33876,
+      "ttfb_us": 28002,
+      "raw_log": "log_time=2026-04-04T10:49:10.137 0000 request_id=adDspm-dkGzj96Sh8kJbSgAAABM error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/scripts.js HTTP/1.1\" uri=\"/etc/scripts.js\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=687 out_bytes=9571 total_bytes=10258 duration_us=33876 ttfb_us=28002 keepalive_count=2 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"http://192.168.35.113/etc/passwd\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbSgAAABM",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1122
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1120,
+      "log_time": "2026-04-04T19:49:10.130 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/main.js",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbSQAAABE",
+      "error_link_id": "",
+      "raw_request": "GET /etc/main.js HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "http://192.168.35.113/etc/passwd",
+      "duration_us": 37752,
+      "ttfb_us": 35108,
+      "raw_log": "log_time=2026-04-04T10:49:10.130 0000 request_id=adDspm-dkGzj96Sh8kJbSQAAABE error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/main.js HTTP/1.1\" uri=\"/etc/main.js\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=715 out_bytes=9571 total_bytes=10286 duration_us=37752 ttfb_us=35108 keepalive_count=1 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"http://192.168.35.113/etc/passwd\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbSQAAABE",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1120
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1119,
+      "log_time": "2026-04-04T19:49:10.126 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/polyfills.js",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbSAAAAAo",
+      "error_link_id": "",
+      "raw_request": "GET /etc/polyfills.js HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "http://192.168.35.113/etc/passwd",
+      "duration_us": 37317,
+      "ttfb_us": 31234,
+      "raw_log": "log_time=2026-04-04T10:49:10.126 0000 request_id=adDspm-dkGzj96Sh8kJbSAAAAAo error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/polyfills.js HTTP/1.1\" uri=\"/etc/polyfills.js\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=720 out_bytes=9571 total_bytes=10291 duration_us=37317 ttfb_us=31234 keepalive_count=1 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"http://192.168.35.113/etc/passwd\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbSAAAAAo",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1119
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1115,
+      "log_time": "2026-04-04T19:49:10.022 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/chunk-BBQJZN7H.js",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbRgAAABU",
+      "error_link_id": "",
+      "raw_request": "GET /etc/chunk-BBQJZN7H.js HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "http://192.168.35.113/etc/passwd",
+      "duration_us": 106241,
+      "ttfb_us": 100905,
+      "raw_log": "log_time=2026-04-04T10:49:10.022 0000 request_id=adDspm-dkGzj96Sh8kJbRgAAABU error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/chunk-BBQJZN7H.js HTTP/1.1\" uri=\"/etc/chunk-BBQJZN7H.js\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=724 out_bytes=9572 total_bytes=10296 duration_us=106241 ttfb_us=100905 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"http://192.168.35.113/etc/passwd\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbRgAAABU",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1115
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1117,
+      "log_time": "2026-04-04T19:49:10.022 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/chunk-TJME2352.js",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbRQAAABQ",
+      "error_link_id": "",
+      "raw_request": "GET /etc/chunk-TJME2352.js HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "http://192.168.35.113/etc/passwd",
+      "duration_us": 116870,
+      "ttfb_us": 108759,
+      "raw_log": "log_time=2026-04-04T10:49:10.022 0000 request_id=adDspm-dkGzj96Sh8kJbRQAAABQ error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/chunk-TJME2352.js HTTP/1.1\" uri=\"/etc/chunk-TJME2352.js\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=724 out_bytes=9572 total_bytes=10296 duration_us=116870 ttfb_us=108759 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"http://192.168.35.113/etc/passwd\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbRQAAABQ",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1117
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1118,
+      "log_time": "2026-04-04T19:49:10.022 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/chunk-TWZW5B45.js",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbRwAAAAs",
+      "error_link_id": "",
+      "raw_request": "GET /etc/chunk-TWZW5B45.js HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "http://192.168.35.113/etc/passwd",
+      "duration_us": 125075,
+      "ttfb_us": 114324,
+      "raw_log": "log_time=2026-04-04T10:49:10.022 0000 request_id=adDspm-dkGzj96Sh8kJbRwAAAAs error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/chunk-TWZW5B45.js HTTP/1.1\" uri=\"/etc/chunk-TWZW5B45.js\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=724 out_bytes=9572 total_bytes=10296 duration_us=125075 ttfb_us=114324 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"http://192.168.35.113/etc/passwd\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbRwAAAAs",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1118
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1114,
+      "log_time": "2026-04-04T19:49:10.020 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/chunk-I2PSG472.js",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbRAAAABA",
+      "error_link_id": "",
+      "raw_request": "GET /etc/chunk-I2PSG472.js HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "http://192.168.35.113/etc/passwd",
+      "duration_us": 104239,
+      "ttfb_us": 66345,
+      "raw_log": "log_time=2026-04-04T10:49:10.020 0000 request_id=adDspm-dkGzj96Sh8kJbRAAAABA error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/chunk-I2PSG472.js HTTP/1.1\" uri=\"/etc/chunk-I2PSG472.js\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=724 out_bytes=9572 total_bytes=10296 duration_us=104239 ttfb_us=66345 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"http://192.168.35.113/etc/passwd\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbRAAAABA",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1114
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1116,
+      "log_time": "2026-04-04T19:49:10.020 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/chunk-24EZLZ4I.js",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbQwAAABI",
+      "error_link_id": "",
+      "raw_request": "GET /etc/chunk-24EZLZ4I.js HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "http://192.168.35.113/etc/passwd",
+      "duration_us": 116395,
+      "ttfb_us": 106086,
+      "raw_log": "log_time=2026-04-04T10:49:10.020 0000 request_id=adDspm-dkGzj96Sh8kJbQwAAABI error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/chunk-24EZLZ4I.js HTTP/1.1\" uri=\"/etc/chunk-24EZLZ4I.js\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=725 out_bytes=9571 total_bytes=10296 duration_us=116395 ttfb_us=106086 keepalive_count=1 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"http://192.168.35.113/etc/passwd\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbQwAAABI",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1116
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1113,
+      "log_time": "2026-04-04T19:49:10.000 09:00",
+      "src_ip": "192.168.35.27",
+      "method": "GET",
+      "uri": "/etc/passwd",
+      "query_string": "",
+      "status_code": 200,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "traversal:etc_passwd(+5)"
+      ],
+      "request_id": "adDspm-dkGzj96Sh8kJbQgAAAAw",
+      "error_link_id": "",
+      "raw_request": "GET /etc/passwd HTTP/1.1",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "referer": "",
+      "duration_us": 14067,
+      "ttfb_us": 11346,
+      "raw_log": "log_time=2026-04-04T10:49:10.000 0000 request_id=adDspm-dkGzj96Sh8kJbQgAAAAw error_link_id=- vhost=localhost src_ip=192.168.35.27 peer_ip=192.168.35.27 method=GET raw_request=\"GET /etc/passwd HTTP/1.1\" uri=\"/etc/passwd\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=9008 in_bytes=801 out_bytes=9572 total_bytes=10373 duration_us=14067 ttfb_us=11346 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "incident_group_key": "rid:adDspm-dkGzj96Sh8kJbQgAAAAw",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1113
+      ]
+    }
+  ]
+}

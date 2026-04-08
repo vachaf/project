@@ -1,0 +1,225 @@
+{
+  "meta": {
+    "generated_at": "2026-04-07T19:12:37.557+09:00",
+    "input_file": "/opt/web_log_analysis/processed/security_2026-04-07_kst_final_llm_input.json",
+    "mode": "routine",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.openai.com/v1",
+    "source_window": {
+      "start": "2026-04-07T00:00:00.000+09:00",
+      "end_exclusive": "2026-04-08T00:00:00.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-04-07T16:05:28.024+09:00",
+    "source_prepared_at": "2026-04-07T19:12:29.893+09:00",
+    "source_counts": {
+      "total_exported_rows": 26,
+      "selected_source_rows": 26,
+      "filtered_out_rows": 23,
+      "filtered_out_non_aggregated_rows": 23,
+      "noise_group_count": 0,
+      "candidate_rows_before_dedup": 3,
+      "candidate_rows": 3,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 3
+    },
+    "candidate_group_summary_count": 3,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id",
+      "response_body_bytes",
+      "resp_content_type",
+      "raw_request_target",
+      "path_normalized_from_raw_request",
+      "likely_html_fallback_response"
+    ],
+    "processed_candidate_count": 3,
+    "success_count": 3,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:adSsQHDfjjAIUApAjL6IcAAAAA4",
+      "request_id": "adSsQHDfjjAIUApAjL6IcAAAAA4",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        1243
+      ],
+      "log_id": 1243,
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q='union select 1,2,3,4,5,6,7,8,9--'",
+      "log_time": "2026-04-07T16:03:28.097 09:00",
+      "status_code": 500,
+      "score": 19,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "ua:curl(+1)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 982,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q='union%20select%201,2,3,4,5,6,7,8,9--'",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 파라미터에 `'union select ...--'` 형태의 전형적인 SQL 인젝션 페이로드가 포함되어 있고, quote termination과 SQL 주석·UNION SELECT 힌트가 함께 보여 시도 정황이 강합니다. 다만 응답은 500 오류와 text/html이라 애플리케이션/DB 오류 유발 여부는 확인되지만, 실제 데이터 추출 성공 여부까지는 이 로그만으로 판단할 수 없습니다.",
+      "evidence_fields": [
+        "query_string에 UNION SELECT 패턴",
+        "따옴표 종료 시도",
+        "SQL 주석 토큰",
+        "500 서버 오류",
+        "curl 사용자 에이전트",
+        "검색 엔드포인트 대상"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "response_id": "resp_056c9199258853cf0169d4d88e9bfc819586b7f3a74e95c81d",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 파라미터에 `'union select ...--'` 형태의 전형적인 SQL 인젝션 페이로드가 포함되어 있고, quote termination과 SQL 주석·UNION SELECT 힌트가 함께 보여 시도 정황이 강합니다. 다만 응답은 500 오류와 text/html이라 애플리케이션/DB 오류 유발 여부는 확인되지만, 실제 데이터 추출 성공 여부까지는 이 로그만으로 판단할 수 없습니다.\",\"evidence_fields\":[\"query_string에 UNION SELECT 패턴\",\"따옴표 종료 시도\",\"SQL 주석 토큰\",\"500 서버 오류\",\"curl 사용자 에이전트\",\"검색 엔드포인트 대상\"],\"recommended_actions\":[\"review_raw_log\",\"review_error_log\",\"correlate_request_id\",\"correlate_src_ip\"]}"
+    },
+    {
+      "candidate_index": 1,
+      "incident_group_key": "rid:adSsSHDfjjAIUApAjL6IcQAAABM",
+      "request_id": "adSsSHDfjjAIUApAjL6IcQAAABM",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        1244
+      ],
+      "log_id": 1244,
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=<script>alert(1)</script>",
+      "log_time": "2026-04-07T16:03:36.489 09:00",
+      "status_code": 200,
+      "score": 12,
+      "verdict_hint": "xss",
+      "reason_hints": [
+        "xss:script_tag(+5)",
+        "xss:alert_call(+3)",
+        "ua:curl(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=<script>alert(1)</script>",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "verdict": "suspicious_xss",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 API의 쿼리 문자열에 `<script>alert(1)</script>`가 포함되어 있어 전형적인 XSS 시도 형태와 일치합니다. 다만 응답이 JSON이고 200 상태로 정상 처리된 정황이어서 실제 성공 여부보다는 시도 탐지로 보는 것이 타당합니다.",
+      "evidence_fields": [
+        "query_string의 script 태그",
+        "alert(1) 호출 패턴",
+        "GET /rest/products/search 검색 엔드포인트",
+        "user_agent가 curl/7.81.0",
+        "응답 형식이 application/json",
+        "status_code 200"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_0a01a037910d87c40169d4d890bedc8194b07e042700cb9b56",
+      "raw_output_text": "{\"verdict\":\"suspicious_xss\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 API의 쿼리 문자열에 `<script>alert(1)</script>`가 포함되어 있어 전형적인 XSS 시도 형태와 일치합니다. 다만 응답이 JSON이고 200 상태로 정상 처리된 정황이어서 실제 성공 여부보다는 시도 탐지로 보는 것이 타당합니다.\",\"evidence_fields\":[\"query_string의 script 태그\",\"alert(1) 호출 패턴\",\"GET /rest/products/search 검색 엔드포인트\",\"user_agent가 curl/7.81.0\",\"응답 형식이 application/json\",\"status_code 200\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 2,
+      "incident_group_key": "rid:adSsUHDfjjAIUApAjL6IcgAAABg",
+      "request_id": "adSsUHDfjjAIUApAjL6IcgAAABg",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        1245
+      ],
+      "log_id": 1245,
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/etc/passwd",
+      "query_string": "",
+      "log_time": "2026-04-07T16:03:44.612 09:00",
+      "status_code": 200,
+      "score": 10,
+      "verdict_hint": "path_traversal",
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "ua:curl(+1)",
+        "traversal:raw_request_uri_diff",
+        "traversal:html_fallback_like_response"
+      ],
+      "response_body_bytes": 75002,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/public/images/../../etc/passwd",
+      "path_normalized_from_raw_request": true,
+      "likely_html_fallback_response": true,
+      "verdict": "suspicious_path_traversal",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "raw_request에 디렉터리 순회 패턴(`/public/images/../../etc/passwd`)이 명확하고, 힌트에도 `etc_passwd`와 `dotdot_slash`가 함께 보여 시도 정황은 강합니다. 다만 응답은 status 200이지만 `resp_content_type=text/html`이고 `likely_html_fallback_response=true`라서 실제 `/etc/passwd` 파일 노출 성공으로 보기는 어렵고, 애플리케이션의 HTML fallback 응답일 가능성을 우선 고려해야 합니다.",
+      "evidence_fields": [
+        "raw_request의 ../../ 경로 조작",
+        "uri=/etc/passwd로 정규화된 흔적",
+        "etc/passwd 및 dotdot_slash 힌트",
+        "curl User-Agent",
+        "resp_content_type가 text/html",
+        "likely_html_fallback_response=true",
+        "status_code 200은 성공 응답처럼 보이나 파일 노출 증거로는 부족"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "watch"
+      ],
+      "response_id": "resp_01f2fd6febabc9720169d4d8935e688195b469703b6ca180d1",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"raw_request에 디렉터리 순회 패턴(`/public/images/../../etc/passwd`)이 명확하고, 힌트에도 `etc_passwd`와 `dotdot_slash`가 함께 보여 시도 정황은 강합니다. 다만 응답은 status 200이지만 `resp_content_type=text/html`이고 `likely_html_fallback_response=true`라서 실제 `/etc/passwd` 파일 노출 성공으로 보기는 어렵고, 애플리케이션의 HTML fallback 응답일 가능성을 우선 고려해야 합니다.\",\"evidence_fields\":[\"raw_request의 ../../ 경로 조작\",\"uri=/etc/passwd로 정규화된 흔적\",\"etc/passwd 및 dotdot_slash 힌트\",\"curl User-Agent\",\"resp_content_type가 text/html\",\"likely_html_fallback_response=true\",\"status_code 200은 성공 응답처럼 보이나 파일 노출 증거로는 부족\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"watch\"]}"
+    }
+  ]
+}

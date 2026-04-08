@@ -1,0 +1,101 @@
+{
+  "meta": {
+    "generated_at": "2026-04-04T18:23:57.125+09:00",
+    "input_file": "/opt/web_log_analysis/processed/security_2026-04-02_kst_llm_input.json",
+    "mode": "routine",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.openai.com/v1",
+    "source_window": {
+      "start": "2026-04-02T00:00:00.000+09:00",
+      "end_exclusive": "2026-04-03T00:00:00.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-04-04T18:18:27.590+09:00",
+    "source_prepared_at": "2026-04-04T18:23:54.573+09:00",
+    "source_counts": {
+      "total_exported_rows": 993,
+      "selected_source_rows": 993,
+      "filtered_out_rows": 990,
+      "filtered_out_non_aggregated_rows": 65,
+      "noise_group_count": 5,
+      "candidate_rows_before_dedup": 3,
+      "candidate_rows": 3,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 3
+    },
+    "candidate_group_summary_count": 3,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id"
+    ],
+    "processed_candidate_count": 1,
+    "success_count": 1,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:ac5YVHS5eEC_YbPELZ6l3gAAAAA",
+      "request_id": "ac5YVHS5eEC_YbPELZ6l3gAAAAA",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        971
+      ],
+      "log_id": 971,
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q='union select 1,2,3,4,5,6,7,8,9--'",
+      "log_time": "2026-04-02T20:51:48.259 09:00",
+      "status_code": 500,
+      "score": 19,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "ua:curl(+1)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "쿼리 문자열에 `'union select ... --'` 형태의 전형적인 SQL 인젝션 페이로드가 포함되어 있고, 공격 후로 보이는 500 응답도 함께 관찰됩니다. curl 사용자 에이전트와 특수문자 비율도 보조 정황이지만, 단일 요청 1건이므로 오탐 가능성은 완전히 배제할 수 없습니다.",
+      "evidence_fields": [
+        "query_string의 union select 패턴",
+        "quote termination 및 SQL 주석 기호",
+        "status_code 500 오류 응답",
+        "user_agent가 curl/7.81.0",
+        "특수문자 비율이 높음"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "response_id": "resp_0684d0beb1362adf0169d0d8ab578c8195971f17e9e6637669",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"쿼리 문자열에 `'union select ... --'` 형태의 전형적인 SQL 인젝션 페이로드가 포함되어 있고, 공격 후로 보이는 500 응답도 함께 관찰됩니다. curl 사용자 에이전트와 특수문자 비율도 보조 정황이지만, 단일 요청 1건이므로 오탐 가능성은 완전히 배제할 수 없습니다.\",\"evidence_fields\":[\"query_string의 union select 패턴\",\"quote termination 및 SQL 주석 기호\",\"status_code 500 오류 응답\",\"user_agent가 curl/7.81.0\",\"특수문자 비율이 높음\"],\"recommended_actions\":[\"review_raw_log\",\"review_error_log\",\"correlate_request_id\",\"correlate_src_ip\"]}"
+    }
+  ]
+}

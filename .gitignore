@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+
+data/raw/
+data/processed/
+reports/
+pipeline_manifest.json
+
+*.log
+.env
+config/*.env

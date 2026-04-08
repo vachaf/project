@@ -1,0 +1,220 @@
+{
+  "meta": {
+    "query_timezone": "Asia/Seoul",
+    "analysis_window": {
+      "start": "2026-04-07T00:00:00.000+09:00",
+      "end_exclusive": "2026-04-08T00:00:00.000+09:00"
+    },
+    "source_database": "web_logs",
+    "source_table_option": "security",
+    "selected_source_tables": [
+      "security"
+    ],
+    "analysis_primary_table": "security",
+    "exported_at": "2026-04-07T16:05:28.024+09:00",
+    "prepared_at": "2026-04-07T18:50:12.907+09:00",
+    "model_usage_policy": {
+      "routine": "gpt-5.4-mini",
+      "milestone_or_presentation": "gpt-5.4"
+    },
+    "pipeline_policy": {
+      "db_raw_preserved": true,
+      "send_raw_full_export_to_llm": false,
+      "noise_is_aggregated_before_llm": true,
+      "candidate_selection_is_rule_based_first": true,
+      "path_traversal_success_requires_body_validation": true
+    },
+    "thresholds": {
+      "candidate_min_score": 4,
+      "noise_min_repeat_aggregate": 3
+    },
+    "counts": {
+      "total_exported_rows": 26,
+      "selected_source_rows": 26,
+      "filtered_out_rows": 23,
+      "filtered_out_non_aggregated_rows": 23,
+      "noise_group_count": 0,
+      "candidate_rows_before_dedup": 3,
+      "candidate_rows": 3,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 3
+    },
+    "filtered_out_breakdown": {
+      "benign_filtered": 23
+    }
+  },
+  "noise_summary": [],
+  "candidate_group_summary": [
+    {
+      "incident_group_key": "rid:adSsUHDfjjAIUApAjL6IcgAAABg",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/etc/passwd",
+      "status_code": 200,
+      "verdict_hint": "path_traversal",
+      "request_id": "adSsUHDfjjAIUApAjL6IcgAAABg",
+      "error_link_id": "-",
+      "log_time": "2026-04-07T16:03:44.612 09:00"
+    },
+    {
+      "incident_group_key": "rid:adSsSHDfjjAIUApAjL6IcQAAABM",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "verdict_hint": "xss",
+      "request_id": "adSsSHDfjjAIUApAjL6IcQAAABM",
+      "error_link_id": "-",
+      "log_time": "2026-04-07T16:03:36.489 09:00"
+    },
+    {
+      "incident_group_key": "rid:adSsQHDfjjAIUApAjL6IcAAAAA4",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "verdict_hint": "sqli",
+      "request_id": "adSsQHDfjjAIUApAjL6IcAAAAA4",
+      "error_link_id": "-",
+      "log_time": "2026-04-07T16:03:28.097 09:00"
+    }
+  ],
+  "analysis_candidates": [
+    {
+      "source_table": "security",
+      "log_id": 1243,
+      "log_time": "2026-04-07T16:03:28.097 09:00",
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q='union select 1,2,3,4,5,6,7,8,9--'",
+      "status_code": 500,
+      "score": 19,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "ua:curl(+1)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "request_id": "adSsQHDfjjAIUApAjL6IcAAAAA4",
+      "error_link_id": "",
+      "raw_request": "GET /rest/products/search?q='union select 1,2,3,4,5,6,7,8,9--' HTTP/1.1",
+      "user_agent": "curl/7.81.0",
+      "referer": "",
+      "duration_us": 33045,
+      "ttfb_us": 32886,
+      "raw_log": "log_time=2026-04-07T07:03:28.097 0000 request_id=adSsQHDfjjAIUApAjL6IcAAAAA4 error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /rest/products/search?q='union select 1,2,3,4,5,6,7,8,9--' HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q='union select 1,2,3,4,5,6,7,8,9--'\" protocol=HTTP/1.1 status_code=500 response_body_bytes=982 in_bytes=139 out_bytes=1360 total_bytes=1499 duration_us=33045 ttfb_us=32886 keepalive_count=0 connection_status=- req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"curl/7.81.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "response_body_bytes": 982,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q='union",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "incident_group_key": "rid:adSsQHDfjjAIUApAjL6IcAAAAA4",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1243
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1244,
+      "log_time": "2026-04-07T16:03:36.489 09:00",
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=<script>alert(1)</script>",
+      "status_code": 200,
+      "score": 12,
+      "verdict_hint": "xss",
+      "reason_hints": [
+        "xss:script_tag(+5)",
+        "xss:alert_call(+3)",
+        "ua:curl(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "request_id": "adSsSHDfjjAIUApAjL6IcQAAABM",
+      "error_link_id": "",
+      "raw_request": "GET /rest/products/search?q=<script>alert(1)</script> HTTP/1.1",
+      "user_agent": "curl/7.81.0",
+      "referer": "",
+      "duration_us": 20611,
+      "ttfb_us": 20052,
+      "raw_log": "log_time=2026-04-07T07:03:36.489 0000 request_id=adSsSHDfjjAIUApAjL6IcQAAABM error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /rest/products/search?q=<script>alert(1)</script> HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=<script>alert(1)</script>\" protocol=HTTP/1.1 status_code=200 response_body_bytes=30 in_bytes=126 out_bytes=399 total_bytes=525 duration_us=20611 ttfb_us=20052 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"application/json\" referer=\"-\" user_agent=\"curl/7.81.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=<script>alert(1)</script>",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "incident_group_key": "rid:adSsSHDfjjAIUApAjL6IcQAAABM",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1244
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 1245,
+      "log_time": "2026-04-07T16:03:44.612 09:00",
+      "src_ip": "192.168.35.113",
+      "method": "GET",
+      "uri": "/etc/passwd",
+      "query_string": "",
+      "status_code": 200,
+      "score": 10,
+      "verdict_hint": "path_traversal",
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "ua:curl(+1)",
+        "traversal:raw_request_uri_diff",
+        "traversal:html_fallback_like_response"
+      ],
+      "request_id": "adSsUHDfjjAIUApAjL6IcgAAABg",
+      "error_link_id": "",
+      "raw_request": "GET /public/images/../../etc/passwd HTTP/1.1",
+      "user_agent": "curl/7.81.0",
+      "referer": "",
+      "duration_us": 17182,
+      "ttfb_us": 15862,
+      "raw_log": "log_time=2026-04-07T07:03:44.612 0000 request_id=adSsUHDfjjAIUApAjL6IcgAAABg error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /public/images/../../etc/passwd HTTP/1.1\" uri=\"/etc/passwd\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=75002 in_bytes=108 out_bytes=75456 total_bytes=75564 duration_us=17182 ttfb_us=15862 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"curl/7.81.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+      "response_body_bytes": 75002,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/public/images/../../etc/passwd",
+      "path_normalized_from_raw_request": true,
+      "likely_html_fallback_response": true,
+      "incident_group_key": "rid:adSsUHDfjjAIUApAjL6IcgAAABg",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        1245
+      ]
+    }
+  ]
+}

@@ -1,0 +1,406 @@
+[
+  {
+    "source_table": "security",
+    "log_id": 1243,
+    "log_time": "2026-04-07T16:03:28.097 09:00",
+    "src_ip": "192.168.35.113",
+    "method": "GET",
+    "uri": "/rest/products/search",
+    "query_string": "?q='union select 1,2,3,4,5,6,7,8,9--'",
+    "status_code": 500,
+    "score": 19,
+    "verdict_hint": "sqli",
+    "reason_hints": [
+      "sqli:union_select(+5)",
+      "sqli:sql_comment(+2)",
+      "sqli:quote_termination(+4)",
+      "ua:curl(+1)",
+      "special_char_ratio_high(+1)",
+      "special_char_ratio_very_high(+1)",
+      "error_status:500(+2)",
+      "query_endpoint_with_attack_tokens(+2)",
+      "no_referer_non_browser_error(+1)"
+    ],
+    "request_id": "adSsQHDfjjAIUApAjL6IcAAAAA4",
+    "error_link_id": "",
+    "raw_request": "GET /rest/products/search?q='union select 1,2,3,4,5,6,7,8,9--' HTTP/1.1",
+    "user_agent": "curl/7.81.0",
+    "referer": "",
+    "duration_us": 33045,
+    "ttfb_us": 32886,
+    "raw_log": "log_time=2026-04-07T07:03:28.097 0000 request_id=adSsQHDfjjAIUApAjL6IcAAAAA4 error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /rest/products/search?q='union select 1,2,3,4,5,6,7,8,9--' HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q='union select 1,2,3,4,5,6,7,8,9--'\" protocol=HTTP/1.1 status_code=500 response_body_bytes=982 in_bytes=139 out_bytes=1360 total_bytes=1499 duration_us=33045 ttfb_us=32886 keepalive_count=0 connection_status=- req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"curl/7.81.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 982,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/rest/products/search?q='union",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:adSsQHDfjjAIUApAjL6IcAAAAA4",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      1243
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 1276,
+    "log_time": "2026-04-07T19:50:38.143 09:00",
+    "src_ip": "192.168.35.113",
+    "method": "GET",
+    "uri": "/rest/products/search",
+    "query_string": "?q=apple&q=' OR '1'='1",
+    "status_code": 200,
+    "score": 13,
+    "verdict_hint": "sqli",
+    "reason_hints": [
+      "sqli:or_true(+4)",
+      "sqli:quote_termination(+4)",
+      "hpp:duplicate_param_names(+1)",
+      "hpp:param_names=q",
+      "special_char_ratio_high(+1)",
+      "special_char_ratio_very_high(+1)",
+      "query_endpoint_with_attack_tokens(+2)",
+      "hpp:embedded_attack=sqli"
+    ],
+    "request_id": "adThfqXOg8vD-N5G-0TwCwAAAFI",
+    "error_link_id": "",
+    "raw_request": "GET /rest/products/search?q=apple&q=' OR '1'='1 HTTP/1.1",
+    "user_agent": "lab-hpp-1",
+    "referer": "",
+    "duration_us": 7529,
+    "ttfb_us": 7349,
+    "raw_log": "log_time=2026-04-07T10:50:38.143 0000 request_id=adThfqXOg8vD-N5G-0TwCwAAAFI error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /rest/products/search?q=apple&q=' OR '1'='1 HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=apple&q=' OR '1'='1\" protocol=HTTP/1.1 status_code=200 response_body_bytes=30 in_bytes=128 out_bytes=399 total_bytes=527 duration_us=7529 ttfb_us=7349 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"application/json\" referer=\"-\" user_agent=\"lab-hpp-1\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 30,
+    "resp_content_type": "application/json",
+    "raw_request_target": "/rest/products/search?q=apple&q='",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": true,
+    "hpp_param_names": [
+      "q"
+    ],
+    "embedded_attack_hint": "sqli",
+    "incident_group_key": "rid:adThfqXOg8vD-N5G-0TwCwAAAFI",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      1276
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 1271,
+    "log_time": "2026-04-07T19:38:39.984 09:00",
+    "src_ip": "192.168.35.113",
+    "method": "GET",
+    "uri": "/public/images/../../etc/passwd",
+    "query_string": "",
+    "status_code": 404,
+    "score": 13,
+    "verdict_hint": "path_traversal",
+    "reason_hints": [
+      "traversal:dotdot_slash(+4)",
+      "traversal:etc_passwd(+5)",
+      "ua:curl(+1)",
+      "error_status:404(+2)",
+      "no_referer_non_browser_error(+1)"
+    ],
+    "request_id": "adTer6XOg8vD-N5G-0TwBwAAAEo",
+    "error_link_id": "",
+    "raw_request": "GET /public/images/../../etc/passwd HTTP/1.1",
+    "user_agent": "curl/7.81.0",
+    "referer": "",
+    "duration_us": 6545,
+    "ttfb_us": 0,
+    "raw_log": "log_time=2026-04-07T10:38:39.984 0000 request_id=adTer6XOg8vD-N5G-0TwBwAAAEo error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /public/images/../../etc/passwd HTTP/1.1\" uri=\"/public/images/../../etc/passwd\" query_string=\"\" protocol=HTTP/1.1 status_code=404 response_body_bytes=276 in_bytes=112 out_bytes=437 total_bytes=549 duration_us=6545 ttfb_us=- keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"curl/7.81.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 276,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/public/images/../../etc/passwd",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:adTer6XOg8vD-N5G-0TwBwAAAEo",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      1271
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 1277,
+    "log_time": "2026-04-07T19:50:38.160 09:00",
+    "src_ip": "192.168.35.113",
+    "method": "GET",
+    "uri": "/rest/products/search",
+    "query_string": "?q=juice&q=<script>alert(1)</script>",
+    "status_code": 200,
+    "score": 12,
+    "verdict_hint": "xss",
+    "reason_hints": [
+      "xss:script_tag(+5)",
+      "xss:alert_call(+3)",
+      "hpp:duplicate_param_names(+1)",
+      "hpp:param_names=q",
+      "special_char_ratio_high(+1)",
+      "query_endpoint_with_attack_tokens(+2)",
+      "hpp:embedded_attack=xss"
+    ],
+    "request_id": "adThfqXOg8vD-N5G-0TwDAAAAFQ",
+    "error_link_id": "",
+    "raw_request": "GET /rest/products/search?q=juice&q=<script>alert(1)</script> HTTP/1.1",
+    "user_agent": "lab-hpp-2",
+    "referer": "",
+    "duration_us": 7023,
+    "ttfb_us": 6841,
+    "raw_log": "log_time=2026-04-07T10:50:38.160 0000 request_id=adThfqXOg8vD-N5G-0TwDAAAAFQ error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /rest/products/search?q=juice&q=<script>alert(1)</script> HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=juice&q=<script>alert(1)</script>\" protocol=HTTP/1.1 status_code=200 response_body_bytes=30 in_bytes=146 out_bytes=399 total_bytes=545 duration_us=7023 ttfb_us=6841 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"application/json\" referer=\"-\" user_agent=\"lab-hpp-2\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 30,
+    "resp_content_type": "application/json",
+    "raw_request_target": "/rest/products/search?q=juice&q=<script>alert(1)</script>",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": true,
+    "hpp_param_names": [
+      "q"
+    ],
+    "embedded_attack_hint": "xss",
+    "incident_group_key": "rid:adThfqXOg8vD-N5G-0TwDAAAAFQ",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      1277
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 1275,
+    "log_time": "2026-04-07T19:49:05.381 09:00",
+    "src_ip": "192.168.35.113",
+    "method": "GET",
+    "uri": "/rest/products/search",
+    "query_string": "?q=juice&q=<script>alert(1)</script>",
+    "status_code": 200,
+    "score": 12,
+    "verdict_hint": "xss",
+    "reason_hints": [
+      "xss:script_tag(+5)",
+      "xss:alert_call(+3)",
+      "hpp:duplicate_param_names(+1)",
+      "hpp:param_names=q",
+      "special_char_ratio_high(+1)",
+      "query_endpoint_with_attack_tokens(+2)",
+      "hpp:embedded_attack=xss"
+    ],
+    "request_id": "adThIaXOg8vD-N5G-0TwCgAAAFA",
+    "error_link_id": "",
+    "raw_request": "GET /rest/products/search?q=juice&q=<script>alert(1)</script> HTTP/1.1",
+    "user_agent": "lab-hpp-2",
+    "referer": "",
+    "duration_us": 10873,
+    "ttfb_us": 10705,
+    "raw_log": "log_time=2026-04-07T10:49:05.381 0000 request_id=adThIaXOg8vD-N5G-0TwCgAAAFA error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /rest/products/search?q=juice&q=<script>alert(1)</script> HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=juice&q=<script>alert(1)</script>\" protocol=HTTP/1.1 status_code=200 response_body_bytes=30 in_bytes=132 out_bytes=399 total_bytes=531 duration_us=10873 ttfb_us=10705 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"application/json\" referer=\"-\" user_agent=\"lab-hpp-2\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 30,
+    "resp_content_type": "application/json",
+    "raw_request_target": "/rest/products/search?q=juice&q=<script>alert(1)</script>",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": true,
+    "hpp_param_names": [
+      "q"
+    ],
+    "embedded_attack_hint": "xss",
+    "incident_group_key": "rid:adThIaXOg8vD-N5G-0TwCgAAAFA",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      1275
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 1244,
+    "log_time": "2026-04-07T16:03:36.489 09:00",
+    "src_ip": "192.168.35.113",
+    "method": "GET",
+    "uri": "/rest/products/search",
+    "query_string": "?q=<script>alert(1)</script>",
+    "status_code": 200,
+    "score": 12,
+    "verdict_hint": "xss",
+    "reason_hints": [
+      "xss:script_tag(+5)",
+      "xss:alert_call(+3)",
+      "ua:curl(+1)",
+      "special_char_ratio_high(+1)",
+      "query_endpoint_with_attack_tokens(+2)"
+    ],
+    "request_id": "adSsSHDfjjAIUApAjL6IcQAAABM",
+    "error_link_id": "",
+    "raw_request": "GET /rest/products/search?q=<script>alert(1)</script> HTTP/1.1",
+    "user_agent": "curl/7.81.0",
+    "referer": "",
+    "duration_us": 20611,
+    "ttfb_us": 20052,
+    "raw_log": "log_time=2026-04-07T07:03:36.489 0000 request_id=adSsSHDfjjAIUApAjL6IcQAAABM error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /rest/products/search?q=<script>alert(1)</script> HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=<script>alert(1)</script>\" protocol=HTTP/1.1 status_code=200 response_body_bytes=30 in_bytes=126 out_bytes=399 total_bytes=525 duration_us=20611 ttfb_us=20052 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"application/json\" referer=\"-\" user_agent=\"curl/7.81.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 30,
+    "resp_content_type": "application/json",
+    "raw_request_target": "/rest/products/search?q=<script>alert(1)</script>",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:adSsSHDfjjAIUApAjL6IcQAAABM",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      1244
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 1272,
+    "log_time": "2026-04-07T19:38:39.995 09:00",
+    "src_ip": "192.168.35.113",
+    "method": "GET",
+    "uri": "/etc/passwd",
+    "query_string": "",
+    "status_code": 200,
+    "score": 10,
+    "verdict_hint": "path_traversal",
+    "reason_hints": [
+      "traversal:dotdot_slash(+4)",
+      "traversal:etc_passwd(+5)",
+      "ua:curl(+1)",
+      "traversal:raw_request_uri_diff",
+      "traversal:html_fallback_like_response"
+    ],
+    "request_id": "adTer6XOg8vD-N5G-0TwCAAAAEw",
+    "error_link_id": "",
+    "raw_request": "GET /public/images/../../etc/passwd HTTP/1.1",
+    "user_agent": "curl/7.81.0",
+    "referer": "",
+    "duration_us": 20522,
+    "ttfb_us": 19985,
+    "raw_log": "log_time=2026-04-07T10:38:39.995 0000 request_id=adTer6XOg8vD-N5G-0TwCAAAAEw error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /public/images/../../etc/passwd HTTP/1.1\" uri=\"/etc/passwd\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=75002 in_bytes=116 out_bytes=75456 total_bytes=75572 duration_us=20522 ttfb_us=19985 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"curl/7.81.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 75002,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/public/images/../../etc/passwd",
+    "path_normalized_from_raw_request": true,
+    "likely_html_fallback_response": true,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:adTer6XOg8vD-N5G-0TwCAAAAEw",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      1272
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 1269,
+    "log_time": "2026-04-07T17:45:22.276 09:00",
+    "src_ip": "192.168.35.113",
+    "method": "GET",
+    "uri": "/etc/passwd",
+    "query_string": "",
+    "status_code": 200,
+    "score": 10,
+    "verdict_hint": "path_traversal",
+    "reason_hints": [
+      "traversal:dotdot_slash(+4)",
+      "traversal:etc_passwd(+5)",
+      "ua:curl(+1)",
+      "traversal:raw_request_uri_diff",
+      "traversal:html_fallback_like_response"
+    ],
+    "request_id": "adTEInDfjjAIUApAjL6IhQAAAAs",
+    "error_link_id": "",
+    "raw_request": "GET /public/images/../../etc/passwd HTTP/1.1",
+    "user_agent": "curl/7.81.0",
+    "referer": "",
+    "duration_us": 37920,
+    "ttfb_us": 36801,
+    "raw_log": "log_time=2026-04-07T08:45:22.276 0000 request_id=adTEInDfjjAIUApAjL6IhQAAAAs error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /public/images/../../etc/passwd HTTP/1.1\" uri=\"/etc/passwd\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=75002 in_bytes=108 out_bytes=75456 total_bytes=75564 duration_us=37920 ttfb_us=36801 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"curl/7.81.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 75002,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/public/images/../../etc/passwd",
+    "path_normalized_from_raw_request": true,
+    "likely_html_fallback_response": true,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:adTEInDfjjAIUApAjL6IhQAAAAs",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      1269
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 1245,
+    "log_time": "2026-04-07T16:03:44.612 09:00",
+    "src_ip": "192.168.35.113",
+    "method": "GET",
+    "uri": "/etc/passwd",
+    "query_string": "",
+    "status_code": 200,
+    "score": 10,
+    "verdict_hint": "path_traversal",
+    "reason_hints": [
+      "traversal:dotdot_slash(+4)",
+      "traversal:etc_passwd(+5)",
+      "ua:curl(+1)",
+      "traversal:raw_request_uri_diff",
+      "traversal:html_fallback_like_response"
+    ],
+    "request_id": "adSsUHDfjjAIUApAjL6IcgAAABg",
+    "error_link_id": "",
+    "raw_request": "GET /public/images/../../etc/passwd HTTP/1.1",
+    "user_agent": "curl/7.81.0",
+    "referer": "",
+    "duration_us": 17182,
+    "ttfb_us": 15862,
+    "raw_log": "log_time=2026-04-07T07:03:44.612 0000 request_id=adSsUHDfjjAIUApAjL6IcgAAABg error_link_id=- vhost=localhost src_ip=192.168.35.113 peer_ip=192.168.35.113 method=GET raw_request=\"GET /public/images/../../etc/passwd HTTP/1.1\" uri=\"/etc/passwd\" query_string=\"\" protocol=HTTP/1.1 status_code=200 response_body_bytes=75002 in_bytes=108 out_bytes=75456 total_bytes=75564 duration_us=17182 ttfb_us=15862 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"curl/7.81.0\" host=\"192.168.35.113\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 75002,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/public/images/../../etc/passwd",
+    "path_normalized_from_raw_request": true,
+    "likely_html_fallback_response": true,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:adSsUHDfjjAIUApAjL6IcgAAABg",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      1245
+    ]
+  }
+]
