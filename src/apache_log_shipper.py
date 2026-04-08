@@ -118,6 +118,19 @@ def safe_int(value: Optional[str]) -> Optional[int]:
         return None
 
 
+def safe_nullable_tinyint(value: Optional[str]) -> Optional[int]:
+    if value is None:
+        return None
+    v = (strip_quotes(value) or "").strip().lower()
+    if v in ("", "-", "null", "none"):
+        return None
+    if v in ("1", "true", "yes"):
+        return 1
+    if v in ("0", "false", "no"):
+        return 0
+    return None
+
+
 def parse_apache_time(raw: str) -> Optional[datetime]:
     try:
         return datetime.strptime(raw, "%d/%b/%Y:%H:%M:%S %z")
@@ -245,13 +258,17 @@ class MariaDBWriter:
             uri, query_string, protocol, status_code, response_body_bytes, in_bytes, out_bytes,
             total_bytes, duration_us, ttfb_us, keepalive_count, connection_status,
             req_content_type, req_content_length, resp_content_type, referer, user_agent,
-            host, x_forwarded_for, attack_label, risk_score, matched_rule, is_suspicious, raw_log
+            host, x_forwarded_for, attack_label, risk_score, matched_rule, is_suspicious,
+            resp_html_norm_fingerprint, resp_html_fingerprint_version, resp_html_baseline_name,
+            resp_html_baseline_match, resp_html_baseline_confidence, resp_html_features_json, raw_log
         ) VALUES (
             %(log_time)s, %(request_id)s, %(error_link_id)s, %(vhost)s, %(src_ip)s, %(peer_ip)s, %(method)s, %(raw_request)s,
             %(uri)s, %(query_string)s, %(protocol)s, %(status_code)s, %(response_body_bytes)s, %(in_bytes)s, %(out_bytes)s,
             %(total_bytes)s, %(duration_us)s, %(ttfb_us)s, %(keepalive_count)s, %(connection_status)s,
             %(req_content_type)s, %(req_content_length)s, %(resp_content_type)s, %(referer)s, %(user_agent)s,
-            %(host)s, %(x_forwarded_for)s, %(attack_label)s, %(risk_score)s, %(matched_rule)s, %(is_suspicious)s, %(raw_log)s
+            %(host)s, %(x_forwarded_for)s, %(attack_label)s, %(risk_score)s, %(matched_rule)s, %(is_suspicious)s,
+            %(resp_html_norm_fingerprint)s, %(resp_html_fingerprint_version)s, %(resp_html_baseline_name)s,
+            %(resp_html_baseline_match)s, %(resp_html_baseline_confidence)s, %(resp_html_features_json)s, %(raw_log)s
         )
         """
         with self.conn.cursor() as cur:
@@ -412,6 +429,12 @@ def parse_security_line(line: str) -> Optional[Dict]:
         "risk_score": 0.00,
         "matched_rule": None,
         "is_suspicious": False,
+        "resp_html_norm_fingerprint": normalize_dash(kv.get("resp_html_norm_fingerprint")),
+        "resp_html_fingerprint_version": normalize_dash(kv.get("resp_html_fingerprint_version")),
+        "resp_html_baseline_name": normalize_dash(kv.get("resp_html_baseline_name")),
+        "resp_html_baseline_match": safe_nullable_tinyint(kv.get("resp_html_baseline_match")),
+        "resp_html_baseline_confidence": normalize_dash(kv.get("resp_html_baseline_confidence")),
+        "resp_html_features_json": normalize_dash(kv.get("resp_html_features_json")),
         "raw_log": line,
     }
 
