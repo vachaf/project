@@ -33,7 +33,7 @@ import json
 import os
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import hashlib
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -105,6 +105,50 @@ QUERY_HEAVY_URI_HINTS = (
     "/rest/products/search",
     "/filter",
     "/query",
+)
+
+DIR_PROBE_PATH_HINTS = (
+    "/.git",
+    "/.svn",
+    "/.hg",
+    "/.env",
+    "/backup",
+    "/backups",
+    "/wp-admin",
+    "/phpmyadmin",
+    "/pma",
+    "/manager",
+    "/manager/html",
+    "/server-status",
+    "/cgi-bin",
+    "/actuator",
+    "/swagger",
+    "/api-docs",
+    "/console",
+    "/debug",
+    "/setup",
+    "/vendor",
+    "/uploads",
+    "/upload",
+    "/config",
+    "/configs",
+    "/autodiscover",
+    "/owa",
+)
+
+DIR_PROBE_FILE_HINTS = (
+    "web.config",
+    "config.php",
+    "phpinfo.php",
+    ".git/config",
+    ".env",
+    ".ds_store",
+    "id_rsa",
+    "passwd",
+    "shadow",
+    "win.ini",
+    "docker-compose.yml",
+    "composer.json",
 )
 
 STATIC_EXTENSIONS = (
@@ -470,6 +514,11 @@ def path_from_target(target: str) -> str:
     return value.split("?", 1)[0]
 
 
+def get_effective_request_path(uri: str, raw_request_target: str) -> str:
+    normalized_raw_path = path_from_target(raw_request_target)
+    return normalized_raw_path or normalize_text(uri)
+
+
 def analyze_query_parameters(query_string: str) -> Tuple[bool, List[str]]:
     raw = "" if query_string is None else str(query_string).strip()
     if raw.startswith("?"):
@@ -494,6 +543,282 @@ def analyze_query_parameters(query_string: str) -> Tuple[bool, List[str]]:
 
 def get_method(row: Dict[str, Any]) -> str:
     return normalize_text(row.get("method")) or "-"
+
+
+def is_benign_fallback_html(
+    traversal_hits: int,
+    sqli_hits: int,
+    xss_hits: int,
+    cmdi_hits: int,
+    likely_html_fallback_response: bool,
+    error_link_id: str,
+) -> bool:
+    if not likely_html_fallback_response:
+        return False
+    if traversal_hits != 1:
+        return False
+    if sqli_hits > 0 or xss_hits > 0 or cmdi_hits > 0:
+        return False
+    if error_link_id:
+        return False
+    return True
+
+
+def is_benign_normal_search(
+    uri: str,
+    query_string: str,
+    method: str,
+    status_code: int,
+    user_agent: str,
+    referer: str,
+    error_link_id: str,
+    sqli_hits: int,
+    xss_hits: int,
+    traversal_hits: int,
+    cmdi_hits: int,
+) -> bool:
+    if sqli_hits > 0 or xss_hits > 0 or traversal_hits > 0 or cmdi_hits > 0:
+        return False
+    if error_link_id:
+        return False
+    if method not in {"GET", "HEAD"}:
+        return False
+    if status_code not in {200, 204, 304, 404}:
+        return False
+    if not looks_like_browser_ua(user_agent):
+        return False
+    if contains_query_heavy_uri(uri) and query_string:
+        return True
+    if query_string and status_code in {200, 304}:
+        return True
+    if query_string and referer:
+        return True
+    return False
+
+
+def is_likely_dir_probe(
+    uri: str,
+    raw_request_target: str,
+    query_string: str,
+    method: str,
+    status_code: int,
+    referer: str,
+    user_agent: str,
+    sqli_hits: int,
+    xss_hits: int,
+    cmdi_hits: int,
+    traversal_hits: int,
+    path_normalized_from_raw_request: bool,
+    likely_html_fallback_response: bool,
+) -> bool:
+    if method not in {"GET", "HEAD", "OPTIONS"}:
+        return False
+    if sqli_hits > 0 or xss_hits > 0 or cmdi_hits > 0:
+        return False
+    if contains_query_heavy_uri(uri):
+        return False
+    if query_string and len(query_string) >= 20:
+        return False
+
+    probe_path = get_effective_request_path(uri, raw_request_target).lower()
+    if not probe_path or probe_path == "/":
+        return False
+
+    segments = [segment for segment in probe_path.split("/") if segment]
+    hidden_segment = any(segment.startswith(".") and segment != ".well-known" for segment in segments)
+    path_hint = any(hint in probe_path for hint in DIR_PROBE_PATH_HINTS)
+    file_hint = any(hint in probe_path for hint in DIR_PROBE_FILE_HINTS)
+    low_signal_traversal = traversal_hits == 1 and (
+        status_code in {401, 403, 404, 405}
+        or path_normalized_from_raw_request
+        or likely_html_fallback_response
+    )
+
+    if not (hidden_segment or path_hint or file_hint or low_signal_traversal):
+        return False
+
+    if status_code in {301, 302, 401, 403, 404, 405}:
+        return True
+    if likely_html_fallback_response:
+        return True
+    if status_code == 200 and not looks_like_browser_ua(user_agent) and not referer:
+        return True
+    return False
+
+
+def is_low_signal_fuzzing(
+    uri: str,
+    query_string: str,
+    method: str,
+    status_code: int,
+    user_agent: str,
+    referer: str,
+    error_link_id: str,
+    sqli_hits: int,
+    xss_hits: int,
+    traversal_hits: int,
+    cmdi_hits: int,
+    hpp_detected: bool,
+) -> bool:
+    if error_link_id:
+        return False
+    if contains_query_heavy_uri(uri) and looks_like_browser_ua(user_agent) and sqli_hits == 0 and xss_hits == 0 and traversal_hits == 0 and cmdi_hits == 0:
+        return False
+
+    signals = 0
+    if sqli_hits > 0 or xss_hits > 0 or cmdi_hits > 0:
+        signals += 2
+    elif traversal_hits > 0:
+        signals += 1
+
+    if query_string and len(query_string) >= 20:
+        signals += 1
+    if query_string and special_char_ratio(query_string) >= 0.15:
+        signals += 1
+    if hpp_detected:
+        signals += 1
+    if not looks_like_browser_ua(user_agent):
+        signals += 1
+    if not referer and status_code >= 400:
+        signals += 1
+    if method not in {"GET", "POST", "HEAD", "OPTIONS"}:
+        signals += 1
+
+    return signals >= 2
+
+
+def classify_filtered_noise_category(
+    uri: str,
+    query_string: str,
+    method: str,
+    status_code: int,
+    user_agent: str,
+    referer: str,
+    error_link_id: str,
+    raw_request_target: str,
+    path_normalized_from_raw_request: bool,
+    likely_html_fallback_response: bool,
+    sqli_hits: int,
+    xss_hits: int,
+    traversal_hits: int,
+    cmdi_hits: int,
+    hpp_detected: bool,
+) -> str:
+    if is_benign_fallback_html(
+        traversal_hits=traversal_hits,
+        sqli_hits=sqli_hits,
+        xss_hits=xss_hits,
+        cmdi_hits=cmdi_hits,
+        likely_html_fallback_response=likely_html_fallback_response,
+        error_link_id=error_link_id,
+    ):
+        return "benign_fallback_html"
+
+    if is_likely_dir_probe(
+        uri=uri,
+        raw_request_target=raw_request_target,
+        query_string=query_string,
+        method=method,
+        status_code=status_code,
+        referer=referer,
+        user_agent=user_agent,
+        sqli_hits=sqli_hits,
+        xss_hits=xss_hits,
+        cmdi_hits=cmdi_hits,
+        traversal_hits=traversal_hits,
+        path_normalized_from_raw_request=path_normalized_from_raw_request,
+        likely_html_fallback_response=likely_html_fallback_response,
+    ):
+        return "low_signal_dir_probe"
+
+    if is_benign_normal_search(
+        uri=uri,
+        query_string=query_string,
+        method=method,
+        status_code=status_code,
+        user_agent=user_agent,
+        referer=referer,
+        error_link_id=error_link_id,
+        sqli_hits=sqli_hits,
+        xss_hits=xss_hits,
+        traversal_hits=traversal_hits,
+        cmdi_hits=cmdi_hits,
+    ):
+        return "benign_normal_search"
+
+    if is_low_signal_fuzzing(
+        uri=uri,
+        query_string=query_string,
+        method=method,
+        status_code=status_code,
+        user_agent=user_agent,
+        referer=referer,
+        error_link_id=error_link_id,
+        sqli_hits=sqli_hits,
+        xss_hits=xss_hits,
+        traversal_hits=traversal_hits,
+        cmdi_hits=cmdi_hits,
+        hpp_detected=hpp_detected,
+    ):
+        return "low_signal_fuzzing"
+
+    if looks_like_browser_ua(user_agent):
+        return "benign_normal_search"
+    return "low_signal_fuzzing"
+
+
+def build_filtered_row_payload(row: Dict[str, Any]) -> Dict[str, Any]:
+    raw_req_original = "" if row.get("raw_request") is None else str(row.get("raw_request")).strip()
+    uri = get_uri(row)
+    qs = normalize_text(row.get("query_string"))
+    raw_request_target = extract_raw_request_target(raw_req_original)
+    normalized_raw_path = path_from_target(raw_request_target)
+    normalized_uri = normalize_text(uri)
+    response_body_bytes = get_response_body_bytes(row)
+    resp_content_type = get_resp_content_type(row)
+    status_code = get_status_code(row)
+    hpp_detected, hpp_param_names = analyze_query_parameters(qs)
+
+    combined_target = " ".join([
+        normalize_text(row.get("raw_request")),
+        normalized_uri,
+        qs,
+        normalize_text(row.get("raw_log")),
+    ]).strip()
+
+    traversal_hits = 0
+    for _, pattern, _ in TRAVERSAL_PATTERNS:
+        if pattern.search(combined_target):
+            traversal_hits += 1
+
+    path_normalized_from_raw_request = False
+    likely_html_fallback_response = False
+    if traversal_hits > 0:
+        if normalized_raw_path and normalized_uri and normalized_raw_path != normalized_uri:
+            path_normalized_from_raw_request = True
+        resp_ct_lower = resp_content_type.lower()
+        if status_code == 200 and resp_ct_lower.startswith("text/html") and response_body_bytes >= 10000:
+            likely_html_fallback_response = True
+
+    return {
+        "source_table": normalize_text(row.get("_source_table")),
+        "noise_category": normalize_text(row.get("_noise_category")) or "low_signal_fuzzing",
+        "log_time": choose_best_time(row),
+        "src_ip": get_src_ip(row),
+        "method": get_method(row),
+        "uri": uri,
+        "query_string": qs,
+        "status_code": status_code,
+        "request_id": normalize_text(row.get("request_id")),
+        "error_link_id": normalize_text(row.get("error_link_id")),
+        "response_body_bytes": response_body_bytes,
+        "resp_content_type": resp_content_type,
+        "raw_request_target": raw_request_target,
+        "path_normalized_from_raw_request": path_normalized_from_raw_request,
+        "likely_html_fallback_response": likely_html_fallback_response,
+        "hpp_detected": hpp_detected,
+        "hpp_param_names": hpp_param_names,
+    }
 
 
 # ----------------------------
@@ -657,6 +982,34 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         elif status_code == 200 and (resp_ct_lower.startswith("text/plain") or "octet-stream" in resp_ct_lower):
             reason_hints.append("traversal:file_like_response_type")
 
+    filtered_noise_category = classify_filtered_noise_category(
+        uri=uri,
+        query_string=qs,
+        method=method,
+        status_code=status_code,
+        user_agent=user_agent,
+        referer=referer,
+        error_link_id=error_link_id,
+        raw_request_target=raw_request_target,
+        path_normalized_from_raw_request=path_normalized_from_raw_request,
+        likely_html_fallback_response=likely_html_fallback_response,
+        sqli_hits=sqli_hits,
+        xss_hits=xss_hits,
+        traversal_hits=traversal_hits,
+        cmdi_hits=cmdi_hits,
+        hpp_detected=hpp_detected,
+    )
+
+    if is_benign_fallback_html(
+        traversal_hits=traversal_hits,
+        sqli_hits=sqli_hits,
+        xss_hits=xss_hits,
+        cmdi_hits=cmdi_hits,
+        likely_html_fallback_response=likely_html_fallback_response,
+        error_link_id=error_link_id,
+    ):
+        return None, filtered_noise_category
+
     # 3) 최종 판정 힌트
     if xss_hits > 0 and score >= max(min_score, 7):
         verdict_hint = "xss"
@@ -669,7 +1022,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     elif score >= min_score:
         verdict_hint = "suspicious"
     else:
-        return None, "benign_filtered"
+        return None, filtered_noise_category
 
     candidate = Candidate(
         source_table=source_table,
@@ -765,7 +1118,10 @@ def aggregate_noise_rows(rows: List[Dict[str, Any]], min_repeat: int) -> Tuple[L
         note = {
             "socketio_polling": "정상 웹 UI 세션 유지로 보이는 반복 polling 요청",
             "static_asset": "정적 리소스 요청 반복",
-            "benign_filtered": "분석 가치가 낮은 정상 요청 반복",
+            "benign_normal_search": "브라우저 기반 일반 검색/조회로 보이는 반복 요청",
+            "benign_fallback_html": "경로 변형이 있었지만 기본 HTML fallback 으로 해석되는 반복 요청",
+            "low_signal_fuzzing": "퍼징/입력 변형 흔적은 있으나 근거가 약한 저신호 반복 요청",
+            "low_signal_dir_probe": "디렉터리/민감 경로 존재 확인 수준의 저신호 probe 반복",
         }.get(category, "반복 정상 요청 집계")
         aggregates.append(
             NoiseAggregate(
@@ -849,6 +1205,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "candidate_selection_is_rule_based_first": True,
                 "path_traversal_success_requires_body_validation": True,
                 "hpp_context_is_preserved": True,
+                "filtered_noise_breakdown_is_preserved": True,
             },
             "thresholds": {
                 "candidate_min_score": min_score,
@@ -872,25 +1229,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         "analysis_candidates": candidate_payload,
     }
 
-    filtered_payload = [
-        {
-            "source_table": normalize_text(r.get("_source_table")),
-            "noise_category": normalize_text(r.get("_noise_category")) or "benign_filtered",
-            "log_time": choose_best_time(r),
-            "src_ip": get_src_ip(r),
-            "method": get_method(r),
-            "uri": get_uri(r),
-            "query_string": normalize_text(r.get("query_string")),
-            "status_code": get_status_code(r),
-            "request_id": normalize_text(r.get("request_id")),
-            "error_link_id": normalize_text(r.get("error_link_id")),
-            "response_body_bytes": get_response_body_bytes(r),
-            "resp_content_type": get_resp_content_type(r),
-            "hpp_detected": analyze_query_parameters(normalize_text(r.get("query_string")))[0],
-            "hpp_param_names": analyze_query_parameters(normalize_text(r.get("query_string")))[1],
-        }
-        for r in non_aggregated_filtered
-    ]
+    filtered_payload = [build_filtered_row_payload(r) for r in non_aggregated_filtered]
 
     return llm_input, candidate_payload, noise_payload, filtered_payload
 
