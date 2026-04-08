@@ -73,9 +73,6 @@ python ./src/prepare_llm_input.py \
 
 생성 기대 파일 예시:
 - ./data/processed/security_2026-04-02_kst_llm_input.json
-- ./data/processed/security_2026-04-02_kst_analysis_candidates.json
-- ./data/processed/security_2026-04-02_kst_noise_summary.json
-- ./data/processed/security_2026-04-02_kst_filtered_out_rows.json
 
 --------------------------------------------------
 
@@ -111,38 +108,38 @@ python ./src/run_analysis_pipeline.py \
   --pretty
 
 ==================================================
-3. Dry-run 권장 절차
+3. 권장 절차
 ==================================================
 
-[1] 전처리 먼저 확인
+[1] 전처리
 python ./src/prepare_llm_input.py \
-  --input ./data/raw/security_2026-04-02_kst.json \
+  --input ./data/raw/security_2026-04-07_kst.json \
   --out-dir ./data/processed \
   --pretty \
   --write-filtered-out
 
-[2] stage1 dry-run
+[2] stage1 기준본
 python ./src/llm_stage1_classifier.py \
-  --input ./data/processed/security_2026-04-02_kst_llm_input.json \
+  --input ./data/processed/security_2026-04-07_kst_llm_input.json \
   --out-dir ./data/processed \
   --mode routine \
-  --dry-run \
   --pretty
 
-[3] stage2 dry-run
+[3-A] stage2 routine 보고서
 python ./src/llm_stage2_reporter.py \
-  --stage1-results ./data/processed/security_2026-04-02_kst_stage1_results.json \
-  --out-dir ./reports \
+  --stage1-results ./data/processed/security_2026-04-07_kst_stage1_results.json \
+  --llm-input ./data/processed/security_2026-04-07_kst_llm_input.json \
+  --out-dir ./reports/routine \
   --mode routine \
-  --dry-run \
+  --known-asset-ips 192.168.35.113,192.168.35.145,192.168.35.223,192.168.35.27 \
   --pretty
 
-[4] 전체 파이프라인 dry-run
-python ./src/run_analysis_pipeline.py \
-  --export-input ./data/raw/security_2026-04-07_kst.json \
-  --work-dir /opt/web_log_analysis \
-  --base-name security_2026-04-07_kst \
-  --mode routine \
+[3-B] stage2 presentation 보고서
+python ./src/llm_stage2_reporter.py \
+  --stage1-results ./data/processed/security_2026-04-07_kst_stage1_results.json \
+  --llm-input ./data/processed/security_2026-04-07_kst_llm_input.json \
+  --out-dir ./reports/presentation \
+  --mode presentation \
   --known-asset-ips 192.168.35.113,192.168.35.145,192.168.35.223,192.168.35.27 \
   --pretty
 

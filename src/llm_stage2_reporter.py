@@ -35,6 +35,7 @@ ALLOWED_MODES = {"routine", "milestone", "presentation"}
 SEVERITY_ORDER = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}
 CONFIDENCE_ORDER = {"high": 3, "medium": 2, "low": 1}
 TABLE_PRIORITY = {"security": 3, "error": 2, "access": 1}
+RECON_FILTERED_CATEGORIES = ("low_signal_fuzzing", "low_signal_dir_probe")
 
 
 @dataclass
@@ -382,6 +383,19 @@ def build_filtered_category_rows(filtered_out_breakdown: Dict[str, int], total_f
     return rows
 
 
+def build_out_of_candidate_recon_rows(filtered_out_breakdown: Dict[str, int], total_filtered_out_rows: int, top_n: int) -> List[Dict[str, Any]]:
+    recon_breakdown = {
+        category: count
+        for category, count in filtered_out_breakdown.items()
+        if category in RECON_FILTERED_CATEGORIES and safe_int(count, 0) > 0
+    }
+    return build_filtered_category_rows(
+        filtered_out_breakdown=recon_breakdown,
+        total_filtered_out_rows=total_filtered_out_rows,
+        top_n=top_n,
+    )
+
+
 def build_report_input(
     stage1_payload: Dict[str, Any],
     llm_input_payload: Optional[Dict[str, Any]],
@@ -420,6 +434,11 @@ def build_report_input(
         reverse=True,
     )[:top_noise_groups]
     top_filtered_categories = build_filtered_category_rows(
+        filtered_out_breakdown=filtered_out_breakdown,
+        total_filtered_out_rows=total_filtered_out_rows,
+        top_n=top_noise_groups,
+    )
+    top_out_of_candidate_recon = build_out_of_candidate_recon_rows(
         filtered_out_breakdown=filtered_out_breakdown,
         total_filtered_out_rows=total_filtered_out_rows,
         top_n=top_noise_groups,
@@ -464,6 +483,7 @@ def build_report_input(
         "top_src_ips": ip_rows,
         "top_noise_groups": top_noise,
         "top_filtered_categories": top_filtered_categories,
+        "top_out_of_candidate_recon": top_out_of_candidate_recon,
         "stage1_errors_excerpt": stage1_errors[:5],
         "asset_context": {
             "known_asset_ips": list(known_asset_ips),
@@ -478,6 +498,11 @@ def build_report_input(
             "noise_is_aggregated_before_llm": True,
             "filtered_out_breakdown_is_preserved": bool(llm_meta.get("pipeline_policy", {}).get("filtered_noise_breakdown_is_preserved", False)),
             "dedupe_rule": "request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 incident 병합",
+            "out_of_candidate_recon_policy": {
+                "default_action": "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않음",
+                "reporting_rule": "stage2 에서는 후보 밖 탐색성 요청 섹션으로 고정 표기",
+                "promotion_review_rule": "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토",
+            },
         },
     }
 
@@ -590,7 +615,9 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "동일 파라미터가 반복되면 HPP(HTTP Parameter Pollution) 문맥을 검토하라. "
         "hpp_detected 가 true 이고 embedded_attack_hint 가 있으면, 사건 분류는 기존 SQLi/XSS 체계를 유지하되 보고서 설명에는 '중복 파라미터(HPP)를 이용한 시도' 문맥을 포함하라. "
         "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 요청의 세부 분포는 실제로 존재하는 것으로 해석하라. "
-        "filtered_out_breakdown 과 top_filtered_categories 는 prepare 단계에서 보존된 사실 정보이므로 noise_interpretation 과 recommended_actions 에 반영하라. "
+        "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, stage2 에서는 '후보 밖 탐색성 요청'으로 고정 표기하라. "
+        "단, 동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라. "
+        "filtered_out_breakdown, top_filtered_categories, top_out_of_candidate_recon 은 prepare 단계에서 보존된 사실 정보이므로 후보 밖 탐색성 요청 섹션과 recommended_actions 에 반영하라. "
         "반드시 schema-valid JSON 객체만 반환하라. "
         "자유서술 필드는 모두 한국어로 작성하라."
     )
@@ -612,6 +639,8 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "hpp_detected 가 true 인 incident 는 hpp_param_names 와 embedded_attack_hint 를 함께 보고, 중복 파라미터(HPP)를 통한 공격 시도인지 서술하라.",
             "known_asset_ips 와 일치하는 IP 는 내부 테스트/자체 호출 가능성을 반드시 함께 언급하라.",
             "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 세부 분포가 존재하는 것으로 서술하라.",
+            "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, 별도 '후보 밖 탐색성 요청' 섹션에서 설명하라.",
+            "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라.",
             "low_signal_fuzzing, low_signal_dir_probe, benign_normal_search, benign_fallback_html 같은 filtered_out_breakdown 카테고리가 있으면 noise_interpretation 에 구체적으로 반영하라.",
             "executive_summary 는 짧고 발표용으로 읽기 쉽게 작성하라.",
             "recommended_actions 는 구체적이고 운영 가능한 형태로 제시하라.",
@@ -697,6 +726,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     distributions = report_input.get("distributions") or {}
     top_incidents = report_input.get("top_incidents") or []
     top_filtered_categories = report_input.get("top_filtered_categories") or []
+    top_out_of_candidate_recon = report_input.get("top_out_of_candidate_recon") or []
     verdicts = distributions.get("verdicts") or {}
     severities = distributions.get("severities") or {}
     source_tables = distributions.get("source_tables") or {}
@@ -795,9 +825,21 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
         lines.append("참고: 위 출발지 IP 중 일부는 known asset 목록과 일치하므로, 실제 공격자 IP 로 단정하지 말고 내부 테스트/자체 호출 여부를 먼저 확인해야 합니다.")
     lines.append("")
 
-    lines.append("## 7. noise 해석")
+    lines.append("## 7. 후보 밖 탐색성 요청")
     lines.append(normalize_str(report_json.get("noise_interpretation")))
-    if top_filtered_categories:
+    lines.append("")
+    lines.append("정책:")
+    lines.append("- low_signal_fuzzing / low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않습니다.")
+    lines.append("- stage2 에서는 후보 밖 탐색성 요청으로 고정 표기합니다.")
+    lines.append("- 동일 IP·동일 시간대·후속 고신호 incident 와 결합될 때만 승격 검토합니다.")
+    if top_out_of_candidate_recon:
+        lines.append("")
+        lines.append("후보 밖 탐색성 요청 분포:")
+        for row in top_out_of_candidate_recon:
+            lines.append(
+                f"- {normalize_str(row.get('category'))}: {safe_int(row.get('count'), 0)}건 ({row.get('share_pct', 0)}%)"
+            )
+    elif top_filtered_categories:
         lines.append("")
         lines.append("후보 밖 세부 분포:")
         for row in top_filtered_categories:
@@ -829,6 +871,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     counts = report_input.get("pipeline_counts") or {}
     incidents = report_input.get("top_incidents") or []
     filtered_rows = report_input.get("top_filtered_categories") or []
+    recon_rows = report_input.get("top_out_of_candidate_recon") or []
     asset_context = report_input.get("asset_context") or {}
     lines: List[str] = []
     lines.append("# 드라이런 보안 분석 보고서")
@@ -853,6 +896,8 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
             lines.append(
                 f"  - {normalize_str(row.get('category'))}: {safe_int(row.get('count'), 0)}건 ({row.get('share_pct', 0)}%)"
             )
+    if recon_rows:
+        lines.append("- 후보 밖 탐색성 요청 승격 정책: low_signal_fuzzing / low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않고, 동일 IP·동일 시간대·후속 고신호 incident 와 결합될 때만 승격 검토")
     lines.append("")
     lines.append("## 상위 incident 미리보기")
     for item in incidents[:5]:
