@@ -297,7 +297,7 @@ DB와 사용자 생성:
 
 ```sql
 CREATE DATABASE opencart DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'opencartuser'@'localhost' IDENTIFIED BY 'strongpass!1234';
+CREATE USER 'opencartuser'@'localhost' IDENTIFIED BY 'hoseo2026';
 GRANT ALL PRIVILEGES ON opencart.* TO 'opencartuser'@'localhost';
 FLUSH PRIVILEGES;
 EXIT;

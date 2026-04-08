@@ -301,13 +301,7 @@ duration_us=%D ttfb_us=%^FB keepalive_count=%k connection_status=%X \
 req_content_type=\"%{Content-Type}i\" req_content_length=\"%{Content-Length}i\" \
 resp_content_type=\"%{Content-Type}o\" \
 referer=\"%{Referer}i\" user_agent=\"%{User-Agent}i\" \
-host=\"%{Host}i\" x_forwarded_for=\"%{X-Forwarded-For}i\" \
-resp_html_norm_fingerprint=\"%{resp_html_norm_fingerprint}n\" \
-resp_html_fingerprint_version=\"%{resp_html_fingerprint_version}n\" \
-resp_html_baseline_name=\"%{resp_html_baseline_name}n\" \
-resp_html_baseline_match=\"%{resp_html_baseline_match}n\" \
-resp_html_baseline_confidence=\"%{resp_html_baseline_confidence}n\" \
-resp_html_features_json=\"%{resp_html_features_json}n\"" security_db_aligned
+host=\"%{Host}i\" x_forwarded_for=\"%{X-Forwarded-For}i\" security_db_aligned
 
     CustomLog ${APACHE_LOG_DIR}/app_security.log security_db_aligned
 </VirtualHost>
@@ -323,7 +317,6 @@ resp_html_features_json=\"%{resp_html_features_json}n\"" security_db_aligned
 - `UNIQUE_ID`: 요청 상관분석용 기본 식별자
 - `%L`: error 로그 연계용 보조 식별자
 - `LogIOTrackTTFB ON`: I/O 바이트와 TTFB 수집 활성화
-- + **추가한거 resp_html 설명 필요함**
 
 ---
 
@@ -474,7 +467,7 @@ http://서버IP/
 - `logio`
 - `unique_id`
 
-`rewrite` 는 필요 시 추가할 수 있지만, 본 실습 환경의 핵심 필수 목록은 아니다.
+`rewrite` 는 필요 시 추가할 수 있다.
 
 ---
 
