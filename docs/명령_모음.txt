@@ -18,7 +18,11 @@
 1. 보고서 윈도우로 가져오기 (윈도우 PowerShell)
 ==================================================
 
+[1] 보고서
 scp -r user@192.168.35.145:/opt/web_log_analysis/reports "$env:USERPROFILE\Downloads\"
+
+[2] 필요한 경우 llm_input.json
+scp -r user@192.168.35.145:/opt/web_log_analysis/processed/security_2026-04-07_kst_llm_input.json "$env:USERPROFILE\Downloads\"
 
 ==================================================
 2. 공격 또는 테스트 후 수동 절차
@@ -99,9 +103,11 @@ python ./src/llm_stage2_reporter.py \
 [6] 필요 시 통합 파이프라인 사용
 
 python ./src/run_analysis_pipeline.py \
-  --export-input ./data/raw/security_2026-04-02_kst.json \
+  --export-input ./data/raw/security_2026-04-07_kst.json \
   --work-dir /opt/web_log_analysis \
+  --base-name security_2026-04-07_kstl \
   --mode routine \
+  --known-asset-ips 192.168.35.113,192.168.35.145,192.168.35.223,192.168.35.27 \
   --pretty
 
 ==================================================
@@ -133,10 +139,11 @@ python ./src/llm_stage2_reporter.py \
 
 [4] 전체 파이프라인 dry-run
 python ./src/run_analysis_pipeline.py \
-  --export-input ./data/raw/security_2026-04-02_kst.json \
+  --export-input ./data/raw/security_2026-04-07_kst.json \
   --work-dir /opt/web_log_analysis \
+  --base-name security_2026-04-07_kst \
   --mode routine \
-  --dry-run \
+  --known-asset-ips 192.168.35.113,192.168.35.145,192.168.35.223,192.168.35.27 \
   --pretty
 
 ==================================================
@@ -169,3 +176,23 @@ python ./src/run_analysis_pipeline.py \
 → stage2
 → 보고서 확인
 
+==================================================
+6. LLM 서버의 현재 파일을 GitHub 기준으로 맞추고 싶다
+==================================================
+
+명령어
+```bash
+cd /opt/web_log_analysis
+
+git status
+git fetch origin
+
+git restore --source origin/main -- \
+  src/export_db_logs_cli.py \
+  src/llm_stage1_classifier.py \
+  src/llm_stage2_reporter.py \
+  src/prepare_llm_input.py \
+  src/run_analysis_pipeline.py
+
+git status
+```
