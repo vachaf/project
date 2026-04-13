@@ -18,3 +18,5 @@ config/*.env
 Thumbs.db
 
 .bin/
+
+archive/
