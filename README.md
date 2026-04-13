@@ -6,7 +6,6 @@ Apache 웹 로그를 MariaDB에 적재한 뒤, export → 전처리 → LLM 1차
 
 - `docs/`: 구축, 운영, 분석 기준 문서
 - `src/`: 실행 스크립트
-- `archive/`: 구버전 문서 보관
 
 ## 현재 파이프라인
 
