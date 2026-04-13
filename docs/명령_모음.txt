@@ -21,8 +21,35 @@
 [1] 보고서
 scp -r user@192.168.35.145:/opt/web_log_analysis/reports "$env:USERPROFILE\Downloads\"
 
-[2] 필요한 경우 llm_input.json
-scp -r user@192.168.35.145:/opt/web_log_analysis/processed/security_2026-04-07_kst_llm_input.json "$env:USERPROFILE\Downloads\"
+[2-1] 필요한 경우 원본 로그 json
+scp -r user@192.168.35.145:/opt/web_log_analysis/data/raw/security_2026-04-07_kst.json "$env:USERPROFILE\Downloads\"
+
+[2-2] 필요한 경우 llm_input.json
+scp -r user@192.168.35.145:/opt/web_log_analysis/data/processed/security_2026-04-07_kst_llm_input.json "$env:USERPROFILE\Downloads\"
+
+[2-3] 필요한 경우 analysis_candidates.json
+scp -r user@192.168.35.145:/opt/web_log_analysis/data/processed/security_2026-04-07_kst_analysis_candidates.json "$env:USERPROFILE\Downloads\"
+
+[2-4] 필요한 경우 noise_summary.json
+scp -r user@192.168.35.145:/opt/web_log_analysis/data/processed/security_2026-04-07_kst_noise_summary.json "$env:USERPROFILE\Downloads\"
+
+[2-5] 필요한 경우 filtered_out_rows.json
+scp -r user@192.168.35.145:/opt/web_log_analysis/data/processed/security_2026-04-07_kst_filtered_out_rows.json "$env:USERPROFILE\Downloads\"
+
+[2-6] 필요한 경우 stage1_results.json
+scp -r user@192.168.35.145:/opt/web_log_analysis/data/processed/security_2026-04-07_kst_stage1_results.json "$env:USERPROFILE\Downloads\"
+
+[2-7] 필요한 경우 stage1_errors.json
+scp -r user@192.168.35.145:/opt/web_log_analysis/data/processed/security_2026-04-07_kst_stage1_errors.json "$env:USERPROFILE\Downloads\"
+
+[2-8] 필요한 경우 stage2_report_input.json
+scp -r user@192.168.35.145:/opt/web_log_analysis/reports/security_2026-04-07_kst_stage2_report_input.json "$env:USERPROFILE\Downloads\"
+
+[2-9] 필요한 경우 stage2_report.json
+scp -r user@192.168.35.145:/opt/web_log_analysis/reports/security_2026-04-07_kst_stage2_report.json "$env:USERPROFILE\Downloads\"
+
+[2-10] 필요한 경우 stage2_report.md
+scp -r user@192.168.35.145:/opt/web_log_analysis/reports/security_2026-04-07_kst_stage2_report.md "$env:USERPROFILE\Downloads\"
 
 ==================================================
 2. 공격 또는 테스트 후 수동 절차
