@@ -281,7 +281,7 @@ jq '.meta, .counts' ./data/raw/security_2026-04-02_kst.json
 
 - 최상위 키에 `meta`, `counts`, `data`가 있다.
 - `meta.query_timezone`이 KST 기준 설명과 맞는다.
-- `counts.total_rows`가 0보다 크면 다음 단계로 진행 가능하다.
+- `counts.security` 등 테이블별 건수와 `meta.total_count`를 함께 확인하고, `meta.total_count`가 0보다 크면 다음 단계로 진행 가능하다.
 
 ## 11. prepare 실행
 
