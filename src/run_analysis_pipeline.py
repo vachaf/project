@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from llm_stage2_reporter import resolve_known_asset_ips
 
 ALLOWED_MODES = {"routine", "milestone", "presentation"}
 ALLOWED_STOP_AFTER = {"prepare", "stage1", "stage2"}
@@ -62,7 +63,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stage2-top-noise-groups", type=int, default=8, help="2차 보고서 상위 noise group 수")
     parser.add_argument("--stage2-top-ips", type=int, default=8, help="2차 보고서 상위 src_ip 수")
     parser.add_argument("--stage2-timeout-sec", type=int, default=180, help="2차 보고서 HTTP 타임아웃")
-    parser.add_argument("--known-asset-ips", default=os.getenv("KNOWN_ASSET_IPS", ""), help="stage2 에 전달할 known asset IP 쉼표 목록")
+    parser.add_argument(
+        "--known-asset-ips",
+        default=None,
+        help="stage2 에 전달할 known asset IP 쉼표 목록 (.env 의 KNOWN_ASSET_IPS fallback 사용 가능)",
+    )
 
     parser.add_argument("--store", action="store_true", help="Responses API store=true 사용")
     parser.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high", "xhigh"], default="none", help="선택적 reasoning effort")
@@ -205,6 +210,8 @@ def main() -> int:
 
     scripts_dir = Path(args.scripts_dir).expanduser().resolve() if args.scripts_dir else Path(__file__).resolve().parent
     work_dir = Path(args.work_dir).expanduser().resolve()
+    known_asset_ips = resolve_known_asset_ips(args.known_asset_ips, extra_env_roots=[work_dir])
+    known_asset_ips_csv = ",".join(known_asset_ips)
     processed_dir = Path(args.processed_dir).expanduser().resolve() if args.processed_dir else work_dir / "processed"
     reports_dir = Path(args.reports_dir).expanduser().resolve() if args.reports_dir else work_dir / "reports"
     manifest_path = work_dir / "pipeline_manifest.json"
@@ -262,7 +269,7 @@ def main() -> int:
             "processed_dir": str(processed_dir),
             "reports_dir": str(reports_dir),
             "prepare_source_tables": args.prepare_source_tables,
-            "known_asset_ips": args.known_asset_ips,
+            "known_asset_ips": known_asset_ips,
             "python": sys.executable,
         },
         "inputs": {
@@ -374,8 +381,8 @@ def main() -> int:
             cmd.extend(["--llm-input", str(paths["llm_input"])])
         if paths["stage1_errors"] and Path(paths["stage1_errors"]).exists():
             cmd.extend(["--stage1-errors", str(paths["stage1_errors"])])
-        if args.known_asset_ips:
-            cmd.extend(["--known-asset-ips", args.known_asset_ips])
+        if known_asset_ips_csv:
+            cmd.extend(["--known-asset-ips", known_asset_ips_csv])
         if args.stage2_model:
             cmd.extend(["--model", args.stage2_model])
         if args.store:

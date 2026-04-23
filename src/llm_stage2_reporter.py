@@ -36,6 +36,7 @@ SEVERITY_ORDER = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}
 CONFIDENCE_ORDER = {"high": 3, "medium": 2, "low": 1}
 TABLE_PRIORITY = {"security": 3, "error": 2, "access": 1}
 RECON_FILTERED_CATEGORIES = ("low_signal_fuzzing", "low_signal_dir_probe")
+ENV_FILE_NAMES = ("config/llm.env", "llm.env", ".env")
 
 
 @dataclass
@@ -82,7 +83,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-incidents", type=int, default=12, help="모델에 전달할 상위 incident 수")
     parser.add_argument("--top-noise-groups", type=int, default=8, help="모델에 전달할 상위 noise group 수")
     parser.add_argument("--top-ips", type=int, default=8, help="모델에 전달할 상위 src_ip 수")
-    parser.add_argument("--known-asset-ips", default=os.getenv("KNOWN_ASSET_IPS", ""), help="쉼표 구분 known asset IP 목록")
+    parser.add_argument(
+        "--known-asset-ips",
+        default=None,
+        help="쉼표 구분 known asset IP 목록 (.env 의 KNOWN_ASSET_IPS fallback 사용 가능)",
+    )
     parser.add_argument("--timeout-sec", type=int, default=DEFAULT_TIMEOUT_SEC, help="HTTP 타임아웃")
     parser.add_argument("--store", action="store_true", help="Responses API 결과 저장 활성화 (기본값은 false)")
     parser.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high", "xhigh"], default="none", help="선택적 reasoning effort")
@@ -152,6 +157,54 @@ def infer_related_path(stage1_results_path: str, replacement_suffix: str) -> str
 
 def parse_known_asset_ips(raw: str) -> List[str]:
     return sorted({part.strip() for part in raw.split(",") if part.strip()})
+
+
+def iter_env_file_candidates(extra_roots: Optional[Sequence[Path]] = None) -> List[Path]:
+    roots = [Path.cwd(), Path(__file__).resolve().parent.parent]
+    if extra_roots:
+        roots.extend(extra_roots)
+    candidates: List[Path] = []
+    seen = set()
+    for root in roots:
+        for name in ENV_FILE_NAMES:
+            path = (root / name).resolve()
+            if path not in seen:
+                candidates.append(path)
+                seen.add(path)
+    return candidates
+
+
+def read_env_file_value(key: str, extra_roots: Optional[Sequence[Path]] = None) -> str:
+    for path in iter_env_file_candidates(extra_roots=extra_roots):
+        if not path.exists():
+            continue
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            name, value = stripped.split("=", 1)
+            name = name.strip()
+            if name.startswith("export "):
+                name = name[len("export "):].strip()
+            if name != key:
+                continue
+            value = value.strip().strip("'\"")
+            return value
+    return ""
+
+
+def resolve_known_asset_ips(cli_value: Optional[str], extra_env_roots: Optional[Sequence[Path]] = None) -> List[str]:
+    if cli_value is not None:
+        return parse_known_asset_ips(cli_value)
+    raw = os.getenv("KNOWN_ASSET_IPS", "").strip() or read_env_file_value(
+        "KNOWN_ASSET_IPS",
+        extra_roots=extra_env_roots,
+    )
+    return parse_known_asset_ips(raw)
 
 
 def parse_dt(text: str) -> Optional[datetime]:
@@ -944,7 +997,7 @@ def main() -> int:
     report_md_path = out_dir / f"{base_name}_stage2_report.md"
     report_input_path = out_dir / f"{base_name}_stage2_report_input.json"
     report_error_path = out_dir / f"{base_name}_stage2_report_error.json"
-    known_asset_ips = parse_known_asset_ips(args.known_asset_ips)
+    known_asset_ips = resolve_known_asset_ips(args.known_asset_ips)
 
     report_input = build_report_input(
         stage1_payload=stage1_payload,

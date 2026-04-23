@@ -79,6 +79,7 @@ sudo timedatectl set-timezone Asia/Seoul
 ```bash
 python3 --version
 pip3 --version
+git --version
 timedatectl
 ```
 
@@ -106,6 +107,41 @@ chmod 755 /opt/web_log_analysis/src/*.py
 ```bash
 ls -l /opt/web_log_analysis/src/
 ```
+
+GitHub 리포지토리를 기준으로 운영 서버를 관리하는 경우, `/opt/web_log_analysis`를 Git 작업 디렉터리로 두는 편이 좋다.  
+이 절차는 운영 서버의 주요 Python 파일을 GitHub `origin/main` 기준으로 되돌리거나 동기화하기 위한 것이다.
+
+처음 배치하는 경우 예시:
+
+```bash
+cd /opt
+sudo git clone <GitHub_저장소_URL> web_log_analysis
+sudo chown -R "$USER":"$USER" /opt/web_log_analysis
+cd /opt/web_log_analysis
+```
+
+이미 `/opt/web_log_analysis`가 Git 작업 디렉터리라면 주요 파일만 `origin/main` 기준으로 맞출 수 있다.
+
+```bash
+cd /opt/web_log_analysis
+
+git status
+git fetch origin
+
+git restore --source origin/main -- \
+  src/export_db_logs_cli.py \
+  src/llm_stage1_classifier.py \
+  src/llm_stage2_reporter.py \
+  src/prepare_llm_input.py \
+  src/run_analysis_pipeline.py
+
+git status
+```
+
+주의:
+
+- 위 명령은 지정한 주요 Python 파일의 로컬 수정분을 `origin/main` 기준으로 되돌린다.
+- 운영 서버에서 직접 수정한 내용이 있으면 `git status`로 먼저 확인하고 필요한 내용은 별도로 백업한다.
 
 ## 7. Python 가상환경 생성
 
@@ -148,7 +184,7 @@ KNOWN_ASSET_IPS=192.168.35.191,192.168.35.193,192.168.35.223,192.168.35.233
 - `OPENAI_API_KEY`: live-run에서 필요
 - `OPENAI_BASE_URL`: 기본은 공식 OpenAI API
 - `LOG_DB_*`: `export_db_logs_cli.py` DB 접속 정보
-- `KNOWN_ASSET_IPS`: stage2 보고서에서 내부 자산 IP 표시용
+- `KNOWN_ASSET_IPS`: stage2 보고서에서 내부 자산 IP 표시용. `--known-asset-ips` CLI 인자가 없으면 이 값을 fallback으로 사용한다.
 
 적용:
 
@@ -413,6 +449,12 @@ python ./src/llm_stage2_reporter.py \
 ```
 
 `--llm-input`을 생략하면 stage1 결과 파일명 기준으로 연관 입력을 추론한다.
+
+known asset IP는 아래 우선순위로 적용된다.
+
+1. `--known-asset-ips` CLI 인자
+2. 환경 변수 또는 `/opt/web_log_analysis/config/llm.env`의 `KNOWN_ASSET_IPS`
+3. 빈 목록
 
 ### 13.4 stage2 산출물
 

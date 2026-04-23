@@ -38,24 +38,49 @@ hostnamectl
 ## 4. 구축 순서
 
 1. 시스템 업데이트
-2. Apache 설치
-3. Docker 설치
-4. Juice Shop 컨테이너 실행
-5. Apache 모듈 활성화
-6. Apache VirtualHost 작성
-7. 사이트 활성화
-8. 브라우저 접속 검증
-9. 로그 3종 생성 확인
+2. Python 실행 환경 준비
+3. Apache 설치
+4. Docker 설치
+5. Juice Shop 컨테이너 실행
+6. Apache 모듈 활성화
+7. Apache VirtualHost 작성
+8. 사이트 활성화
+9. 브라우저 접속 검증
+10. 로그 3종 생성 확인
 
 ## 5. 시스템 업데이트
 
 ```bash
 sudo apt update
 sudo apt upgrade -y
-sudo apt install -y curl wget unzip ca-certificates gnupg lsb-release
+sudo apt install -y curl wget unzip ca-certificates gnupg lsb-release python3 python3-pip python3-venv
 ```
 
-## 6. Apache 설치
+## 6. Python 실행 환경 준비
+
+웹서버에서 `apache_log_shipper.py`를 함께 배치할 경우 `/opt/web_log_analysis` 아래에 스크립트와 설정을 둔다.
+
+```bash
+sudo mkdir -p /opt/web_log_analysis/{config,src}
+sudo chown -R "$USER":"$USER" /opt/web_log_analysis
+
+cd /opt/web_log_analysis
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+pip install PyMySQL
+```
+
+현재 저장소에는 별도 `requirements.txt`가 없으므로, 로그 적재 스크립트 실행에 필요한 외부 모듈은 `PyMySQL`을 직접 설치한다.
+
+확인:
+
+```bash
+python --version
+python -c "import pymysql; print(pymysql.__version__)"
+```
+
+## 7. Apache 설치
 
 ```bash
 sudo apt install -y apache2
@@ -69,7 +94,7 @@ curl -I http://127.0.0.1
 
 - Apache 기본 페이지에 대한 `HTTP/1.1 200 OK` 응답
 
-## 7. Docker 설치
+## 8. Docker 설치
 
 ```bash
 sudo apt install -y docker.io
@@ -86,7 +111,7 @@ sudo docker ps
 sudo usermod -aG docker $USER
 ```
 
-## 8. Juice Shop 실행
+## 9. Juice Shop 실행
 
 ```bash
 sudo docker pull bkimminich/juice-shop:v19.2.1
@@ -110,7 +135,7 @@ sudo docker logs --tail 50 juice-shop
 - `docker ps` 에 `juice-shop` 컨테이너 표시
 - `127.0.0.1:3000` 에서 HTTP 응답 확인
 
-## 9. Apache 모듈 활성화
+## 10. Apache 모듈 활성화
 
 현재 로그 포맷과 Reverse Proxy 구성을 위해 아래 모듈을 활성화한다.
 
@@ -123,7 +148,7 @@ sudo a2enmod unique_id
 sudo systemctl restart apache2
 ```
 
-## 10. Apache 사이트 설정
+## 11. Apache 사이트 설정
 
 설정 파일 생성:
 
@@ -171,7 +196,7 @@ host=\"%{Host}i\" x_forwarded_for=\"%{X-Forwarded-For}i\"" security_db_aligned
 - 현재 코드 기준 핵심 security 로그 필드는 `resp_content_type`, `response_body_bytes`, `raw_request`, `uri`, `query_string`, `duration_us`, `ttfb_us` 등이다.
 - `resp_html_*` 는 현재 필수 로그 포맷에 넣지 않는다.
 
-## 11. 사이트 활성화
+## 12. 사이트 활성화
 
 ```bash
 sudo a2dissite 000-default.conf
@@ -185,7 +210,7 @@ sudo systemctl status apache2
 
 - `Syntax OK`
 
-## 12. 브라우저 접속 검증
+## 13. 브라우저 접속 검증
 
 서버 내부:
 
@@ -205,7 +230,7 @@ http://서버IP/
 - Apache 기본 페이지가 아니라 Juice Shop 화면이 열려야 한다.
 - 외부에서 `http://서버IP:3000/` 로 직접 접속하지 않는다.
 
-## 13. 로그 파일 생성 확인
+## 14. 로그 파일 생성 확인
 
 파일 확인:
 
@@ -234,7 +259,7 @@ curl -s http://127.0.0.1/ > /dev/null
 - `app_security.log` 증가
 - `app_error.log` 는 정상 상황에서는 비어 있을 수 있음
 
-## 14. security 로그 포맷 확인
+## 15. security 로그 포맷 확인
 
 `app_security.log` 한 줄에 아래 키가 보여야 한다.
 
@@ -256,7 +281,7 @@ curl -s http://127.0.0.1/ > /dev/null
 
 이 형식은 현재 `src/apache_log_shipper.py` 파서와 맞는다.
 
-## 15. 설치 후 최소 점검
+## 16. 설치 후 최소 점검
 
 - `docker ps` 에서 `juice-shop` 확인
 - `curl -I http://127.0.0.1:3000` 응답 확인
@@ -265,7 +290,7 @@ curl -s http://127.0.0.1/ > /dev/null
 - `apache2ctl configtest` 가 `Syntax OK`
 - `app_access.log`, `app_security.log` 생성 확인
 
-## 16. 다음 단계
+## 17. 다음 단계
 
 Juice Shop 환경 구축 후 진행 순서:
 
