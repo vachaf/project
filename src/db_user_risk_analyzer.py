@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 from collections import defaultdict
 from dataclasses import dataclass, asdict
@@ -95,10 +96,10 @@ class UserRiskSummary:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Analyze suspicious users from apache_security_logs in MariaDB")
-    parser.add_argument("--db-host", default="192.168.35.223")
+    parser.add_argument("--db-host", default=os.getenv("LOG_DB_HOST", ""))
     parser.add_argument("--db-port", type=int, default=3306)
-    parser.add_argument("--db-user", default="log_writer")
-    parser.add_argument("--db-password", required=True)
+    parser.add_argument("--db-user", default=os.getenv("LOG_DB_USER", "log_writer"))
+    parser.add_argument("--db-password", default=os.getenv("LOG_DB_PASSWORD", ""))
     parser.add_argument("--db-name", default="web_logs")
     parser.add_argument("--hours", type=int, default=24, help="최근 N시간 로그 조회")
     parser.add_argument("--limit", type=int, default=5000, help="최대 조회 건수")
@@ -106,7 +107,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-score-sqli", type=int, default=7)
     parser.add_argument("--min-score-xss", type=int, default=7)
     parser.add_argument("--top", type=int, default=20, help="상위 몇 명 출력할지")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.db_host:
+        parser.error("--db-host 또는 LOG_DB_HOST가 필요합니다.")
+    if not args.db_password:
+        parser.error("--db-password 또는 LOG_DB_PASSWORD가 필요합니다.")
+    return args
 
 
 def normalize_text(text: Optional[str]) -> str:

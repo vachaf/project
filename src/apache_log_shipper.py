@@ -16,10 +16,10 @@ from pymysql.cursors import DictCursor
 
 CONFIG = {
     "db": {
-        "host": os.getenv("LOG_DB_HOST", "192.168.35.223"),
+        "host": os.getenv("LOG_DB_HOST", ""),
         "port": int(os.getenv("LOG_DB_PORT", "3306")),
         "user": os.getenv("LOG_DB_USER", "log_writer"),
-        "password": os.getenv("LOG_DB_PASSWORD", "hoseo2026"),
+        "password": os.getenv("LOG_DB_PASSWORD", ""),
         "database": os.getenv("LOG_DB_NAME", "web_logs"),
         "charset": "utf8mb4",
         "autocommit": False,
@@ -215,6 +215,10 @@ class MariaDBWriter:
                 self.close()
 
         db_cfg = CONFIG["db"]
+        if not db_cfg["host"]:
+            raise RuntimeError("LOG_DB_HOST is required.")
+        if not db_cfg["password"]:
+            raise RuntimeError("LOG_DB_PASSWORD is required.")
         self.conn = pymysql.connect(
             host=db_cfg["host"],
             port=db_cfg["port"],
