@@ -85,6 +85,11 @@ timedatectl
 
 ## 6. 작업 디렉터리 준비
 
+배치 방식은 아래 둘 중 하나만 선택한다.  
+GitHub 기준으로 운영 서버를 관리할 수 있으면 방식 B를 권장한다.
+
+### 6.1 방식 A: 수동 디렉터리 생성 + src 파일 복사
+
 ```bash
 sudo mkdir -p /opt/web_log_analysis/{config,src,raw,processed,reports}
 sudo chown -R "$USER":"$USER" /opt/web_log_analysis
@@ -108,19 +113,28 @@ chmod 755 /opt/web_log_analysis/src/*.py
 ls -l /opt/web_log_analysis/src/
 ```
 
-GitHub 리포지토리를 기준으로 운영 서버를 관리하는 경우, `/opt/web_log_analysis`를 Git 작업 디렉터리로 두는 편이 좋다.  
-이 절차는 운영 서버의 주요 Python 파일을 GitHub `origin/main` 기준으로 되돌리거나 동기화하기 위한 것이다.
+### 6.2 방식 B: GitHub 저장소를 clone 해서 배치
 
-처음 배치하는 경우 예시:
+`/opt/web_log_analysis`가 아직 없거나 비어 있을 때 사용한다. GitHub 리포지토리를 기준으로 운영 서버를 관리하는 경우, `/opt/web_log_analysis`를 Git 작업 디렉터리로 두는 편이 좋다.
 
 ```bash
 cd /opt
 sudo git clone <GitHub_저장소_URL> web_log_analysis
 sudo chown -R "$USER":"$USER" /opt/web_log_analysis
 cd /opt/web_log_analysis
+mkdir -p config raw processed reports
 ```
 
-이미 `/opt/web_log_analysis`가 Git 작업 디렉터리라면 주요 파일만 `origin/main` 기준으로 맞출 수 있다.
+배치 확인:
+
+```bash
+ls -l /opt/web_log_analysis/src/
+```
+
+### 6.3 GitHub 기준 주요 파일 동기화
+
+이 절차는 운영 서버의 주요 Python 파일을 GitHub `origin/main` 기준으로 되돌리거나 동기화하기 위한 것이다.  
+이미 `/opt/web_log_analysis`가 Git 작업 디렉터리인 경우에 수행한다.
 
 ```bash
 cd /opt/web_log_analysis
