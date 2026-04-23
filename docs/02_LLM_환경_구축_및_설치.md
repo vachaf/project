@@ -9,6 +9,7 @@
   - `src/llm_stage1_classifier.py`
   - `src/llm_stage2_reporter.py`
   - `src/run_analysis_pipeline.py`
+  - `src/llm_client.py`
 
 ## 1. 목적
 
@@ -148,7 +149,8 @@ git restore --source origin/main -- \
   src/llm_stage1_classifier.py \
   src/llm_stage2_reporter.py \
   src/prepare_llm_input.py \
-  src/run_analysis_pipeline.py
+  src/run_analysis_pipeline.py \
+  src/llm_client.py
 
 git status
 ```
