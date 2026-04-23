@@ -187,7 +187,7 @@ resp_content_type=\"%{Content-Type}o\" \
 referer=\"%{Referer}i\" user_agent=\"%{User-Agent}i\" \
 host=\"%{Host}i\" x_forwarded_for=\"%{X-Forwarded-For}i\"" security_db_aligned
 
-    CustomLog ${APACHE_LOG_DIR}/app_security.log security_db_aligned
+CustomLog ${APACHE_LOG_DIR}/app_security.log security_db_aligned
 </VirtualHost>
 ```
 
