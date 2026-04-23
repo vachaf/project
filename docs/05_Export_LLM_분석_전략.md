@@ -330,6 +330,19 @@ python3 ./src/run_analysis_pipeline.py \
   --pretty
 ```
 
+Claude 사용 시 예시:
+
+```bash
+python3 ./src/run_analysis_pipeline.py \
+  --llm-provider anthropic \
+  --stage1-model "$ANTHROPIC_MODEL" \
+  --stage2-model "$ANTHROPIC_MODEL" \
+  --export-input ./data/raw/security_2026-04-02_kst.json \
+  --work-dir . \
+  --mode routine \
+  --pretty
+```
+
 ## 9. 현재 보수 해석 기준
 
 path traversal 계열에서 현재 문서 기준 보수 해석은 다음 순서로 본다.

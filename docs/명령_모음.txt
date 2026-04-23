@@ -79,7 +79,7 @@ python ./src/export_db_logs_cli.py \
   --port "$LOG_DB_PORT" \
   --user "$LOG_DB_USER" \
   --password "$LOG_DB_PASSWORD" \
-  --date 2026-04-02 \
+  --date 2026-04-07 \
   --table security \
   --pretty
 
@@ -92,33 +92,53 @@ python ./src/export_db_logs_cli.py \
 [3] LLM 서버(llm)에서 전처리 실행
 
 python ./src/prepare_llm_input.py \
-  --input ./data/raw/security_2026-04-02_kst.json \
+  --input ./data/raw/security_2026-04-07_kst.json \
   --out-dir ./data/processed \
   --pretty \
   --write-filtered-out
 
 생성 기대 파일 예시:
-- ./data/processed/security_2026-04-02_kst_llm_input.json
+- ./data/processed/security_2026-04-07_kst_llm_input.json
 
 --------------------------------------------------
 
 [4] LLM 서버(llm)에서 1차 분류 실행
 
 python ./src/llm_stage1_classifier.py \
-  --input ./data/processed/security_2026-04-02_kst_llm_input.json \
+  --input ./data/processed/security_2026-04-07_kst_llm_input.json \
   --out-dir ./data/processed \
   --mode routine \
   --pretty
 
+Claude로 stage1 실행:
+
+python ./src/llm_stage1_classifier.py \
+  --provider anthropic \
+  --model "$ANTHROPIC_MODEL" \
+  --input ./data/processed/security_2026-04-07_kst_llm_input.json \
+  --out-dir ./data/processed \
+  --mode routine \
+  --pretty
 --------------------------------------------------
 
 [5] LLM 서버(llm)에서 2차 보고서 생성
 
 python ./src/llm_stage2_reporter.py \
   --stage1-results ./data/processed/security_2026-04-02_kst_stage1_results.json \
+  --llm-input ./data/processed/security_2026-04-02_kst_llm_input.json \
   --out-dir ./reports \
   --mode routine \
-  --known-asset-ips 192.168.35.113,192.168.35.145,192.168.35.223,192.168.35.27 \
+  --pretty
+
+Claude로 stage2 실행:
+
+python ./src/llm_stage2_reporter.py \
+  --provider anthropic \
+  --model "$ANTHROPIC_MODEL" \
+  --stage1-results ./data/processed/security_2026-04-02_kst_stage1_results.json \
+  --llm-input ./data/processed/security_2026-04-02_kst_llm_input.json \
+  --out-dir ./reports \
+  --mode routine \
   --pretty
 
 --------------------------------------------------
@@ -126,16 +146,28 @@ python ./src/llm_stage2_reporter.py \
 [6] 필요 시 통합 파이프라인 사용
 
 python ./src/run_analysis_pipeline.py \
-  --export-input ./data/raw/security_2026-04-07_kst.json \
+  --export-input ./data/raw/security_2026-04-02_kst.json \
   --work-dir /opt/web_log_analysis \
-  --base-name security_2026-04-07_kstl \
   --mode routine \
-  --known-asset-ips 192.168.35.113,192.168.35.145,192.168.35.223,192.168.35.27 \
+  --pretty
+
+Claude로 통합 파이프라인 실행:
+
+python ./src/run_analysis_pipeline.py \
+  --llm-provider anthropic \
+  --stage1-model "$ANTHROPIC_MODEL" \
+  --stage2-model "$ANTHROPIC_MODEL" \
+  --export-input ./data/raw/security_2026-04-02_kst.json \
+  --work-dir /opt/web_log_analysis \
+  --mode routine \
   --pretty
 
 ==================================================
 3. 권장 절차
 ==================================================
+
+Claude 사용 시 [2] stage1과 [3-A]/[3-B] stage2 명령은 위 2번 수동 절차의 Claude 예시처럼
+--provider anthropic 과 --model "$ANTHROPIC_MODEL" 을 추가한다.
 
 [1] 전처리
 python ./src/prepare_llm_input.py \

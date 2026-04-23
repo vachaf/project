@@ -213,6 +213,8 @@ KNOWN_ASSET_IPS=192.168.35.191,192.168.35.193,192.168.35.223,192.168.35.233
 - `LOG_DB_*`: `export_db_logs_cli.py` DB 접속 정보
 - `KNOWN_ASSET_IPS`: stage2 보고서에서 내부 자산 IP 표시용. `--known-asset-ips` CLI 인자가 없으면 이 값을 fallback으로 사용한다.
 
+사용하지 않는 provider의 키는 빈 값으로 두기보다 주석 처리해도 된다. 운영 시에는 필요하면 `llm.env.openai`, `llm.env.anthropic`처럼 분리해 관리하고, 실제 실행 전에 사용할 파일을 `llm.env`로 적용한다.
+
 적용:
 
 ```bash
@@ -439,7 +441,7 @@ jq '.results[0]' ./processed/security_2026-04-02_kst_stage1_results.json
 
 ### 13.1 현재 모델 기본값
 
-provider를 지정하지 않으면 기존처럼 OpenAI를 사용한다.
+provider를 지정하지 않으면 기존처럼 OpenAI를 사용한다. Claude를 쓰려면 `--provider anthropic`과 `--model`을 지정하거나 `LLM_PROVIDER=anthropic`, `ANTHROPIC_MODEL`을 환경파일에 설정한다.
 
 - `routine`: `gpt-5.4-mini`
 - `milestone`: `gpt-5.4`
@@ -534,7 +536,7 @@ python ./src/run_analysis_pipeline.py \
   --pretty
 ```
 
-Claude로 통합 실행하려면 `--llm-provider anthropic`을 넘긴다. stage1/stage2 모두 같은 provider로 실행된다.
+Claude로 통합 실행하려면 `--llm-provider anthropic`을 넘긴다. stage1/stage2 모두 같은 provider로 실행되며, Claude 모델은 `--stage1-model`, `--stage2-model` 또는 `ANTHROPIC_MODEL`로 지정한다.
 
 ```bash
 python ./src/run_analysis_pipeline.py \
