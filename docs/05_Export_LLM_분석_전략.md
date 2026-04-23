@@ -91,9 +91,10 @@ routine 분석의 기본 입력은 `security` 다.
 
 ### 4.4 export 파일명
 
-- `--out` 지정 시 해당 경로 사용
-- `--out` 미지정 시 자동 파일명:
-  - `export_<table>_<start>_to_<end>_kst.json`
+- 출력 경로는 작업 루트 기준 `data/raw/` 고정
+- 날짜 단위 export: `{table}_{date}_kst.json`
+- 시간 범위 export: `{table}_{start}_to_{end}_kst.json`
+- 동일 파일명이 있으면 그대로 덮어쓴다.
 
 예시:
 
@@ -103,8 +104,7 @@ python3 ./src/export_db_logs_cli.py \
   --user log_reader \
   --date 2026-04-02 \
   --table security \
-  --pretty \
-  --out ./raw/security_2026-04-02_kst.json
+  --pretty
 ```
 
 ## 5. prepare 기준
@@ -324,7 +324,7 @@ stage2는 `request_id` 우선, 없으면 `src_ip + method + uri + status_code + 
 
 ```bash
 python3 ./src/run_analysis_pipeline.py \
-  --export-input ./raw/security_2026-04-02_kst.json \
+  --export-input ./data/raw/security_2026-04-02_kst.json \
   --work-dir . \
   --mode routine \
   --pretty

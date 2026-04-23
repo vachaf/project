@@ -23,16 +23,14 @@ MariaDB(web_logs)에서 시간 범위 기준으로 로그를 조회해 JSON 파�
     --password '비밀번호' \
     --today \
     --table security \
-    --pretty \
-    --out today_security_kst.json
+    --pretty
 
   python3 export_db_logs_cli_kst.py \
     --host 192.168.35.223 \
     --user log_reader \
     --password '비밀번호' \
     --date 2026-04-02 \
-    --table security \
-    --out security_2026-04-02_kst.json
+    --table security
 
   python3 export_db_logs_cli_kst.py \
     --host 192.168.35.223 \
@@ -41,8 +39,7 @@ MariaDB(web_logs)에서 시간 범위 기준으로 로그를 조회해 JSON 파�
     --start '2026-04-02 09:00:00' \
     --end   '2026-04-02 12:00:00' \
     --table security \
-    --pretty \
-    --out logs_0900_1200_security_kst.json
+    --pretty
 """
 
 from __future__ import annotations
@@ -65,7 +62,7 @@ DEFAULT_DB_NAME = "web_logs"
 DEFAULT_DB_PORT = 3306
 DEFAULT_QUERY_TIMEZONE = "Asia/Seoul"
 DEFAULT_DB_TIMEZONE = "UTC"
-DEFAULT_OUTPUT_DIR = "."
+DEFAULT_OUTPUT_DIR = os.path.join("data", "raw")
 
 QUERY_TZ = ZoneInfo(DEFAULT_QUERY_TIMEZONE)
 DB_TZ = timezone.utc if DEFAULT_DB_TIMEZONE == "UTC" else ZoneInfo(DEFAULT_DB_TIMEZONE)
@@ -288,10 +285,14 @@ def ensure_parent_dir(file_path: str) -> None:
 
 
 def auto_output_filename(table_option: str, range_cfg: RangeConfig) -> str:
-    stamp_start = range_cfg.start_query_tz.strftime("%Y%m%d_%H%M%S")
-    stamp_end = range_cfg.end_exclusive_query_tz.strftime("%Y%m%d_%H%M%S")
-    filename = f"export_{table_option}_{stamp_start}_to_{stamp_end}_kst.json"
-    return os.path.join(DEFAULT_OUTPUT_DIR, filename)
+    if range_cfg.mode in {"today", "date"}:
+        date_text = range_cfg.start_query_tz.strftime("%Y-%m-%d")
+        filename = f"{table_option}_{date_text}_kst.json"
+    else:
+        stamp_start = range_cfg.start_query_tz.strftime("%Y-%m-%d_%H-%M-%S")
+        stamp_end = range_cfg.end_exclusive_query_tz.strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"{table_option}_{stamp_start}_to_{stamp_end}_kst.json"
+    return os.path.abspath(os.path.join(DEFAULT_OUTPUT_DIR, filename))
 
 
 # -------------------------
@@ -351,10 +352,6 @@ def build_args_from_interactive() -> argparse.Namespace:
     if pretty in ("y", "yes"):
         raw_args.append("--pretty")
 
-    out_path = ask_input("출력 파일 경로 (비우면 자동 생성)", "")
-    if out_path:
-        raw_args.extend(["--out", out_path])
-
     return parser.parse_args(raw_args)
 
 
@@ -367,7 +364,7 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=(
             "예시:\n"
-            "  python3 export_db_logs_cli_kst.py --host 192.168.35.223 --user log_reader --today --table security --out today_security_kst.json\n"
+            "  python3 export_db_logs_cli_kst.py --host 192.168.35.223 --user log_reader --today --table security\n"
             "  python3 export_db_logs_cli_kst.py --date 2026-04-02 --table security --pretty\n"
             "  python3 export_db_logs_cli_kst.py --start '2026-04-02 09:00:00' --end '2026-04-02 12:00:00' --table security\n"
             "  python3 export_db_logs_cli_kst.py --interactive"
@@ -388,7 +385,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--end", help="조회 종료 시각 (exclusive, KST)")
 
     parser.add_argument("--limit", type=int, default=None, help="테이블별 최대 조회 건수")
-    parser.add_argument("--out", default=None, help="출력 JSON 파일 경로")
     parser.add_argument("--pretty", action="store_true", help="JSON pretty 출력")
     parser.add_argument("--interactive", action="store_true", help="터미널 프롬프트 기반 interactive 모드")
     parser.add_argument("--test-connection", action="store_true", help="DB 연결만 확인하고 종료")
@@ -446,7 +442,7 @@ def run_export(args: argparse.Namespace) -> str:
         args.password = getpass.getpass("DB password: ")
 
     range_cfg = resolve_time_range(args)
-    out_path = args.out or auto_output_filename(args.table, range_cfg)
+    out_path = auto_output_filename(args.table, range_cfg)
     ensure_parent_dir(out_path)
 
     db_config = DBConfig(

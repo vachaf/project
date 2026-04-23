@@ -81,8 +81,7 @@ python ./src/export_db_logs_cli.py \
   --password "$LOG_DB_PASSWORD" \
   --date 2026-04-02 \
   --table security \
-  --pretty \
-  --out ./data/raw/security_2026-04-02_kst.json
+  --pretty
 
 메모:
 - 표준 실행 위치는 DB 서버가 아니라 LLM 서버로 본다.

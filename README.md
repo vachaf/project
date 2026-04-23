@@ -47,15 +47,14 @@ python3 ./src/export_db_logs_cli.py \
   --password 'reader_password' \
   --date 2026-04-02 \
   --table security \
-  --pretty \
-  --out ./raw/security_2026-04-02_kst.json
+  --pretty
 ```
 
 ### 2. 전처리
 
 ```bash
 python3 ./src/prepare_llm_input.py \
-  --input ./raw/security_2026-04-02_kst.json \
+  --input ./data/raw/security_2026-04-02_kst.json \
   --out-dir ./processed \
   --pretty \
   --write-filtered-out
@@ -65,7 +64,7 @@ python3 ./src/prepare_llm_input.py \
 
 ```bash
 python3 ./src/run_analysis_pipeline.py \
-  --export-input ./raw/security_2026-04-02_kst.json \
+  --export-input ./data/raw/security_2026-04-02_kst.json \
   --work-dir . \
   --mode routine \
   --pretty
@@ -73,7 +72,7 @@ python3 ./src/run_analysis_pipeline.py \
 
 ## 주요 산출물
 
-- export: `<base>.json` 또는 자동 파일명 `export_<table>_<start>_to_<end>_kst.json`
+- export: `data/raw/{table}_{date}_kst.json` 또는 `data/raw/{table}_{start}_to_{end}_kst.json`
 - prepare: `<base>_llm_input.json`
 - stage1: `<base>_stage1_results.json`
 - stage2: `<base>_stage2_report.md`
