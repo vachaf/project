@@ -48,6 +48,8 @@
 
 ## 4. 기본 패키지 설치
 
+git은 일반 개발 목적보다는 운영 서버의 LLM 관련 주요 파일을 GitHub 기준으로 맞추거나 덮어씌우기 위해 설치한다.
+
 ```bash
 sudo apt update
 sudo apt upgrade -y
@@ -61,7 +63,7 @@ Git 기준 배치를 권장한다.
 
 ```bash
 cd /opt
-sudo git clone <GitHub_저장소_URL> web_log_analysis
+sudo git clone https://github.com/vachaf/project web_log_analysis
 sudo chown -R "$USER":"$USER" /opt/web_log_analysis
 cd /opt/web_log_analysis
 mkdir -p config data/raw data/processed reports logs
@@ -144,6 +146,8 @@ python ./src/export_db_logs_cli.py \
 - `export_db_logs_cli.py --test-connection`이 성공한다.
 
 ## 10. 주요 파일 GitHub 기준 복원
+
+운영 서버에서 일부 파일을 직접 수정했더라도, 기준 버전으로 되돌릴 필요가 있을 때 GitHub `origin/main` 기준으로 덮어쓴다. 특히 다음 주요 LLM 파이프라인 파일을 GitHub 기준으로 복원하거나 동기화할 때 `git restore --source origin/main -- ...` 명령을 사용한다.
 
 ```bash
 cd /opt/web_log_analysis
