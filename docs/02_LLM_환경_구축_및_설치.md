@@ -34,7 +34,7 @@ LLM 서버는 웹 로그 파일을 직접 읽지 않는다. 현재 기준으로 
 - Python: 3.10 계열 이상
 - 네트워크:
   - DB 서버 `3306/tcp` 접근 가능
-  - OpenAI API 접근 가능
+  - OpenAI API 또는 Anthropic API 접근 가능
 - 시간대: `Asia/Seoul`
 
 ## 4. 권장 디렉터리 구조
@@ -169,7 +169,7 @@ pip install PyMySQL
 ```
 
 현재 코드 기준으로 필수 외부 패키지는 `PyMySQL`이다.  
-LLM 호출은 표준 라이브러리 `urllib` 기반이라 OpenAI SDK는 필수 아님이다.
+LLM 호출은 표준 라이브러리 `urllib` 기반이라 OpenAI/Anthropic SDK는 필수 아님이다.
 
 검증:
 
@@ -185,6 +185,12 @@ python -c "import pymysql; print(pymysql.__version__)"
 OPENAI_API_KEY=여기에_실제_API_키
 OPENAI_BASE_URL=https://api.openai.com/v1
 
+# 기본값은 openai다. Claude 사용 시 anthropic으로 지정한다.
+LLM_PROVIDER=openai
+ANTHROPIC_API_KEY=여기에_Anthropic_API_키
+ANTHROPIC_BASE_URL=https://api.anthropic.com/v1
+ANTHROPIC_MODEL=claude_모델명
+
 LOG_DB_HOST=192.168.35.223
 LOG_DB_PORT=3306
 LOG_DB_NAME=web_logs
@@ -198,6 +204,10 @@ KNOWN_ASSET_IPS=192.168.35.191,192.168.35.193,192.168.35.223,192.168.35.233
 
 - `OPENAI_API_KEY`: live-run에서 필요
 - `OPENAI_BASE_URL`: 기본은 공식 OpenAI API
+- `LLM_PROVIDER`: `openai` 또는 `anthropic`. 생략하면 기존처럼 OpenAI를 사용
+- `ANTHROPIC_API_KEY`: Claude live-run에서 필요
+- `ANTHROPIC_BASE_URL`: 기본은 공식 Anthropic API
+- `ANTHROPIC_MODEL`: Claude 사용 시 기본 모델명. 또는 실행 명령에서 `--model`로 지정
 - `LOG_DB_*`: `export_db_logs_cli.py` DB 접속 정보
 - `KNOWN_ASSET_IPS`: stage2 보고서에서 내부 자산 IP 표시용. `--known-asset-ips` CLI 인자가 없으면 이 값을 fallback으로 사용한다.
 
@@ -213,7 +223,7 @@ set +a
 검증:
 
 ```bash
-env | egrep 'OPENAI_|LOG_DB_|KNOWN_ASSET_IPS'
+env | egrep 'LLM_PROVIDER|OPENAI_|ANTHROPIC_|LOG_DB_|KNOWN_ASSET_IPS'
 ```
 
 ## 9. DB 연결 확인
@@ -338,6 +348,8 @@ jq '.analysis_candidates[0]' ./processed/security_2026-04-02_kst_llm_input.json
 
 ### 12.1 현재 모델 기본값
 
+provider를 지정하지 않으면 기존처럼 OpenAI를 사용한다. Claude를 쓰려면 `--provider anthropic`과 `--model`을 지정하거나 `LLM_PROVIDER=anthropic`, `ANTHROPIC_MODEL`을 환경파일에 설정한다.
+
 - `routine`: `gpt-5.4-mini`
 - `milestone`: `gpt-5.4`
 - `presentation`: `gpt-5.4`
@@ -361,7 +373,7 @@ python ./src/llm_stage1_classifier.py \
 
 dry-run 특징:
 
-- 실제 OpenAI API를 호출하지 않는다.
+- 실제 LLM API를 호출하지 않는다.
 - 후보 기반 placeholder 결과를 만든다.
 - live 분류 결과와 동일한 의미로 해석하면 안 된다.
 
@@ -369,6 +381,18 @@ dry-run 특징:
 
 ```bash
 python ./src/llm_stage1_classifier.py \
+  --input ./processed/security_2026-04-02_kst_llm_input.json \
+  --out-dir ./processed \
+  --mode routine \
+  --pretty
+```
+
+Claude 사용 예시:
+
+```bash
+python ./src/llm_stage1_classifier.py \
+  --provider anthropic \
+  --model "$ANTHROPIC_MODEL" \
   --input ./processed/security_2026-04-02_kst_llm_input.json \
   --out-dir ./processed \
   --mode routine \
@@ -413,6 +437,8 @@ jq '.results[0]' ./processed/security_2026-04-02_kst_stage1_results.json
 
 ### 13.1 현재 모델 기본값
 
+provider를 지정하지 않으면 기존처럼 OpenAI를 사용한다.
+
 - `routine`: `gpt-5.4-mini`
 - `milestone`: `gpt-5.4`
 - `presentation`: `gpt-5.4`
@@ -437,13 +463,26 @@ python ./src/llm_stage2_reporter.py \
 
 dry-run 특징:
 
-- 실제 OpenAI API를 호출하지 않는다.
+- 실제 LLM API를 호출하지 않는다.
 - report input과 markdown 초안을 만든다.
 
 ### 13.3 live-run
 
 ```bash
 python ./src/llm_stage2_reporter.py \
+  --stage1-results ./processed/security_2026-04-02_kst_stage1_results.json \
+  --llm-input ./processed/security_2026-04-02_kst_llm_input.json \
+  --out-dir ./reports \
+  --mode routine \
+  --pretty
+```
+
+Claude 사용 예시:
+
+```bash
+python ./src/llm_stage2_reporter.py \
+  --provider anthropic \
+  --model "$ANTHROPIC_MODEL" \
   --stage1-results ./processed/security_2026-04-02_kst_stage1_results.json \
   --llm-input ./processed/security_2026-04-02_kst_llm_input.json \
   --out-dir ./reports \
@@ -487,6 +526,19 @@ sed -n '1,80p' ./reports/security_2026-04-02_kst_stage2_report.md
 
 ```bash
 python ./src/run_analysis_pipeline.py \
+  --export-input ./data/raw/security_2026-04-02_kst.json \
+  --work-dir /opt/web_log_analysis \
+  --mode routine \
+  --pretty
+```
+
+Claude로 통합 실행하려면 `--llm-provider anthropic`을 넘긴다. stage1/stage2 모두 같은 provider로 실행된다.
+
+```bash
+python ./src/run_analysis_pipeline.py \
+  --llm-provider anthropic \
+  --stage1-model "$ANTHROPIC_MODEL" \
+  --stage2-model "$ANTHROPIC_MODEL" \
   --export-input ./data/raw/security_2026-04-02_kst.json \
   --work-dir /opt/web_log_analysis \
   --mode routine \

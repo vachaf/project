@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 prepare_llm_input.py 산출물(<base>_llm_input.json)을 입력으로 받아
-후보별 1차 LLM 분류 결과를 생성하는 Responses API 기반 스크립트.
+후보별 1차 LLM 분류 결과를 생성하는 스크립트.
 
 주요 역할
 - analysis_candidates 배열을 순회하며 후보별 1차 판정 수행
@@ -15,12 +15,13 @@ prepare_llm_input.py 산출물(<base>_llm_input.json)을 입력으로 받아
 - 예: /opt/web_log_analysis/src/llm_stage1_classifier.py
 
 환경 변수
-- OPENAI_API_KEY: 필수
-- OPENAI_BASE_URL: 선택 (기본: https://api.openai.com/v1)
+- LLM_PROVIDER: 선택 (openai/anthropic, 기본 openai)
+- OPENAI_API_KEY / OPENAI_BASE_URL
+- ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL / ANTHROPIC_MODEL
 
 주의
-- 이 스크립트는 표준 라이브러리(urllib)만 사용해 Responses API 를 호출한다.
-- OpenAI Python SDK 설치 여부와 무관하게 동작하도록 작성했다.
+- 이 스크립트는 표준 라이브러리(urllib)만 사용해 LLM API 를 호출한다.
+- OpenAI/Anthropic Python SDK 설치 여부와 무관하게 동작하도록 작성했다.
 """
 
 from __future__ import annotations
@@ -34,9 +35,10 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from urllib import error, request
+from urllib import error
 
-DEFAULT_BASE_URL = "https://api.openai.com/v1"
+from llm_client import SUPPORTED_PROVIDERS, call_llm_json, provider_api_key_error, resolve_llm_config
+
 DEFAULT_TIMEOUT_SEC = 180
 DEFAULT_MODE = "routine"
 DEFAULT_ROUTINE_MODEL = "gpt-5.4-mini"
@@ -97,17 +99,18 @@ class Stage1Error:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="LLM 1차 분류기 (Responses API / Structured Outputs)")
+    parser = argparse.ArgumentParser(description="LLM 1차 분류기 (OpenAI/Anthropic)")
     parser.add_argument("--input", required=True, help="prepare_llm_input.py 결과 <base>_llm_input.json")
     parser.add_argument("--out-dir", default=".", help="산출물 저장 디렉터리")
     parser.add_argument("--base-name", default=None, help="산출물 파일명 접두어")
     parser.add_argument("--mode", default=DEFAULT_MODE, choices=sorted(ALLOWED_MODES), help="모델 사용 모드")
+    parser.add_argument("--provider", choices=SUPPORTED_PROVIDERS, default=None, help="LLM provider (기본값: LLM_PROVIDER 또는 openai)")
     parser.add_argument("--model", default=None, help="명시적 모델 override")
     parser.add_argument("--candidate-limit", type=int, default=0, help="상위 N개 후보만 처리 (0은 전체)")
     parser.add_argument("--max-evidence-items", type=int, default=8, help="후보별 evidence_fields 최대 개수")
     parser.add_argument("--sleep-sec", type=float, default=0.0, help="각 API 호출 사이 대기 시간")
     parser.add_argument("--timeout-sec", type=int, default=DEFAULT_TIMEOUT_SEC, help="HTTP 타임아웃")
-    parser.add_argument("--store", action="store_true", help="Responses API 결과 저장 활성화 (기본값은 false)")
+    parser.add_argument("--store", action="store_true", help="OpenAI Responses API 결과 저장 활성화 (Anthropic에서는 무시)")
     parser.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high", "xhigh"], default="none", help="선택적 reasoning effort")
     parser.add_argument("--pretty", action="store_true", help="JSON pretty 출력")
     parser.add_argument("--dry-run", action="store_true", help="실제 API 호출 없이 요청 계획만 생성")
@@ -136,9 +139,16 @@ def normalize_str(value: Any) -> str:
     return str(value).strip()
 
 
-def choose_model(mode: str, override: Optional[str]) -> str:
+def choose_model(provider: str, mode: str, override: Optional[str], dry_run: bool = False) -> str:
     if override:
         return override
+    if provider == "anthropic":
+        model = os.getenv("ANTHROPIC_MODEL", "").strip()
+        if model:
+            return model
+        if dry_run:
+            return "anthropic-model-required"
+        raise ValueError("Anthropic provider는 --model 또는 ANTHROPIC_MODEL 설정이 필요합니다.")
     if mode == "routine":
         return DEFAULT_ROUTINE_MODEL
     if mode == "milestone":
@@ -334,75 +344,8 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
     ]
 
 
-def extract_output_text(response_payload: Dict[str, Any]) -> Tuple[str, Optional[str]]:
-    response_id = normalize_str(response_payload.get("id")) or None
-    output = response_payload.get("output") or []
-    chunks: List[str] = []
-
-    for item in output:
-        if not isinstance(item, dict):
-            continue
-        for content in item.get("content") or []:
-            if not isinstance(content, dict):
-                continue
-            if content.get("type") == "output_text" and "text" in content:
-                chunks.append(str(content.get("text", "")))
-
-    if chunks:
-        return "".join(chunks).strip(), response_id
-
-    # 일부 응답 포맷에서는 output_text 가 평탄화되어 올 수 있어 보조적으로 확인
-    maybe_output_text = response_payload.get("output_text")
-    if isinstance(maybe_output_text, str) and maybe_output_text.strip():
-        return maybe_output_text.strip(), response_id
-
-    return "", response_id
-
-
-def call_responses_api(
-    api_key: str,
-    base_url: str,
-    model: str,
-    messages: List[Dict[str, str]],
-    timeout_sec: int,
-    store: bool,
-    reasoning_effort: str,
-) -> Dict[str, Any]:
-    body: Dict[str, Any] = {
-        "model": model,
-        "input": messages,
-        "store": store,
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": "stage1_log_triage",
-                "strict": True,
-                "schema": build_schema(),
-            }
-        },
-    }
-
-    if reasoning_effort != "none":
-        body["reasoning"] = {"effort": reasoning_effort}
-
-    url = base_url.rstrip("/") + "/responses"
-    data = json.dumps(body).encode("utf-8")
-    req = request.Request(
-        url,
-        data=data,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-    )
-    with request.urlopen(req, timeout=timeout_sec) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
 def classify_candidate(
-    api_key: str,
-    base_url: str,
+    llm_config,
     model: str,
     meta: Dict[str, Any],
     candidate: Dict[str, Any],
@@ -417,16 +360,18 @@ def classify_candidate(
 
     try:
         messages = build_messages(meta, candidate, max_evidence_items=max_evidence_items)
-        raw_response = call_responses_api(
-            api_key=api_key,
-            base_url=base_url,
+        llm_response = call_llm_json(
+            config=llm_config,
             model=model,
             messages=messages,
+            schema=build_schema(),
+            schema_name="stage1_log_triage",
             timeout_sec=timeout_sec,
             store=store,
             reasoning_effort=reasoning_effort,
         )
-        output_text, response_id = extract_output_text(raw_response)
+        output_text = llm_response.output_text
+        response_id = llm_response.response_id
         if not output_text:
             return None, Stage1Error(
                 candidate_index=candidate_index,
@@ -435,7 +380,7 @@ def classify_candidate(
                 error_type="empty_output",
                 error_message="응답에서 output_text를 찾지 못했습니다.",
                 response_id=response_id,
-                raw_response_excerpt=json.dumps(raw_response, ensure_ascii=False)[:1500],
+                raw_response_excerpt=json.dumps(llm_response.raw_response, ensure_ascii=False)[:1500],
             )
 
         parsed = json.loads(output_text)
@@ -527,7 +472,12 @@ def main() -> int:
         print("[ERROR] 입력 JSON 형식이 올바르지 않습니다. prepare_llm_input.py 결과 파일인지 확인하세요.", file=sys.stderr)
         return 2
 
-    selected_model = choose_model(args.mode, args.model)
+    try:
+        llm_config = resolve_llm_config(args.provider)
+        selected_model = choose_model(llm_config.provider, args.mode, args.model, dry_run=bool(args.dry_run))
+    except ValueError as e:
+        print(f"[ERROR] {e}", file=sys.stderr)
+        return 2
     base_name = derive_base_name(args.input, args.base_name)
     out_dir = Path(args.out_dir)
     results_path = out_dir / f"{base_name}_stage1_results.json"
@@ -537,9 +487,6 @@ def main() -> int:
     if args.candidate_limit and args.candidate_limit > 0:
         candidates = candidates[: args.candidate_limit]
 
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    base_url = os.getenv("OPENAI_BASE_URL", DEFAULT_BASE_URL).strip() or DEFAULT_BASE_URL
-
     meta = payload.get("meta") or {}
 
     if args.dry_run:
@@ -548,13 +495,14 @@ def main() -> int:
                 "generated_at": iso_now(),
                 "input_file": os.path.abspath(args.input),
                 "mode": args.mode,
+                "provider": llm_config.provider,
                 "selected_model": selected_model,
                 "candidate_count": len(candidates),
                 "source_counts": meta.get("counts"),
                 "candidate_group_summary_count": len(payload.get("candidate_group_summary") or []),
                 "store": bool(args.store),
                 "reasoning_effort": args.reasoning_effort,
-                "base_url": base_url,
+                "base_url": llm_config.base_url,
             },
             "candidates_preview": [
                 {
@@ -576,8 +524,8 @@ def main() -> int:
         print(f"[OK] dry-run plan: {results_path}")
         return 0
 
-    if not api_key:
-        print("[ERROR] OPENAI_API_KEY 환경 변수가 필요합니다.", file=sys.stderr)
+    if not llm_config.api_key:
+        print(f"[ERROR] {provider_api_key_error(llm_config.provider)}", file=sys.stderr)
         return 2
 
     results: List[Dict[str, Any]] = []
@@ -585,8 +533,7 @@ def main() -> int:
 
     for idx, candidate in enumerate(candidates):
         result, err = classify_candidate(
-            api_key=api_key,
-            base_url=base_url,
+            llm_config=llm_config,
             model=selected_model,
             meta=meta,
             candidate=candidate,
@@ -617,10 +564,11 @@ def main() -> int:
             "generated_at": iso_now(),
             "input_file": os.path.abspath(args.input),
             "mode": args.mode,
+            "provider": llm_config.provider,
             "selected_model": selected_model,
             "store": bool(args.store),
             "reasoning_effort": args.reasoning_effort,
-            "base_url": base_url,
+            "base_url": llm_config.base_url,
             "source_window": meta.get("analysis_window"),
             "source_query_timezone": meta.get("query_timezone"),
             "source_exported_at": meta.get("exported_at"),

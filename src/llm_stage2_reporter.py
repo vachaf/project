@@ -22,9 +22,10 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
-from urllib import error, request
+from urllib import error
 
-DEFAULT_BASE_URL = "https://api.openai.com/v1"
+from llm_client import SUPPORTED_PROVIDERS, call_llm_json, provider_api_key_error, resolve_llm_config
+
 DEFAULT_TIMEOUT_SEC = 180
 DEFAULT_MODE = "routine"
 DEFAULT_ROUTINE_MODEL = "gpt-5.4-mini"
@@ -71,13 +72,14 @@ class IncidentBrief:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="LLM 2차 보고서 생성기 (Responses API / Structured Outputs)")
+    parser = argparse.ArgumentParser(description="LLM 2차 보고서 생성기 (OpenAI/Anthropic)")
     parser.add_argument("--stage1-results", required=True, help="llm_stage1_classifier.py 결과 <base>_stage1_results.json")
     parser.add_argument("--llm-input", default=None, help="prepare_llm_input.py 결과 <base>_llm_input.json")
     parser.add_argument("--stage1-errors", default=None, help="선택: <base>_stage1_errors.json")
     parser.add_argument("--out-dir", default=".", help="산출물 저장 디렉터리")
     parser.add_argument("--base-name", default=None, help="산출물 파일명 접두어")
     parser.add_argument("--mode", default=DEFAULT_MODE, choices=sorted(ALLOWED_MODES), help="모델 사용 모드")
+    parser.add_argument("--provider", choices=SUPPORTED_PROVIDERS, default=None, help="LLM provider (기본값: LLM_PROVIDER 또는 openai)")
     parser.add_argument("--model", default=None, help="명시적 모델 override")
     parser.add_argument("--top-incidents", type=int, default=12, help="모델에 전달할 상위 incident 수")
     parser.add_argument("--top-noise-groups", type=int, default=8, help="모델에 전달할 상위 noise group 수")
@@ -88,7 +90,7 @@ def parse_args() -> argparse.Namespace:
         help="쉼표 구분 known asset IP 목록 (.env 의 KNOWN_ASSET_IPS fallback 사용 가능)",
     )
     parser.add_argument("--timeout-sec", type=int, default=DEFAULT_TIMEOUT_SEC, help="HTTP 타임아웃")
-    parser.add_argument("--store", action="store_true", help="Responses API 결과 저장 활성화 (기본값은 false)")
+    parser.add_argument("--store", action="store_true", help="OpenAI Responses API 결과 저장 활성화 (Anthropic에서는 무시)")
     parser.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high", "xhigh"], default="none", help="선택적 reasoning effort")
     parser.add_argument("--pretty", action="store_true", help="JSON pretty 출력")
     parser.add_argument("--dry-run", action="store_true", help="실제 API 호출 없이 요청 payload 와 markdown 초안만 생성")
@@ -131,9 +133,16 @@ def iso_now() -> str:
     return datetime.now(tz=timezone.utc).astimezone().isoformat(timespec="milliseconds")
 
 
-def choose_model(mode: str, override: Optional[str]) -> str:
+def choose_model(provider: str, mode: str, override: Optional[str], dry_run: bool = False) -> str:
     if override:
         return override
+    if provider == "anthropic":
+        model = os.getenv("ANTHROPIC_MODEL", "").strip()
+        if model:
+            return model
+        if dry_run:
+            return "anthropic-model-required"
+        raise ValueError("Anthropic provider는 --model 또는 ANTHROPIC_MODEL 설정이 필요합니다.")
     if mode == "routine":
         return DEFAULT_ROUTINE_MODEL
     if mode == "milestone":
@@ -708,70 +717,6 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
     ]
 
 
-def extract_output_text(response_payload: Dict[str, Any]) -> Tuple[str, Optional[str]]:
-    response_id = normalize_str(response_payload.get("id")) or None
-    output = response_payload.get("output") or []
-    chunks: List[str] = []
-
-    for item in output:
-        if not isinstance(item, dict):
-            continue
-        for content in item.get("content") or []:
-            if not isinstance(content, dict):
-                continue
-            if content.get("type") == "output_text" and "text" in content:
-                chunks.append(str(content.get("text", "")))
-
-    if chunks:
-        return "".join(chunks).strip(), response_id
-
-    maybe_output_text = response_payload.get("output_text")
-    if isinstance(maybe_output_text, str) and maybe_output_text.strip():
-        return maybe_output_text.strip(), response_id
-
-    return "", response_id
-
-
-def call_responses_api(
-    api_key: str,
-    base_url: str,
-    model: str,
-    messages: List[Dict[str, str]],
-    timeout_sec: int,
-    store: bool,
-    reasoning_effort: str,
-) -> Dict[str, Any]:
-    body: Dict[str, Any] = {
-        "model": model,
-        "input": messages,
-        "store": store,
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": "stage2_security_report",
-                "strict": True,
-                "schema": build_schema(),
-            }
-        },
-    }
-    if reasoning_effort != "none":
-        body["reasoning"] = {"effort": reasoning_effort}
-
-    url = base_url.rstrip("/") + "/responses"
-    data = json.dumps(body).encode("utf-8")
-    req = request.Request(
-        url,
-        data=data,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-    )
-    with request.urlopen(req, timeout=timeout_sec) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
 def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], selected_model: str, mode: str) -> str:
     ctx = report_input.get("analysis_context") or {}
     counts = report_input.get("pipeline_counts") or {}
@@ -965,7 +910,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
         )
     lines.append("")
     lines.append("## 메모")
-    lines.append("- dry-run 이므로 실제 Responses API 호출 없이 요약 입력만 검증했다.")
+    lines.append("- dry-run 이므로 실제 LLM API 호출 없이 요약 입력만 검증했다.")
     lines.append("- incident 는 request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 병합했다.")
     lines.append("- filtered_out_breakdown 은 noise_summary 와 별도로 보존되며, 보고서 초안에도 함께 노출된다.")
     return "\n".join(lines).strip() + "\n"
@@ -989,7 +934,12 @@ def main() -> int:
     if os.path.exists(stage1_errors_path):
         stage1_errors_payload = load_json(stage1_errors_path)
 
-    selected_model = choose_model(args.mode, args.model)
+    try:
+        llm_config = resolve_llm_config(args.provider)
+        selected_model = choose_model(llm_config.provider, args.mode, args.model, dry_run=bool(args.dry_run))
+    except ValueError as e:
+        print(f"[ERROR] {e}", file=sys.stderr)
+        return 2
     base_name = derive_base_name(args.stage1_results, args.base_name)
     out_dir = Path(args.out_dir)
     report_json_path = out_dir / f"{base_name}_stage2_report.json"
@@ -1018,9 +968,11 @@ def main() -> int:
                 "meta": {
                     "generated_at": iso_now(),
                     "mode": args.mode,
+                    "provider": llm_config.provider,
                     "selected_model": selected_model,
                     "dry_run": True,
                     "known_asset_ips": known_asset_ips,
+                    "base_url": llm_config.base_url,
                     "input_stage1_results": os.path.abspath(args.stage1_results),
                     "input_llm_input": os.path.abspath(llm_input_path) if llm_input_payload else None,
                 },
@@ -1033,24 +985,24 @@ def main() -> int:
         print(f"[OK] stage2_report_json:  {report_json_path}")
         return 0
 
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    base_url = os.getenv("OPENAI_BASE_URL", DEFAULT_BASE_URL).strip() or DEFAULT_BASE_URL
-    if not api_key:
-        print("[ERROR] OPENAI_API_KEY 가 설정되어 있지 않습니다.", file=sys.stderr)
+    if not llm_config.api_key:
+        print(f"[ERROR] {provider_api_key_error(llm_config.provider)}", file=sys.stderr)
         return 2
 
     try:
         messages = build_messages(report_input)
-        response_payload = call_responses_api(
-            api_key=api_key,
-            base_url=base_url,
+        llm_response = call_llm_json(
+            config=llm_config,
             model=selected_model,
             messages=messages,
+            schema=build_schema(),
+            schema_name="stage2_security_report",
             timeout_sec=args.timeout_sec,
             store=bool(args.store),
             reasoning_effort=args.reasoning_effort,
         )
-        output_text, response_id = extract_output_text(response_payload)
+        output_text = llm_response.output_text
+        response_id = llm_response.response_id
         if not output_text:
             raise RuntimeError("응답에서 output_text를 찾지 못했습니다.")
         report_json = json.loads(output_text)
@@ -1062,11 +1014,12 @@ def main() -> int:
                 "meta": {
                     "generated_at": iso_now(),
                     "mode": args.mode,
+                    "provider": llm_config.provider,
                     "selected_model": selected_model,
                     "store": bool(args.store),
                     "reasoning_effort": args.reasoning_effort,
                     "known_asset_ips": known_asset_ips,
-                    "base_url": base_url,
+                    "base_url": llm_config.base_url,
                     "response_id": response_id,
                     "input_stage1_results": os.path.abspath(args.stage1_results),
                     "input_llm_input": os.path.abspath(llm_input_path) if llm_input_payload else None,

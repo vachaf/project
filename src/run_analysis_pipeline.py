@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from llm_client import SUPPORTED_PROVIDERS
 from llm_stage2_reporter import resolve_known_asset_ips
 
 ALLOWED_MODES = {"routine", "milestone", "presentation"}
@@ -58,6 +59,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stage1-sleep-sec", type=float, default=0.0, help="1차 분류 API 호출 사이 대기 시간")
     parser.add_argument("--stage1-timeout-sec", type=int, default=180, help="1차 분류 HTTP 타임아웃")
 
+    parser.add_argument("--llm-provider", choices=SUPPORTED_PROVIDERS, default=None, help="stage1/stage2 LLM provider (기본값: LLM_PROVIDER 또는 openai)")
     parser.add_argument("--stage2-model", default=None, help="2차 보고서 모델 override")
     parser.add_argument("--stage2-top-incidents", type=int, default=12, help="2차 보고서 상위 incident 수")
     parser.add_argument("--stage2-top-noise-groups", type=int, default=8, help="2차 보고서 상위 noise group 수")
@@ -269,6 +271,7 @@ def main() -> int:
             "processed_dir": str(processed_dir),
             "reports_dir": str(reports_dir),
             "prepare_source_tables": args.prepare_source_tables,
+            "llm_provider": args.llm_provider,
             "known_asset_ips": known_asset_ips,
             "python": sys.executable,
         },
@@ -326,6 +329,8 @@ def main() -> int:
                 "--timeout-sec", str(args.stage1_timeout_sec),
                 "--reasoning-effort", args.reasoning_effort,
             ]
+            if args.llm_provider:
+                cmd.extend(["--provider", args.llm_provider])
             if args.stage1_model:
                 cmd.extend(["--model", args.stage1_model])
             if args.store:
@@ -377,6 +382,8 @@ def main() -> int:
             "--timeout-sec", str(args.stage2_timeout_sec),
             "--reasoning-effort", args.reasoning_effort,
         ]
+        if args.llm_provider:
+            cmd.extend(["--provider", args.llm_provider])
         if paths["llm_input"] and Path(paths["llm_input"]).exists():
             cmd.extend(["--llm-input", str(paths["llm_input"])])
         if paths["stage1_errors"] and Path(paths["stage1_errors"]).exists():

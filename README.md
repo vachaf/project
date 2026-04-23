@@ -33,6 +33,7 @@ llm_stage2_reporter.py
 - `error` 로그는 예외, 5xx, `request_id`/`error_link_id` 연계 확인용 보조 입력입니다.
 - `access` 로그는 운영 확인과 기준선 비교용입니다.
 - DB 저장 시각 기준은 UTC, 사용자 입력과 export 출력 기준은 KST입니다.
+- LLM provider는 `openai`와 `anthropic`을 지원하며, 미지정 시 기존처럼 OpenAI를 사용합니다.
 - `resp_html_*` fingerprint 계열은 현재 보류 또는 선택 항목입니다.
 - 현재 보수 해석의 핵심은 `resp_content_type`, `response_body_bytes`, `raw_request_target`, `path_normalized_from_raw_request`, `likely_html_fallback_response`입니다.
 
@@ -64,6 +65,19 @@ python3 ./src/prepare_llm_input.py \
 
 ```bash
 python3 ./src/run_analysis_pipeline.py \
+  --export-input ./data/raw/security_2026-04-02_kst.json \
+  --work-dir . \
+  --mode routine \
+  --pretty
+```
+
+Claude를 사용할 때는 `ANTHROPIC_API_KEY`와 모델명을 설정하고 provider를 지정합니다.
+
+```bash
+python3 ./src/run_analysis_pipeline.py \
+  --llm-provider anthropic \
+  --stage1-model "$ANTHROPIC_MODEL" \
+  --stage2-model "$ANTHROPIC_MODEL" \
   --export-input ./data/raw/security_2026-04-02_kst.json \
   --work-dir . \
   --mode routine \
