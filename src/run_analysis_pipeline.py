@@ -42,7 +42,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--scripts-dir", default=None, help="개별 파이프라인 스크립트가 있는 디렉터리 (기본값: 현재 스크립트 디렉터리)")
     parser.add_argument("--work-dir", default=".", help="작업 루트 디렉터리")
-    parser.add_argument("--processed-dir", default=None, help="중간 산출물 디렉터리 (기본값: <work-dir>/processed)")
+    parser.add_argument("--processed-dir", default=None, help="중간 산출물 디렉터리 (기본값: <work-dir>/data/processed)")
     parser.add_argument("--reports-dir", default=None, help="최종 보고서 디렉터리 (기본값: <work-dir>/reports)")
     parser.add_argument("--base-name", default=None, help="산출물 파일명 접두어")
     parser.add_argument("--mode", default="routine", choices=sorted(ALLOWED_MODES), help="모델 사용 모드")
@@ -215,7 +215,7 @@ def main() -> int:
     llm_provider = normalize_provider(args.llm_provider)
     known_asset_ips = resolve_known_asset_ips(args.known_asset_ips, extra_env_roots=[work_dir])
     known_asset_ips_csv = ",".join(known_asset_ips)
-    processed_dir = Path(args.processed_dir).expanduser().resolve() if args.processed_dir else work_dir / "processed"
+    processed_dir = Path(args.processed_dir).expanduser().resolve() if args.processed_dir else work_dir / "data" / "processed"
     reports_dir = Path(args.reports_dir).expanduser().resolve() if args.reports_dir else work_dir / "reports"
     manifest_path = work_dir / "pipeline_manifest.json"
 

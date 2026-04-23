@@ -175,13 +175,13 @@ llm_stage2_reporter.py
 코드 기본 디렉터리:
 
 - 기본 `--work-dir`: `.`
-- 기본 `--processed-dir`: `<work-dir>/processed`
+- 기본 `--processed-dir`: `<work-dir>/data/processed`
 - 기본 `--reports-dir`: `<work-dir>/reports`
 
 운영 기준:
 
 - 현재 실제 운영 경로는 `/opt/web_log_analysis/data/processed`와 `/opt/web_log_analysis/reports`
-- 따라서 실제 운영은 `docs/01` 기준 명시 경로를 따른다
+- 따라서 `--work-dir /opt/web_log_analysis`만 지정해도 기본 산출물 경로가 운영 기준과 맞는다
 
 ## 9. 현재 보수 해석 기준
 
