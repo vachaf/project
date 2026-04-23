@@ -27,6 +27,9 @@ class LLMResponse:
     output_text: str
     response_id: Optional[str]
     raw_response: Dict[str, Any]
+    provider: str
+    model: str
+    stop_reason: Optional[str] = None
 
 
 def normalize_provider(value: Optional[str]) -> str:
@@ -106,6 +109,21 @@ def clean_output_text(text: str) -> str:
     return stripped
 
 
+def resolve_anthropic_max_tokens(override: Optional[int] = None) -> int:
+    if override is not None:
+        return override
+    raw_value = os.getenv("ANTHROPIC_MAX_TOKENS", "").strip()
+    if not raw_value:
+        return 4096
+    try:
+        value = int(raw_value)
+    except ValueError as e:
+        raise ValueError("ANTHROPIC_MAX_TOKENS must be an integer") from e
+    if value <= 0:
+        raise ValueError("ANTHROPIC_MAX_TOKENS must be greater than 0")
+    return value
+
+
 def split_system_messages(messages: List[Dict[str, str]]) -> Tuple[str, List[Dict[str, str]]]:
     system_chunks: List[str] = []
     user_messages: List[Dict[str, str]] = []
@@ -157,7 +175,14 @@ def call_openai_responses(
     with request.urlopen(req, timeout=timeout_sec) as resp:
         raw_response = json.loads(resp.read().decode("utf-8"))
     output_text, response_id = extract_openai_output_text(raw_response)
-    return LLMResponse(output_text=output_text, response_id=response_id, raw_response=raw_response)
+    return LLMResponse(
+        output_text=output_text,
+        response_id=response_id,
+        raw_response=raw_response,
+        provider=config.provider,
+        model=model,
+        stop_reason=response_payload_stop_reason(raw_response),
+    )
 
 
 def call_anthropic_messages(
@@ -167,6 +192,7 @@ def call_anthropic_messages(
     schema: Dict[str, Any],
     schema_name: str,
     timeout_sec: int,
+    max_tokens: Optional[int] = None,
 ) -> LLMResponse:
     system_text, anthropic_messages = split_system_messages(messages)
     schema_instruction = (
@@ -176,7 +202,7 @@ def call_anthropic_messages(
     )
     body: Dict[str, Any] = {
         "model": model,
-        "max_tokens": 4096,
+        "max_tokens": resolve_anthropic_max_tokens(max_tokens),
         "messages": anthropic_messages,
         "system": (system_text + schema_instruction).strip(),
     }
@@ -194,7 +220,21 @@ def call_anthropic_messages(
     with request.urlopen(req, timeout=timeout_sec) as resp:
         raw_response = json.loads(resp.read().decode("utf-8"))
     output_text, response_id = extract_anthropic_output_text(raw_response)
-    return LLMResponse(output_text=output_text, response_id=response_id, raw_response=raw_response)
+    return LLMResponse(
+        output_text=output_text,
+        response_id=response_id,
+        raw_response=raw_response,
+        provider=config.provider,
+        model=model,
+        stop_reason=response_payload_stop_reason(raw_response),
+    )
+
+
+def response_payload_stop_reason(response_payload: Dict[str, Any]) -> Optional[str]:
+    stop_reason = response_payload.get("stop_reason")
+    if stop_reason is None:
+        return None
+    return str(stop_reason).strip() or None
 
 
 def call_llm_json(
@@ -206,6 +246,7 @@ def call_llm_json(
     timeout_sec: int,
     store: bool,
     reasoning_effort: str,
+    anthropic_max_tokens: Optional[int] = None,
 ) -> LLMResponse:
     if config.provider == "anthropic":
         return call_anthropic_messages(
@@ -215,6 +256,7 @@ def call_llm_json(
             schema=schema,
             schema_name=schema_name,
             timeout_sec=timeout_sec,
+            max_tokens=anthropic_max_tokens,
         )
     return call_openai_responses(
         config=config,

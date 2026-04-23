@@ -71,6 +71,30 @@ class IncidentBrief:
     known_asset: bool
 
 
+@dataclass
+class LLMJsonParseResult:
+    parsed: Dict[str, Any]
+    json_text: str
+    strategy: str
+
+
+class LLMJsonParseError(ValueError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        output_text: str,
+        normalized_text: str,
+        candidate_text: str,
+        original_error: Exception,
+    ) -> None:
+        super().__init__(message)
+        self.output_text = output_text
+        self.normalized_text = normalized_text
+        self.candidate_text = candidate_text
+        self.original_error = original_error
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="LLM 2차 보고서 생성기 (OpenAI/Anthropic)")
     parser.add_argument("--stage1-results", required=True, help="llm_stage1_classifier.py 결과 <base>_stage1_results.json")
@@ -114,6 +138,152 @@ def write_text(path: str, text: str) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(text)
+
+
+def strip_fenced_code_block(text: str) -> str:
+    stripped = text.strip()
+    if not stripped.startswith("```"):
+        return stripped
+
+    lines = stripped.splitlines()
+    if not lines:
+        return stripped
+    if lines[0].strip().startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
+
+
+def extract_outer_json_object(text: str) -> Optional[str]:
+    start = text.find("{")
+    if start < 0:
+        return None
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for idx in range(start, len(text)):
+        ch = text[idx]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:idx + 1].strip()
+
+    return None
+
+
+def safe_parse_llm_json(output_text: str) -> LLMJsonParseResult:
+    normalized_text = strip_fenced_code_block(output_text)
+    candidates: List[Tuple[str, str]] = [("direct", normalized_text)]
+    extracted_text = extract_outer_json_object(normalized_text)
+    if extracted_text and extracted_text != normalized_text:
+        candidates.append(("outer_object", extracted_text))
+
+    last_error: Exception = ValueError("no JSON object found")
+    last_candidate = normalized_text
+    for strategy, candidate in candidates:
+        last_candidate = candidate
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError as e:
+            last_error = e
+            continue
+        if not isinstance(parsed, dict):
+            last_error = ValueError("LLM output JSON root is not an object")
+            continue
+        return LLMJsonParseResult(parsed=parsed, json_text=candidate, strategy=strategy)
+
+    raise LLMJsonParseError(
+        str(last_error),
+        output_text=output_text,
+        normalized_text=normalized_text,
+        candidate_text=last_candidate,
+        original_error=last_error,
+    )
+
+
+def build_repair_messages(invalid_output_text: str) -> List[Dict[str, str]]:
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You repair invalid LLM JSON output. Return only one pure JSON object. "
+                "Do not include Markdown, prose, or explanations."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                "아래 텍스트를 동일 스키마를 만족하는 순수 JSON 객체 하나로만 다시 반환하라.\n\n"
+                + invalid_output_text
+            ),
+        },
+    ]
+
+
+def log_llm_response_summary(label: str, provider: str, response_id: Optional[str], stop_reason: Optional[str]) -> None:
+    print(
+        f"[INFO] {label}: provider={provider} response_id={response_id or '-'} stop_reason={stop_reason or '-'}"
+    )
+    if provider == "anthropic" and stop_reason == "max_tokens":
+        print("[WARN] Anthropic stop_reason=max_tokens: 응답 truncation 가능성이 있습니다.", file=sys.stderr)
+
+
+def dump_stage2_parse_error(
+    *,
+    report_error_path: Path,
+    raw_dump_path: Path,
+    provider: str,
+    model: str,
+    response_id: Optional[str],
+    stop_reason: Optional[str],
+    output_text: str,
+    raw_response: Dict[str, Any],
+    parse_error: Exception,
+    pretty: bool,
+    repair_attempted: bool,
+    repair_response: Optional[Dict[str, Any]] = None,
+) -> None:
+    payload = {
+        "error_type": "json_decode_error",
+        "provider": provider,
+        "model": model,
+        "response_id": response_id,
+        "stop_reason": stop_reason,
+        "parse_error": str(parse_error),
+        "repair_attempted": repair_attempted,
+        "raw_dump_path": str(raw_dump_path),
+    }
+    if provider == "anthropic" and stop_reason == "max_tokens":
+        payload["diagnostic_hint"] = "Anthropic stop_reason=max_tokens 이므로 JSON 응답이 잘렸을 가능성이 있습니다. ANTHROPIC_MAX_TOKENS 증가를 검토하세요."
+
+    raw_payload = {
+        "provider": provider,
+        "model": model,
+        "response_id": response_id,
+        "stop_reason": stop_reason,
+        "output_text": output_text,
+        "raw_response": raw_response,
+        "parse_error": str(parse_error),
+        "repair_attempted": repair_attempted,
+        "repair_response": repair_response,
+    }
+    dump_json(str(raw_dump_path), raw_payload, pretty=pretty)
+    dump_json(str(report_error_path), payload, pretty=pretty)
 
 
 def normalize_str(value: Any) -> str:
@@ -946,6 +1116,7 @@ def main() -> int:
     report_md_path = out_dir / f"{base_name}_stage2_report.md"
     report_input_path = out_dir / f"{base_name}_stage2_report_input.json"
     report_error_path = out_dir / f"{base_name}_stage2_report_error.json"
+    report_raw_error_path = out_dir / f"{base_name}_stage2_report_raw_error.json"
     known_asset_ips = resolve_known_asset_ips(args.known_asset_ips)
 
     report_input = build_report_input(
@@ -991,11 +1162,12 @@ def main() -> int:
 
     try:
         messages = build_messages(report_input)
+        schema = build_schema()
         llm_response = call_llm_json(
             config=llm_config,
             model=selected_model,
             messages=messages,
-            schema=build_schema(),
+            schema=schema,
             schema_name="stage2_security_report",
             timeout_sec=args.timeout_sec,
             store=bool(args.store),
@@ -1003,9 +1175,101 @@ def main() -> int:
         )
         output_text = llm_response.output_text
         response_id = llm_response.response_id
+        stop_reason = llm_response.stop_reason
+        log_llm_response_summary("stage2_response", llm_response.provider, response_id, stop_reason)
         if not output_text:
-            raise RuntimeError("응답에서 output_text를 찾지 못했습니다.")
-        report_json = json.loads(output_text)
+            empty_error = RuntimeError("응답에서 output_text를 찾지 못했습니다.")
+            dump_stage2_parse_error(
+                report_error_path=report_error_path,
+                raw_dump_path=report_raw_error_path,
+                provider=llm_response.provider,
+                model=llm_response.model,
+                response_id=response_id,
+                stop_reason=stop_reason,
+                output_text=output_text,
+                raw_response=llm_response.raw_response,
+                parse_error=empty_error,
+                pretty=args.pretty,
+                repair_attempted=False,
+            )
+            print(f"[ERROR] {empty_error}", file=sys.stderr)
+            print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
+            return 1
+        try:
+            parse_result = safe_parse_llm_json(output_text)
+        except LLMJsonParseError as parse_error:
+            if llm_config.provider != "anthropic":
+                dump_stage2_parse_error(
+                    report_error_path=report_error_path,
+                    raw_dump_path=report_raw_error_path,
+                    provider=llm_response.provider,
+                    model=llm_response.model,
+                    response_id=response_id,
+                    stop_reason=stop_reason,
+                    output_text=output_text,
+                    raw_response=llm_response.raw_response,
+                    parse_error=parse_error,
+                    pretty=args.pretty,
+                    repair_attempted=False,
+                )
+                print(f"[ERROR] stage2 JSON parse failed: {parse_error}", file=sys.stderr)
+                print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
+                return 1
+
+            print("[WARN] Anthropic stage2 JSON parse failed. Retrying one JSON repair request.", file=sys.stderr)
+            repair_response = call_llm_json(
+                config=llm_config,
+                model=selected_model,
+                messages=build_repair_messages(output_text),
+                schema=schema,
+                schema_name="stage2_security_report",
+                timeout_sec=args.timeout_sec,
+                store=bool(args.store),
+                reasoning_effort=args.reasoning_effort,
+            )
+            log_llm_response_summary(
+                "stage2_repair_response",
+                repair_response.provider,
+                repair_response.response_id,
+                repair_response.stop_reason,
+            )
+            try:
+                parse_result = safe_parse_llm_json(repair_response.output_text)
+                llm_response = repair_response
+                output_text = repair_response.output_text
+                response_id = repair_response.response_id
+                stop_reason = repair_response.stop_reason
+            except LLMJsonParseError as repair_error:
+                dump_stage2_parse_error(
+                    report_error_path=report_error_path,
+                    raw_dump_path=report_raw_error_path,
+                    provider=repair_response.provider,
+                    model=repair_response.model,
+                    response_id=repair_response.response_id,
+                    stop_reason=repair_response.stop_reason,
+                    output_text=repair_response.output_text,
+                    raw_response=repair_response.raw_response,
+                    parse_error=repair_error,
+                    pretty=args.pretty,
+                    repair_attempted=True,
+                    repair_response={
+                        "response_id": repair_response.response_id,
+                        "stop_reason": repair_response.stop_reason,
+                        "output_text": repair_response.output_text,
+                        "raw_response": repair_response.raw_response,
+                        "initial_response_id": response_id,
+                        "initial_stop_reason": stop_reason,
+                        "initial_output_text": output_text,
+                        "initial_raw_response": llm_response.raw_response,
+                        "initial_parse_error": str(parse_error),
+                    },
+                )
+                print(f"[ERROR] stage2 JSON repair failed: {repair_error}", file=sys.stderr)
+                print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
+                return 1
+
+        report_json = parse_result.parsed
+        print(f"[INFO] stage2 JSON parsed via {parse_result.strategy}")
         markdown = render_markdown(report_json, report_input, selected_model=selected_model, mode=args.mode)
 
         dump_json(
@@ -1021,6 +1285,8 @@ def main() -> int:
                     "known_asset_ips": known_asset_ips,
                     "base_url": llm_config.base_url,
                     "response_id": response_id,
+                    "stop_reason": stop_reason,
+                    "json_parse_strategy": parse_result.strategy,
                     "input_stage1_results": os.path.abspath(args.stage1_results),
                     "input_llm_input": os.path.abspath(llm_input_path) if llm_input_payload else None,
                 },
