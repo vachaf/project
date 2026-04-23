@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from llm_client import SUPPORTED_PROVIDERS
+from llm_client import SUPPORTED_PROVIDERS, normalize_provider
 from llm_stage2_reporter import resolve_known_asset_ips
 
 ALLOWED_MODES = {"routine", "milestone", "presentation"}
@@ -212,6 +212,7 @@ def main() -> int:
 
     scripts_dir = Path(args.scripts_dir).expanduser().resolve() if args.scripts_dir else Path(__file__).resolve().parent
     work_dir = Path(args.work_dir).expanduser().resolve()
+    llm_provider = normalize_provider(args.llm_provider)
     known_asset_ips = resolve_known_asset_ips(args.known_asset_ips, extra_env_roots=[work_dir])
     known_asset_ips_csv = ",".join(known_asset_ips)
     processed_dir = Path(args.processed_dir).expanduser().resolve() if args.processed_dir else work_dir / "processed"
@@ -271,7 +272,7 @@ def main() -> int:
             "processed_dir": str(processed_dir),
             "reports_dir": str(reports_dir),
             "prepare_source_tables": args.prepare_source_tables,
-            "llm_provider": args.llm_provider,
+            "llm_provider": llm_provider,
             "known_asset_ips": known_asset_ips,
             "python": sys.executable,
         },
