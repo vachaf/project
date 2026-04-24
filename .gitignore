@@ -13,10 +13,3 @@ pipeline_manifest.json
 .env
 llm.env
 config/*.env
-
-.DS_Store
-Thumbs.db
-
-.bin/
-
-/이해
