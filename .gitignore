@@ -5,6 +5,7 @@ __pycache__/
 data/raw/
 data/processed/
 reports/
+lab/
 pipeline_manifest.json
 
 *.log
