@@ -86,44 +86,50 @@ pip install PyMySQL
 파일: `/opt/web_log_analysis/config/llm.env`
 
 ```dotenv
-OPENAI_API_KEY=실제_OpenAI_API_KEY
+OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 OPENAI_BASE_URL=https://api.openai.com/v1
 
-LLM_PROVIDER=openai
+ANTHROPIC_API_KEY=YOUR_ANTHROPIC_API_KEY
+ANTHROPIC_BASE_URL=https://api.anthropic.com/v1
+ANTHROPIC_MODEL=claude-sonnet-4-6
+ANTHROPIC_MAX_TOKENS=8192
 
-# Claude를 사용할 때만 활성화
-# ANTHROPIC_API_KEY=실제_Anthropic_API_KEY
-# ANTHROPIC_BASE_URL=https://api.anthropic.com/v1
-# ANTHROPIC_MODEL=claude_모델명
-# ANTHROPIC_MAX_TOKENS=필요시_조정
-
-LOG_DB_HOST=DB서버_IP
+LOG_DB_HOST=DB_SERVER_IP
 LOG_DB_PORT=3306
 LOG_DB_NAME=web_logs
 LOG_DB_USER=log_writer
-LOG_DB_PASSWORD=실제_DB_조회_비밀번호
-KNOWN_ASSET_IPS=필요시_자산_IP_목록
+LOG_DB_PASSWORD=YOUR_DB_PASSWORD
+KNOWN_ASSET_IPS=OPTIONAL_ASSET_IP_LIST
 ```
 
-기준:
+정책:
 
-- provider 미지정 시 기본은 `openai`
-- Claude 사용 시 `LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` 필요
-- Anthropic 사용 시 기본 확인 환경변수는 `LLM_PROVIDER`, `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`이며 필요 시 `ANTHROPIC_MAX_TOKENS`를 추가한다.
-- Anthropic 사용 시 `ANTHROPIC_BASE_URL`을 함께 맞추고, stage2 출력이 길면 필요 시 `ANTHROPIC_MAX_TOKENS`를 조정한다.
-- stage2 JSON 생성 중 `stop_reason=max_tokens`가 나오면 출력이 잘린 경우일 수 있다.
-- 모델별 최대 출력 한도는 다를 수 있으므로 현재 사용 가능한 모델 기준으로 확인한다.
-- 사용하지 않는 provider 키는 주석 처리 가능
-- `LOG_DB_HOST`와 `LOG_DB_PASSWORD`는 운영 환경에 맞게 환경변수로 지정한다.
-- `LOG_DB_USER` 기본값은 `log_writer` 기준이다.
-- `KNOWN_ASSET_IPS`는 현재 운영 기준의 필수 설정이 아니다
+- `config/llm.env` 하나에 OpenAI / Anthropic 설정을 함께 둔다.
+- `LLM_PROVIDER`는 기본값으로 강제하지 않는다.
+- 실행 시 provider는 CLI에서 명시한다.
+- OpenAI 실행은 `--llm-provider openai` 또는 `--provider openai`
+- Anthropic 실행은 `--llm-provider anthropic` 또는 `--provider anthropic`
+
+이유:
+
+- 현재 코드의 provider 해석 순서는 `CLI 인자 -> LLM_PROVIDER -> openai 기본값`이다.
+- 따라서 같은 셸에서 env 파일을 여러 번 `source`하면 이전 provider 환경변수가 남아 잘못된 provider로 실행될 수 있다.
+- 단일 `llm.env`를 한 번만 적용하고 provider를 실행 명령에서 명시하면 이 오염을 막을 수 있다.
+
+비권장 방식:
+
+- OpenAI용 / Anthropic용 env 파일을 분리해 두고 같은 셸에서 반복 `source`하는 방식
+- `LLM_PROVIDER`에 기본 provider를 고정해 두고 실행 명령에서 provider를 생략하는 방식
 
 적용:
 
 ```bash
 chmod 600 /opt/web_log_analysis/config/llm.env
+
+cd /opt/web_log_analysis
+source .venv/bin/activate
 set -a
-source /opt/web_log_analysis/config/llm.env
+source ./config/llm.env
 set +a
 ```
 
@@ -148,9 +154,10 @@ python ./src/export_db_logs_cli.py \
 ## 9. 운영 전 확인 사항
 
 - `src/`에 주요 스크립트가 있다.
-- `config/llm.env`가 적용된다.
+- `config/llm.env`가 준비된다.
 - `data/raw`, `data/processed`, `reports`, `logs`가 존재한다.
 - `export_db_logs_cli.py --test-connection`이 성공한다.
+- OpenAI / Anthropic 비교 실험 시에도 추가 env 파일 없이 같은 `config/llm.env`를 재사용한다.
 
 ## 10. 주요 파일 GitHub 기준 복원
 
