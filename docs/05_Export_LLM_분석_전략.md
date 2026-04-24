@@ -164,6 +164,14 @@ llm_stage2_reporter.py
 
 현재 운영 기준에서는 `KNOWN_ASSET_IPS`를 기본 필수로 보지 않는다.
 
+해석 기준:
+
+- prepare와 stage1은 `raw_request`, `raw_request_target`, `raw_log`, `request_id` 같은 raw evidence를 더 직접적으로 사용한다.
+- stage2는 사건 요약형 입력을 바탕으로 운영자용 보고서를 생성한다.
+- 따라서 stage2 결과는 최종 증거가 아니라 운영자 의사결정용 요약 보고서로 해석한다.
+- suspicious/high incident는 `request_id` 기반 raw log 대조 절차와 함께 해석한다.
+- Anthropic 경로에서는 JSON 출력이 길어지면 `stop_reason=max_tokens`로 truncation이 날 수 있으므로 stop reason 확인이 중요하다.
+
 ## 8. run_analysis_pipeline 기준
 
 시작점:

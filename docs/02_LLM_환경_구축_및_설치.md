@@ -95,6 +95,7 @@ LLM_PROVIDER=openai
 # ANTHROPIC_API_KEY=실제_Anthropic_API_KEY
 # ANTHROPIC_BASE_URL=https://api.anthropic.com/v1
 # ANTHROPIC_MODEL=claude_모델명
+# ANTHROPIC_MAX_TOKENS=필요시_조정
 
 LOG_DB_HOST=DB서버_IP
 LOG_DB_PORT=3306
@@ -108,6 +109,10 @@ KNOWN_ASSET_IPS=필요시_자산_IP_목록
 
 - provider 미지정 시 기본은 `openai`
 - Claude 사용 시 `LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` 필요
+- Anthropic 사용 시 기본 확인 환경변수는 `LLM_PROVIDER`, `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`이며 필요 시 `ANTHROPIC_MAX_TOKENS`를 추가한다.
+- Anthropic 사용 시 `ANTHROPIC_BASE_URL`을 함께 맞추고, stage2 출력이 길면 필요 시 `ANTHROPIC_MAX_TOKENS`를 조정한다.
+- stage2 JSON 생성 중 `stop_reason=max_tokens`가 나오면 출력이 잘린 경우일 수 있다.
+- 모델별 최대 출력 한도는 다를 수 있으므로 현재 사용 가능한 모델 기준으로 확인한다.
 - 사용하지 않는 provider 키는 주석 처리 가능
 - `LOG_DB_HOST`와 `LOG_DB_PASSWORD`는 운영 환경에 맞게 환경변수로 지정한다.
 - `LOG_DB_USER` 기본값은 `log_writer` 기준이다.
