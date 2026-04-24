@@ -55,6 +55,7 @@ llm_stage2_reporter.py
 - 기본 `--include-source-tables`: `security`
 - 기본 `--min-score`: `4`
 - 기본 `--min-repeat-aggregate`: `3`
+- 로그인 계열은 기본적으로 `401/403` 실패 신호에 강하다. `POST /rest/user/login`의 `200 application/json` 성공은 일반 성공까지 과승격하지 않도록, JSON 응답 크기와 비브라우저/automation/공격성 힌트가 결합될 때만 별도 후보 점수를 준다.
 
 출력 파일:
 

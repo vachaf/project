@@ -1,0 +1,26 @@
+[
+  {
+    "category": "socketio_polling",
+    "src_ip": "192.168.56.1",
+    "uri": "/socket.io/",
+    "method": "POST",
+    "status_code": 200,
+    "count": 31,
+    "start": null,
+    "end": null,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "note": "정상 웹 UI 세션 유지로 보이는 반복 polling 요청"
+  },
+  {
+    "category": "socketio_polling",
+    "src_ip": "192.168.56.1",
+    "uri": "/socket.io/",
+    "method": "GET",
+    "status_code": 200,
+    "count": 31,
+    "start": null,
+    "end": null,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    "note": "정상 웹 UI 세션 유지로 보이는 반복 polling 요청"
+  }
+]

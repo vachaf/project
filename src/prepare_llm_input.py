@@ -89,6 +89,12 @@ AUTOMATION_UA_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
     ("wget", re.compile(r"(?i)^wget/"), 1),
 ]
 
+AUTH_SUCCESS_ATTACK_HINT_PATTERN = re.compile(
+    r"(?i)\b("
+    r"bypass|exploit|attack|abuse|intrud|tamper|payload|fuzz|poc|scanner|sqlmap|nikto|nmap"
+    r")\b"
+)
+
 LOGIN_URI_HINTS = (
     "/login",
     "/user/login",
@@ -278,6 +284,16 @@ def contains_login_uri(uri: str) -> bool:
 def contains_query_heavy_uri(uri: str) -> bool:
     uri_lower = (uri or "").lower()
     return any(hint in uri_lower for hint in QUERY_HEAVY_URI_HINTS)
+
+
+def is_json_content_type(content_type: str) -> bool:
+    value = (content_type or "").lower()
+    return value.startswith("application/json") or value.endswith("+json")
+
+
+def has_auth_success_attack_hint(*values: str) -> bool:
+    combined = " ".join(normalize_text(value) for value in values if value)
+    return bool(combined and AUTH_SUCCESS_ATTACK_HINT_PATTERN.search(combined))
 
 
 def is_static_resource(uri: str) -> bool:
@@ -863,6 +879,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     xss_hits = 0
     traversal_hits = 0
     cmdi_hits = 0
+    automation_ua_hits = 0
 
     for name, pattern, points in SQLI_PATTERNS:
         if pattern.search(combined_target):
@@ -891,6 +908,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     for name, pattern, points in AUTOMATION_UA_PATTERNS:
         if pattern.search(user_agent):
             score += points
+            automation_ua_hits += 1
             reason_hints.append(f"ua:{name}(+{points})")
 
     if hpp_detected:
@@ -933,7 +951,8 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         score += 2
         reason_hints.append("high_ttfb(+2)")
 
-    if contains_login_uri(uri):
+    is_login_endpoint = contains_login_uri(uri)
+    if is_login_endpoint:
         score += 1
         reason_hints.append("login_endpoint(+1)")
 
@@ -942,13 +961,38 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
             score += 2
             reason_hints.append("query_endpoint_with_attack_tokens(+2)")
 
-    if req_ct.lower() in {"application/json", "application/x-www-form-urlencoded"} and contains_login_uri(uri):
+    auth_payload_content_type = req_ct.lower() in {"application/json", "application/x-www-form-urlencoded"}
+    if auth_payload_content_type and is_login_endpoint:
         score += 1
         reason_hints.append("auth_payload_content_type(+1)")
 
     if not referer and not looks_like_browser_ua(user_agent) and status_code >= 400:
         score += 1
         reason_hints.append("no_referer_non_browser_error(+1)")
+
+    is_login_success_json_response = (
+        is_login_endpoint
+        and method == "POST"
+        and status_code == 200
+        and is_json_content_type(req_ct)
+        and is_json_content_type(resp_content_type)
+        and response_body_bytes >= 300
+    )
+    auth_success_attack_hint = has_auth_success_attack_hint(user_agent, raw_req, raw_log, qs)
+    if is_login_success_json_response and auth_success_attack_hint:
+        score += 2
+        reason_hints.append("login_success_json_response(+2)")
+        score += 1
+        reason_hints.append("possible_auth_bypass_success(+1)")
+
+    if (
+        is_login_success_json_response
+        and not referer
+        and not looks_like_browser_ua(user_agent)
+        and (auth_success_attack_hint or automation_ua_hits > 0)
+    ):
+        score += 1
+        reason_hints.append("no_referer_non_browser_login(+1)")
 
     if source_table == "error":
         score += 2
@@ -1019,6 +1063,8 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         verdict_hint = "path_traversal"
     elif cmdi_hits > 0 and score >= max(min_score, 6):
         verdict_hint = "command_injection"
+    elif is_login_success_json_response and score >= min_score:
+        verdict_hint = "suspicious_auth_success"
     elif score >= min_score:
         verdict_hint = "suspicious"
     else:

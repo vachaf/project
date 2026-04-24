@@ -1,0 +1,212 @@
+[
+  {
+    "source_table": "security",
+    "log_id": 7688,
+    "log_time": "2026-04-24T16:55:01.808 09:00",
+    "src_ip": "192.168.56.110",
+    "method": "POST",
+    "uri": "/rest/user/login",
+    "query_string": "",
+    "status_code": 401,
+    "score": 5,
+    "verdict_hint": "suspicious",
+    "reason_hints": [
+      "error_status:401(+2)",
+      "login_endpoint(+1)",
+      "auth_payload_content_type(+1)",
+      "no_referer_non_browser_error(+1)"
+    ],
+    "request_id": "aesh1b-zriQ4NNcF9k1z3QAAAEk",
+    "error_link_id": "",
+    "raw_request": "POST /rest/user/login HTTP/1.1",
+    "user_agent": "lab-a-set-login-repeat-3",
+    "referer": "",
+    "duration_us": 18814,
+    "ttfb_us": 17383,
+    "raw_log": "log_time=2026-04-24T07:55:01.808 0000 request_id=aesh1b-zriQ4NNcF9k1z3QAAAEk error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=POST raw_request=\"POST /rest/user/login HTTP/1.1\" uri=\"/rest/user/login\" query_string=\"\" protocol=HTTP/1.1 status_code=401 response_body_bytes=26 in_bytes=206 out_bytes=398 total_bytes=604 duration_us=18814 ttfb_us=17383 keepalive_count=0 connection_status=  req_content_type=\"application/json\" req_content_length=\"47\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"lab-a-set-login-repeat-3\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 26,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/rest/user/login",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:aesh1b-zriQ4NNcF9k1z3QAAAEk",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      7688
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 7687,
+    "log_time": "2026-04-24T16:54:59.596 09:00",
+    "src_ip": "192.168.56.110",
+    "method": "POST",
+    "uri": "/rest/user/login",
+    "query_string": "",
+    "status_code": 401,
+    "score": 5,
+    "verdict_hint": "suspicious",
+    "reason_hints": [
+      "error_status:401(+2)",
+      "login_endpoint(+1)",
+      "auth_payload_content_type(+1)",
+      "no_referer_non_browser_error(+1)"
+    ],
+    "request_id": "aesh09OSD6y5522Fqx3jXAAAAAE",
+    "error_link_id": "",
+    "raw_request": "POST /rest/user/login HTTP/1.1",
+    "user_agent": "lab-a-set-login-repeat-2",
+    "referer": "",
+    "duration_us": 73137,
+    "ttfb_us": 69897,
+    "raw_log": "log_time=2026-04-24T07:54:59.596 0000 request_id=aesh09OSD6y5522Fqx3jXAAAAAE error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=POST raw_request=\"POST /rest/user/login HTTP/1.1\" uri=\"/rest/user/login\" query_string=\"\" protocol=HTTP/1.1 status_code=401 response_body_bytes=26 in_bytes=206 out_bytes=398 total_bytes=604 duration_us=73137 ttfb_us=69897 keepalive_count=0 connection_status=  req_content_type=\"application/json\" req_content_length=\"47\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"lab-a-set-login-repeat-2\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 26,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/rest/user/login",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:aesh09OSD6y5522Fqx3jXAAAAAE",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      7687
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 7686,
+    "log_time": "2026-04-24T16:54:57.488 09:00",
+    "src_ip": "192.168.56.110",
+    "method": "POST",
+    "uri": "/rest/user/login",
+    "query_string": "",
+    "status_code": 401,
+    "score": 5,
+    "verdict_hint": "suspicious",
+    "reason_hints": [
+      "error_status:401(+2)",
+      "login_endpoint(+1)",
+      "auth_payload_content_type(+1)",
+      "no_referer_non_browser_error(+1)"
+    ],
+    "request_id": "aesh0dOSD6y5522Fqx3jWwAAAAI",
+    "error_link_id": "",
+    "raw_request": "POST /rest/user/login HTTP/1.1",
+    "user_agent": "lab-a-set-login-repeat-1",
+    "referer": "",
+    "duration_us": 13910,
+    "ttfb_us": 11314,
+    "raw_log": "log_time=2026-04-24T07:54:57.488 0000 request_id=aesh0dOSD6y5522Fqx3jWwAAAAI error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=POST raw_request=\"POST /rest/user/login HTTP/1.1\" uri=\"/rest/user/login\" query_string=\"\" protocol=HTTP/1.1 status_code=401 response_body_bytes=26 in_bytes=206 out_bytes=398 total_bytes=604 duration_us=13910 ttfb_us=11314 keepalive_count=0 connection_status=  req_content_type=\"application/json\" req_content_length=\"47\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"lab-a-set-login-repeat-1\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 26,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/rest/user/login",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:aesh0dOSD6y5522Fqx3jWwAAAAI",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      7686
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 7683,
+    "log_time": "2026-04-24T16:54:48.720 09:00",
+    "src_ip": "192.168.56.110",
+    "method": "POST",
+    "uri": "/rest/user/login",
+    "query_string": "",
+    "status_code": 401,
+    "score": 5,
+    "verdict_hint": "suspicious",
+    "reason_hints": [
+      "error_status:401(+2)",
+      "login_endpoint(+1)",
+      "auth_payload_content_type(+1)",
+      "no_referer_non_browser_error(+1)"
+    ],
+    "request_id": "aeshyNOSD6y5522Fqx3jWgAAAAU",
+    "error_link_id": "",
+    "raw_request": "POST /rest/user/login HTTP/1.1",
+    "user_agent": "lab-a-set-login-fail-1",
+    "referer": "",
+    "duration_us": 30538,
+    "ttfb_us": 29703,
+    "raw_log": "log_time=2026-04-24T07:54:48.720 0000 request_id=aeshyNOSD6y5522Fqx3jWgAAAAU error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=POST raw_request=\"POST /rest/user/login HTTP/1.1\" uri=\"/rest/user/login\" query_string=\"\" protocol=HTTP/1.1 status_code=401 response_body_bytes=26 in_bytes=204 out_bytes=398 total_bytes=602 duration_us=30538 ttfb_us=29703 keepalive_count=0 connection_status=  req_content_type=\"application/json\" req_content_length=\"47\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"lab-a-set-login-fail-1\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 26,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/rest/user/login",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:aeshyNOSD6y5522Fqx3jWgAAAAU",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      7683
+    ]
+  },
+  {
+    "source_table": "security",
+    "log_id": 7639,
+    "log_time": "2026-04-24T16:47:53.811 09:00",
+    "src_ip": "192.168.56.110",
+    "method": "POST",
+    "uri": "/rest/user/login",
+    "query_string": "",
+    "status_code": 401,
+    "score": 5,
+    "verdict_hint": "suspicious",
+    "reason_hints": [
+      "error_status:401(+2)",
+      "login_endpoint(+1)",
+      "auth_payload_content_type(+1)",
+      "no_referer_non_browser_error(+1)"
+    ],
+    "request_id": "aesgKb-zriQ4NNcF9k1zxgAAAEM",
+    "error_link_id": "",
+    "raw_request": "POST /rest/user/login HTTP/1.1",
+    "user_agent": "lab-smoke-login-fail-5",
+    "referer": "",
+    "duration_us": 15242,
+    "ttfb_us": 13599,
+    "raw_log": "log_time=2026-04-24T07:47:53.811 0000 request_id=aesgKb-zriQ4NNcF9k1zxgAAAEM error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=POST raw_request=\"POST /rest/user/login HTTP/1.1\" uri=\"/rest/user/login\" query_string=\"\" protocol=HTTP/1.1 status_code=401 response_body_bytes=26 in_bytes=204 out_bytes=398 total_bytes=602 duration_us=15242 ttfb_us=13599 keepalive_count=0 connection_status=  req_content_type=\"application/json\" req_content_length=\"47\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"lab-smoke-login-fail-5\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+    "response_body_bytes": 26,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/rest/user/login",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "embedded_attack_hint": "",
+    "incident_group_key": "rid:aesgKb-zriQ4NNcF9k1zxgAAAEM",
+    "merged_row_count": 1,
+    "merged_source_tables": [
+      "security"
+    ],
+    "merged_log_ids": [
+      7639
+    ]
+  }
+]
