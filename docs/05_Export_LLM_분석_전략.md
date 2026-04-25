@@ -169,8 +169,12 @@ llm_stage2_reporter.py
 
 - prepare와 stage1은 `raw_request`, `raw_request_target`, `raw_log`, `request_id` 같은 raw evidence를 더 직접적으로 사용한다.
 - stage2는 사건 요약형 입력을 바탕으로 운영자용 보고서를 생성한다.
+- stage2는 raw evidence 원문 뷰어가 아니라 사건형 요약 보고서다.
+- 따라서 stage2 입력에는 전체 raw 원문 대신 최소 evidence만 제한적으로 포함한다.
+- 현재 stage2 incident brief에는 기존 사건 요약 필드에 더해 `reason_hints`, `user_agent`, `raw_request`, 짧은 `raw_log_excerpt`가 최소 보강될 수 있다.
 - 따라서 stage2 결과는 최종 증거가 아니라 운영자 의사결정용 요약 보고서로 해석한다.
 - suspicious/high incident는 `request_id` 기반 raw log 대조 절차와 함께 해석한다.
+- 운영자는 `request_id`로 `apache_security_logs.raw_log` 원문을 조회하고, 같은 시간대 `apache_error_logs` 및 앱 로그를 대조해 payload 정황, 도구 사용 정황, 서버 반응, 성공 정황을 구분해야 한다.
 - Anthropic 경로에서는 JSON 출력이 길어지면 `stop_reason=max_tokens`로 truncation이 날 수 있으므로 stop reason 확인이 중요하다.
 
 ## 8. run_analysis_pipeline 기준

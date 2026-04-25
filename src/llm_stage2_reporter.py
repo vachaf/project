@@ -67,6 +67,10 @@ class IncidentBrief:
     embedded_attack_hint: str
     reasoning_summary: str
     evidence_fields: List[str]
+    reason_hints: List[str]
+    user_agent: str
+    raw_request: str
+    raw_log_excerpt: str
     recommended_actions: List[str]
     known_asset: bool
 
@@ -421,6 +425,16 @@ def sort_results(results: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
     )
 
 
+def shorten_evidence_text(value: Any, max_len: int = 280) -> str:
+    text = normalize_str(value)
+    if not text:
+        return ""
+    text = " ".join(text.split())
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3].rstrip() + "..."
+
+
 def build_dedup_key(item: Dict[str, Any]) -> str:
     request_id = normalize_str(item.get("request_id"))
     if request_id and request_id != "-":
@@ -482,10 +496,70 @@ def dedup_stage1_results(results: List[Dict[str, Any]], known_asset_ips: Sequenc
     return sort_results(deduped)
 
 
-def build_incident_briefs(results: List[Dict[str, Any]], top_n: int, known_asset_ips: Sequence[str]) -> List[IncidentBrief]:
+def build_candidate_evidence_lookup(llm_input_payload: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    candidates = (llm_input_payload or {}).get("analysis_candidates") or []
+    by_incident_group_key: Dict[str, Dict[str, Any]] = {}
+    by_request_id: Dict[str, Dict[str, Any]] = {}
+    by_source_log: Dict[str, Dict[str, Any]] = {}
+
+    for candidate in candidates:
+        incident_group_key = normalize_str(candidate.get("incident_group_key"))
+        request_id = normalize_str(candidate.get("request_id"))
+        source_table = normalize_str(candidate.get("source_table"))
+        log_id = normalize_str(candidate.get("log_id"))
+        if incident_group_key and incident_group_key not in by_incident_group_key:
+            by_incident_group_key[incident_group_key] = candidate
+        if request_id and request_id not in by_request_id:
+            by_request_id[request_id] = candidate
+        if source_table and log_id and log_id != "-":
+            by_source_log.setdefault(f"{source_table}:{log_id}", candidate)
+
+    return {
+        "by_incident_group_key": by_incident_group_key,
+        "by_request_id": by_request_id,
+        "by_source_log": by_source_log,
+    }
+
+
+def resolve_incident_evidence(
+    item: Dict[str, Any],
+    candidate_lookup: Optional[Dict[str, Dict[str, Dict[str, Any]]]],
+) -> Dict[str, Any]:
+    if not candidate_lookup:
+        return {}
+
+    incident_group_key = normalize_str(item.get("incident_group_key"))
+    if incident_group_key:
+        candidate = candidate_lookup.get("by_incident_group_key", {}).get(incident_group_key)
+        if candidate:
+            return candidate
+
+    request_id = normalize_str(item.get("request_id"))
+    if request_id:
+        candidate = candidate_lookup.get("by_request_id", {}).get(request_id)
+        if candidate:
+            return candidate
+
+    source_table = normalize_str(item.get("source_table"))
+    log_id = normalize_str(item.get("log_id"))
+    if source_table and log_id and log_id != "-":
+        candidate = candidate_lookup.get("by_source_log", {}).get(f"{source_table}:{log_id}")
+        if candidate:
+            return candidate
+
+    return {}
+
+
+def build_incident_briefs(
+    results: List[Dict[str, Any]],
+    top_n: int,
+    known_asset_ips: Sequence[str],
+    candidate_lookup: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None,
+) -> List[IncidentBrief]:
     deduped = dedup_stage1_results(results, known_asset_ips=known_asset_ips)
     briefs: List[IncidentBrief] = []
     for idx, item in enumerate(deduped[:top_n], start=1):
+        evidence_source = resolve_incident_evidence(item, candidate_lookup)
         briefs.append(
             IncidentBrief(
                 rank=idx,
@@ -514,6 +588,10 @@ def build_incident_briefs(results: List[Dict[str, Any]], top_n: int, known_asset
                 embedded_attack_hint=normalize_str(item.get("embedded_attack_hint")),
                 reasoning_summary=normalize_str(item.get("reasoning_summary")),
                 evidence_fields=[normalize_str(x) for x in (item.get("evidence_fields") or []) if normalize_str(x)],
+                reason_hints=[normalize_str(x) for x in (evidence_source.get("reason_hints") or item.get("reason_hints") or []) if normalize_str(x)],
+                user_agent=shorten_evidence_text(evidence_source.get("user_agent"), max_len=160),
+                raw_request=shorten_evidence_text(evidence_source.get("raw_request"), max_len=180),
+                raw_log_excerpt=shorten_evidence_text(evidence_source.get("raw_log"), max_len=280),
                 recommended_actions=[normalize_str(x) for x in (item.get("recommended_actions") or []) if normalize_str(x)],
                 known_asset=bool(item.get("known_asset")),
             )
@@ -644,6 +722,7 @@ def build_report_input(
     stage1_errors = (stage1_errors_payload or {}).get("errors") or []
     filtered_out_breakdown = normalize_counter_dict(llm_meta.get("filtered_out_breakdown"))
     total_filtered_out_rows = safe_int(counts.get("filtered_out_rows"), 0)
+    candidate_lookup = build_candidate_evidence_lookup(llm_input_payload)
 
     deduped_results = dedup_stage1_results(results, known_asset_ips=known_asset_ips)
 
@@ -657,7 +736,15 @@ def build_report_input(
     )
     table_counter = Counter(normalize_str(x.get("source_table")) or "unknown" for x in deduped_results)
 
-    briefs = [asdict(x) for x in build_incident_briefs(results, top_n=top_incidents, known_asset_ips=known_asset_ips)]
+    briefs = [
+        asdict(x)
+        for x in build_incident_briefs(
+            results,
+            top_n=top_incidents,
+            known_asset_ips=known_asset_ips,
+            candidate_lookup=candidate_lookup,
+        )
+    ]
     ip_rows = summarize_ips(results, top_n=top_ips, known_asset_ips=known_asset_ips)
     top_noise = sorted(
         noise_summary,
