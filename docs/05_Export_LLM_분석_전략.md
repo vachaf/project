@@ -71,6 +71,22 @@ llm_stage2_reporter.py
 - `candidate_group_summary`
 - `analysis_candidates`
 
+### 4.1 로그 가시성 한계와 POST body blind spot
+
+현재 파이프라인은 Apache 공통/security 로그 표면에 직접 남는 신호를 우선 사용한다. 따라서 아래와 같은 신호에는 비교적 강하다.
+
+- `query_string`
+- `raw_request_target`
+- `status_code`
+- `response_body_bytes`
+- `resp_content_type`
+- `500` 오류
+- `UNION`, `SELECT`, SQL 주석 같은 공격 토큰이 요청 라인이나 쿼리스트링에 직접 남는 경우
+
+반대로 공격 신호가 `POST` JSON body 내부에만 있고, Apache 공통/security 로그 표면에는 직접 드러나지 않는 경우는 현재 구조의 blind spot이 될 수 있다. 특히 auth bypass 성공형 요청처럼 로그에 `POST /rest/user/login`, `200`, `application/json`, 일반적인 응답 크기 정도만 남고 payload 자체가 보이지 않는 경우에는 prepare 단계에서 후보화가 누락될 수 있다.
+
+이 한계는 모델이 payload 의미를 해석하지 못해서라기보다, LLM에 전달되기 전 단계에서 확보 가능한 데이터 가시성 범위가 좁기 때문에 발생한다. 즉 현재 baseline은 "Apache 공통/security 로그를 기반으로 어디까지 분류·요약할 수 있는가"를 평가하는 구조이며, 상류에서 body-derived signal을 추가하면 평가 질문 자체가 달라진다.
+
 ## 5. `analysis_candidates` 핵심 필드
 
 - `source_table`
