@@ -15,3 +15,5 @@ raw/
 *noise_summary.json
 *stage1_errors.json
 *analysis_candidates.json
+*llm_input.json
+*stage2_report_input.json
