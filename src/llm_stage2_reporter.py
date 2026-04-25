@@ -719,6 +719,7 @@ def build_report_input(
     llm_meta = (llm_input_payload or {}).get("meta") or {}
     counts = llm_meta.get("counts") or {}
     noise_summary = (llm_input_payload or {}).get("noise_summary") or []
+    supporting_events = (llm_input_payload or {}).get("supporting_events") or []
     stage1_errors = (stage1_errors_payload or {}).get("errors") or []
     filtered_out_breakdown = normalize_counter_dict(llm_meta.get("filtered_out_breakdown"))
     total_filtered_out_rows = safe_int(counts.get("filtered_out_rows"), 0)
@@ -787,6 +788,7 @@ def build_report_input(
             "filtered_out_rows": total_filtered_out_rows,
             "filtered_out_non_aggregated_rows": safe_int(counts.get("filtered_out_non_aggregated_rows"), 0),
             "noise_group_count": safe_int(counts.get("noise_group_count"), len(noise_summary)),
+            "supporting_event_count": safe_int(counts.get("supporting_events"), len(supporting_events)),
             "stage1_success_count": safe_int(meta.get("success_count"), len(results)),
             "stage1_error_count": safe_int(meta.get("error_count"), len(stage1_errors)),
         },
@@ -802,6 +804,7 @@ def build_report_input(
         "top_noise_groups": top_noise,
         "top_filtered_categories": top_filtered_categories,
         "top_out_of_candidate_recon": top_out_of_candidate_recon,
+        "supporting_events": supporting_events[:20],
         "stage1_errors_excerpt": stage1_errors[:5],
         "asset_context": {
             "known_asset_ips": list(known_asset_ips),
@@ -820,6 +823,12 @@ def build_report_input(
                 "default_action": "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않음",
                 "reporting_rule": "stage2 에서는 후보 밖 탐색성 요청 섹션으로 고정 표기",
                 "promotion_review_rule": "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토",
+            },
+            "supporting_events_policy": {
+                "default_action": "supporting_events 는 개별 incident 가 아니라 문맥 정보로만 해석",
+                "temporal_rule": "같은 src_ip 와 같은 uri 또는 endpoint family 의 근접 시계열로 해석",
+                "decoded_hint_rule": "encoding:* reason_hints 는 우회성 인코딩 시도 보조 근거로만 사용",
+                "educational_sql_rule": "교육/문서 검색 문맥 hint 가 있으면 SQLi 단정을 낮추고 자연어 질의 가능성을 함께 검토",
             },
         },
     }
@@ -933,6 +942,8 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "동일 파라미터가 반복되면 HPP(HTTP Parameter Pollution) 문맥을 검토하라. "
         "hpp_detected 가 true 이고 embedded_attack_hint 가 있으면, 사건 분류는 기존 SQLi/XSS 체계를 유지하되 보고서 설명에는 '중복 파라미터(HPP)를 이용한 시도' 문맥을 포함하라. "
         "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 요청의 세부 분포는 실제로 존재하는 것으로 해석하라. "
+        "supporting_events 가 있으면 이는 개별 incident 가 아니라 같은 src_ip, uri 또는 endpoint family, 인접 시간대의 보조 문맥으로 해석하라. "
+        "supporting_events 의 encoding:* hint 는 우회성 인코딩 시도 보조 근거이며, educational_sql_search 계열 hint 는 자연어 검색 가능성을 함께 검토하라는 뜻이다. "
         "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, stage2 에서는 '후보 밖 탐색성 요청'으로 고정 표기하라. "
         "단, 동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라. "
         "filtered_out_breakdown, top_filtered_categories, top_out_of_candidate_recon 은 prepare 단계에서 보존된 사실 정보이므로 후보 밖 탐색성 요청 섹션과 recommended_actions 에 반영하라. "
@@ -957,6 +968,9 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "hpp_detected 가 true 인 incident 는 hpp_param_names 와 embedded_attack_hint 를 함께 보고, 중복 파라미터(HPP)를 통한 공격 시도인지 서술하라.",
             "known_asset_ips 와 일치하는 IP 는 내부 테스트/자체 호출 가능성을 반드시 함께 언급하라.",
             "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 세부 분포가 존재하는 것으로 서술하라.",
+            "supporting_events 는 개별 incident 로 승격하지 말고, 같은 src_ip 와 같은 uri 또는 endpoint family 의 temporal chain 보조 문맥으로만 사용하라.",
+            "supporting_events 에 educational_sql_search 또는 sql_keyword_without_attack_structure 계열 hint 가 있으면 SQL 키워드 검색을 공격으로 단정하지 마라.",
+            "supporting_events 나 incident reason_hints 에 encoding:double_decoded_sqli, encoding:decoded_depth_2 같은 hint 가 있으면 인코딩 기반 evasion 시도 가능성을 보조적으로 언급하라.",
             "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, 별도 '후보 밖 탐색성 요청' 섹션에서 설명하라.",
             "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라.",
             "low_signal_fuzzing, low_signal_dir_probe, benign_normal_search, benign_fallback_html 같은 filtered_out_breakdown 카테고리가 있으면 noise_interpretation 에 구체적으로 반영하라.",

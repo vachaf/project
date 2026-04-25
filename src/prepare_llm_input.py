@@ -171,6 +171,48 @@ BROWSER_UA_HINTS = (
 
 SOURCE_PRIORITY = {"security": 3, "access": 2, "error": 1}
 SOURCE_ORDER = ["security", "access", "error"]
+DECODE_VARIANT_MAX_CHARS = 4096
+SUPPORTING_EVENT_TIME_WINDOW_SEC = 120
+TEMPORAL_CONTEXT_BUCKET_SEC = 120
+EDUCATIONAL_SQL_SEARCH_TERMS = (
+    "how to",
+    "tutorial",
+    "example",
+    "guide",
+    "docs",
+    "documentation",
+    "learn",
+    "syntax",
+    "sql tutorial",
+    "select tutorial",
+    "union tutorial",
+    "사용법",
+    "예제",
+    "튜토리얼",
+    "강의",
+    "문서",
+    "학습",
+    "설명",
+)
+SUPPORTING_SQL_KEYWORDS = (
+    "select",
+    "union",
+    "from",
+    "where",
+    "or",
+    "and",
+    "users",
+    "sqlite_master",
+    "information_schema",
+)
+ENCODED_PAYLOAD_MARKERS = ("%27", "%2527", "%2f", "%252f", "%20", "%2520", "%2e", "%252e")
+SQLI_BOOLEAN_CONDITION_PATTERN = re.compile(r"(?i)\b(?:or|and)\b\s+(?:\d+|[\w\"']+)\s*=\s*(?:\d+|[\w\"']+)")
+SQLI_XCLOSE_PATTERN = re.compile(r"(?i)x\s*'\s*\)\s*\)")
+SQLI_UNION_COLUMN_ENUM_PATTERN = re.compile(r"(?i)\bunion\b\s+\bselect\b\s+[^\n]{0,160},\s*[^\n]{0,160}")
+SQLI_SCHEMA_ACCESS_PATTERN = re.compile(r"(?i)\b(?:information_schema|sqlite_master|mysql\.user)\b")
+SQLI_FROM_USERS_PATTERN = re.compile(r"(?i)\bfrom\b\s+users\b")
+SQLI_COMMENT_PATTERN = re.compile(r"(?i)(--|#|/\*)")
+REPEATED_QUOTE_PATTERN = re.compile(r"(?i)(?:'|%27|%2527|\"|%22){2,}")
 
 
 @dataclass
@@ -253,6 +295,329 @@ def normalize_text(value: Optional[Any]) -> str:
     if value is None:
         return ""
     return unquote_plus(str(value)).strip()
+
+
+def raw_text(value: Optional[Any]) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def build_decoded_variants(value: str, max_depth: int = 2) -> List[Dict[str, Any]]:
+    current = raw_text(value)
+    if not current:
+        return []
+
+    if len(current) > DECODE_VARIANT_MAX_CHARS:
+        current = current[:DECODE_VARIANT_MAX_CHARS]
+
+    variants: List[Dict[str, Any]] = [{"depth": 0, "text": current}]
+    for depth in range(1, max(0, max_depth) + 1):
+        try:
+            decoded = unquote_plus(current)
+        except Exception:
+            break
+        if len(decoded) > DECODE_VARIANT_MAX_CHARS:
+            decoded = decoded[:DECODE_VARIANT_MAX_CHARS]
+        if decoded == current:
+            break
+        variants.append({"depth": depth, "text": decoded})
+        current = decoded
+    return variants
+
+
+def unique_non_empty_texts(values: Iterable[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
+    for value in values:
+        text = raw_text(value)
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        ordered.append(text)
+    return ordered
+
+
+def build_analysis_texts(
+    raw_request: str,
+    uri: str,
+    query_string: str,
+    raw_request_target: str,
+    raw_log: str,
+) -> Tuple[str, str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+    query_variants = build_decoded_variants(query_string, max_depth=2)
+    raw_request_target_variants = build_decoded_variants(raw_request_target, max_depth=2)
+
+    base_text = " ".join(
+        unique_non_empty_texts([
+            raw_text(raw_request),
+            normalize_text(raw_request),
+            normalize_text(uri),
+            raw_text(query_string),
+            normalize_text(query_string),
+            raw_request_target,
+            normalize_text(raw_log),
+        ])
+    ).strip()
+    variant_text = " ".join(
+        unique_non_empty_texts(
+            [item.get("text", "") for item in query_variants[1:]]
+            + [item.get("text", "") for item in raw_request_target_variants[1:]]
+        )
+    ).strip()
+    combined_text = " ".join(unique_non_empty_texts([base_text, variant_text])).strip()
+    return base_text, combined_text, query_variants, raw_request_target_variants
+
+
+def get_matching_pattern_names(patterns: List[Tuple[str, re.Pattern[str], int]], text: str) -> List[str]:
+    if not text:
+        return []
+    return [name for name, pattern, _ in patterns if pattern.search(text)]
+
+
+def has_any_attack_pattern(text: str) -> bool:
+    if not text:
+        return False
+    pattern_groups = (SQLI_PATTERNS, XSS_PATTERNS, TRAVERSAL_PATTERNS, CMDI_PATTERNS)
+    return any(pattern.search(text) for group in pattern_groups for _, pattern, _ in group)
+
+
+def detect_decoded_attack_hints(
+    base_text: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    hints: List[str] = []
+    score_boost = 0
+
+    variant_depth0_attack = False
+    variant_depth1_attack = False
+    depth1_has_attack = False
+    depth2_has_attack = False
+    depth1_has_sqli = False
+    depth2_has_sqli = False
+
+    for variant in query_variants + raw_request_target_variants:
+        depth = safe_int(variant.get("depth"), 0)
+        text = raw_text(variant.get("text"))
+        if not text:
+            continue
+        variant_has_attack = has_any_attack_pattern(text)
+        variant_has_sqli = bool(get_matching_pattern_names(SQLI_PATTERNS, text))
+        if depth == 0 and variant_has_attack:
+            variant_depth0_attack = True
+        if depth >= 1 and variant_has_attack:
+            variant_depth1_attack = True
+        if depth >= 1 and variant_has_attack:
+            depth1_has_attack = True
+        if depth >= 2 and variant_has_attack:
+            depth2_has_attack = True
+        if depth >= 1 and variant_has_sqli:
+            depth1_has_sqli = True
+        if depth >= 2 and variant_has_sqli:
+            depth2_has_sqli = True
+
+    if depth1_has_attack and not variant_depth0_attack:
+        hints.append("encoding:url_encoded_payload")
+    if depth2_has_attack:
+        hints.append("encoding:double_decoded_payload")
+        hints.append("encoding:decoded_depth_2")
+    if depth2_has_sqli:
+        hints.append("encoding:double_decoded_sqli")
+    if depth2_has_sqli and not depth1_has_sqli:
+        score_boost += 2
+
+    return score_boost, hints
+
+
+def detect_educational_sql_search_context(text: str) -> bool:
+    lowered = normalize_text(text).lower()
+    if not lowered:
+        return False
+    return any(term in lowered for term in EDUCATIONAL_SQL_SEARCH_TERMS)
+
+
+def get_sqli_structure_flags(text: str) -> Dict[str, bool]:
+    raw = raw_text(text)
+    normalized = normalize_text(text)
+    samples = unique_non_empty_texts([raw, normalized])
+    return {
+        "quote_termination": any(SQLI_PATTERNS[-1][1].search(sample) for sample in samples),
+        "sql_comment": any(SQLI_COMMENT_PATTERN.search(sample) for sample in samples),
+        "xclose": any(SQLI_XCLOSE_PATTERN.search(sample) for sample in samples),
+        "boolean_condition": any(SQLI_BOOLEAN_CONDITION_PATTERN.search(sample) for sample in samples),
+        "union_column_list": any(SQLI_UNION_COLUMN_ENUM_PATTERN.search(sample) for sample in samples),
+        "schema_access": any(SQLI_SCHEMA_ACCESS_PATTERN.search(sample) for sample in samples),
+        "from_users": any(SQLI_FROM_USERS_PATTERN.search(sample) for sample in samples),
+    }
+
+
+def has_encoded_payload_marker(text: str) -> bool:
+    lowered = raw_text(text).lower()
+    return any(marker in lowered for marker in ENCODED_PAYLOAD_MARKERS)
+
+
+def endpoint_family_key(uri: str) -> str:
+    path = path_from_target(uri).lower() if "?" in raw_text(uri) else normalize_text(uri).lower()
+    segments = [segment for segment in path.split("/") if segment]
+    if not segments:
+        return "/"
+
+    normalized_segments: List[str] = []
+    for segment in segments[:3]:
+        if re.fullmatch(r"[0-9a-f]{6,}", segment) or re.fullmatch(r"\d+", segment):
+            normalized_segments.append("{id}")
+        else:
+            normalized_segments.append(segment)
+    return "/" + "/".join(normalized_segments)
+
+
+def build_temporal_context_key(src_ip: str, uri: str, log_time: Optional[str]) -> str:
+    dt = parse_flexible_iso_dt(log_time or "")
+    if dt is not None:
+        bucket_start = datetime.fromtimestamp(
+            int(dt.timestamp() // TEMPORAL_CONTEXT_BUCKET_SEC) * TEMPORAL_CONTEXT_BUCKET_SEC,
+            tz=dt.tzinfo,
+        )
+        bucket = bucket_start.isoformat(timespec="seconds")
+    else:
+        bucket = format_time_bucket(log_time)
+    return f"{normalize_text(src_ip)}|{endpoint_family_key(uri)}|{bucket}"
+
+
+def has_supporting_sql_keyword(text: str) -> bool:
+    lowered = normalize_text(text).lower()
+    return any(keyword in lowered for keyword in SUPPORTING_SQL_KEYWORDS)
+
+
+def has_high_special_ratio_or_repeated_quotes(text: str) -> bool:
+    raw = raw_text(text)
+    return bool(REPEATED_QUOTE_PATTERN.search(raw)) or special_char_ratio(normalize_text(text)) >= 0.15
+
+
+def response_size_differs_significantly(a: int, b: int) -> bool:
+    if a <= 0 or b <= 0:
+        return abs(a - b) >= 256
+    delta = abs(a - b)
+    return delta >= max(256, int(max(a, b) * 0.3))
+
+
+def is_high_signal_sqli_candidate(candidate: Candidate, min_score: int) -> bool:
+    if candidate.verdict_hint != "sqli":
+        return False
+    return candidate.score >= max(min_score, 7)
+
+
+def build_supporting_events(filtered_rows: List[Dict[str, Any]], candidates: List[Candidate], min_score: int) -> List[Dict[str, Any]]:
+    high_signal_candidates = [candidate for candidate in candidates if is_high_signal_sqli_candidate(candidate, min_score=min_score)]
+    if not high_signal_candidates:
+        return []
+
+    candidate_contexts: List[Dict[str, Any]] = []
+    for candidate in high_signal_candidates:
+        candidate_contexts.append(
+            {
+                "candidate": candidate,
+                "dt": parse_flexible_iso_dt(candidate.log_time or ""),
+                "uri": normalize_text(candidate.uri),
+                "family": endpoint_family_key(candidate.uri),
+            }
+        )
+
+    supporting_events: List[Dict[str, Any]] = []
+    seen_keys = set()
+    for row in filtered_rows:
+        src_ip = get_src_ip(row)
+        qs = normalize_text(row.get("query_string"))
+        if not qs:
+            continue
+
+        uri = get_uri(row)
+        row_dt = parse_flexible_iso_dt(choose_best_time(row) or "")
+        row_family = endpoint_family_key(uri)
+        nearby: List[Candidate] = []
+        for context in candidate_contexts:
+            candidate = context["candidate"]
+            if normalize_text(candidate.src_ip) != src_ip:
+                continue
+            same_endpoint = normalize_text(candidate.uri) == normalize_text(uri) or context["family"] == row_family
+            if not same_endpoint:
+                continue
+
+            candidate_dt = context["dt"]
+            if row_dt is not None and candidate_dt is not None:
+                if abs((candidate_dt - row_dt).total_seconds()) > SUPPORTING_EVENT_TIME_WINDOW_SEC:
+                    continue
+            nearby.append(candidate)
+
+        if not nearby:
+            continue
+
+        raw_req_original = raw_text(row.get("raw_request"))
+        raw_request_target = extract_raw_request_target(raw_req_original)
+        raw_qs = raw_text(row.get("query_string"))
+        status_code = get_status_code(row)
+        response_body_bytes = get_response_body_bytes(row)
+        additional_hints: List[str] = []
+
+        if has_supporting_sql_keyword(qs):
+            additional_hints.append("supporting:sql_keyword_fragment")
+        if has_high_special_ratio_or_repeated_quotes(raw_qs):
+            additional_hints.append("supporting:special_chars_or_quote_repetition")
+        if has_encoded_payload_marker(raw_qs) or has_encoded_payload_marker(raw_request_target):
+            additional_hints.append("supporting:encoded_payload_trace")
+        if any(candidate.status_code != status_code for candidate in nearby):
+            additional_hints.append("supporting:status_delta_from_nearby_candidate")
+        if any(response_size_differs_significantly(response_body_bytes, candidate.response_body_bytes) for candidate in nearby):
+            additional_hints.append("supporting:response_size_delta_from_nearby_candidate")
+        if any(normalize_text(candidate.uri) == normalize_text(uri) for candidate in nearby):
+            additional_hints.append("supporting:same_uri_nearby_high_signal_sqli")
+
+        if not additional_hints:
+            continue
+
+        request_id = normalize_text(row.get("request_id"))
+        source_table = normalize_text(row.get("_source_table"))
+        log_time = choose_best_time(row)
+        dedup_key = request_id or f"{source_table}:{safe_int(row.get('id'), 0)}:{log_time}:{raw_request_target}"
+        if dedup_key in seen_keys:
+            continue
+        seen_keys.add(dedup_key)
+
+        supporting_events.append(
+            {
+                "supporting_reason": "nearby_high_signal_sqli_context",
+                "supporting_role": "temporal_context",
+                "source_table": source_table,
+                "log_time": log_time,
+                "src_ip": src_ip,
+                "method": get_method(row),
+                "uri": uri,
+                "query_string": qs,
+                "status_code": status_code,
+                "response_body_bytes": response_body_bytes,
+                "duration_us": safe_int(row.get("duration_us")),
+                "ttfb_us": safe_int(row.get("ttfb_us")),
+                "resp_content_type": get_resp_content_type(row),
+                "user_agent": get_user_agent(row),
+                "raw_request": normalize_text(row.get("raw_request")),
+                "raw_request_target": raw_request_target,
+                "request_id": request_id,
+                "reason_hints": additional_hints,
+                "temporal_context_key": build_temporal_context_key(src_ip, uri, log_time),
+                "temporal_context_role": "temporal_context",
+                "nearby_candidate_count": len(nearby),
+            }
+        )
+
+    supporting_events.sort(
+        key=lambda item: (
+            safe_int(item.get("nearby_candidate_count"), 0),
+            normalize_text(item.get("log_time")),
+        ),
+        reverse=True,
+    )
+    return supporting_events
 
 
 def safe_int(value: Optional[Any], default: int = 0) -> int:
@@ -795,12 +1160,13 @@ def build_filtered_row_payload(row: Dict[str, Any]) -> Dict[str, Any]:
     status_code = get_status_code(row)
     hpp_detected, hpp_param_names = analyze_query_parameters(qs)
 
-    combined_target = " ".join([
-        normalize_text(row.get("raw_request")),
-        normalized_uri,
-        qs,
-        normalize_text(row.get("raw_log")),
-    ]).strip()
+    _, combined_target, _, _ = build_analysis_texts(
+        raw_request=raw_req_original,
+        uri=normalized_uri,
+        query_string=raw_text(row.get("query_string")),
+        raw_request_target=raw_request_target,
+        raw_log=raw_text(row.get("raw_log")),
+    )
 
     traversal_hits = 0
     for _, pattern, _ in TRAVERSAL_PATTERNS:
@@ -845,6 +1211,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     raw_req_original = "" if row.get("raw_request") is None else str(row.get("raw_request")).strip()
     raw_req = normalize_text(row.get("raw_request"))
     qs = normalize_text(row.get("query_string"))
+    raw_qs = raw_text(row.get("query_string"))
     raw_log = normalize_text(row.get("raw_log"))
     src_ip = get_src_ip(row)
     method = get_method(row)
@@ -863,7 +1230,13 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     hpp_detected, hpp_param_names = analyze_query_parameters(qs)
     log_time = choose_best_time(row)
 
-    combined_target = " ".join([raw_req, uri, qs, raw_log]).strip()
+    base_combined_target, combined_target, query_variants, raw_request_target_variants = build_analysis_texts(
+        raw_request=raw_req_original,
+        uri=uri,
+        query_string=raw_qs,
+        raw_request_target=raw_request_target,
+        raw_log=raw_text(row.get("raw_log")),
+    )
 
     # 1) 정상 잡음 완전 제외 / 집계 대상 판별
     if source_table in {"access", "security"} and is_normal_socketio_polling(uri, raw_req, qs, status_code, error_link_id, user_agent):
@@ -910,6 +1283,15 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
             score += points
             automation_ua_hits += 1
             reason_hints.append(f"ua:{name}(+{points})")
+
+    decoded_score_boost, decoded_hints = detect_decoded_attack_hints(
+        base_text=base_combined_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    if decoded_score_boost > 0:
+        score += decoded_score_boost
+    reason_hints.extend(decoded_hints)
 
     if hpp_detected:
         score += 1
@@ -998,6 +1380,29 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         score += 2
         reason_hints.append("error_table_context(+2)")
 
+    educational_sql_context = detect_educational_sql_search_context(qs)
+    structure_flags = get_sqli_structure_flags(combined_target)
+    strong_sqli_structure = any(
+        structure_flags.get(name, False)
+        for name in ("quote_termination", "sql_comment", "xclose", "boolean_condition", "union_column_list", "schema_access")
+    )
+    weak_from_users_only = structure_flags.get("from_users", False) and not strong_sqli_structure
+    if educational_sql_context and sqli_hits > 0:
+        reason_hints.append("context:educational_sql_search")
+        reason_hints.append("context:natural_language_query")
+        if not structure_flags.get("quote_termination"):
+            reason_hints.append("no_quote_termination")
+        if not structure_flags.get("sql_comment"):
+            reason_hints.append("no_sql_comment")
+        if not structure_flags.get("boolean_condition"):
+            reason_hints.append("no_boolean_condition")
+        if not strong_sqli_structure:
+            reason_hints.append("fp_hint:sql_keyword_without_attack_structure")
+            if weak_from_users_only:
+                score = max(0, score - 2)
+            else:
+                score = max(0, score - 4)
+
     path_normalized_from_raw_request = False
     likely_html_fallback_response = False
     embedded_attack_hint = ""
@@ -1055,7 +1460,12 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         return None, filtered_noise_category
 
     # 3) 최종 판정 힌트
-    if xss_hits > 0 and score >= max(min_score, 7):
+    if educational_sql_context and sqli_hits > 0 and not strong_sqli_structure:
+        if score >= min_score:
+            verdict_hint = "possible_false_positive_sql_keyword_search"
+        else:
+            return None, filtered_noise_category
+    elif xss_hits > 0 and score >= max(min_score, 7):
         verdict_hint = "xss"
     elif sqli_hits > 0 and score >= max(min_score, 7):
         verdict_hint = "sqli"
@@ -1223,6 +1633,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
 
     raw_candidate_count = len(candidates)
     deduped_candidates, candidate_group_summaries = deduplicate_candidates(candidates)
+    supporting_events = build_supporting_events(filtered_out_rows, deduped_candidates, min_score=min_score)
 
     candidate_payload = [asdict(x) for x in deduped_candidates]
     noise_payload = [asdict(x) for x in noise_aggregates]
@@ -1252,10 +1663,12 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "path_traversal_success_requires_body_validation": True,
                 "hpp_context_is_preserved": True,
                 "filtered_noise_breakdown_is_preserved": True,
+                "supporting_events_are_context_only": True,
             },
             "thresholds": {
                 "candidate_min_score": min_score,
                 "noise_min_repeat_aggregate": min_repeat_aggregate,
+                "supporting_event_time_window_sec": SUPPORTING_EVENT_TIME_WINDOW_SEC,
             },
             "counts": {
                 "total_exported_rows": safe_int(original_meta.get("total_count"), len(all_rows)),
@@ -1267,12 +1680,14 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "candidate_rows": len(candidate_payload),
                 "candidate_duplicate_rows_removed": raw_candidate_count - len(candidate_payload),
                 "distinct_incident_candidates": len(candidate_payload),
+                "supporting_events": len(supporting_events),
             },
             "filtered_out_breakdown": dict(noise_counter),
         },
         "noise_summary": noise_payload,
         "candidate_group_summary": candidate_group_summaries,
         "analysis_candidates": candidate_payload,
+        "supporting_events": supporting_events,
     }
 
     filtered_payload = [build_filtered_row_payload(r) for r in non_aggregated_filtered]
