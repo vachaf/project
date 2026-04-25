@@ -1,0 +1,820 @@
+{
+  "meta": {
+    "generated_at": "2026-04-25T18:10:56.689+09:00",
+    "input_file": "/opt/web_log_analysis/data/processed/op-security_2026-04-25_17-50-00_to_2026-04-25_17-55-00_kst_llm_input.json",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.openai.com/v1",
+    "source_window": {
+      "start": "2026-04-25T17:50:00.000+09:00",
+      "end_exclusive": "2026-04-25T17:55:00.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-04-25T17:55:11.253+09:00",
+    "source_prepared_at": "2026-04-25T18:10:21.876+09:00",
+    "source_counts": {
+      "total_exported_rows": 17,
+      "selected_source_rows": 17,
+      "filtered_out_rows": 4,
+      "filtered_out_non_aggregated_rows": 4,
+      "noise_group_count": 0,
+      "candidate_rows_before_dedup": 13,
+      "candidate_rows": 13,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 13
+    },
+    "candidate_group_summary_count": 13,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id",
+      "response_body_bytes",
+      "resp_content_type",
+      "raw_request_target",
+      "path_normalized_from_raw_request",
+      "likely_html_fallback_response"
+    ],
+    "processed_candidate_count": 13,
+    "success_count": 13,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:aeyAfnHCi27Md-UoFOnpGgAAAEs",
+      "request_id": "aeyAfnHCi27Md-UoFOnpGgAAAEs",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9532
+      ],
+      "log_id": 9532,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=' OR 1=1 --",
+      "log_time": "2026-04-25T17:51:10.744 09:00",
+      "status_code": 500,
+      "score": 17,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:or_true(+4)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 942,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=%27+OR+1%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "쿼리 문자열에 문자열 종료 유도와 항상 참 조건, SQL 주석 패턴이 함께 나타나 전형적인 SQL 인젝션 시도로 보입니다. 다만 단일 요청이고 응답이 500이라 애플리케이션 오류 유발 여부가 섞였을 가능성은 있어, 실제 취약점 성립 여부는 추가 상관분석이 필요합니다.",
+      "evidence_fields": [
+        "query_string의 SQLi 토큰",
+        "따옴표 종료 시도",
+        "OR 1=1 조건",
+        "SQL 주석(--)",
+        "500 서버 오류 응답",
+        "검색형 REST 엔드포인트"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "response_id": "resp_075db063577db65f0169ec84fefc7881978ab57f126baea38d",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"쿼리 문자열에 문자열 종료 유도와 항상 참 조건, SQL 주석 패턴이 함께 나타나 전형적인 SQL 인젝션 시도로 보입니다. 다만 단일 요청이고 응답이 500이라 애플리케이션 오류 유발 여부가 섞였을 가능성은 있어, 실제 취약점 성립 여부는 추가 상관분석이 필요합니다.\",\"evidence_fields\":[\"query_string의 SQLi 토큰\", \"따옴표 종료 시도\", \"OR 1=1 조건\", \"SQL 주석(--)\", \"500 서버 오류 응답\", \"검색형 REST 엔드포인트\"],\"recommended_actions\":[\"review_raw_log\",\"review_error_log\",\"correlate_request_id\",\"correlate_src_ip\"]}"
+    },
+    {
+      "candidate_index": 1,
+      "incident_group_key": "rid:aeyAiHHCi27Md-UoFOnpGwAAAE0",
+      "request_id": "aeyAiHHCi27Md-UoFOnpGwAAAE0",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9533
+      ],
+      "log_id": 9533,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=' AND 1=2 --",
+      "log_time": "2026-04-25T17:51:20.171 09:00",
+      "status_code": 500,
+      "score": 16,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 942,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=%27+AND+1%3D2+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "쿼리 문자열에 따옴표 종료와 논리식, SQL 주석 패턴이 함께 나타나 전형적인 SQL 인젝션 시도로 보입니다. 상태 코드 500과 오류 응답은 서버 측 파싱/실행 오류가 유발되었을 가능성을 뒷받침하지만, 제공된 정보만으로 실제 DB 영향 여부까지는 확정할 수 없습니다.",
+      "evidence_fields": [
+        "query_string의 따옴표 종료 패턴",
+        "AND 1=2 조건식",
+        "SQL 주석 토큰",
+        "HTTP 500 오류",
+        "검색 엔드포인트 대상",
+        "공백/특수문자 비율 높음"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "response_id": "resp_0c456b59455d17060169ec85029df88194a279c8d40cff7e5f",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"쿼리 문자열에 따옴표 종료와 논리식, SQL 주석 패턴이 함께 나타나 전형적인 SQL 인젝션 시도로 보입니다. 상태 코드 500과 오류 응답은 서버 측 파싱/실행 오류가 유발되었을 가능성을 뒷받침하지만, 제공된 정보만으로 실제 DB 영향 여부까지는 확정할 수 없습니다.\",\"evidence_fields\":[\"query_string의 따옴표 종료 패턴\",\"AND 1=2 조건식\",\"SQL 주석 토큰\",\"HTTP 500 오류\",\"검색 엔드포인트 대상\",\"공백/특수문자 비율 높음\"],\"recommended_actions\":[\"review_raw_log\",\"review_error_log\",\"correlate_request_id\",\"correlate_src_ip\"]}"
+    },
+    {
+      "candidate_index": 2,
+      "incident_group_key": "rid:aeyAZ3HCi27Md-UoFOnpGAAAAEc",
+      "request_id": "aeyAZ3HCi27Md-UoFOnpGAAAAEc",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9529
+      ],
+      "log_id": 9529,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) OR 1=1 --",
+      "log_time": "2026-04-25T17:50:47.005 09:00",
+      "status_code": 200,
+      "score": 10,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:or_true(+4)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 18662,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+OR+1%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 엔드포인트에 `OR 1=1`과 SQL 주석(`--`)이 포함된 전형적인 SQL 인젝션 페이로드가 그대로 보이며, 특수문자 비율도 높아 의도적 공격 시도로 해석하는 것이 타당합니다. 응답이 200이고 JSON이라서 즉시 실패로 보이진 않지만, 이는 탐지 회피나 블라인드 테스트일 수 있어 실제 영향 여부는 추가 확인이 필요합니다.",
+      "evidence_fields": [
+        "쿼리 문자열의 `OR 1=1` 패턴",
+        "SQL 주석 `--` 포함",
+        "검색 API 경로 `/rest/products/search`",
+        "특수문자 비율 높음",
+        "응답 코드 200(성공 여부는 별도 확인 필요)"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_06474973d110d4df0169ec850555908194a22101a7bdf629e3",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 엔드포인트에 `OR 1=1`과 SQL 주석(`--`)이 포함된 전형적인 SQL 인젝션 페이로드가 그대로 보이며, 특수문자 비율도 높아 의도적 공격 시도로 해석하는 것이 타당합니다. 응답이 200이고 JSON이라서 즉시 실패로 보이진 않지만, 이는 탐지 회피나 블라인드 테스트일 수 있어 실제 영향 여부는 추가 확인이 필요합니다.\",\"evidence_fields\":[\"쿼리 문자열의 `OR 1=1` 패턴\",\"SQL 주석 `--` 포함\",\"검색 API 경로 `/rest/products/search`\",\"특수문자 비율 높음\",\"응답 코드 200(성공 여부는 별도 확인 필요)\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 3,
+      "incident_group_key": "rid:aeyArXHCi27Md-UoFOnpIAAAAFc",
+      "request_id": "aeyArXHCi27Md-UoFOnpIAAAAFc",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9539
+      ],
+      "log_id": 9539,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) AND 1=1 --",
+      "log_time": "2026-04-25T17:51:57.033 09:00",
+      "status_code": 200,
+      "score": 9,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+1%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 API 쿼리 파라미터에 `AND 1=1 --`와 같은 전형적인 SQL 인젝션 페이로드가 포함되어 있어 SQLi 시도로 보는 것이 타당합니다. 응답이 200이고 JSON으로 반환되어 실제 DB 오류나 성공 여부는 이 로그만으로 확정할 수 없지만, 공격 의도 자체는 비교적 명확합니다.",
+      "evidence_fields": [
+        "query_string의 SQLi 페이로드",
+        "raw_request의 주석 패턴",
+        "special_char 비율 높음",
+        "query endpoint에서 공격 토큰 탐지",
+        "resp_content_type이 application/json"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_0289b349547b63b10169ec8507c8908197b7d071b2f1fcc56d",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 API 쿼리 파라미터에 `AND 1=1 --`와 같은 전형적인 SQL 인젝션 페이로드가 포함되어 있어 SQLi 시도로 보는 것이 타당합니다. 응답이 200이고 JSON으로 반환되어 실제 DB 오류나 성공 여부는 이 로그만으로 확정할 수 없지만, 공격 의도 자체는 비교적 명확합니다.\",\"evidence_fields\":[\"query_string의 SQLi 페이로드\",\"raw_request의 주석 패턴\",\"special_char 비율 높음\",\"query endpoint에서 공격 토큰 탐지\",\"resp_content_type이 application/json\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 4,
+      "incident_group_key": "rid:aeyArHHCi27Md-UoFOnpHwAAAFU",
+      "request_id": "aeyArHHCi27Md-UoFOnpHwAAAFU",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9538
+      ],
+      "log_id": 9538,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) AND 1=1 --",
+      "log_time": "2026-04-25T17:51:56.976 09:00",
+      "status_code": 200,
+      "score": 9,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+1%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 파라미터에 `AND 1=1 --`와 같은 전형적인 SQL 인젝션 페이로드가 포함되어 있고, 규칙 힌트도 AND-true 조건과 SQL 주석 패턴을 강하게 지지합니다. 응답이 200이더라도 이는 성공 여부를 뜻하지 않으며, 제공된 정보만으로는 실제 DB 영향까지는 확인되지 않습니다.",
+      "evidence_fields": [
+        "쿼리 파라미터의 SQLi 패턴",
+        "AND 1=1 조건 삽입",
+        "SQL 주석 기호 사용",
+        "특수문자 비율 높음",
+        "검색형 API 엔드포인트"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "investigate_immediately"
+      ],
+      "response_id": "resp_0143fd002dffb31d0169ec850a27c88190b7561679ddd469ec",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 파라미터에 `AND 1=1 --`와 같은 전형적인 SQL 인젝션 페이로드가 포함되어 있고, 규칙 힌트도 AND-true 조건과 SQL 주석 패턴을 강하게 지지합니다. 응답이 200이더라도 이는 성공 여부를 뜻하지 않으며, 제공된 정보만으로는 실제 DB 영향까지는 확인되지 않습니다.\",\"evidence_fields\":[\"쿼리 파라미터의 SQLi 패턴\",\"AND 1=1 조건 삽입\",\"SQL 주석 기호 사용\",\"특수문자 비율 높음\",\"검색형 API 엔드포인트\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"investigate_immediately\"]}"
+    },
+    {
+      "candidate_index": 5,
+      "incident_group_key": "rid:aeyArHHCi27Md-UoFOnpHgAAAFM",
+      "request_id": "aeyArHHCi27Md-UoFOnpHgAAAFM",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9537
+      ],
+      "log_id": 9537,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) AND 1=1 --",
+      "log_time": "2026-04-25T17:51:56.928 09:00",
+      "status_code": 200,
+      "score": 9,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+1%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 파라미터에 `AND 1=1 --`와 같은 전형적인 SQL 인젝션 페이로드가 포함되어 있어 의도적 테스트 또는 공격 시도로 보는 것이 타당합니다. 응답이 200이고 JSON이라서 성공 여부를 단정할 수는 없지만, 시도 정황 자체는 매우 강합니다.",
+      "evidence_fields": [
+        "query_string의 SQLi 페이로드",
+        "raw_request의 주석형 구문",
+        "query_endpoint와 공격 토큰 조합",
+        "special_char 비율이 높음",
+        "status_code 200으로도 시도 정황은 유지"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_0a97c9539865f17d0169ec850cbe8c8194bc0215bad8e549df",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 파라미터에 `AND 1=1 --`와 같은 전형적인 SQL 인젝션 페이로드가 포함되어 있어 의도적 테스트 또는 공격 시도로 보는 것이 타당합니다. 응답이 200이고 JSON이라서 성공 여부를 단정할 수는 없지만, 시도 정황 자체는 매우 강합니다.\",\"evidence_fields\":[\"query_string의 SQLi 페이로드\",\"raw_request의 주석형 구문\",\"query_endpoint와 공격 토큰 조합\",\"special_char 비율이 높음\",\"status_code 200으로도 시도 정황은 유지\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 6,
+      "incident_group_key": "rid:aeyAb_U0ZgNjgUQucSRN0wAAABU",
+      "request_id": "aeyAb_U0ZgNjgUQucSRN0wAAABU",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9530
+      ],
+      "log_id": 9530,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) AND 1=2 --",
+      "log_time": "2026-04-25T17:50:55.269 09:00",
+      "status_code": 200,
+      "score": 9,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+1%3D2+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 파라미터에 `AND 1=2 --`와 같은 SQL 주입 전형 패턴이 포함되어 있고, `q=x'))`처럼 따옴표/괄호를 닫아 조건식을 조작하려는 정황이 뚜렷합니다. 응답이 200이지만 이는 방어 우회나 블라인드 시도에 흔히 보일 수 있어 실제 성공 여부와는 별개로 공격 시도로 분류하는 것이 타당합니다.",
+      "evidence_fields": [
+        "query_string의 SQLi 전형 페이로드",
+        "raw_request의 닫는 따옴표/괄호 조작",
+        "주석 기호 `--` 포함",
+        "검색 엔드포인트 대상",
+        "verdict_hint=sqli"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "investigate_immediately"
+      ],
+      "response_id": "resp_060896733705ec050169ec850fe8cc819093dd50bbb1848ce0",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 파라미터에 `AND 1=2 --`와 같은 SQL 주입 전형 패턴이 포함되어 있고, `q=x'))`처럼 따옴표/괄호를 닫아 조건식을 조작하려는 정황이 뚜렷합니다. 응답이 200이지만 이는 방어 우회나 블라인드 시도에 흔히 보일 수 있어 실제 성공 여부와는 별개로 공격 시도로 분류하는 것이 타당합니다.\",\"evidence_fields\":[\"query_string의 SQLi 전형 페이로드\",\"raw_request의 닫는 따옴표/괄호 조작\",\"주석 기호 `--` 포함\",\"검색 엔드포인트 대상\",\"verdict_hint=sqli\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_src_ip\",\"investigate_immediately\"]}"
+    },
+    {
+      "candidate_index": 7,
+      "incident_group_key": "rid:aeyA3XHCi27Md-UoFOnpJAAAAEY",
+      "request_id": "aeyA3XHCi27Md-UoFOnpJAAAAEY",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9544
+      ],
+      "log_id": 9544,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) AND (SELECT length(hex(randomblob(30000000))))>0 --",
+      "log_time": "2026-04-25T17:52:45.924 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+length%28hex%28randomblob%2830000000%29%29%29%29%3E0+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 파라미터에 SQL 주석과 서브쿼리, randomblob(30000000) 같은 명백한 SQLi 페이로드가 포함되어 있어 인젝션 시도로 보는 것이 타당합니다. 다만 응답이 200이고 JSON으로 반환되어 실제 취약점 성공 여부나 서버 오류 유발 여부는 이 로그만으로 확정할 수 없습니다.",
+      "evidence_fields": [
+        "쿼리스트링의 SQLi 패턴",
+        "주석 토큰(--)",
+        "서브쿼리/함수 호출(randomblob, length, hex)",
+        "검색 엔드포인트(/rest/products/search)",
+        "응답 200 및 application/json"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_09b2e18d93f8911a0169ec8512a37c81938d38c7057b7173f7",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 파라미터에 SQL 주석과 서브쿼리, randomblob(30000000) 같은 명백한 SQLi 페이로드가 포함되어 있어 인젝션 시도로 보는 것이 타당합니다. 다만 응답이 200이고 JSON으로 반환되어 실제 취약점 성공 여부나 서버 오류 유발 여부는 이 로그만으로 확정할 수 없습니다.\",\"evidence_fields\":[\"쿼리스트링의 SQLi 패턴\",\"주석 토큰(--)\", \"서브쿼리/함수 호출(randomblob, length, hex)\", \"검색 엔드포인트(/rest/products/search)\", \"응답 200 및 application/json\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 8,
+      "incident_group_key": "rid:aeyAz3HCi27Md-UoFOnpIwAAAEQ",
+      "request_id": "aeyAz3HCi27Md-UoFOnpIwAAAEQ",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9543
+      ],
+      "log_id": 9543,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) AND (SELECT length(hex(randomblob(10000000))))>0 --",
+      "log_time": "2026-04-25T17:52:31.314 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+length%28hex%28randomblob%2810000000%29%29%29%29%3E0+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": false,
+      "reasoning_summary": "검색 파라미터에 `AND (SELECT ... randomblob(...))`와 SQL 주석 `--`가 포함되어 있어 전형적인 SQL 인젝션 시도로 보입니다. 응답이 200이었고 JSON 형태라서 단순 오류 유발보다는 실제 취약점 탐색/검증 목적의 요청으로 해석하는 것이 타당합니다.",
+      "evidence_fields": [
+        "query_string의 SQL 구문 삽입",
+        "주석 기호 `--` 사용",
+        "대용량 randomblob 기반 지연/부하 유도 패턴",
+        "search 엔드포인트 대상 공격 토큰",
+        "user_agent가 실험용으로 보임"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_005d60c8a91ea8470169ec8514d9f48190a749675acde307fb",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":false,\"reasoning_summary\":\"검색 파라미터에 `AND (SELECT ... randomblob(...))`와 SQL 주석 `--`가 포함되어 있어 전형적인 SQL 인젝션 시도로 보입니다. 응답이 200이었고 JSON 형태라서 단순 오류 유발보다는 실제 취약점 탐색/검증 목적의 요청으로 해석하는 것이 타당합니다.\",\"evidence_fields\":[\"query_string의 SQL 구문 삽입\",\"주석 기호 `--` 사용\",\"대용량 randomblob 기반 지연/부하 유도 패턴\",\"search 엔드포인트 대상 공격 토큰\",\"user_agent가 실험용으로 보임\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 9,
+      "incident_group_key": "rid:aeyAx_U0ZgNjgUQucSRN1QAAAAA",
+      "request_id": "aeyAx_U0ZgNjgUQucSRN1QAAAAA",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9542
+      ],
+      "log_id": 9542,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) AND (SELECT length(hex(randomblob(5000000))))>0 --",
+      "log_time": "2026-04-25T17:52:23.548 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+length%28hex%28randomblob%285000000%29%29%29%29%3E0+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "쿼리 문자열에 `randomblob(5000000)`와 `--` 주석이 포함되어 있어 SQL 인젝션, 특히 지연/부하 유도형 페이로드 시도로 보는 것이 타당합니다. 다만 응답이 200이고 응답 바디가 매우 작으며, 이 한 건만으로 실제 취약점 성공 여부까지는 확인되지 않습니다.",
+      "evidence_fields": [
+        "query_string의 SQLi 유사 페이로드",
+        "raw_request의 주석 기호 `--`",
+        "특수문자 비율 높음",
+        "검색 API 경로에 공격 토큰 포함",
+        "status_code 200",
+        "response_body_bytes 30",
+        "resp_content_type application/json"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_0ac4fd7aea4378860169ec851734288194af4f81f2da02837c",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"쿼리 문자열에 `randomblob(5000000)`와 `--` 주석이 포함되어 있어 SQL 인젝션, 특히 지연/부하 유도형 페이로드 시도로 보는 것이 타당합니다. 다만 응답이 200이고 응답 바디가 매우 작으며, 이 한 건만으로 실제 취약점 성공 여부까지는 확인되지 않습니다.\",\"evidence_fields\":[\"query_string의 SQLi 유사 페이로드\",\"raw_request의 주석 기호 `--`\",\"특수문자 비율 높음\",\"검색 API 경로에 공격 토큰 포함\",\"status_code 200\",\"response_body_bytes 30\",\"resp_content_type application/json\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 10,
+      "incident_group_key": "rid:aeyAwHHCi27Md-UoFOnpIgAAAEI",
+      "request_id": "aeyAwHHCi27Md-UoFOnpIgAAAEI",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9541
+      ],
+      "log_id": 9541,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) AND (SELECT length(hex(randomblob(1000000))))>0 --",
+      "log_time": "2026-04-25T17:52:16.041 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+length%28hex%28randomblob%281000000%29%29%29%29%3E0+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 파라미터에 SQL 주석과 서브쿼리 형태의 공격성 토큰이 포함되어 있어 SQL 인젝션 시도로 보는 것이 타당합니다. 응답이 200이지만 이는 성공 여부를 뜻하지 않으며, 제공된 정보만으로는 실제 취약점 성공을 확정할 수 없습니다.",
+      "evidence_fields": [
+        "query_string의 SQLi 토큰",
+        "raw_request의 주석/서브쿼리 패턴",
+        "긴 특수문자 중심 쿼리",
+        "검색 엔드포인트 대상 요청",
+        "status_code 200은 성공 증거 아님"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_02f9d1f7b4a1b9840169ec8519bc6c8196b5cba896db310b23",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 파라미터에 SQL 주석과 서브쿼리 형태의 공격성 토큰이 포함되어 있어 SQL 인젝션 시도로 보는 것이 타당합니다. 응답이 200이지만 이는 성공 여부를 뜻하지 않으며, 제공된 정보만으로는 실제 취약점 성공을 확정할 수 없습니다.\",\"evidence_fields\":[\"query_string의 SQLi 토큰\",\"raw_request의 주석/서브쿼리 패턴\",\"긴 특수문자 중심 쿼리\",\"검색 엔드포인트 대상 요청\",\"status_code 200은 성공 증거 아님\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 11,
+      "incident_group_key": "rid:aeyAuHHCi27Md-UoFOnpIQAAAEA",
+      "request_id": "aeyAuHHCi27Md-UoFOnpIQAAAEA",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9540
+      ],
+      "log_id": 9540,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) AND (SELECT length(hex(randomblob(500000))))>0 --",
+      "log_time": "2026-04-25T17:52:08.989 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+length%28hex%28randomblob%28500000%29%29%29%29%3E0+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 API의 쿼리 문자열에 `randomblob(500000)`, `length(hex(...))`, `--` 같은 SQL 주입에 자주 쓰이는 토큰이 직접 포함되어 있어 SQLi 시도로 보는 것이 타당합니다. 응답이 200이지만 본 요청만으로는 실제 쿼리 영향이나 서버 오류 발생 여부까지 확정할 수는 없습니다.",
+      "evidence_fields": [
+        "쿼리 문자열의 SQLi 토큰",
+        "주석 기호 `--` 포함",
+        "대상 경로가 검색 엔드포인트",
+        "긴 특수문자 중심 페이로드",
+        "응답 200이지만 성공 여부는 미확정"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_0482c76986be55e90169ec851be7c08193808e1ae2e053984f",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 API의 쿼리 문자열에 `randomblob(500000)`, `length(hex(...))`, `--` 같은 SQL 주입에 자주 쓰이는 토큰이 직접 포함되어 있어 SQLi 시도로 보는 것이 타당합니다. 응답이 200이지만 본 요청만으로는 실제 쿼리 영향이나 서버 오류 발생 여부까지 확정할 수는 없습니다.\",\"evidence_fields\":[\"쿼리 문자열의 SQLi 토큰\",\"주석 기호 `--` 포함\",\"대상 경로가 검색 엔드포인트\",\"긴 특수문자 중심 페이로드\",\"응답 200이지만 성공 여부는 미확정\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 12,
+      "incident_group_key": "rid:aeyAdnHCi27Md-UoFOnpGQAAAEk",
+      "request_id": "aeyAdnHCi27Md-UoFOnpGQAAAEk",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9531
+      ],
+      "log_id": 9531,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) AND (SELECT 1)=1 --",
+      "log_time": "2026-04-25T17:51:02.995 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+1%29%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_sqli",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "검색 엔드포인트에 `AND (SELECT 1)=1 --` 형태의 SQL 주입 페이로드가 포함되어 있어 SQLi 시도로 보는 것이 타당합니다. 다만 응답이 200이고 JSON 응답이어서 실제 DB 오류 유발이나 성공 여부는 이 로그만으로 확인되지 않으므로, 시도 탐지 수준으로 보수적으로 분류합니다.",
+      "evidence_fields": [
+        "query_string의 SQLi 페이로드",
+        "raw_request의 주석 토큰 `--`",
+        "search 엔드포인트에 공격 토큰 포함",
+        "resp_content_type=application/json",
+        "status_code=200"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_025ac78f877520f60169ec851e20088194b7728585f33094c6",
+      "raw_output_text": "{\"verdict\":\"suspicious_sqli\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"검색 엔드포인트에 `AND (SELECT 1)=1 --` 형태의 SQL 주입 페이로드가 포함되어 있어 SQLi 시도로 보는 것이 타당합니다. 다만 응답이 200이고 JSON 응답이어서 실제 DB 오류 유발이나 성공 여부는 이 로그만으로 확인되지 않으므로, 시도 탐지 수준으로 보수적으로 분류합니다.\",\"evidence_fields\":[\"query_string의 SQLi 페이로드\",\"raw_request의 주석 토큰 `--`\",\"search 엔드포인트에 공격 토큰 포함\",\"resp_content_type=application/json\",\"status_code=200\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"watch\"]}"
+    }
+  ]
+}

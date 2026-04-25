@@ -1,0 +1,469 @@
+{
+  "meta": {
+    "generated_at": "2026-04-24T21:31:35.847+09:00",
+    "input_file": "/opt/web_log_analysis/data/processed/cl-security_2026-04-24_16-45-00_to_2026-04-24_16-58-00_kst_v2_llm_input.json",
+    "mode": "routine",
+    "provider": "anthropic",
+    "selected_model": "claude-sonnet-4-6",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.anthropic.com/v1",
+    "source_window": {
+      "start": "2026-04-24T16:45:00.000+09:00",
+      "end_exclusive": "2026-04-24T16:58:00.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-04-24T21:06:40.913+09:00",
+    "source_prepared_at": "2026-04-24T21:30:37.654+09:00",
+    "source_counts": {
+      "total_exported_rows": 81,
+      "selected_source_rows": 81,
+      "filtered_out_rows": 74,
+      "filtered_out_non_aggregated_rows": 12,
+      "noise_group_count": 2,
+      "candidate_rows_before_dedup": 7,
+      "candidate_rows": 7,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 7
+    },
+    "candidate_group_summary_count": 7,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id",
+      "response_body_bytes",
+      "resp_content_type",
+      "raw_request_target",
+      "path_normalized_from_raw_request",
+      "likely_html_fallback_response"
+    ],
+    "processed_candidate_count": 7,
+    "success_count": 7,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:aesh3NOSD6y5522Fqx3jXQAAAAg",
+      "request_id": "aesh3NOSD6y5522Fqx3jXQAAAAg",
+      "error_link_id": "",
+      "model": "claude-sonnet-4-6",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        7689
+      ],
+      "log_id": 7689,
+      "src_ip": "192.168.56.110",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "log_time": "2026-04-24T16:55:08.966 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict_hint": "suspicious_auth_success",
+      "reason_hints": [
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "login_success_json_response(+2)",
+        "possible_auth_bypass_success(+1)",
+        "no_referer_non_browser_login(+1)"
+      ],
+      "response_body_bytes": 799,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_auth_abuse",
+      "severity": "high",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "User-Agent가 'lab-a-set-login-bypass-1'로 명백히 자동화된 인증 우회 테스트 도구임을 명시하고 있으며, Referer 없이 비브라우저 환경에서 /rest/user/login에 POST 요청하여 HTTP 200과 799바이트 JSON 응답을 받았다. 응답 크기와 content-type(application/json)으로 보아 로그인 성공 응답일 가능성이 있으나, 실험 환경(lab) 내부 IP(192.168.56.x)임을 감안하면 통제된 실험 트래픽일 수도 있다.",
+      "evidence_fields": [
+        "user_agent: 'lab-a-set-login-bypass-1' → 인증 우회 테스트 도구 명시",
+        "uri: /rest/user/login (POST) → 인증 엔드포인트 직접 타겟",
+        "status_code: 200 + resp_content_type: application/json → 로그인 성공 응답 정황",
+        "response_body_bytes: 799 → 단순 오류 응답보다 큰 JSON 페이로드",
+        "referer: 없음 + 비브라우저 요청 → 자동화 클라이언트 정황",
+        "req_content_type: application/json, req_content_length: 49 → 프로그래매틱 JSON 로그인 페이로드",
+        "src_ip: 192.168.56.110 → 내부/실험 대역 IP",
+        "verdict_hint: suspicious_auth_success + possible_auth_bypass_success 힌트",
+        "hpp_detected: false → HPP 없음"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "investigate_immediately"
+      ],
+      "response_id": "msg_0143HC5nfty1c5xrFrv8MY77",
+      "raw_output_text": "{\n  \"verdict\": \"suspicious_auth_abuse\",\n  \"severity\": \"high\",\n  \"confidence\": \"medium\",\n  \"false_positive_possible\": true,\n  \"reasoning_summary\": \"User-Agent가 'lab-a-set-login-bypass-1'로 명백히 자동화된 인증 우회 테스트 도구임을 명시하고 있으며, Referer 없이 비브라우저 환경에서 /rest/user/login에 POST 요청하여 HTTP 200과 799바이트 JSON 응답을 받았다. 응답 크기와 content-type(application/json)으로 보아 로그인 성공 응답일 가능성이 있으나, 실험 환경(lab) 내부 IP(192.168.56.x)임을 감안하면 통제된 실험 트래픽일 수도 있다.\",\n  \"evidence_fields\": [\n    \"user_agent: 'lab-a-set-login-bypass-1' → 인증 우회 테스트 도구 명시\",\n    \"uri: /rest/user/login (POST) → 인증 엔드포인트 직접 타겟\",\n    \"status_code: 200 + resp_content_type: application/json → 로그인 성공 응답 정황\",\n    \"response_body_bytes: 799 → 단순 오류 응답보다 큰 JSON 페이로드\",\n    \"referer: 없음 + 비브라우저 요청 → 자동화 클라이언트 정황\",\n    \"req_content_type: application/json, req_content_length: 49 → 프로그래매틱 JSON 로그인 페이로드\",\n    \"src_ip: 192.168.56.110 → 내부/실험 대역 IP\",\n    \"verdict_hint: suspicious_auth_success + possible_auth_bypass_success 힌트\",\n    \"hpp_detected: false → HPP 없음\"\n  ],\n  \"recommended_actions\": [\n    \"review_raw_log\",\n    \"correlate_src_ip\",\n    \"investigate_immediately\"\n  ]\n}"
+    },
+    {
+      "candidate_index": 1,
+      "incident_group_key": "rid:aesgNdOSD6y5522Fqx3jQwAAABE",
+      "request_id": "aesgNdOSD6y5522Fqx3jQwAAABE",
+      "error_link_id": "",
+      "model": "claude-sonnet-4-6",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        7640
+      ],
+      "log_id": 7640,
+      "src_ip": "192.168.56.110",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "log_time": "2026-04-24T16:48:05.724 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict_hint": "suspicious_auth_success",
+      "reason_hints": [
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "login_success_json_response(+2)",
+        "possible_auth_bypass_success(+1)",
+        "no_referer_non_browser_login(+1)"
+      ],
+      "response_body_bytes": 799,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_auth_abuse",
+      "severity": "high",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "user_agent가 'lab-smoke-login-bypass-2'로 자동화된 인증 우회 테스트 도구임을 명시하고 있으며, /rest/user/login 엔드포인트에 POST 요청 후 HTTP 200 및 799바이트의 JSON 응답이 반환되어 로그인 성공 정황이 있다. Referer 없이 비브라우저 클라이언트가 직접 인증 API를 호출한 점은 정상 사용자 행위와 거리가 있으나, 실험 환경(lab) 내부 IP(192.168.56.110)에서 발생한 점을 고려하면 허가된 보안 테스트일 가능성도 배제할 수 없다.",
+      "evidence_fields": [
+        "user_agent: 'lab-smoke-login-bypass-2' — 자동화 인증 우회 도구 명시",
+        "status_code: 200 — 로그인 요청 성공 응답",
+        "resp_content_type: application/json — JSON 형태의 인증 성공 응답 추정",
+        "response_body_bytes: 799 — 토큰/세션 정보 포함 가능성 있는 응답 크기",
+        "referer: 없음 — 브라우저 기반 정상 사용자 흐름 아님",
+        "src_ip: 192.168.56.110 — 내부 실험 네트워크 대역",
+        "reason_hint: possible_auth_bypass_success — 인증 우회 성공 가능성 힌트",
+        "reason_hint: no_referer_non_browser_login — 비브라우저 직접 호출"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "investigate_immediately"
+      ],
+      "response_id": "msg_012pSoJNGobsXNDKEfGqNN9L",
+      "raw_output_text": "{\n  \"verdict\": \"suspicious_auth_abuse\",\n  \"severity\": \"high\",\n  \"confidence\": \"medium\",\n  \"false_positive_possible\": true,\n  \"reasoning_summary\": \"user_agent가 'lab-smoke-login-bypass-2'로 자동화된 인증 우회 테스트 도구임을 명시하고 있으며, /rest/user/login 엔드포인트에 POST 요청 후 HTTP 200 및 799바이트의 JSON 응답이 반환되어 로그인 성공 정황이 있다. Referer 없이 비브라우저 클라이언트가 직접 인증 API를 호출한 점은 정상 사용자 행위와 거리가 있으나, 실험 환경(lab) 내부 IP(192.168.56.110)에서 발생한 점을 고려하면 허가된 보안 테스트일 가능성도 배제할 수 없다.\",\n  \"evidence_fields\": [\n    \"user_agent: 'lab-smoke-login-bypass-2' — 자동화 인증 우회 도구 명시\",\n    \"status_code: 200 — 로그인 요청 성공 응답\",\n    \"resp_content_type: application/json — JSON 형태의 인증 성공 응답 추정\",\n    \"response_body_bytes: 799 — 토큰/세션 정보 포함 가능성 있는 응답 크기\",\n    \"referer: 없음 — 브라우저 기반 정상 사용자 흐름 아님\",\n    \"src_ip: 192.168.56.110 — 내부 실험 네트워크 대역\",\n    \"reason_hint: possible_auth_bypass_success — 인증 우회 성공 가능성 힌트\",\n    \"reason_hint: no_referer_non_browser_login — 비브라우저 직접 호출\"\n  ],\n  \"recommended_actions\": [\n    \"review_raw_log\",\n    \"correlate_src_ip\",\n    \"investigate_immediately\"\n  ]\n}"
+    },
+    {
+      "candidate_index": 2,
+      "incident_group_key": "rid:aesh1b-zriQ4NNcF9k1z3QAAAEk",
+      "request_id": "aesh1b-zriQ4NNcF9k1z3QAAAEk",
+      "error_link_id": "",
+      "model": "claude-sonnet-4-6",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        7688
+      ],
+      "log_id": 7688,
+      "src_ip": "192.168.56.110",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "log_time": "2026-04-24T16:55:01.808 09:00",
+      "status_code": 401,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:401(+2)",
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 26,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_auth_abuse",
+      "severity": "medium",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "User-Agent가 'lab-a-set-login-repeat-3'으로 자동화 반복 로그인 시도를 암시하며, /rest/user/login 엔드포인트에 대해 401 응답이 반환되었다. 단일 요청 1건만 관측되었으므로 brute force로 단정하기보다는 인증 기능 오용 정황으로 분류하되, 동일 IP에서 반복 패턴이 있는지 추가 확인이 필요하다.",
+      "evidence_fields": [
+        "user_agent: 'lab-a-set-login-repeat-3' — 자동화 반복 시도 명칭 암시",
+        "uri: /rest/user/login — 인증 API 엔드포인트",
+        "status_code: 401 — 인증 실패",
+        "method: POST + req_content_type: application/json — 자격증명 전송 형태",
+        "referer: 없음 — 브라우저 정상 요청이 아닐 가능성",
+        "src_ip: 192.168.56.110 — 동일 IP 반복 여부 확인 필요",
+        "reason_hints: login_endpoint, auth_payload_content_type, no_referer_non_browser_error"
+      ],
+      "recommended_actions": [
+        "correlate_src_ip",
+        "review_raw_log",
+        "watch"
+      ],
+      "response_id": "msg_01RG8J2WgcXkDviJpAsTDcwP",
+      "raw_output_text": "{\n  \"verdict\": \"suspicious_auth_abuse\",\n  \"severity\": \"medium\",\n  \"confidence\": \"medium\",\n  \"false_positive_possible\": true,\n  \"reasoning_summary\": \"User-Agent가 'lab-a-set-login-repeat-3'으로 자동화 반복 로그인 시도를 암시하며, /rest/user/login 엔드포인트에 대해 401 응답이 반환되었다. 단일 요청 1건만 관측되었으므로 brute force로 단정하기보다는 인증 기능 오용 정황으로 분류하되, 동일 IP에서 반복 패턴이 있는지 추가 확인이 필요하다.\",\n  \"evidence_fields\": [\n    \"user_agent: 'lab-a-set-login-repeat-3' — 자동화 반복 시도 명칭 암시\",\n    \"uri: /rest/user/login — 인증 API 엔드포인트\",\n    \"status_code: 401 — 인증 실패\",\n    \"method: POST + req_content_type: application/json — 자격증명 전송 형태\",\n    \"referer: 없음 — 브라우저 정상 요청이 아닐 가능성\",\n    \"src_ip: 192.168.56.110 — 동일 IP 반복 여부 확인 필요\",\n    \"reason_hints: login_endpoint, auth_payload_content_type, no_referer_non_browser_error\"\n  ],\n  \"recommended_actions\": [\n    \"correlate_src_ip\",\n    \"review_raw_log\",\n    \"watch\"\n  ]\n}"
+    },
+    {
+      "candidate_index": 3,
+      "incident_group_key": "rid:aesh09OSD6y5522Fqx3jXAAAAAE",
+      "request_id": "aesh09OSD6y5522Fqx3jXAAAAAE",
+      "error_link_id": "",
+      "model": "claude-sonnet-4-6",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        7687
+      ],
+      "log_id": 7687,
+      "src_ip": "192.168.56.110",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "log_time": "2026-04-24T16:54:59.596 09:00",
+      "status_code": 401,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:401(+2)",
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 26,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_auth_abuse",
+      "severity": "medium",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "User-Agent가 'lab-a-set-login-repeat-2'로 자동화 반복 로그인 시도를 명시적으로 암시하며, /rest/user/login 엔드포인트에 대해 401 응답이 반환되었다. 단일 요청 1건만 확인되어 brute force로 단정하기는 어렵지만, 자동화 도구 특성의 UA와 인증 실패 조합은 인증 기능 오용 정황으로 판단한다.",
+      "evidence_fields": [
+        "user_agent: 'lab-a-set-login-repeat-2' (자동화 반복 시도 암시)",
+        "status_code: 401 (인증 실패)",
+        "uri: /rest/user/login (인증 엔드포인트)",
+        "referer: 없음 (브라우저 정상 사용자 아닐 가능성)",
+        "req_content_type: application/json (프로그래매틱 요청)",
+        "response_body_bytes: 26 (매우 짧은 응답, 오류 메시지 수준)",
+        "reason_hints: login_endpoint, auth_payload_content_type, no_referer_non_browser_error"
+      ],
+      "recommended_actions": [
+        "correlate_src_ip",
+        "review_raw_log",
+        "watch"
+      ],
+      "response_id": "msg_01TWnPUeTmArb2ihwNbYvRgQ",
+      "raw_output_text": "{\n  \"verdict\": \"suspicious_auth_abuse\",\n  \"severity\": \"medium\",\n  \"confidence\": \"medium\",\n  \"false_positive_possible\": true,\n  \"reasoning_summary\": \"User-Agent가 'lab-a-set-login-repeat-2'로 자동화 반복 로그인 시도를 명시적으로 암시하며, /rest/user/login 엔드포인트에 대해 401 응답이 반환되었다. 단일 요청 1건만 확인되어 brute force로 단정하기는 어렵지만, 자동화 도구 특성의 UA와 인증 실패 조합은 인증 기능 오용 정황으로 판단한다.\",\n  \"evidence_fields\": [\n    \"user_agent: 'lab-a-set-login-repeat-2' (자동화 반복 시도 암시)\",\n    \"status_code: 401 (인증 실패)\",\n    \"uri: /rest/user/login (인증 엔드포인트)\",\n    \"referer: 없음 (브라우저 정상 사용자 아닐 가능성)\",\n    \"req_content_type: application/json (프로그래매틱 요청)\",\n    \"response_body_bytes: 26 (매우 짧은 응답, 오류 메시지 수준)\",\n    \"reason_hints: login_endpoint, auth_payload_content_type, no_referer_non_browser_error\"\n  ],\n  \"recommended_actions\": [\n    \"correlate_src_ip\",\n    \"review_raw_log\",\n    \"watch\"\n  ]\n}"
+    },
+    {
+      "candidate_index": 4,
+      "incident_group_key": "rid:aesh0dOSD6y5522Fqx3jWwAAAAI",
+      "request_id": "aesh0dOSD6y5522Fqx3jWwAAAAI",
+      "error_link_id": "",
+      "model": "claude-sonnet-4-6",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        7686
+      ],
+      "log_id": 7686,
+      "src_ip": "192.168.56.110",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "log_time": "2026-04-24T16:54:57.488 09:00",
+      "status_code": 401,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:401(+2)",
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 26,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_auth_abuse",
+      "severity": "medium",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "사용자 정의 User-Agent('lab-a-set-login-repeat-1')가 자동화된 반복 로그인 시도를 명시적으로 암시하며, 로그인 엔드포인트에 대한 POST 요청이 401로 거부되었다. 단일 요청만 관찰되어 brute force로 단정하기는 어렵지만, User-Agent 명칭에 'repeat'이 포함된 점과 Referer 부재, 자동화 도구 특성이 인증 기능 오용 정황을 지지한다.",
+      "evidence_fields": [
+        "user_agent: 'lab-a-set-login-repeat-1' — 자동화 반복 시도 명시",
+        "uri: /rest/user/login — 인증 엔드포인트 직접 접근",
+        "status_code: 401 — 인증 실패 응답",
+        "method: POST + req_content_type: application/json — API 방식 로그인 시도",
+        "referer: 없음 — 비브라우저/자동화 도구 정황",
+        "response_body_bytes: 26 — 매우 짧은 응답 (오류 메시지 추정)",
+        "src_ip: 192.168.56.110 — 내부 또는 테스트 네트워크 대역"
+      ],
+      "recommended_actions": [
+        "correlate_src_ip",
+        "review_raw_log",
+        "watch"
+      ],
+      "response_id": "msg_01UTYFTNq2gyt2ZZjpnQcaCL",
+      "raw_output_text": "{\n  \"verdict\": \"suspicious_auth_abuse\",\n  \"severity\": \"medium\",\n  \"confidence\": \"medium\",\n  \"false_positive_possible\": true,\n  \"reasoning_summary\": \"사용자 정의 User-Agent('lab-a-set-login-repeat-1')가 자동화된 반복 로그인 시도를 명시적으로 암시하며, 로그인 엔드포인트에 대한 POST 요청이 401로 거부되었다. 단일 요청만 관찰되어 brute force로 단정하기는 어렵지만, User-Agent 명칭에 'repeat'이 포함된 점과 Referer 부재, 자동화 도구 특성이 인증 기능 오용 정황을 지지한다.\",\n  \"evidence_fields\": [\n    \"user_agent: 'lab-a-set-login-repeat-1' — 자동화 반복 시도 명시\",\n    \"uri: /rest/user/login — 인증 엔드포인트 직접 접근\",\n    \"status_code: 401 — 인증 실패 응답\",\n    \"method: POST + req_content_type: application/json — API 방식 로그인 시도\",\n    \"referer: 없음 — 비브라우저/자동화 도구 정황\",\n    \"response_body_bytes: 26 — 매우 짧은 응답 (오류 메시지 추정)\",\n    \"src_ip: 192.168.56.110 — 내부 또는 테스트 네트워크 대역\"\n  ],\n  \"recommended_actions\": [\n    \"correlate_src_ip\",\n    \"review_raw_log\",\n    \"watch\"\n  ]\n}"
+    },
+    {
+      "candidate_index": 5,
+      "incident_group_key": "rid:aeshyNOSD6y5522Fqx3jWgAAAAU",
+      "request_id": "aeshyNOSD6y5522Fqx3jWgAAAAU",
+      "error_link_id": "",
+      "model": "claude-sonnet-4-6",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        7683
+      ],
+      "log_id": 7683,
+      "src_ip": "192.168.56.110",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "log_time": "2026-04-24T16:54:48.720 09:00",
+      "status_code": 401,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:401(+2)",
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 26,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_auth_abuse",
+      "severity": "low",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "로그인 엔드포인트(/rest/user/login)에 대한 POST 요청이 401 응답을 받았으며, User-Agent가 'lab-a-set-login-fail-1'로 자동화 테스트 또는 실험 스크립트 성격이 강하다. 단일 요청만 관찰되어 brute force 확정은 어렵지만, Referer 없음과 비브라우저 UA 조합이 인증 기능 오용 가능성을 시사한다. 실험 환경(lab 접두어 UA) 가능성도 배제할 수 없어 false positive 여지가 있다.",
+      "evidence_fields": [
+        "uri: /rest/user/login (로그인 REST 엔드포인트)",
+        "status_code: 401 (인증 실패)",
+        "user_agent: lab-a-set-login-fail-1 (비브라우저·자동화 성격)",
+        "method: POST + req_content_type: application/json (자격증명 전송 형태)",
+        "referer: 없음 (비브라우저 클라이언트 정황)",
+        "response_body_bytes: 26 (최소 응답, 실제 콘텐츠 노출 가능성 낮음)",
+        "src_ip: 192.168.56.110 (내부/실험 대역)"
+      ],
+      "recommended_actions": [
+        "watch",
+        "correlate_src_ip"
+      ],
+      "response_id": "msg_01CeJ7E5qWjvCnHW9Nan9HoN",
+      "raw_output_text": "{\n  \"verdict\": \"suspicious_auth_abuse\",\n  \"severity\": \"low\",\n  \"confidence\": \"medium\",\n  \"false_positive_possible\": true,\n  \"reasoning_summary\": \"로그인 엔드포인트(/rest/user/login)에 대한 POST 요청이 401 응답을 받았으며, User-Agent가 'lab-a-set-login-fail-1'로 자동화 테스트 또는 실험 스크립트 성격이 강하다. 단일 요청만 관찰되어 brute force 확정은 어렵지만, Referer 없음과 비브라우저 UA 조합이 인증 기능 오용 가능성을 시사한다. 실험 환경(lab 접두어 UA) 가능성도 배제할 수 없어 false positive 여지가 있다.\",\n  \"evidence_fields\": [\n    \"uri: /rest/user/login (로그인 REST 엔드포인트)\",\n    \"status_code: 401 (인증 실패)\",\n    \"user_agent: lab-a-set-login-fail-1 (비브라우저·자동화 성격)\",\n    \"method: POST + req_content_type: application/json (자격증명 전송 형태)\",\n    \"referer: 없음 (비브라우저 클라이언트 정황)\",\n    \"response_body_bytes: 26 (최소 응답, 실제 콘텐츠 노출 가능성 낮음)\",\n    \"src_ip: 192.168.56.110 (내부/실험 대역)\"\n  ],\n  \"recommended_actions\": [\n    \"watch\",\n    \"correlate_src_ip\"\n  ]\n}"
+    },
+    {
+      "candidate_index": 6,
+      "incident_group_key": "rid:aesgKb-zriQ4NNcF9k1zxgAAAEM",
+      "request_id": "aesgKb-zriQ4NNcF9k1zxgAAAEM",
+      "error_link_id": "",
+      "model": "claude-sonnet-4-6",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        7639
+      ],
+      "log_id": 7639,
+      "src_ip": "192.168.56.110",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "log_time": "2026-04-24T16:47:53.811 09:00",
+      "status_code": 401,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:401(+2)",
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 26,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_auth_abuse",
+      "severity": "low",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "로그인 엔드포인트(/rest/user/login)에 대한 POST 요청이 401 응답을 받았으며, User-Agent가 'lab-smoke-login-fail-5'로 자동화 도구 또는 테스트 스크립트 정황이 있다. 단일 요청 1건만 확인되어 brute force로 단정하기는 어렵지만, Referer 부재 및 비브라우저 UA 조합으로 인증 기능 오용 가능성을 배제할 수 없다.",
+      "evidence_fields": [
+        "uri: /rest/user/login (인증 엔드포인트)",
+        "method: POST",
+        "status_code: 401 (인증 실패)",
+        "user_agent: lab-smoke-login-fail-5 (비브라우저, 자동화 도구 의심)",
+        "referer: 없음",
+        "req_content_type: application/json (자격증명 페이로드 가능성)",
+        "response_body_bytes: 26 (매우 짧은 응답, 오류 메시지 수준)",
+        "src_ip: 192.168.56.110 (내부 네트워크 대역)"
+      ],
+      "recommended_actions": [
+        "watch",
+        "correlate_src_ip"
+      ],
+      "response_id": "msg_01MRw5J4NKUwEwZmTuxqzF5j",
+      "raw_output_text": "{\n  \"verdict\": \"suspicious_auth_abuse\",\n  \"severity\": \"low\",\n  \"confidence\": \"medium\",\n  \"false_positive_possible\": true,\n  \"reasoning_summary\": \"로그인 엔드포인트(/rest/user/login)에 대한 POST 요청이 401 응답을 받았으며, User-Agent가 'lab-smoke-login-fail-5'로 자동화 도구 또는 테스트 스크립트 정황이 있다. 단일 요청 1건만 확인되어 brute force로 단정하기는 어렵지만, Referer 부재 및 비브라우저 UA 조합으로 인증 기능 오용 가능성을 배제할 수 없다.\",\n  \"evidence_fields\": [\n    \"uri: /rest/user/login (인증 엔드포인트)\",\n    \"method: POST\",\n    \"status_code: 401 (인증 실패)\",\n    \"user_agent: lab-smoke-login-fail-5 (비브라우저, 자동화 도구 의심)\",\n    \"referer: 없음\",\n    \"req_content_type: application/json (자격증명 페이로드 가능성)\",\n    \"response_body_bytes: 26 (매우 짧은 응답, 오류 메시지 수준)\",\n    \"src_ip: 192.168.56.110 (내부 네트워크 대역)\"\n  ],\n  \"recommended_actions\": [\n    \"watch\",\n    \"correlate_src_ip\"\n  ]\n}"
+    }
+  ]
+}

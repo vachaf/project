@@ -1,0 +1,144 @@
+{
+  "meta": {
+    "generated_at": "2026-04-25T20:26:59.051+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_0a47c6055d1e3ac00169eca4f4c21081939816584349a7ec63",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/op-security_2026-04-25_18-23-00_to_2026-04-25_18-29-00_kst_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/op-security_2026-04-25_18-23-00_to_2026-04-25_18-29-00_kst_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 웹 로그 2차 분석 요약: /rest/products/search 대상 SQL 인젝션 시도 중심 사건",
+    "overall_assessment": "분석 구간 내 요청은 대부분 단일 출발지 IP(192.168.56.110)에서 /rest/products/search 엔드포인트로 집중된 SQL 인젝션 시도로 보입니다. 다수는 전형적인 UNION SELECT, OR 1=1, 주석 처리, 인코딩 우회 패턴을 포함해 수상성이 높지만, known asset IP에서 발생해 내부 테스트나 자체 점검 가능성도 함께 고려해야 합니다. 제공된 로그만으로 실제 침해 성공이나 데이터 유출은 확인되지 않았습니다.",
+    "executive_summary": [
+      "18:24:59~18:27:19 사이 /rest/products/search로 SQLi 형태 요청이 연속 관측되었습니다.",
+      "출발지 IP는 모두 192.168.56.110이며 known asset IP와 일치합니다.",
+      "일부 요청은 500 오류를 유발했지만, 200/JSON 응답도 있어 성공 여부는 추가 확인이 필요합니다."
+    ],
+    "key_findings": [
+      {
+        "title": "검색 API를 향한 연속 SQL 인젝션 시도",
+        "detail": "대부분의 상위 incident가 /rest/products/search?q=...에 UNION SELECT, OR 1=1, 주석(--, /**/)과 같은 전형적 SQLi 토큰을 포함합니다. 시간상 거의 연속적으로 이어져 수동 또는 자동화된 탐색/삽입 시도로 해석됩니다.",
+        "severity": "high"
+      },
+      {
+        "title": "우회성 인코딩과 변형 페이로드가 함께 관측됨",
+        "detail": "URL 인코딩, 2단계 디코딩 흔적, 대소문자 혼합, 공백/주석 대체 등이 보입니다. 이는 탐지 우회 목적의 시도 가능성을 높이지만, 실제 영향 여부를 의미하지는 않습니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "known asset IP 관측으로 내부 테스트 가능성 존재",
+        "detail": "모든 요청이 known asset IP(192.168.56.110)에서 발생했습니다. 따라서 공격자로 단정하기보다 내부 검증, 자체 호출, 운영 점검, 테스트 트래픽 가능성을 함께 봐야 합니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "후보 밖 탐색성 요청도 동반됨",
+        "detail": "filtered_out_breakdown에 low_signal_fuzzing 2건이 보존되어 있습니다. 이는 incident로 승격되지는 않았지만, 같은 IP와 시간대의 SQLi 흐름과 결합해 탐색 맥락을 보강하는 보조 신호로 해석할 수 있습니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:aeyI9_U0ZgNjgUQucSRN2gAAAAg|table:security|log_id:9559|candidate:0",
+        "request_id": "aeyI9_U0ZgNjgUQucSRN2gAAAAg",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "UNION SELECT와 sqlite_master 참조, SQL 주석이 결합된 전형적 SQLi 페이로드입니다. 500 오류가 함께 보여 오류 유발 정황은 강하지만, 실제 데이터 노출이나 성공은 이 로그만으로 단정할 수 없습니다."
+      },
+      {
+        "incident_ref": "request_id:aeyI8vU0ZgNjgUQucSRN2QAAAAc|table:security|log_id:9557|candidate:1",
+        "request_id": "aeyI8vU0ZgNjgUQucSRN2QAAAAc",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "UNION SELECT와 주석(--), 비정상 따옴표 조합이 보이는 강한 SQLi 시도입니다. 500 오류가 동반되었지만 침해 성공 여부는 확인되지 않았습니다."
+      },
+      {
+        "incident_ref": "request_id:aeyI8HHCi27Md-UoFOnpLQAAAFY|table:security|log_id:9556|candidate:2",
+        "request_id": "aeyI8HHCi27Md-UoFOnpLQAAAFY",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "UNION SELECT와 주석 패턴이 반복된 고신호 SQLi 요청입니다. 같은 URI에 대한 연속 시도라는 점에서 탐색 의도가 뚜렷합니다."
+      },
+      {
+        "incident_ref": "request_id:aeyI7vU0ZgNjgUQucSRN2AAAAAY|table:security|log_id:9555|candidate:4",
+        "request_id": "aeyI7vU0ZgNjgUQucSRN2AAAAAY",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "짧은 페이로드지만 UNION SELECT와 주석이 포함돼 있어 전형적 SQLi 패턴입니다. 반복 시도 흐름의 일부로 볼 수 있습니다."
+      },
+      {
+        "incident_ref": "request_id:aeyI7HHCi27Md-UoFOnpLAAAAFQ|table:security|log_id:9554|candidate:5",
+        "request_id": "aeyI7HHCi27Md-UoFOnpLAAAAFQ",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "UNION SELECT와 주석이 포함된 강한 SQLi 시도입니다. 500 오류는 시도에 대한 서버 반응으로 볼 수 있으나, 성공을 뜻하지는 않습니다."
+      },
+      {
+        "incident_ref": "request_id:aeyI9XHCi27Md-UoFOnpLgAAAFg|table:security|log_id:9558|candidate:6",
+        "request_id": "aeyI9XHCi27Md-UoFOnpLgAAAFg",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "200/JSON 응답이지만 UNION SELECT와 주석이 분명해 시도 탐지 자체는 매우 강합니다. 실제 영향은 별도 확인이 필요합니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.110",
+        "reason": "전체 15개 incident가 이 IP에서 발생했고, top URI도 모두 /rest/products/search로 집중되었습니다. 다만 known asset IP와 일치하므로 내부 테스트/자체 호출 가능성을 반드시 함께 고려해야 합니다."
+      }
+    ],
+    "noise_interpretation": "후보 밖으로 분류된 요청은 low_signal_fuzzing 2건이며, 이는 incident로 승격되지 않은 탐색성 요청입니다. noise_summary가 비어 있더라도 filtered_out_breakdown과 top_filtered_categories에 실제 분포가 보존되어 있으므로, 단순 노이즈가 아니라 같은 IP의 연속적인 탐색 맥락 일부로 해석하는 것이 맞습니다. 이번 자료에서는 low_signal_dir_probe는 보이지 않았고, 교육/자연어 SQL 검색 문맥은 supporting_events에서만 관찰되어 공격 단정 근거로 쓰지 않았습니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "/rest/products/search 관련 애플리케이션 및 에러 로그를 request_id 기준으로 재연결해 500 응답 시점의 서버 내부 오류와 DB 에러 흔적을 확인하십시오.",
+        "why": "SQLi 시도는 강하지만 성공 여부는 미확정입니다. 오류 로그 상관분석이 실제 영향 여부를 가르는 핵심입니다."
+      },
+      {
+        "priority": "P1",
+        "action": "192.168.56.110의 요청 목적을 확인하고, 내부 테스트/보안 점검/자동화 스크립트 여부를 담당자에게 즉시 확인하십시오.",
+        "why": "known asset IP이므로 공격자 단정은 위험합니다. 정상 점검 트래픽이면 후속 대응 방향이 달라집니다."
+      },
+      {
+        "priority": "P2",
+        "action": "같은 시간대의 연속 요청을 묶어 페이로드 변형(대소문자 혼합, URL 인코딩, 인라인 주석, 이중 디코딩 흔적)을 비교 검토하십시오.",
+        "why": "우회성 변형이 반복되어 수동 테스트인지 자동화 도구인지 식별하는 데 도움이 됩니다."
+      },
+      {
+        "priority": "P2",
+        "action": "WAF/프록시에서 /rest/products/search에 대한 UNION SELECT, OR 1=1, 주석 패턴, 다중 인코딩 패턴 차단·경보 규칙을 점검하십시오.",
+        "why": "현재 로그는 전형적 SQLi 패턴이 매우 뚜렷해 재발 시 즉시 탐지·차단이 가능해야 합니다."
+      },
+      {
+        "priority": "P3",
+        "action": "후보 밖 탐색성 요청(low_signal_fuzzing 2건)을 동일 IP의 시계열과 함께 보관하고, 이후 고신호 요청과의 선후관계를 정리하십시오.",
+        "why": "개별 사건은 아니지만 탐색 흐름을 이해하는 보조 맥락이며, 후속 분석 시 의미가 있을 수 있습니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "신뢰도는 중상 수준입니다. 전형적인 SQLi 페이로드가 다수 반복되어 탐지 근거는 강합니다.",
+      "다만 분석 대상이 전처리·1차 분류 요약이므로, 원문 DB 로그와 애플리케이션/에러 로그를 함께 보지 않으면 성공 여부를 확정할 수 없습니다.",
+      "known asset IP와 일치하므로 내부 테스트, 자체 호출, 운영 점검 가능성을 배제할 수 없습니다.",
+      "supporting_events는 개별 incident가 아니라 인접 시간대의 보조 문맥입니다. 교육용 SQL 검색 문구는 공격으로 단정하지 않았습니다."
+    ],
+    "presentation_takeaway": "이 구간은 192.168.56.110에서 /rest/products/search를 향해 반복된 SQL 인젝션 시도가 집중된 사례로 보입니다. 다만 같은 IP가 known asset이므로 내부 테스트 가능성을 함께 열어두고, 실제 침해 여부는 500 오류 시점의 서버·DB 로그 상관분석으로 확인하는 것이 핵심입니다."
+  }
+}

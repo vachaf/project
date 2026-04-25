@@ -2,8 +2,6 @@
 __pycache__/
 *.pyc
 
-data/
-reports/
 pipeline_manifest.json
 
 *.log
@@ -12,3 +10,8 @@ pipeline_manifest.json
 .env
 llm.env
 config/*.env
+
+raw/
+*noise_summary.json
+*stage1_errors.json
+*analysis_candidates.json

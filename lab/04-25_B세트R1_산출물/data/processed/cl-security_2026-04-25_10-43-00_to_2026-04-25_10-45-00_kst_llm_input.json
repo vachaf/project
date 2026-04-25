@@ -1,0 +1,462 @@
+{
+  "meta": {
+    "query_timezone": "Asia/Seoul",
+    "analysis_window": {
+      "start": "2026-04-25T10:43:00.000+09:00",
+      "end_exclusive": "2026-04-25T10:45:00.000+09:00"
+    },
+    "source_database": "web_logs",
+    "source_table_option": "security",
+    "selected_source_tables": [
+      "security"
+    ],
+    "analysis_primary_table": "security",
+    "exported_at": "2026-04-25T10:47:14.045+09:00",
+    "prepared_at": "2026-04-25T10:53:20.086+09:00",
+    "model_usage_policy": {
+      "routine": "gpt-5.4-mini",
+      "milestone_or_presentation": "gpt-5.4"
+    },
+    "pipeline_policy": {
+      "db_raw_preserved": true,
+      "send_raw_full_export_to_llm": false,
+      "noise_is_aggregated_before_llm": true,
+      "candidate_selection_is_rule_based_first": true,
+      "path_traversal_success_requires_body_validation": true,
+      "hpp_context_is_preserved": true,
+      "filtered_noise_breakdown_is_preserved": true
+    },
+    "thresholds": {
+      "candidate_min_score": 4,
+      "noise_min_repeat_aggregate": 3
+    },
+    "counts": {
+      "total_exported_rows": 10,
+      "selected_source_rows": 10,
+      "filtered_out_rows": 3,
+      "filtered_out_non_aggregated_rows": 3,
+      "noise_group_count": 0,
+      "candidate_rows_before_dedup": 7,
+      "candidate_rows": 7,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 7
+    },
+    "filtered_out_breakdown": {
+      "low_signal_fuzzing": 3
+    }
+  },
+  "noise_summary": [],
+  "candidate_group_summary": [
+    {
+      "incident_group_key": "rid:aewclnHCi27Md-UoFOnpCAAAAEQ",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "verdict_hint": "sqli",
+      "request_id": "aewclnHCi27Md-UoFOnpCAAAAEQ",
+      "error_link_id": "-",
+      "log_time": "2026-04-25T10:44:54.488 09:00"
+    },
+    {
+      "incident_group_key": "rid:aewciXHCi27Md-UoFOnpBwAAAEI",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "verdict_hint": "sqli",
+      "request_id": "aewciXHCi27Md-UoFOnpBwAAAEI",
+      "error_link_id": "-",
+      "log_time": "2026-04-25T10:44:41.117 09:00"
+    },
+    {
+      "incident_group_key": "rid:aewcfHHCi27Md-UoFOnpBQAAAFc",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "verdict_hint": "suspicious",
+      "request_id": "aewcfHHCi27Md-UoFOnpBQAAAFc",
+      "error_link_id": "-",
+      "log_time": "2026-04-25T10:44:28.346 09:00"
+    },
+    {
+      "incident_group_key": "rid:aewcdXHCi27Md-UoFOnpBAAAAFU",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "verdict_hint": "suspicious",
+      "request_id": "aewcdXHCi27Md-UoFOnpBAAAAFU",
+      "error_link_id": "-",
+      "log_time": "2026-04-25T10:44:21.466 09:00"
+    },
+    {
+      "incident_group_key": "rid:aewcYnHCi27Md-UoFOnpAwAAAFM",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "verdict_hint": "sqli",
+      "request_id": "aewcYnHCi27Md-UoFOnpAwAAAFM",
+      "error_link_id": "-",
+      "log_time": "2026-04-25T10:44:02.970 09:00"
+    },
+    {
+      "incident_group_key": "rid:aewcWnHCi27Md-UoFOnpAgAAAFE",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "verdict_hint": "sqli",
+      "request_id": "aewcWnHCi27Md-UoFOnpAgAAAFE",
+      "error_link_id": "-",
+      "log_time": "2026-04-25T10:43:54.721 09:00"
+    },
+    {
+      "incident_group_key": "rid:aewcUnHCi27Md-UoFOnpAQAAAE8",
+      "merged_row_count": 1,
+      "source_tables": [
+        "security"
+      ],
+      "src_ip": "192.168.56.110",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "status_code": 500,
+      "verdict_hint": "suspicious",
+      "request_id": "aewcUnHCi27Md-UoFOnpAQAAAE8",
+      "error_link_id": "-",
+      "log_time": "2026-04-25T10:43:46.375 09:00"
+    }
+  ],
+  "analysis_candidates": [
+    {
+      "source_table": "security",
+      "log_id": 9502,
+      "log_time": "2026-04-25T10:44:02.970 09:00",
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) UNION SELECT 1,name,sql,4,5,6,7,8,9 FROM sqlite_master --",
+      "status_code": 500,
+      "score": 18,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "sqli:select_from(+4)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "request_id": "aewcYnHCi27Md-UoFOnpAwAAAFM",
+      "error_link_id": "",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT 1,name,sql,4,5,6,7,8,9 FROM sqlite_master -- HTTP/1.1",
+      "user_agent": "lab-b-set-union-schema-1",
+      "referer": "",
+      "duration_us": 8794,
+      "ttfb_us": 8352,
+      "raw_log": "log_time=2026-04-25T01:44:02.970 0000 request_id=aewcYnHCi27Md-UoFOnpAwAAAFM error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT 1,name,sql,4,5,6,7,8,9 FROM sqlite_master -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=x')) UNION SELECT 1,name,sql,4,5,6,7,8,9 FROM sqlite_master --\" protocol=HTTP/1.1 status_code=500 response_body_bytes=1859 in_bytes=198 out_bytes=2237 total_bytes=2435 duration_us=8794 ttfb_us=8352 keepalive_count=0 connection_status=- req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"lab-b-set-union-schema-1\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+      "response_body_bytes": 1859,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION+SELECT+1%2Cname%2Csql%2C4%2C5%2C6%2C7%2C8%2C9+FROM+sqlite_master+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "incident_group_key": "rid:aewcYnHCi27Md-UoFOnpAwAAAFM",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        9502
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 9507,
+      "log_time": "2026-04-25T10:44:54.488 09:00",
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) UNION SELECT id,email,password,4,5,6,7,8,9 FROM Users --",
+      "status_code": 200,
+      "score": 15,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "sqli:select_from(+4)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "request_id": "aewclnHCi27Md-UoFOnpCAAAAEQ",
+      "error_link_id": "",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT id,email,password,4,5,6,7,8,9 FROM Users -- HTTP/1.1",
+      "user_agent": "lab-b-set-union-creds-1",
+      "referer": "",
+      "duration_us": 7576,
+      "ttfb_us": 6948,
+      "raw_log": "log_time=2026-04-25T01:44:54.488 0000 request_id=aewclnHCi27Md-UoFOnpCAAAAEQ error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT id,email,password,4,5,6,7,8,9 FROM Users -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=x')) UNION SELECT id,email,password,4,5,6,7,8,9 FROM Users --\" protocol=HTTP/1.1 status_code=200 response_body_bytes=3648 in_bytes=196 out_bytes=4020 total_bytes=4216 duration_us=7576 ttfb_us=6948 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"application/json\" referer=\"-\" user_agent=\"lab-b-set-union-creds-1\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+      "response_body_bytes": 3648,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION+SELECT+id%2Cemail%2Cpassword%2C4%2C5%2C6%2C7%2C8%2C9+FROM+Users+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "incident_group_key": "rid:aewclnHCi27Md-UoFOnpCAAAAEQ",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        9507
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 9501,
+      "log_time": "2026-04-25T10:43:54.721 09:00",
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) UNION SELECT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL --",
+      "status_code": 500,
+      "score": 14,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "request_id": "aewcWnHCi27Md-UoFOnpAgAAAFE",
+      "error_link_id": "",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL -- HTTP/1.1",
+      "user_agent": "lab-b-set-union-count-1",
+      "referer": "",
+      "duration_us": 6929,
+      "ttfb_us": 6551,
+      "raw_log": "log_time=2026-04-25T01:43:54.721 0000 request_id=aewcWnHCi27Md-UoFOnpAgAAAFE error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=x')) UNION SELECT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL --\" protocol=HTTP/1.1 status_code=500 response_body_bytes=1865 in_bytes=200 out_bytes=2243 total_bytes=2443 duration_us=6929 ttfb_us=6551 keepalive_count=0 connection_status=- req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"lab-b-set-union-count-1\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+      "response_body_bytes": 1865,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION+SELECT+NULL%2CNULL%2CNULL%2CNULL%2CNULL%2CNULL%2CNULL%2CNULL%2CNULL+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "incident_group_key": "rid:aewcWnHCi27Md-UoFOnpAgAAAFE",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        9501
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 9506,
+      "log_time": "2026-04-25T10:44:41.117 09:00",
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=x')) UNION SELECT CAST('a' AS INTEGER),2,3,4,5,6,7,8,9 --",
+      "status_code": 200,
+      "score": 12,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "request_id": "aewciXHCi27Md-UoFOnpBwAAAEI",
+      "error_link_id": "",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT CAST('a' AS INTEGER),2,3,4,5,6,7,8,9 -- HTTP/1.1",
+      "user_agent": "lab-b-set-err-cast-1",
+      "referer": "",
+      "duration_us": 7187,
+      "ttfb_us": 6963,
+      "raw_log": "log_time=2026-04-25T01:44:41.117 0000 request_id=aewciXHCi27Md-UoFOnpBwAAAEI error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT CAST('a' AS INTEGER),2,3,4,5,6,7,8,9 -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=x')) UNION SELECT CAST('a' AS INTEGER),2,3,4,5,6,7,8,9 --\" protocol=HTTP/1.1 status_code=200 response_body_bytes=145 in_bytes=197 out_bytes=515 total_bytes=712 duration_us=7187 ttfb_us=6963 keepalive_count=0 connection_status=  req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"application/json\" referer=\"-\" user_agent=\"lab-b-set-err-cast-1\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+      "response_body_bytes": 145,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION+SELECT+CAST%28%27a%27+AS+INTEGER%29%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "incident_group_key": "rid:aewciXHCi27Md-UoFOnpBwAAAEI",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        9506
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 9504,
+      "log_time": "2026-04-25T10:44:28.346 09:00",
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=apple'))",
+      "status_code": 500,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "request_id": "aewcfHHCi27Md-UoFOnpBQAAAFc",
+      "error_link_id": "",
+      "raw_request": "GET /rest/products/search?q=apple')) HTTP/1.1",
+      "user_agent": "lab-b-set-err-parens-1",
+      "referer": "",
+      "duration_us": 6740,
+      "ttfb_us": 6536,
+      "raw_log": "log_time=2026-04-25T01:44:28.346 0000 request_id=aewcfHHCi27Md-UoFOnpBQAAAFc error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=apple')) HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=apple'))\" protocol=HTTP/1.1 status_code=500 response_body_bytes=998 in_bytes=126 out_bytes=1376 total_bytes=1502 duration_us=6740 ttfb_us=6536 keepalive_count=0 connection_status=- req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"lab-b-set-err-parens-1\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+      "response_body_bytes": 998,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=apple%27%29%29",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "incident_group_key": "rid:aewcfHHCi27Md-UoFOnpBQAAAFc",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        9504
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 9500,
+      "log_time": "2026-04-25T10:43:46.375 09:00",
+      "src_ip": "192.168.56.110",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "status_code": 500,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:500(+2)",
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "request_id": "aewcUnHCi27Md-UoFOnpAQAAAE8",
+      "error_link_id": "",
+      "raw_request": "POST /rest/user/login HTTP/1.1",
+      "user_agent": "lab-b-set-auth-union-1",
+      "referer": "",
+      "duration_us": 8369,
+      "ttfb_us": 7534,
+      "raw_log": "log_time=2026-04-25T01:43:46.375 0000 request_id=aewcUnHCi27Md-UoFOnpAQAAAE8 error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=POST raw_request=\"POST /rest/user/login HTTP/1.1\" uri=\"/rest/user/login\" query_string=\"\" protocol=HTTP/1.1 status_code=500 response_body_bytes=1449 in_bytes=215 out_bytes=1827 total_bytes=2042 duration_us=8369 ttfb_us=7534 keepalive_count=0 connection_status=- req_content_type=\"application/json\" req_content_length=\"58\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"lab-b-set-auth-union-1\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+      "response_body_bytes": 1449,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "incident_group_key": "rid:aewcUnHCi27Md-UoFOnpAQAAAE8",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        9500
+      ]
+    },
+    {
+      "source_table": "security",
+      "log_id": 9503,
+      "log_time": "2026-04-25T10:44:21.466 09:00",
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=apple'",
+      "status_code": 500,
+      "score": 4,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "special_char_ratio_high(+1)",
+        "error_status:500(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "request_id": "aewcdXHCi27Md-UoFOnpBAAAAFU",
+      "error_link_id": "",
+      "raw_request": "GET /rest/products/search?q=apple' HTTP/1.1",
+      "user_agent": "lab-b-set-err-quote-1",
+      "referer": "",
+      "duration_us": 6562,
+      "ttfb_us": 6133,
+      "raw_log": "log_time=2026-04-25T01:44:21.466 0000 request_id=aewcdXHCi27Md-UoFOnpBAAAAFU error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=apple' HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=apple'\" protocol=HTTP/1.1 status_code=500 response_body_bytes=994 in_bytes=119 out_bytes=1372 total_bytes=1491 duration_us=6562 ttfb_us=6133 keepalive_count=0 connection_status=- req_content_type=\"-\" req_content_length=\"-\" resp_content_type=\"text/html\" referer=\"-\" user_agent=\"lab-b-set-err-quote-1\" host=\"192.168.56.105\" x_forwarded_for=\"-\"",
+      "response_body_bytes": 994,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=apple%27",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "incident_group_key": "rid:aewcdXHCi27Md-UoFOnpBAAAAFU",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        9503
+      ]
+    }
+  ]
+}

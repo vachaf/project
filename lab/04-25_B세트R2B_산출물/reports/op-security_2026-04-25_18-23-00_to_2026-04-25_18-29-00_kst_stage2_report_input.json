@@ -1,0 +1,839 @@
+{
+  "analysis_context": {
+    "query_timezone": "Asia/Seoul",
+    "window": {
+      "start": "2026-04-25T18:23:00.000+09:00",
+      "end_exclusive": "2026-04-25T18:29:00.000+09:00"
+    },
+    "source_exported_at": "2026-04-25T18:29:30.554+09:00",
+    "source_prepared_at": "2026-04-25T20:26:03.125+09:00",
+    "stage1_generated_at": "2026-04-25T20:26:44.242+09:00",
+    "mode": "routine",
+    "selected_model": "gpt-5.4-mini"
+  },
+  "pipeline_counts": {
+    "total_exported_rows": 17,
+    "candidate_rows": 15,
+    "distinct_incident_count": 15,
+    "filtered_out_rows": 2,
+    "filtered_out_non_aggregated_rows": 2,
+    "noise_group_count": 0,
+    "supporting_event_count": 2,
+    "stage1_success_count": 15,
+    "stage1_error_count": 0
+  },
+  "distributions": {
+    "verdicts": {
+      "suspicious_sqli": 14,
+      "likely_false_positive": 1
+    },
+    "severities": {
+      "high": 10,
+      "medium": 4,
+      "low": 1
+    },
+    "source_tables": {
+      "security": 15
+    },
+    "recommended_actions": {
+      "review_raw_log": 15,
+      "review_error_log": 9,
+      "correlate_request_id": 14,
+      "correlate_src_ip": 15,
+      "watch": 6
+    },
+    "filtered_out_breakdown": {
+      "low_signal_fuzzing": 2
+    }
+  },
+  "top_incidents": [
+    {
+      "rank": 1,
+      "incident_ref": "request_id:aeyI9_U0ZgNjgUQucSRN2gAAAAg|table:security|log_id:9559|candidate:0",
+      "dedup_key": "request_id:aeyI9_U0ZgNjgUQucSRN2gAAAAg",
+      "duplicate_count": 1,
+      "request_id": "aeyI9_U0ZgNjgUQucSRN2gAAAAg",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "score": 18,
+      "log_time": "2026-04-25T18:27:19.131 09:00",
+      "response_body_bytes": 1859,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION+SELECT+1%2Cname%2Csql%2C4%2C5%2C6%2C7%2C8%2C9+FROM+sqlite_master+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 문자열에 `UNION SELECT`, `sqlite_master`, 주석 기호가 함께 나타나 전형적인 SQL 인젝션 페이로드로 보입니다. 상태 코드 500도 애플리케이션 오류 유발 정황을 뒷받침하며, 제공된 정보만으로 정상 요청으로 볼 근거는 약합니다.",
+      "evidence_fields": [
+        "쿼리 문자열의 UNION SELECT 패턴",
+        "sqlite_master 참조",
+        "SQL 주석 기호 포함",
+        "오류 응답 500",
+        "검색 API 엔드포인트에 공격 토큰 포함",
+        "긴 비정상 쿼리"
+      ],
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "sqli:select_from(+4)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "user_agent": "lab-b-set-chain-step-10",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT 1,name,sql,4,5,6,7,8,9 FROM sqlite_master -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:27:19.131 0000 request_id=aeyI9_U0ZgNjgUQucSRN2gAAAAg error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT 1,name,sql,4,5,6,7,8,9 FROM sqlite_master -- HTTP/1.1...",
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 2,
+      "incident_ref": "request_id:aeyI8vU0ZgNjgUQucSRN2QAAAAc|table:security|log_id:9557|candidate:1",
+      "dedup_key": "request_id:aeyI8vU0ZgNjgUQucSRN2QAAAAc",
+      "duplicate_count": 1,
+      "request_id": "aeyI8vU0ZgNjgUQucSRN2QAAAAc",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "score": 14,
+      "log_time": "2026-04-25T18:27:14.864 09:00",
+      "response_body_bytes": 1078,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION+SELECT+1%2C2%2C3%2C4%2C5%2C6%2C7+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "요청 쿼리스트링에 UNION SELECT와 SQL 주석(--), 비정상적인 따옴표 조합이 포함되어 있어 SQL 인젝션 시도로 보는 것이 가장 타당합니다. 상태 코드 500과 서버 오류 응답 정황은 실행 중 오류를 유발한 흔적으로 해석될 수 있으나, 실제 데이터 노출 여부까지는 이 로그만으로 확인되지 않습니다.",
+      "evidence_fields": [
+        "query_string의 UNION SELECT 패턴",
+        "SQL 주석 기호(-- )",
+        "비정상 따옴표 조합",
+        "상태 코드 500",
+        "검색 엔드포인트에 공격 토큰"
+      ],
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "user_agent": "lab-b-set-chain-step-08",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT 1,2,3,4,5,6,7 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:27:14.864 0000 request_id=aeyI8vU0ZgNjgUQucSRN2QAAAAc error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT 1,2,3,4,5,6,7 -- HTTP/1.1\" uri=\"/rest/products/search...",
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 3,
+      "incident_ref": "request_id:aeyI8HHCi27Md-UoFOnpLQAAAFY|table:security|log_id:9556|candidate:2",
+      "dedup_key": "request_id:aeyI8HHCi27Md-UoFOnpLQAAAFY",
+      "duplicate_count": 1,
+      "request_id": "aeyI8HHCi27Md-UoFOnpLQAAAFY",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "score": 14,
+      "log_time": "2026-04-25T18:27:12.815 09:00",
+      "response_body_bytes": 1078,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION+SELECT+1%2C2%2C3%2C4%2C5+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 문자열에 `UNION SELECT`와 SQL 주석(`--`)이 포함되어 있어 전형적인 SQL 인젝션 시도로 보는 것이 타당합니다. 대상이 검색 엔드포인트이고 응답이 500으로 실패해 오류 유발형 시도 정황도 함께 보입니다.",
+      "evidence_fields": [
+        "쿼리 문자열의 UNION SELECT 패턴",
+        "SQL 주석 기호 포함",
+        "검색 엔드포인트 대상",
+        "HTTP 500 오류 응답",
+        "특수문자 비율이 매우 높음"
+      ],
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "user_agent": "lab-b-set-chain-step-07",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT 1,2,3,4,5 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:27:12.815 0000 request_id=aeyI8HHCi27Md-UoFOnpLQAAAFY error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT 1,2,3,4,5 -- HTTP/1.1\" uri=\"/rest/products/search\" qu...",
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 4,
+      "incident_ref": "request_id:aeyI7vU0ZgNjgUQucSRN2AAAAAY|table:security|log_id:9555|candidate:4",
+      "dedup_key": "request_id:aeyI7vU0ZgNjgUQucSRN2AAAAAY",
+      "duplicate_count": 1,
+      "request_id": "aeyI7vU0ZgNjgUQucSRN2AAAAAY",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "score": 13,
+      "log_time": "2026-04-25T18:27:10.754 09:00",
+      "response_body_bytes": 1078,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION+SELECT+1%2C2%2C3+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리스트링에 `UNION SELECT`와 SQL 주석(`--`)이 함께 포함되어 있어 전형적인 SQL 인젝션 시도로 보는 것이 타당합니다. 요청 대상이 검색 엔드포인트이고, 500 응답까지 발생해 오류 유발형 공격 정황도 함께 보입니다.",
+      "evidence_fields": [
+        "query_string의 UNION SELECT 패턴",
+        "SQL 주석 기호 포함",
+        "검색 엔드포인트 대상",
+        "500 서버 오류 응답",
+        "공격 토큰이 포함된 raw_request_target"
+      ],
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "user_agent": "lab-b-set-chain-step-06",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT 1,2,3 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:27:10.754 0000 request_id=aeyI7vU0ZgNjgUQucSRN2AAAAAY error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT 1,2,3 -- HTTP/1.1\" uri=\"/rest/products/search\" query_...",
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 5,
+      "incident_ref": "request_id:aeyI7HHCi27Md-UoFOnpLAAAAFQ|table:security|log_id:9554|candidate:5",
+      "dedup_key": "request_id:aeyI7HHCi27Md-UoFOnpLAAAAFQ",
+      "duplicate_count": 1,
+      "request_id": "aeyI7HHCi27Md-UoFOnpLAAAAFQ",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "score": 13,
+      "log_time": "2026-04-25T18:27:08.697 09:00",
+      "response_body_bytes": 1078,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION+SELECT+1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 문자열에 UNION SELECT와 SQL 주석(--), 비정상적인 따옴표 조합이 포함되어 있어 SQL 인젝션 시도로 보는 것이 타당합니다. 동시에 상태 코드 500과 오류 응답이 관찰되지만, 이는 시도에 대한 서버 오류 반응으로 해석할 수 있어 실제 성공 여부까지는 단정하지 않습니다.",
+      "evidence_fields": [
+        "query_string의 UNION SELECT 패턴",
+        "SQL 주석 표기(-- )",
+        "비정상 따옴표 조합",
+        "HTTP 500 오류 응답",
+        "검색 엔드포인트 대상"
+      ],
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "user_agent": "lab-b-set-chain-step-05",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT 1 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:27:08.697 0000 request_id=aeyI7HHCi27Md-UoFOnpLAAAAFQ error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT 1 -- HTTP/1.1\" uri=\"/rest/products/search\" query_stri...",
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 6,
+      "incident_ref": "request_id:aeyI9XHCi27Md-UoFOnpLgAAAFg|table:security|log_id:9558|candidate:6",
+      "dedup_key": "request_id:aeyI9XHCi27Md-UoFOnpLgAAAFg",
+      "duplicate_count": 1,
+      "request_id": "aeyI9XHCi27Md-UoFOnpLgAAAFg",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 12,
+      "log_time": "2026-04-25T18:27:17.079 09:00",
+      "response_body_bytes": 145,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION+SELECT+1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "요청 파라미터 q에 `UNION SELECT`와 SQL 주석 패턴이 함께 포함되어 있어 전형적인 SQL 인젝션 시도로 보는 것이 타당합니다. 200 응답과 JSON 콘텐츠 타입만으로 성공 여부를 판단할 수는 없지만, 시도 정황 자체는 매우 강합니다.",
+      "evidence_fields": [
+        "q 파라미터의 UNION SELECT 패턴",
+        "SQL 주석 `--` 포함",
+        "비정상적으로 긴 쿼리 문자열",
+        "특수문자 비율이 높은 입력",
+        "검색 API 경로와 공격 토큰 결합",
+        "status_code 200 이지만 성공 여부는 미확정"
+      ],
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-chain-step-09",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT 1,2,3,4,5,6,7,8,9 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:27:17.079 0000 request_id=aeyI9XHCi27Md-UoFOnpLgAAAFg error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT 1,2,3,4,5,6,7,8,9 -- HTTP/1.1\" uri=\"/rest/products/se...",
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 7,
+      "incident_ref": "request_id:aeyIz_U0ZgNjgUQucSRN1gAAAAI|table:security|log_id:9549|candidate:7",
+      "dedup_key": "request_id:aeyIz_U0ZgNjgUQucSRN1gAAAAI",
+      "duplicate_count": 1,
+      "request_id": "aeyIz_U0ZgNjgUQucSRN1gAAAAI",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 12,
+      "log_time": "2026-04-25T18:26:39.044 09:00",
+      "response_body_bytes": 145,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+UNION%09SELECT%091%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%0A--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "요청 파라미터에 `UNION SELECT`와 SQL 주석(`--`)이 포함되어 있고, 탭/개행을 섞어 우회하려는 형태까지 보여 SQL 인젝션 시도로 보는 것이 타당합니다. 응답이 200이고 JSON이라도, 제공된 필드만으로는 정상 기능으로 보기 어렵고 탐지된 공격 패턴이 강합니다.",
+      "evidence_fields": [
+        "query_string의 UNION SELECT 패턴",
+        "SQL 주석 기호(`--`)",
+        "탭/개행 섞은 우회형 입력",
+        "검색 API 엔드포인트에서 공격 토큰",
+        "raw_request의 명시적 인젝션 문자열"
+      ],
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-evade-whitespace-1",
+      "raw_request": "GET /rest/products/search?q=x')) UNION SELECT 1,2,3,4,5,6,7,8,9 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:26:39.044 0000 request_id=aeyIz_U0ZgNjgUQucSRN1gAAAAI error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) UNION SELECT 1,2,3,4,5,6,7,8,9 -- HTTP/1.1\" uri=\"/rest/products/se...",
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 8,
+      "incident_ref": "request_id:aeyIr3HCi27Md-UoFOnpJgAAAEo|table:security|log_id:9546|candidate:8",
+      "dedup_key": "request_id:aeyIr3HCi27Md-UoFOnpJgAAAEo",
+      "duplicate_count": 1,
+      "request_id": "aeyIr3HCi27Md-UoFOnpJgAAAEo",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 12,
+      "log_time": "2026-04-25T18:26:07.007 09:00",
+      "response_body_bytes": 145,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+uNiOn+SeLeCt+1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "요청 쿼리에 `UNION SELECT`와 SQL 주석(`--`)이 포함되어 있고, 따옴표/괄호를 섞은 전형적인 SQL 인젝션 페이로드 형태입니다. 대소문자 혼합으로 탐지를 우회하려는 흔적도 보여 공격 시도로 분류하는 것이 타당합니다. 다만 응답이 200이고 JSON으로 보이므로 실제 영향 여부는 이 로그만으로는 확정할 수 없습니다.",
+      "evidence_fields": [
+        "쿼리 문자열의 UNION SELECT 패턴",
+        "SQL 주석 기호 사용",
+        "따옴표·괄호 조합의 인젝션 형태",
+        "대소문자 혼합 우회 흔적",
+        "검색 API 엔드포인트에 공격 토큰 포함",
+        "응답 200 및 JSON 응답"
+      ],
+      "reason_hints": [
+        "sqli:union_select(+5)",
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-evade-mixedcase-1",
+      "raw_request": "GET /rest/products/search?q=x')) uNiOn SeLeCt 1,2,3,4,5,6,7,8,9 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:26:07.007 0000 request_id=aeyIr3HCi27Md-UoFOnpJgAAAEo error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) uNiOn SeLeCt 1,2,3,4,5,6,7,8,9 -- HTTP/1.1\" uri=\"/rest/products/se...",
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 9,
+      "incident_ref": "request_id:aeyIx3HCi27Md-UoFOnpKAAAAE0|table:security|log_id:9548|candidate:9",
+      "dedup_key": "request_id:aeyIx3HCi27Md-UoFOnpKAAAAE0",
+      "duplicate_count": 1,
+      "request_id": "aeyIx3HCi27Md-UoFOnpKAAAAE0",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 11,
+      "log_time": "2026-04-25T18:26:31.879 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=apple%2527%2520OR%25201%253D1%2520--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 문자열에 `apple' OR 1=1 --` 형태의 전형적인 SQL 인젝션 패턴이 보이고, 이 값이 2단계 디코딩된 흔적도 있어 의도적 우회 시도로 해석됩니다. 다만 응답이 200이고 JSON 콘텐츠로 반환되어 실제 데이터 영향 여부는 이 로그만으로 확정할 수 없습니다.",
+      "evidence_fields": [
+        "쿼리 문자열의 OR 1=1 조건",
+        "따옴표 종료 후 SQL 주석 패턴",
+        "2단계 디코딩된 페이로드",
+        "특수문자 비율 높음",
+        "응답 200 / application/json"
+      ],
+      "reason_hints": [
+        "sqli:or_true(+4)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "encoding:double_decoded_payload",
+        "encoding:decoded_depth_2",
+        "encoding:double_decoded_sqli",
+        "special_char_ratio_high(+1)"
+      ],
+      "user_agent": "lab-b-set-evade-double-enc-1",
+      "raw_request": "GET /rest/products/search?q=apple%27%20OR%201%3D1%20-- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:26:31.879 0000 request_id=aeyIx3HCi27Md-UoFOnpKAAAAE0 error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=apple%27%20OR%201%3D1%20-- HTTP/1.1\" uri=\"/rest/products/search\" query_...",
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 10,
+      "incident_ref": "request_id:aeyIuXHCi27Md-UoFOnpJwAAAEw|table:security|log_id:9547|candidate:10",
+      "dedup_key": "request_id:aeyIuXHCi27Md-UoFOnpJwAAAEw",
+      "duplicate_count": 1,
+      "request_id": "aeyIuXHCi27Md-UoFOnpJwAAAEw",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "score": 10,
+      "log_time": "2026-04-25T18:26:17.424 09:00",
+      "response_body_bytes": 982,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=x%27%2F%2A%2A%2FUNION%2F%2A%2A%2FSELECT%2F%2A%2A%2F1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%2F%2A%2A%2F--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 문자열에 주석 처리된 UNION SELECT 패턴과 인라인 주석이 포함되어 있어 전형적인 SQL 인젝션 시도로 보입니다. 응답이 500 오류이며 공격 토큰이 검색 엔드포인트에 직접 결합되어 있어 의심 강도가 높지만, 제공된 정보만으로 실제 DB 영향 여부까지는 확정할 수 없습니다.",
+      "evidence_fields": [
+        "쿼리 문자열의 UNION SELECT 패턴",
+        "인라인 주석(/**/) 사용",
+        "특수문자 비율 매우 높음",
+        "검색 엔드포인트(/rest/products/search)",
+        "HTTP 500 응답",
+        "응답 지연 및 오류 응답 정황",
+        "비어 있는 referer와 비브라우저성 user_agent"
+      ],
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "user_agent": "lab-b-set-evade-inline-comment-1",
+      "raw_request": "GET /rest/products/search?q=x'/**/UNION/**/SELECT/**/1,2,3,4,5,6,7,8,9/**/-- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:26:17.424 0000 request_id=aeyIuXHCi27Md-UoFOnpJwAAAEw error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x'/**/UNION/**/SELECT/**/1,2,3,4,5,6,7,8,9/**/-- HTTP/1.1\" uri=\"/rest/p...",
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 11,
+      "incident_ref": "request_id:aeyIa3HCi27Md-UoFOnpJQAAAEg|table:security|log_id:9545|candidate:3",
+      "dedup_key": "request_id:aeyIa3HCi27Md-UoFOnpJQAAAEg",
+      "duplicate_count": 1,
+      "request_id": "aeyIa3HCi27Md-UoFOnpJQAAAEg",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "medium",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 14,
+      "log_time": "2026-04-25T18:24:59.673 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=apple%27%20OR%20%271%27%3D%271%20%2D%2D",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "검색 API에 `q=apple' OR '1'='1 --` 형태의 전형적인 SQLi 페이로드가 포함되어 있어 인젝션 시도로 보는 것이 타당합니다. 다만 단일 요청 1건이고 응답이 200/JSON이라 실제 영향이나 성공 여부는 이 로그만으로 확인되지 않습니다.",
+      "evidence_fields": [
+        "query_string의 OR true 패턴",
+        "따옴표 종결과 SQL 주석(`--`) 사용",
+        "검색 엔드포인트에 공격 토큰 포함",
+        "url 인코딩된 공격 페이로드",
+        "응답 200 / application/json"
+      ],
+      "reason_hints": [
+        "sqli:or_true(+4)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "encoding:url_encoded_payload",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-evade-urlenc-1",
+      "raw_request": "GET /rest/products/search?q=apple' OR '1'='1 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:24:59.673 0000 request_id=aeyIa3HCi27Md-UoFOnpJQAAAEg error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=apple' OR '1'='1 -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=...",
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 12,
+      "incident_ref": "request_id:aeyI6nHCi27Md-UoFOnpKwAAAFI|table:security|log_id:9553|candidate:11",
+      "dedup_key": "request_id:aeyI6nHCi27Md-UoFOnpKwAAAFI",
+      "duplicate_count": 1,
+      "request_id": "aeyI6nHCi27Md-UoFOnpKwAAAFI",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "medium",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "score": 5,
+      "log_time": "2026-04-25T18:27:06.639 09:00",
+      "response_body_bytes": 998,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=apple%27%29%29",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "검색 파라미터에 닫는 따옴표와 괄호가 반복된 `q=apple'))` 형태가 보이고, 500 오류가 함께 발생해 SQL 구문을 흔드는 인젝션 시도로 해석하는 것이 타당합니다. 다만 제공된 정보만으로 실제 DB 영향이나 성공 여부는 확인되지 않으며, 애플리케이션 내부 오류로 인한 오탐 가능성도 있습니다.",
+      "evidence_fields": [
+        "검색 파라미터의 비정상 특수문자 조합",
+        "GET /rest/products/search 의 q 값",
+        "HTTP 500 서버 오류",
+        "오류 유발 정황",
+        "비어 있는 referer",
+        "비브라우저성 user-agent"
+      ],
+      "reason_hints": [
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "user_agent": "lab-b-set-chain-step-04",
+      "raw_request": "GET /rest/products/search?q=apple')) HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T09:27:06.639 0000 request_id=aeyI6nHCi27Md-UoFOnpKwAAAFI error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=apple')) HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=apple')...",
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    }
+  ],
+  "top_src_ips": [
+    {
+      "src_ip": "192.168.56.110",
+      "incident_count": 15,
+      "raw_row_count": 15,
+      "max_severity": "high",
+      "max_confidence": "high",
+      "top_verdicts": [
+        "suspicious_sqli",
+        "likely_false_positive"
+      ],
+      "top_uris": [
+        "/rest/products/search"
+      ],
+      "top_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "correlate_request_id"
+      ],
+      "known_asset": true
+    }
+  ],
+  "top_noise_groups": [],
+  "top_filtered_categories": [
+    {
+      "category": "low_signal_fuzzing",
+      "count": 2,
+      "share_pct": 100.0
+    }
+  ],
+  "top_out_of_candidate_recon": [
+    {
+      "category": "low_signal_fuzzing",
+      "count": 2,
+      "share_pct": 100.0
+    }
+  ],
+  "supporting_events": [
+    {
+      "supporting_reason": "nearby_high_signal_sqli_context",
+      "supporting_role": "temporal_context",
+      "source_table": "security",
+      "log_time": "2026-04-25T18:27:23.256 09:00",
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=How to use UNION in SQL",
+      "status_code": 200,
+      "response_body_bytes": 30,
+      "duration_us": 15855,
+      "ttfb_us": 14816,
+      "resp_content_type": "application/json",
+      "user_agent": "lab-b-set-fp-edu-union-1",
+      "raw_request": "GET /rest/products/search?q=How to use UNION in SQL HTTP/1.1",
+      "raw_request_target": "/rest/products/search?q=How+to+use+UNION+in+SQL",
+      "request_id": "aeyI-_U0ZgNjgUQucSRN2wAAAAo",
+      "reason_hints": [
+        "supporting:sql_keyword_fragment",
+        "supporting:status_delta_from_nearby_candidate",
+        "supporting:response_size_delta_from_nearby_candidate",
+        "supporting:same_uri_nearby_high_signal_sqli"
+      ],
+      "temporal_context_key": "192.168.56.110|/rest/products/search|2026-04-25T18:26:00+09:00",
+      "temporal_context_role": "temporal_context",
+      "nearby_candidate_count": 10
+    },
+    {
+      "supporting_reason": "nearby_high_signal_sqli_context",
+      "supporting_role": "temporal_context",
+      "source_table": "security",
+      "log_time": "2026-04-25T18:27:02.464 09:00",
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "query_string": "?q=apple''",
+      "status_code": 200,
+      "response_body_bytes": 30,
+      "duration_us": 11885,
+      "ttfb_us": 11437,
+      "resp_content_type": "application/json",
+      "user_agent": "lab-b-set-chain-step-02",
+      "raw_request": "GET /rest/products/search?q=apple'' HTTP/1.1",
+      "raw_request_target": "/rest/products/search?q=apple%27%27",
+      "request_id": "aeyI5vU0ZgNjgUQucSRN1wAAAAQ",
+      "reason_hints": [
+        "supporting:special_chars_or_quote_repetition",
+        "supporting:encoded_payload_trace",
+        "supporting:status_delta_from_nearby_candidate",
+        "supporting:response_size_delta_from_nearby_candidate",
+        "supporting:same_uri_nearby_high_signal_sqli"
+      ],
+      "temporal_context_key": "192.168.56.110|/rest/products/search|2026-04-25T18:26:00+09:00",
+      "temporal_context_role": "temporal_context",
+      "nearby_candidate_count": 10
+    }
+  ],
+  "stage1_errors_excerpt": [],
+  "asset_context": {
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "matched_known_assets": [
+      "192.168.56.110"
+    ],
+    "matched_known_asset_incident_count": 15,
+    "caution": "known asset IP 에서 발생한 요청은 내부 테스트, 자체 호출, 운영 점검 트래픽일 수 있으므로 공격자 단정에 주의"
+  },
+  "policy_notes": {
+    "routine_model_default": "gpt-5.4-mini",
+    "milestone_presentation_model_default": "gpt-5.4",
+    "raw_db_logs_are_not_sent_directly": true,
+    "noise_is_aggregated_before_llm": true,
+    "filtered_out_breakdown_is_preserved": true,
+    "dedupe_rule": "request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 incident 병합",
+    "out_of_candidate_recon_policy": {
+      "default_action": "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않음",
+      "reporting_rule": "stage2 에서는 후보 밖 탐색성 요청 섹션으로 고정 표기",
+      "promotion_review_rule": "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토"
+    },
+    "supporting_events_policy": {
+      "default_action": "supporting_events 는 개별 incident 가 아니라 문맥 정보로만 해석",
+      "temporal_rule": "같은 src_ip 와 같은 uri 또는 endpoint family 의 근접 시계열로 해석",
+      "decoded_hint_rule": "encoding:* reason_hints 는 우회성 인코딩 시도 보조 근거로만 사용",
+      "educational_sql_rule": "교육/문서 검색 문맥 hint 가 있으면 SQLi 단정을 낮추고 자연어 질의 가능성을 함께 검토"
+    }
+  }
+}

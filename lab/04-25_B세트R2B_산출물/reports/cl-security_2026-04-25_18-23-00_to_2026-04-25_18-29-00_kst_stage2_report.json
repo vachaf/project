@@ -1,0 +1,166 @@
+{
+  "meta": {
+    "generated_at": "2026-04-25T20:30:08.932+09:00",
+    "mode": "routine",
+    "provider": "anthropic",
+    "selected_model": "claude-haiku-4-5-20251001",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "base_url": "https://api.anthropic.com/v1",
+    "response_id": "msg_0169R1EGjyiXebLM1qVmaCSS",
+    "stop_reason": "end_turn",
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/cl-security_2026-04-25_18-23-00_to_2026-04-25_18-29-00_kst_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/cl-security_2026-04-25_18-23-00_to_2026-04-25_18-29-00_kst_llm_input.json"
+  },
+  "report": {
+    "report_title": "192.168.56.110 출발지 SQL 인젝션 의심 활동 분석 보고서",
+    "overall_assessment": "분석 기간(2026-04-25 18:23~18:29 UTC+9) 동안 192.168.56.110 IP에서 /rest/products/search 엔드포인트를 대상으로 14건의 SQL 인젝션 의심 요청이 확인되었습니다. 모든 시도가 동일 IP에서 출발했으며, known_asset 자산 IP 범위에 속하므로 내부 보안 테스트 또는 자동화 테스트 시나리오일 가능성을 우선 검토해야 합니다. 다만 다양한 우회 기법(인코딩, 대소문자 혼합, 인라인 주석)을 조합한 체계적인 패턴이 관찰되어 의도적 평가 또는 실제 공격 시도 양쪽 모두 검증이 필요합니다.",
+    "executive_summary": [
+      "192.168.56.110에서 6분간 15개 요청 중 14개가 SQL 인젝션 의심으로 분류됨(93% 의심률)",
+      "모든 의심 요청이 /rest/products/search 엔드포인트의 q 파라미터를 대상으로 UNION SELECT, OR 1=1, 인라인 주석 등 다양한 SQLi 패턴 사용",
+      "10건(71%)이 높음(high) 심각도로 분류되었으며, 4건(29%)이 중간(medium) 심각도. 500 오류 응답 8건, 200 성공 응답 6건",
+      "의도적 우회 기법 사용(인코딩, 혼합 대소문자, 화이트스페이스, 인라인 주석) 및 lab-* 시뮬레이션 도구 User-Agent 확인으로 내부 테스트 가능성 높음",
+      "supporting_events에서 자연어 SQL 학습 관련 쿼리(How to use UNION in SQL) 및 인접 시간대 단순 따옴표 테스트 확인으로 단계적 공격 또는 교육 테스트 문맥 고려 필요",
+      "필터 제외된 2건의 low_signal_fuzzing 요청도 동일 IP에서 발생했으나 기본적으로 후보 외 탐색성 요청으로 분류"
+    ],
+    "key_findings": [
+      {
+        "title": "SQL UNION SELECT 기반 인젝션 공격 패턴",
+        "detail": "상위 10개 incident 중 8개(80%)가 UNION SELECT 구문을 포함한 SQLi 시도로 확인됨. 원본 요청에서 명시적 SQL 문법(UNION SELECT 1,2,3... FROM sqlite_master, OR '1'='1)이 직접 삽입되었으며, 규칙 기반 점수(sqli:union_select +5, sqli:sql_comment +2)가 일관되게 높음. 서버가 500 오류로 응답한 경우(8건)는 주입된 SQL이 데이터베이스 쿼리 처리 단계에 도달했을 가능성을 강하게 시사하며, 200 응답(6건)은 쿼리가 실행되었을 수 있음을 암시합니다.",
+        "severity": "high"
+      },
+      {
+        "title": "Known Asset IP에서의 의심 활동 - 내부 테스트 vs 실제 공격 이분화 필요",
+        "detail": "모든 15개 요청이 known_asset 범위 내 192.168.56.110에서 출발했습니다. 이는 내부 보안 평가, 자동화 테스트, 또는 침해된 내부 시스템의 공격 기반으로 해석될 수 있습니다. User-Agent가 'lab-b-set-chain-step-*', 'lab-b-set-evade-*' 등 명시적 테스트 라벨을 포함한 점과 단계별 우회 기법 적용(whitespace, double-encoding, mixed-case, inline-comment)은 의도적인 보안 평가 시뮬레이션을 강하게 시사합니다. 다만 실제 침해 여부 확인을 위해 192.168.56.110의 소유자/용도, 요청 출발 프로세스, 관련 운영 티켓 검증이 필수입니다.",
+        "severity": "high"
+      },
+      {
+        "title": "다층적 우회 기법 사용 - 탐지 회피 의도 검증",
+        "detail": "분석 기간 내 요청들이 순차적으로 다양한 인코딩/우회 기법을 적용함이 관찰됨: (1) URL 인코딩 기본형, (2) 이중 인코딩(double_decoded_payload), (3) 혼합 대소문자(uNiOn SeLeCt), (4) 탭/개행 화이트스페이스 삽입(UNION%09SELECT), (5) SQL 인라인 주석(/**/). 이는 자동화된 테스트 프레임워크의 단계별 회귀 테스트 또는 탐지 우회 목적의 조직적 공격으로 모두 해석 가능합니다. supporting_events에서 'How to use UNION in SQL' 자연어 검색도 교육/학습 목적의 문맥을 부분적으로 뒷받침하나, 고신호 SQLi 시도와의 시간적 결합은 의도적 공격 연습의 신호로도 볼 수 있습니다.",
+        "severity": "high"
+      },
+      {
+        "title": "응답 상태 다양성 - 부분적 성공 신호",
+        "detail": "500 서버 오류 응답(8건, 53%)과 200 정상 응답(6건, 40%)이 혼재함. 500 응답은 주입된 SQL이 문법 오류를 유발하여 데이터베이스 처리 실패를 의미하며, 200 응답(특히 application/json 콘텐츠타입)은 쿼리가 실행되었거나 애플리케이션 fallback 로직이 실행됐을 가능성을 시사합니다. response_body_bytes가 30~145 바이트인 경우가 많아 실제 데이터 반환 가능성을 배제할 수 없으며, 특정 페이로드(예: rank 4, 9의 OR 1=1 공격)에서 200 응답이 집중되어 불리언 기반 블라인드 SQLi 성공을 암시할 수 있습니다.",
+        "severity": "high"
+      },
+      {
+        "title": "Supporting Events에서 교육/문맥 힌트와 고신호 공격의 시간적 결합",
+        "detail": "supporting_events 중 'How to use UNION in SQL' 자연어 쿼리(18:27:23)와 apple'' 단순 따옴표 테스트(18:27:02)는 동일 URI, 동일 IP, 고신호 SQLi 시도와 1분 이내의 시간 범위에 위치합니다. 이는 (1) SQL 학습 후 직접 공격 시도, (2) 단계적 오류 기반 테스트 또는 (3) 자동화 테스트 프레임워크의 문맥 검증 요청으로 해석됩니다. 'supporting:sql_keyword_fragment', 'educational_sql_search' 계열 힌트는 이 요청들을 자연어 검색으로 해석할 여지를 제공하므로, 단독으로는 공격 단정을 낮추되 고신호 incident와의 temporal chain 내에서는 의도적 공격 평가의 보조 근거로 활용해야 합니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "인코딩 기반 우회 시도 - 구체적 evasion 기법 검증",
+        "detail": "rank 11 incident(request_id: aeyIx3HCi27Md-UoFOnpKAAAAE0)에서 'encoding:double_decoded_payload', 'encoding:decoded_depth_2', 'encoding:double_decoded_sqli' 힌트가 명시됨. 원본 raw_request_target '...apple%2527%2520OR%25201%253D1...'는 이중 URL 인코딩을 포함하며, 디코딩 시 OR 1=1 논리식으로 복원됨. 이는 WAF/IDS가 단일 디코딩 후 필터링하는 상황을 우회하려는 명백한 의도로 해석되며, 실제 침해가 아닌 보안 평가라 하더라도 탐지 회피 기술 검증의 근거가 됩니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "후보 외 탐색성 요청(Out-of-Candidate Recon) - 낮은 신호 fuzzing 2건",
+        "detail": "필터 제외된 2건의 low_signal_fuzzing 요청이 top_filtered_categories 및 top_out_of_candidate_recon에 기록됨. 이들은 기본적으로 incident 로 승격하지 않으나, 동일 IP(192.168.56.110), 동일 시간대(18:23~18:29), 동일 엔드포인트(/rest/products/search) 범위 내에서 발생했으므로, 고신호 SQLi 공격 캠페인의 사전 정찰 또는 단계별 테스트 시나리오의 일부로 보조적으로 검토할 수 있습니다. 그러나 독립적으로는 '후보 외 탐색성 요청'으로 분류하여 mainline incident와 분리 표기합니다.",
+        "severity": "low"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:aeyI9_U0ZgNjgUQucSRN2gAAAAg|table:security|log_id:9559|candidate:0",
+        "request_id": "aeyI9_U0ZgNjgUQucSRN2gAAAAg",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "가장 높은 신호 강도(score:18)의 SQL 인젝션 시도. UNION SELECT에서 sqlite_master 메타 테이블을 명시적으로 참조하고 있어 데이터베이스 스키마 탈취 목적이 명백함. 500 오류 응답과 high confidence로 실제 SQLi 페이로드 특성이 강함. known_asset IP이므로 내부 보안 테스트일 가능성이 있으나, sqlite_master 직접 참조는 의도적 공격 시뮬레이션의 고급 단계로 평가됨."
+      },
+      {
+        "incident_ref": "request_id:aeyI8vU0ZgNjgUQucSRN2QAAAAc|table:security|log_id:9557|candidate:1",
+        "request_id": "aeyI8vU0ZgNjgUQucSRN2QAAAAc",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "두 번째 고신호 incident(score:14). UNION SELECT 1,2,3,4,5,6,7 패턴으로 컬럼 수 추측 공격 형태. 500 오류 응답은 주입된 SQL이 데이터베이스 처리 단계에서 오류를 유발했음을 의미하며, 공격 페이로드가 애플리케이션 필터링을 우회했을 가능성이 높음."
+      },
+      {
+        "incident_ref": "request_id:aeyI8HHCi27Md-UoFOnpLQAAAFY|table:security|log_id:9556|candidate:2",
+        "request_id": "aeyI8HHCi27Md-UoFOnpLQAAAFY",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "rank 3 incident. UNION SELECT 1,2,3,4,5 -- 패턴으로 컬럼 수 조정 시도 관찰. 동일 엔드포인트에서 순차적으로 컬럼 수를 감소시키며 테스트하는 체계적 접근이 감지되어, 단순 무작위 공격이 아닌 목표 지향적 SQLi 평가 또는 공격임을 시사."
+      },
+      {
+        "incident_ref": "request_id:aeyIa3HCi27Md-UoFOnpJQAAAEg|table:security|log_id:9545|candidate:3",
+        "request_id": "aeyIa3HCi27Md-UoFOnpJQAAAEg",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "주목할 점은 200 성공 응답과 application/json 콘텐츠타입 반환. apple' OR '1'='1 -- 패턴으로 전형적 불리언 기반 SQLi를 시도했으며, response_body_bytes:30으로 작은 응답이지만 실제 데이터 반환 가능성이 있음. 공격이 데이터베이스까지 도달했을 가능성이 높음."
+      },
+      {
+        "incident_ref": "request_id:aeyIx3HCi27Md-UoFOnpKAAAAE0|table:security|log_id:9548|candidate:9",
+        "request_id": "aeyIx3HCi27Md-UoFOnpKAAAAE0",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "medium",
+        "why_it_matters": "이중 URL 인코딩(double_decoded_payload) 시도로 인코딩 기반 탐지 우회 의도가 명백. apple%2527%2520OR%25201%253D1 패턴은 디코딩 후 OR 1=1 공격으로 복원되며, WAF bypass 능력 검증의 지표가 됨. 200 응답이지만 confidence는 high로 공격 의도가 확실함."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.110",
+        "reason": "15개 요청 모두(100%) 이 IP에서 출발. 14건이 suspicious_sqli, 1건이 likely_false_positive로 분류되어 93% 의심률. Known_asset 범위 내 IP로서 내부 테스트, 자동화 평가, 또는 침해된 내부 자산일 가능성 모두 검토 필요. User-Agent가 lab-* 시뮬레이션 도구 패턴을 명시하고, 우회 기법이 체계적으로 진행되어 의도적 보안 테스트 또는 고도화된 공격으로 양분 평가됨."
+      }
+    ],
+    "noise_interpretation": "noise_summary가 비어있으나 filtered_out_breakdown에 low_signal_fuzzing 2건이 기록됨. 이 2건은 동일 IP(192.168.56.110)의 동일 엔드포인트(/rest/products/search)에서 발생했으며, 고신호 SQLi 공격 시간대(18:23~18:29)와 겹침. 기본적으로 후보 외 탐색성 요청으로 분류하되, 동일 IP/시간대/엔드포인트 결합 하에서는 고신호 incident의 정찰 단계 또는 단계별 테스트 프레임워크의 일부로 보조적 검토 가능. Top_noise_groups가 비어있어 aggregate noise pattern은 없으나, 필터 제외된 개별 요청들의 세부 분포는 존재하므로 recommend_actions에 반영됨.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "192.168.56.110의 소유자/용도/관리자에게 직접 연락하여 해당 IP가 공식 보안 테스트 또는 자동화 평가 대상인지 즉시 확인",
+        "why": "모든 요청이 known_asset IP에서 출발했으며, lab-* User-Agent와 단계적 우회 기법이 내부 테스트를 강하게 시사함. 다만 공식 테스트인지 침해 여부인지 명확히 할 수 없으므로, 요청 출발 프로세스/담당자/관련 티켓 검증이 최우선 조치."
+      },
+      {
+        "priority": "P1",
+        "action": "/rest/products/search 엔드포인트의 q 파라미터에 대한 입력값 검증 및 parameterized query 사용 여부 긴급 감사",
+        "why": "14건의 SQLi 의심 요청이 모두 동일 엔드포인트/파라미터를 대상으로 하며, 500 에러 응답(8건) 및 200 성공 응답(6건) 혼재는 쿼리가 데이터베이스까지 도달했을 가능성을 강하게 시사. 실제 취약점 존재 여부 확인 및 즉시 패치 필요."
+      },
+      {
+        "priority": "P1",
+        "action": "해당 IP에서의 모든 데이터베이스 쿼리 로그 추출하여 SELECT * FROM sqlite_master 등 메타데이터 조회 기록 확인",
+        "why": "rank 1 incident에서 sqlite_master 직접 참조가 관찰되었으며, 200 응답을 받은 6개 요청에서 실제 데이터 탈취 여부를 판단하려면 DB 쿼리 로그 상관분석이 필수. response_body_bytes 30~145 바이트는 제한된 데이터만 추출되었을 가능성을 암시."
+      },
+      {
+        "priority": "P2",
+        "action": "192.168.56.110에 대해 응용 프로그램 계층 로그(application logs, 권한 상승, 파일 접근 기록) 및 네트워크 플로우(DNS, 외부 통신 시도) 수집하여 좌측 움직임(lateral movement) 여부 검증",
+        "why": "공식 테스트라 하더라도 실제 침해 가능성을 배제할 수 없으므로, 해당 시스템의 활동 전반을 감시하여 데이터 유출, 권한 상승, 또는 다른 시스템으로의 확산 신호 탐지 필요."
+      },
+      {
+        "priority": "P2",
+        "action": "WAF/IDS 규칙 점검: double_decoded_payload, inline comment(/**/)를 이용한 우회 기법에 대해 탐지 규칙이 작동했는지 재검토 및 필요시 규칙 강화",
+        "why": "rank 11(이중 인코딩)과 rank 10(인라인 주석) incident에서 의도적 탐지 회피 기법이 적용되었으나 모두 탐지됨. 규칙이 작동한 것으로 보이나, 향후 변형된 우회 기법에 대한 보호 강화 필요."
+      },
+      {
+        "priority": "P2",
+        "action": "Supporting events의 'How to use UNION in SQL' 자연어 쿼리와 고신호 SQLi 시도 간 시간 관계를 재검토하여, 교육 자료 활용 후 직접 공격 시도 패턴인지 또는 독립적 자연어 검색인지 분류",
+        "why": "supporting_events에 'supporting:sql_keyword_fragment', 'educational_sql_search' 힌트가 있어 단순 자연어 검색으로도 해석 가능하나, 1분 내 고신호 공격과의 시간 근접은 의도적 공격 선행 학습을 암시. 정확한 의도 판단을 위해 검색 기록 상관분석 필수."
+      },
+      {
+        "priority": "P3",
+        "action": "향후 보안 테스트가 수행될 경우, 사전에 명확한 티켓 등록, 테스트 범위/기간 정의, 결과 리뷰 프로세스 수립하여 오탐 및 혼동 최소화",
+        "why": "이번 분석에서 known_asset IP 여부만으로 테스트/공격 양쪽을 모두 열어두어야 했으므로, 공식 테스트라면 사전 공지 및 로깅 체계 개선으로 향후 분석 속도 및 신뢰성 향상 가능."
+      }
+    ],
+    "confidence_and_limitations": [
+      "Known_asset IP 포함으로 인한 이분화: 모든 요청이 192.168.56.110에서 출발했으며, lab-* User-Agent와 단계적 우회 기법은 내부 테스트를 강하게 시사하나, 공식 테스트 확인 전까지는 실제 침해 가능성을 완전히 배제할 수 없습니다.",
+      "응답 콘텐츠 부재로 인한 실제 데이터 탈취 여부 미확인: response_body_bytes가 30~145 바이트로 작지만, 실제 쿼리 결과인지 애플리케이션 fallback인지 원본 응답 본문 검토 없이 단정 불가.",
+      "Supporting events의 자연어 SQL 쿼리는 교육 목적 검색과 공격 선행 학습 양쪽으로 해석 가능: 'sql_keyword_fragment', 'educational_sql_search' 힌트는 학습 신호를 제공하나, 고신호 incident와의 시간 근접은 의도적 공격을 시사하므로 양쪽 문맥 병렬 검토 필요.",
+      "이중 인코딩(double_decoded_payload) 및 인라인 주석은 의도적 회피 기법으로 판단되나, 자동화 테스트 프레임워크의 회귀 테스트 단계일 수도 있어 최종 해석은 192.168.56.110 소유자 확인 후 결정.",
+      "필터 제외된 2건의 low_signal_fuzzing은 기본적으로 incident 승격을 하지 않으나, 동일 IP/시간대/엔드포인트 내에서 고신호 공격의 보조 문맥으로 간주 가능.",
+      "시간 윈도우가 6분(18:23~18:29 UTC+9)으로 제한되어 더 광범위한 공격 캠페인 또는 다른 IP/엔드포인트에서의 관련 활동 파악 불가. 시간 확대 및 네트워크 전체 상관분석 권장."
+    ],
+    "presentation_takeaway": "2026-04-25 18:23~18:29 UTC+9 분석 기간 동안 192.168.56.110 IP에서 /rest/products/search 엔드포인트를 집중 대상으로 한 SQL 인젝션 시도 14건(93% 의심률)이 탐지되었습니다. 모든 요청이 known_asset IP에서 출발하고 lab-* User-Agent 및 단계적 우회 기법(인코딩, 대소문자 혼합, 화이트스페이스, 인라인 주석)이 사용되어 공식 보안 테스트일 가능성이 높으나, 최종 확인 전까지는 실제 침해 가능성도 배제할 수 없습니다. **즉시 조치**: (1) 192.168.56.110 관리자에게 공식 테스트 여부 확인, (2) /rest/products/search 엔드포인트의 입력값 검증 및 SQLi 취약점 감사, (3) 데이터베이스 쿼리 로그 분석하여 메타데이터 조회 및 데이터 탈취 기록 확인. 공식 테스트로 확인되면 테스트 결과와 대조하여 검증하고, 미확인 시 해당 시스템의 전체 활동 감시 강화 권장."
+  }
+}

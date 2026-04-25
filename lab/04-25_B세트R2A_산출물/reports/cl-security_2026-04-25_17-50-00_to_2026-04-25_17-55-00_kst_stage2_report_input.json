@@ -1,0 +1,779 @@
+{
+  "analysis_context": {
+    "query_timezone": "Asia/Seoul",
+    "window": {
+      "start": "2026-04-25T17:50:00.000+09:00",
+      "end_exclusive": "2026-04-25T17:55:00.000+09:00"
+    },
+    "source_exported_at": "2026-04-25T17:55:11.253+09:00",
+    "source_prepared_at": "2026-04-25T18:12:00.865+09:00",
+    "stage1_generated_at": "2026-04-25T18:13:18.070+09:00",
+    "mode": "routine",
+    "selected_model": "claude-haiku-4-5-20251001"
+  },
+  "pipeline_counts": {
+    "total_exported_rows": 17,
+    "candidate_rows": 13,
+    "distinct_incident_count": 13,
+    "filtered_out_rows": 4,
+    "filtered_out_non_aggregated_rows": 4,
+    "noise_group_count": 0,
+    "stage1_success_count": 13,
+    "stage1_error_count": 0
+  },
+  "distributions": {
+    "verdicts": {
+      "suspicious_sqli": 13
+    },
+    "severities": {
+      "high": 12,
+      "medium": 1
+    },
+    "source_tables": {
+      "security": 13
+    },
+    "recommended_actions": {
+      "investigate_immediately": 13,
+      "review_raw_log": 13,
+      "review_error_log": 1,
+      "correlate_src_ip": 11,
+      "correlate_request_id": 3,
+      "rate_limit_or_block": 1
+    },
+    "filtered_out_breakdown": {
+      "low_signal_fuzzing": 4
+    }
+  },
+  "top_incidents": [
+    {
+      "rank": 1,
+      "incident_ref": "request_id:aeyAiHHCi27Md-UoFOnpGwAAAE0|table:security|log_id:9533|candidate:1",
+      "dedup_key": "request_id:aeyAiHHCi27Md-UoFOnpGwAAAE0",
+      "duplicate_count": 1,
+      "request_id": "aeyAiHHCi27Md-UoFOnpGwAAAE0",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 500,
+      "score": 16,
+      "log_time": "2026-04-25T17:51:20.171 09:00",
+      "response_body_bytes": 942,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/products/search?q=%27+AND+1%3D2+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 파라미터에서 작은따옴표 종료, AND 1=2 논리 연산자, SQL 주석(--) 등 전형적인 SQL 인젝션 페이로드가 명확히 관찰된다. 서버가 500 오류를 반환한 것은 악의적 쿼리가 백엔드 데이터베이스에 도달하여 구문 오류를 발생시켰음을 시사하며, user_agent 문자열('lab-b-set-blind-bool-quote-false-1')이 SQLi 블라인드 테스트 도구임을 강하게 암시한다.",
+      "evidence_fields": [
+        "query_string: ' AND 1=2 -- (작은따옴표 종료, AND 논리 연산자, SQL 주석)",
+        "status_code: 500 (악의적 쿼리로 인한 DB 구문 오류 가능성)",
+        "user_agent: lab-b-set-blind-bool-quote-false-1 (SQLi 블라인드 테스트 도구 명칭)",
+        "uri: /rest/products/search (검색 기능, 전형적인 SQLi 대상)",
+        "reason_hints: sqli:quote_termination(+4), sqli:and_true(+3), sqli:sql_comment(+2)",
+        "referer: 빈값 (비브라우저 요청)",
+        "resp_content_type: text/html (HTML 응답, 앱이 오류 페이지 반환)",
+        "response_body_bytes: 942 (오류 메시지 포함 응답)"
+      ],
+      "reason_hints": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "user_agent": "lab-b-set-blind-bool-quote-false-1",
+      "raw_request": "GET /rest/products/search?q=' AND 1=2 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:51:20.171 0000 request_id=aeyAiHHCi27Md-UoFOnpGwAAAE0 error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=' AND 1=2 -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=' A...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "review_raw_log",
+        "review_error_log",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 2,
+      "incident_ref": "request_id:aeyAZ3HCi27Md-UoFOnpGAAAAEc|table:security|log_id:9529|candidate:2",
+      "dedup_key": "request_id:aeyAZ3HCi27Md-UoFOnpGAAAAEc",
+      "duplicate_count": 1,
+      "request_id": "aeyAZ3HCi27Md-UoFOnpGAAAAEc",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 10,
+      "log_time": "2026-04-25T17:50:47.005 09:00",
+      "response_body_bytes": 18662,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+OR+1%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 파라미터에서 SQL 인젝션의 특징적 패턴(OR 1=1, SQL 주석--)이 명확히 관찰되며, 규칙 기반 전처리에서도 sqli_or_true와 sqli_sql_comment 스코어를 획득했습니다. 응답이 application/json이고 status_code 200으로 반환된 점은 실제 쿼리 실행 후 결과 반환의 가능성을 시사합니다. 요청의 user_agent('lab-b-set-blind-bool-xclose-true-1')는 공격 실험 환경 특징을 보여주며, 전체적으로 SQL 인젝션 시도로 판단하는 것이 가장 타당합니다.",
+      "evidence_fields": [
+        "query_string: x')) OR 1=1 --",
+        "verdict_hint: sqli",
+        "reason_hints: sqli:or_true(+4), sqli:sql_comment(+2)",
+        "status_code: 200 with application/json response",
+        "user_agent: lab-b-set-blind-bool-xclose-true-1",
+        "uri: /rest/products/search (쿼리 엔드포인트)",
+        "response_body_bytes: 18662 (정상 데이터 응답 규모)",
+        "특수문자 비율 높음",
+        "SQL 주석 처리 토큰 포함"
+      ],
+      "reason_hints": [
+        "sqli:or_true(+4)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-blind-bool-xclose-true-1",
+      "raw_request": "GET /rest/products/search?q=x')) OR 1=1 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:50:47.005 0000 request_id=aeyAZ3HCi27Md-UoFOnpGAAAAEc error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) OR 1=1 -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=x...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "correlate_src_ip",
+        "review_raw_log"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 3,
+      "incident_ref": "request_id:aeyArXHCi27Md-UoFOnpIAAAAFc|table:security|log_id:9539|candidate:3",
+      "dedup_key": "request_id:aeyArXHCi27Md-UoFOnpIAAAAFc",
+      "duplicate_count": 1,
+      "request_id": "aeyArXHCi27Md-UoFOnpIAAAAFc",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 9,
+      "log_time": "2026-04-25T17:51:57.033 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+1%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 파라미터에서 SQL 인젝션 공격의 전형적 패턴이 감지되었습니다. 닫힌 작은따옴표와 괄호, AND 1=1 논리식, SQL 주석(--)이 모두 포함되어 있으며, 응답 상태 200과 JSON 콘텐츠 타입은 서버가 쿼리를 처리했음을 시사합니다. 규칙 기반 점수(9점)와 복합 힌트들이 의도적인 SQLi 시도를 강력히 지지합니다.",
+      "evidence_fields": [
+        "쿼리 스트링: x')) AND 1=1 --",
+        "SQL 주석 패턴 감지 (+2점)",
+        "AND 1=1 참 조건식 감지 (+3점)",
+        "특수문자 비율 매우 높음 (+1점)",
+        "REST 검색 엔드포인트 + 공격 토큰 (+2점)",
+        "사용자 에이전트: lab-b-set-time-sqli-base-3 (테스트 시그니처)",
+        "HTTP 상태 200 (쿼리 처리됨)",
+        "응답 콘텐츠 타입: application/json",
+        "응답 바디: 30 바이트 (데이터 반환 가능성)",
+        "규칙 기반 사전 필터 점수: 9/10"
+      ],
+      "reason_hints": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-time-sqli-base-3",
+      "raw_request": "GET /rest/products/search?q=x')) AND 1=1 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:51:57.033 0000 request_id=aeyArXHCi27Md-UoFOnpIAAAAFc error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) AND 1=1 -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "correlate_src_ip",
+        "review_raw_log"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 4,
+      "incident_ref": "request_id:aeyArHHCi27Md-UoFOnpHwAAAFU|table:security|log_id:9538|candidate:4",
+      "dedup_key": "request_id:aeyArHHCi27Md-UoFOnpHwAAAFU",
+      "duplicate_count": 1,
+      "request_id": "aeyArHHCi27Md-UoFOnpHwAAAFU",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 9,
+      "log_time": "2026-04-25T17:51:56.976 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+1%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 문자열에 SQL 인젝션 특징인 닫는 괄호, AND 1=1 논리 조건, SQL 주석(--)이 명확히 포함되어 있습니다. /rest/products/search 엔드포인트는 검색 기능으로 사용자 입력을 데이터베이스 쿼리에 직접 전달할 가능성이 높으며, 200 상태 코드와 application/json 응답은 서버가 요청을 처리했음을 의미합니다. 규칙 기반 힌트(sqli:and_true, sqli:sql_comment)와 실제 페이로드가 일치합니다.",
+      "evidence_fields": [
+        "query_string: x')) AND 1=1 --",
+        "verdict_hint: sqli",
+        "reason_hints: sqli:and_true(+3), sqli:sql_comment(+2)",
+        "uri: /rest/products/search (검색 기능 엔드포인트)",
+        "user_agent: lab-b-set-time-sqli-base-2 (테스트 레이블 포함)",
+        "status_code: 200 (요청 정상 처리됨)",
+        "resp_content_type: application/json",
+        "score: 9 (높은 의심도)",
+        "request_id: aeyArHHCi27Md-UoFOnpHwAAAFU"
+      ],
+      "reason_hints": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-time-sqli-base-2",
+      "raw_request": "GET /rest/products/search?q=x')) AND 1=1 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:51:56.976 0000 request_id=aeyArHHCi27Md-UoFOnpHwAAAFU error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) AND 1=1 -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "review_raw_log",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 5,
+      "incident_ref": "request_id:aeyArHHCi27Md-UoFOnpHgAAAFM|table:security|log_id:9537|candidate:5",
+      "dedup_key": "request_id:aeyArHHCi27Md-UoFOnpHgAAAFM",
+      "duplicate_count": 1,
+      "request_id": "aeyArHHCi27Md-UoFOnpHgAAAFM",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 9,
+      "log_time": "2026-04-25T17:51:56.928 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+1%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 문자열에서 SQL 인젝션 공격의 특징적인 패턴이 명확하게 관찰됩니다. 작은따옴표 이스케이프(')), AND 1=1 논리 연산, SQL 주석(--)이 결합되어 있으며, 규칙 기반 점수(9점)와 sqli 힌트, 그리고 user_agent의 'lab-b-set-time-sqli-base-1' 식별자가 의도적인 SQLi 테스트를 강하게 시사합니다. 200 응답과 application/json 콘텐츠 타입은 쿼리가 데이터베이스 백엔드에 전달되어 처리되었을 가능성을 의미합니다.",
+      "evidence_fields": [
+        "query_string에서 x')) AND 1=1 -- 패턴 발견",
+        "규칙 기반 점수 9점, sqli:and_true(+3), sqli:sql_comment(+2) 힌트",
+        "user_agent 값 'lab-b-set-time-sqli-base-1'이 테스트 벡터를 암시",
+        "status_code 200 with application/json 응답",
+        "/rest/products/search 엔드포인트는 검색 쿼리 기반 데이터 조회",
+        "response_body_bytes 30으로 데이터베이스 반응 확인",
+        "duration_us 18949로 백엔드 처리 지연 관찰"
+      ],
+      "reason_hints": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-time-sqli-base-1",
+      "raw_request": "GET /rest/products/search?q=x')) AND 1=1 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:51:56.928 0000 request_id=aeyArHHCi27Md-UoFOnpHgAAAFM error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) AND 1=1 -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "correlate_src_ip",
+        "review_raw_log"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 6,
+      "incident_ref": "request_id:aeyAb_U0ZgNjgUQucSRN0wAAABU|table:security|log_id:9530|candidate:6",
+      "dedup_key": "request_id:aeyAb_U0ZgNjgUQucSRN0wAAABU",
+      "duplicate_count": 1,
+      "request_id": "aeyAb_U0ZgNjgUQucSRN0wAAABU",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 9,
+      "log_time": "2026-04-25T17:50:55.269 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+1%3D2+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 파라미터에 SQL 인젝션 패턴이 명확히 포함되어 있습니다. x')) AND 1=2 -- 구문은 전형적인 블라인드 Boolean 기반 SQLi 테스트이며, 규칙 기반 점수(9점)와 다중 SQLi 힌트(AND_true, SQL 주석, 특수문자 비율)가 이를 뒷받침합니다. 200 상태 코드와 application/json 응답이 백엔드 데이터베이스 쿼리가 실행되었음을 시사합니다.",
+      "evidence_fields": [
+        "query_string: x')) AND 1=2 --",
+        "score: 9 (높은 의심도)",
+        "reason_hints: sqli:and_true, sqli:sql_comment",
+        "uri: /rest/products/search (쿼리 기반 검색 엔드포인트)",
+        "status_code: 200 (쿼리 실행 완료)",
+        "resp_content_type: application/json (정상 데이터 응답)",
+        "user_agent: lab-b-set-blind-bool-xclose-false-1 (테스트용 에이전트)",
+        "response_body_bytes: 30 (응답 크기 작음, 조작된 조건의 결과)",
+        "duration_us: 24158 (응답 시간 정상)",
+        "verdict_hint: sqli"
+      ],
+      "reason_hints": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-blind-bool-xclose-false-1",
+      "raw_request": "GET /rest/products/search?q=x')) AND 1=2 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:50:55.269 0000 request_id=aeyAb_U0ZgNjgUQucSRN0wAAABU error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) AND 1=2 -- HTTP/1.1\" uri=\"/rest/products/search\" query_string=\"?q=...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "correlate_request_id",
+        "review_raw_log"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 7,
+      "incident_ref": "request_id:aeyA3XHCi27Md-UoFOnpJAAAAEY|table:security|log_id:9544|candidate:7",
+      "dedup_key": "request_id:aeyA3XHCi27Md-UoFOnpJAAAAEY",
+      "duplicate_count": 1,
+      "request_id": "aeyA3XHCi27Md-UoFOnpJAAAAEY",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 6,
+      "log_time": "2026-04-25T17:52:45.924 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+length%28hex%28randomblob%2830000000%29%29%29%29%3E0+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 문자열에서 SQL 주석(--), 괄호 폐쇄 기호('))), SELECT 서브쿼리, randomblob() 함수 호출 등 SQLi 공격의 전형적 패턴이 명확하게 드러난다. 특히 의도적으로 리소스 집약적인 randomblob(30000000) 호출로 보아 시간 기반 또는 오류 기반 SQLi 탐사 시도로 판단된다. 응답 상태 200과 application/json 콘텐츠 타입은 백엔드가 정상 처리했음을 시사하나, 실제 SQL 명령 실행 여부와 관계없이 공격 의도는 명백하다.",
+      "evidence_fields": [
+        "SQL 주석 시퀀스('--'): query_string에서 분명히 보임",
+        "괄호 폐쇄 기호('))): 따옴표 탈출 및 쿼리 구조 변조 시도",
+        "SELECT 서브쿼리: 명시적 SELECT length(hex(randomblob(...)))>0 구성",
+        "리소스 집약적 함수: randomblob(30000000)으로 시간 기반/오류 기반 탐사 의도",
+        "query_endpoint_with_attack_tokens 힌트: 규칙 기반 전처리에서 +2점 할당",
+        "sqli:sql_comment 힌트: SQL 주석 패턴 검출 +2점",
+        "long_query 힌트: 길이가 긴 쿼리 +1점",
+        "high special_char_ratio: 특수문자 비율 높음 +1점",
+        "사용자 에이전트: 'lab-b-set-time-blob-highload-30m-1' (테스트/탐사 도구 유사)",
+        "duration_us=18570, ttfb_us=18109: 처리 시간 근거(리소스 소비 수행 가능성)"
+      ],
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-time-blob-highload-30m-1",
+      "raw_request": "GET /rest/products/search?q=x')) AND (SELECT length(hex(randomblob(30000000))))>0 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:52:45.924 0000 request_id=aeyA3XHCi27Md-UoFOnpJAAAAEY error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) AND (SELECT length(hex(randomblob(30000000))))>0 -- HTTP/1.1\" uri=...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "correlate_src_ip",
+        "review_raw_log",
+        "rate_limit_or_block"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 8,
+      "incident_ref": "request_id:aeyAz3HCi27Md-UoFOnpIwAAAEQ|table:security|log_id:9543|candidate:8",
+      "dedup_key": "request_id:aeyAz3HCi27Md-UoFOnpIwAAAEQ",
+      "duplicate_count": 1,
+      "request_id": "aeyAz3HCi27Md-UoFOnpIwAAAEQ",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 6,
+      "log_time": "2026-04-25T17:52:31.314 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+length%28hex%28randomblob%2810000000%29%29%29%29%3E0+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 파라미터에서 SQL 주석(--), 닫는 따옴표, SELECT 문, randomblob() 함수 등 명확한 SQLi 페이로드 특징이 확인됩니다. 사용자 에이전트('lab-b-set-time-delay-blob-10m-1')도 의도적인 시간 지연 테스트 시나리오를 암시하며, 규칙 엔진이 sql_comment(+2)와 query_endpoint_with_attack_tokens(+2)로 높은 점수를 부여했습니다. 응답이 application/json으로 정상 처리되었으나(status 200), 이는 백엔드에서 쿼리 실행 시간 또는 특정 동작을 유도하려는 시간 기반(Time-based) SQLi 시도로 해석됩니다.",
+      "evidence_fields": [
+        "query_string에 SQL 주석 기호(--) 포함",
+        "쿼리에 SELECT, length(), hex(), randomblob() 등 SQLi 키워드",
+        "닫는 따옴표와 AND 조건으로 보이는 정상 쿼리 구조 변조",
+        "user_agent = 'lab-b-set-time-delay-blob-10m-1' (의도적 시간 지연 테스트 식별)",
+        "규칙 엔진 점수 6점, sqli:sql_comment(+2), query_endpoint_with_attack_tokens(+2)",
+        "duration_us = 29779 (약 30ms, 시간 지연 페이로드 실행 시간으로 부합)",
+        "/rest/products/search 엔드포인트는 검색 기능(잠재적 동적 쿼리 사용)",
+        "response_body_bytes = 30 (매우 짧은 응답, 에러 또는 의도적 결과 반환 가능)"
+      ],
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-time-delay-blob-10m-1",
+      "raw_request": "GET /rest/products/search?q=x')) AND (SELECT length(hex(randomblob(10000000))))>0 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:52:31.314 0000 request_id=aeyAz3HCi27Md-UoFOnpIwAAAEQ error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) AND (SELECT length(hex(randomblob(10000000))))>0 -- HTTP/1.1\" uri=...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "correlate_src_ip",
+        "review_raw_log"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 9,
+      "incident_ref": "request_id:aeyAx_U0ZgNjgUQucSRN1QAAAAA|table:security|log_id:9542|candidate:9",
+      "dedup_key": "request_id:aeyAx_U0ZgNjgUQucSRN1QAAAAA",
+      "duplicate_count": 1,
+      "request_id": "aeyAx_U0ZgNjgUQucSRN1QAAAAA",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 6,
+      "log_time": "2026-04-25T17:52:23.548 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+length%28hex%28randomblob%285000000%29%29%29%29%3E0+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 파라미터에서 SQL 인젝션 구문이 명확히 식별됨. 닫힌 따옴표와 괄호, SQL 주석(--), randomblob() 함수 등 SQLite 방언의 페이로드가 포함되어 있으며, 응답이 정상 JSON 형식(application/json, 200 OK)으로 반환된 점은 쿼리가 데이터베이스 백엔드까지 도달했음을 시사함. 의도적인 시간 지연 공격(Time-based Blind SQLi)으로 보임.",
+      "evidence_fields": [
+        "쿼리: x')) AND (SELECT length(hex(randomblob(5000000))))>0 --",
+        "SQL 주석 처리 기법 감지(--)",
+        "닫힌 따옴표/괄호로 원문 쿼리 탈출 시도",
+        "randomblob() 함수 - SQLite 시간 지연 페이로드",
+        "응답 상태 200, Content-Type: application/json",
+        "특수문자 비율 높음, 쿼리 엔드포인트",
+        "요청 시간 36.6ms - 의도적 지연 의심",
+        "User-Agent: lab-b-set-time-delay-blob-5m-1 (실험 환경 표시)"
+      ],
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-time-delay-blob-5m-1",
+      "raw_request": "GET /rest/products/search?q=x')) AND (SELECT length(hex(randomblob(5000000))))>0 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:52:23.548 0000 request_id=aeyAx_U0ZgNjgUQucSRN1QAAAAA error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) AND (SELECT length(hex(randomblob(5000000))))>0 -- HTTP/1.1\" uri=\"...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "review_raw_log",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 10,
+      "incident_ref": "request_id:aeyAwHHCi27Md-UoFOnpIgAAAEI|table:security|log_id:9541|candidate:10",
+      "dedup_key": "request_id:aeyAwHHCi27Md-UoFOnpIgAAAEI",
+      "duplicate_count": 1,
+      "request_id": "aeyAwHHCi27Md-UoFOnpIgAAAEI",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 6,
+      "log_time": "2026-04-25T17:52:16.041 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+length%28hex%28randomblob%281000000%29%29%29%29%3E0+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 파라미터에서 SQL 주석 구문(--), SQL 함수(SELECT, length, hex, randomblob), 따옴표 이스케이프('))로 구성된 전형적인 SQLi 페이로드가 명확하게 확인됨. 200 응답과 30바이트 JSON 응답에도 불구하고, 시간 지연 공격 의도(randomblob(1000000))와 user_agent('lab-b-set-time-delay-blob-1m-1')가 일관되어 공격자 의도가 명백함. 실제 DB 손상 여부보다 적극적인 SQLi 시도 자체가 고위험 징후임.",
+      "evidence_fields": [
+        "query_string: SQL 주석(--) 및 SELECT/length/hex/randomblob 함수",
+        "SQL 인젝션 페이로드 구조: x')) AND (SELECT ...)",
+        "reason_hints: sqli:sql_comment(+2), query_endpoint_with_attack_tokens(+2)",
+        "user_agent: 'lab-b-set-time-delay-blob-1m-1' (시간 지연 공격 표시)",
+        "ttfb_us: 15577 (상대적으로 긴 응답 시간)",
+        "status_code 200 but 30바이트 응답 (비정상적으로 짧음)",
+        "resp_content_type: application/json (쿼리 엔드포인트 특성)"
+      ],
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-time-delay-blob-1m-1",
+      "raw_request": "GET /rest/products/search?q=x')) AND (SELECT length(hex(randomblob(1000000))))>0 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:52:16.041 0000 request_id=aeyAwHHCi27Md-UoFOnpIgAAAEI error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) AND (SELECT length(hex(randomblob(1000000))))>0 -- HTTP/1.1\" uri=\"...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "correlate_request_id",
+        "review_raw_log"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 11,
+      "incident_ref": "request_id:aeyAuHHCi27Md-UoFOnpIQAAAEA|table:security|log_id:9540|candidate:11",
+      "dedup_key": "request_id:aeyAuHHCi27Md-UoFOnpIQAAAEA",
+      "duplicate_count": 1,
+      "request_id": "aeyAuHHCi27Md-UoFOnpIQAAAEA",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 6,
+      "log_time": "2026-04-25T17:52:08.989 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+length%28hex%28randomblob%28500000%29%29%29%29%3E0+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 문자열에 SQL 인젝션 공격의 명확한 특징이 포함되어 있습니다. SQL 주석(--), 폐쇄된 따옴표 문자열('))'), SELECT 서브쿼리, 시간 지연 페이로드(randomblob(500000))가 모두 관찰되며, 이는 시간 기반 블라인드 SQL 인젝션 공격 패턴과 일치합니다. 응답 상태 200과 application/json 콘텐츠 타입은 서버가 요청을 처리했음을 시사하며, 테스트 목적의 user_agent(lab-b-set-time-delay-blob-500k-1)는 의도적인 공격 시뮬레이션 특성을 강화합니다.",
+      "evidence_fields": [
+        "query_string: SQL 주석(--) 포함",
+        "query_string: 닫힌 따옴표와 괄호 시퀀스(''))",
+        "query_string: SELECT 서브쿼리 및 randomblob() 함수",
+        "query_string: 시간 지연 페이로드(length > 0 조건)",
+        "user_agent: lab-b-set-time-delay-blob-500k-1 (테스트/공격 시뮬레이션 명시)",
+        "endpoint: /rest/products/search (검색 쿼리 파라미터 기반 API)",
+        "status_code: 200 (서버 처리 확인)",
+        "resp_content_type: application/json (API 응답)",
+        "verdict_hint: sqli:sql_comment(+2), query_endpoint_with_attack_tokens(+2)",
+        "duration_us: 23195 (처리 시간 기록됨)"
+      ],
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-time-delay-blob-500k-1",
+      "raw_request": "GET /rest/products/search?q=x')) AND (SELECT length(hex(randomblob(500000))))>0 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:52:08.989 0000 request_id=aeyAuHHCi27Md-UoFOnpIQAAAEA error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) AND (SELECT length(hex(randomblob(500000))))>0 -- HTTP/1.1\" uri=\"/...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "review_raw_log",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 12,
+      "incident_ref": "request_id:aeyAdnHCi27Md-UoFOnpGQAAAEk|table:security|log_id:9531|candidate:12",
+      "dedup_key": "request_id:aeyAdnHCi27Md-UoFOnpGQAAAEk",
+      "duplicate_count": 1,
+      "request_id": "aeyAdnHCi27Md-UoFOnpGQAAAEk",
+      "src_ip": "192.168.56.110",
+      "verdict": "suspicious_sqli",
+      "severity": "high",
+      "confidence": "high",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "GET",
+      "uri": "/rest/products/search",
+      "status_code": 200,
+      "score": 6,
+      "log_time": "2026-04-25T17:51:02.995 09:00",
+      "response_body_bytes": 30,
+      "resp_content_type": "application/json",
+      "raw_request_target": "/rest/products/search?q=x%27%29%29+AND+%28SELECT+1%29%3D1+--",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "쿼리 파라미터에서 SQL 주석(--), 따옴표 이스케이프, SELECT 서브쿼리 등 전형적인 SQL 인젝션 페이로드가 명확히 포함되어 있습니다. 응답 상태 코드 200과 JSON 응답 타입이지만, 요청 자체가 검증된 공격 기법을 사용하고 있으며 user_agent가 \"lab-b-set-blind-subquery-1\"로 테스트 목적을 시사합니다.",
+      "evidence_fields": [
+        "query_string: x')) AND (SELECT 1)=1 -- (SQL 주석 및 서브쿼리 패턴)",
+        "reason_hints: sqli:sql_comment(+2), query_endpoint_with_attack_tokens(+2)",
+        "user_agent: lab-b-set-blind-subquery-1 (테스트/공격 도구 특성)",
+        "endpoint: /rest/products/search (검색 기능 - SQLi 취약점 일반적)",
+        "special_char_ratio_very_high: 규칙 기반 탐지 점수 누적",
+        "status_code 200: 응답 수신하나 SQL 인젝션 시도 자체는 명확함",
+        "resp_content_type: application/json (정상 응답 형식이나 페이로드는 SQLi)",
+        "duration_us: 25350 (평상시보다 약간 길 수 있으나 서브쿼리 처리 가능성)"
+      ],
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "user_agent": "lab-b-set-blind-subquery-1",
+      "raw_request": "GET /rest/products/search?q=x')) AND (SELECT 1)=1 -- HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-04-25T08:51:02.995 0000 request_id=aeyAdnHCi27Md-UoFOnpGQAAAEk error_link_id=- vhost=localhost src_ip=192.168.56.110 peer_ip=192.168.56.110 method=GET raw_request=\"GET /rest/products/search?q=x')) AND (SELECT 1)=1 -- HTTP/1.1\" uri=\"/rest/products/search\" query_st...",
+      "recommended_actions": [
+        "investigate_immediately",
+        "correlate_src_ip",
+        "review_raw_log"
+      ],
+      "known_asset": true
+    }
+  ],
+  "top_src_ips": [
+    {
+      "src_ip": "192.168.56.110",
+      "incident_count": 13,
+      "raw_row_count": 13,
+      "max_severity": "high",
+      "max_confidence": "high",
+      "top_verdicts": [
+        "suspicious_sqli"
+      ],
+      "top_uris": [
+        "/rest/products/search"
+      ],
+      "top_actions": [
+        "investigate_immediately",
+        "review_raw_log",
+        "correlate_src_ip"
+      ],
+      "known_asset": true
+    }
+  ],
+  "top_noise_groups": [],
+  "top_filtered_categories": [
+    {
+      "category": "low_signal_fuzzing",
+      "count": 4,
+      "share_pct": 100.0
+    }
+  ],
+  "top_out_of_candidate_recon": [
+    {
+      "category": "low_signal_fuzzing",
+      "count": 4,
+      "share_pct": 100.0
+    }
+  ],
+  "stage1_errors_excerpt": [],
+  "asset_context": {
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "matched_known_assets": [
+      "192.168.56.110"
+    ],
+    "matched_known_asset_incident_count": 13,
+    "caution": "known asset IP 에서 발생한 요청은 내부 테스트, 자체 호출, 운영 점검 트래픽일 수 있으므로 공격자 단정에 주의"
+  },
+  "policy_notes": {
+    "routine_model_default": "gpt-5.4-mini",
+    "milestone_presentation_model_default": "gpt-5.4",
+    "raw_db_logs_are_not_sent_directly": true,
+    "noise_is_aggregated_before_llm": true,
+    "filtered_out_breakdown_is_preserved": true,
+    "dedupe_rule": "request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 incident 병합",
+    "out_of_candidate_recon_policy": {
+      "default_action": "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않음",
+      "reporting_rule": "stage2 에서는 후보 밖 탐색성 요청 섹션으로 고정 표기",
+      "promotion_review_rule": "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토"
+    }
+  }
+}
