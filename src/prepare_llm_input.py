@@ -29,6 +29,7 @@ LLM 분석용 정제 산출물을 생성하는 전처리 스크립트.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import re
@@ -213,6 +214,44 @@ SQLI_SCHEMA_ACCESS_PATTERN = re.compile(r"(?i)\b(?:information_schema|sqlite_mas
 SQLI_FROM_USERS_PATTERN = re.compile(r"(?i)\bfrom\b\s+users\b")
 SQLI_COMMENT_PATTERN = re.compile(r"(?i)(--|#|/\*)")
 REPEATED_QUOTE_PATTERN = re.compile(r"(?i)(?:'|%27|%2527|\"|%22){2,}")
+HTML_ENTITY_RE = re.compile(r"&#x?[0-9a-fA-F]+;", re.IGNORECASE)
+SCRIPT_TAG_PATTERN = re.compile(r"(?i)<\s*script\b")
+SCRIPT_TAG_CAPTURE_RE = re.compile(r"<\s*([a-z]+)\b", re.IGNORECASE)
+EVENT_HANDLER_ASSIGNMENT_RE = re.compile(r"(?i)\b(on[a-z0-9_]+)\s*=")
+JAVASCRIPT_PROTOCOL_RE = re.compile(r"(?i)javascript\s*:")
+BROWSER_DATA_ACCESS_RE = re.compile(r"(?i)(document\.cookie|localStorage|sessionStorage)")
+EXTERNAL_NAVIGATION_RE = re.compile(
+    r"(?i)(document\.location|window\.location|location\.href|location\s*=|fetch\s*\(|new\s+Image\s*\(\s*\)\s*\.src|navigator\.sendBeacon\s*\()"
+)
+EXTERNAL_URL_RE = re.compile(r"(?i)\b(?:https?:)?//[^\s\"'<>]+")
+XSS_QUOTE_BREAKOUT_PATTERN = re.compile(r"(?i)(?:['\"]\s*>|['\"]\s*<|['\"]\s*on[a-z0-9_]+\s*=)")
+XSS_TAG_INJECTION_PATTERN = re.compile(r"(?i)<\s*(?:script|img|svg|iframe|body|a)\b")
+EDUCATIONAL_XSS_SEARCH_TERMS = (
+    "how to",
+    "tutorial",
+    "prevent",
+    "example",
+    "guide",
+    "docs",
+    "documentation",
+    "사용법",
+    "예제",
+    "튜토리얼",
+    "강의",
+    "문서",
+)
+EDUCATIONAL_XSS_KEYWORDS = (
+    "xss",
+    "script",
+    "javascript",
+    "onerror",
+    "onload",
+    "onclick",
+    "document.cookie",
+    "cookie",
+    "localstorage",
+    "sessionstorage",
+)
 
 
 @dataclass
@@ -303,6 +342,17 @@ def raw_text(value: Optional[Any]) -> str:
     return str(value).strip()
 
 
+def append_unique_hint(hints: List[str], hint: str) -> None:
+    text = raw_text(hint)
+    if text and text not in hints:
+        hints.append(text)
+
+
+def extend_unique_hints(hints: List[str], extra_hints: Iterable[str]) -> None:
+    for hint in extra_hints:
+        append_unique_hint(hints, hint)
+
+
 def build_decoded_variants(value: str, max_depth: int = 2) -> List[Dict[str, Any]]:
     current = raw_text(value)
     if not current:
@@ -323,6 +373,52 @@ def build_decoded_variants(value: str, max_depth: int = 2) -> List[Dict[str, Any
             break
         variants.append({"depth": depth, "text": decoded})
         current = decoded
+    return variants
+
+
+def build_html_entity_decoded_variant(value: str) -> str:
+    current = raw_text(value)
+    if not current:
+        return ""
+    if len(current) > DECODE_VARIANT_MAX_CHARS:
+        current = current[:DECODE_VARIANT_MAX_CHARS]
+    try:
+        decoded = html.unescape(current)
+    except Exception:
+        return current
+    if len(decoded) > DECODE_VARIANT_MAX_CHARS:
+        decoded = decoded[:DECODE_VARIANT_MAX_CHARS]
+    return decoded
+
+
+def build_html_entity_variants(value: str, source: str) -> List[Dict[str, Any]]:
+    raw_value = raw_text(value)
+    if not raw_value or not HTML_ENTITY_RE.search(raw_value):
+        return []
+    decoded = build_html_entity_decoded_variant(raw_value)
+    if not decoded or decoded == raw_value:
+        return []
+    return [{
+        "depth": 0,
+        "text": decoded,
+        "variant_type": "html_entity",
+        "source": source,
+        "source_text": raw_value,
+    }]
+
+
+def append_html_entity_variants(variants: List[Dict[str, Any]], source: str) -> List[Dict[str, Any]]:
+    html_variants: List[Dict[str, Any]] = []
+    seen_texts = {raw_text(item.get("text")) for item in variants if raw_text(item.get("text"))}
+    for item in list(variants):
+        for extra_variant in build_html_entity_variants(raw_text(item.get("text")), source=source):
+            text = raw_text(extra_variant.get("text"))
+            if not text or text in seen_texts:
+                continue
+            extra_variant["source_variant_depth"] = safe_int(item.get("depth"), 0)
+            html_variants.append(extra_variant)
+            seen_texts.add(text)
+    variants.extend(html_variants)
     return variants
 
 
@@ -347,6 +443,8 @@ def build_analysis_texts(
 ) -> Tuple[str, str, List[Dict[str, Any]], List[Dict[str, Any]]]:
     query_variants = build_decoded_variants(query_string, max_depth=2)
     raw_request_target_variants = build_decoded_variants(raw_request_target, max_depth=2)
+    append_html_entity_variants(query_variants, source="query_string")
+    append_html_entity_variants(raw_request_target_variants, source="raw_request_target")
 
     base_text = " ".join(
         unique_non_empty_texts([
@@ -361,24 +459,51 @@ def build_analysis_texts(
     ).strip()
     variant_text = " ".join(
         unique_non_empty_texts(
-            [item.get("text", "") for item in query_variants[1:]]
-            + [item.get("text", "") for item in raw_request_target_variants[1:]]
+            [
+                item.get("text", "")
+                for item in query_variants
+                if raw_text(item.get("variant_type")) == "html_entity" or safe_int(item.get("depth"), 0) >= 1
+            ]
+            + [
+                item.get("text", "")
+                for item in raw_request_target_variants
+                if raw_text(item.get("variant_type")) == "html_entity" or safe_int(item.get("depth"), 0) >= 1
+            ]
         )
     ).strip()
     combined_text = " ".join(unique_non_empty_texts([base_text, variant_text])).strip()
     return base_text, combined_text, query_variants, raw_request_target_variants
 
 
+def strip_html_entities_for_sql_comment_scan(text: str) -> str:
+    return HTML_ENTITY_RE.sub("", raw_text(text))
+
+
+def matches_sqli_pattern(name: str, pattern: re.Pattern[str], text: str) -> bool:
+    sample = strip_html_entities_for_sql_comment_scan(text) if name == "sql_comment" else text
+    return bool(sample and pattern.search(sample))
+
+
 def get_matching_pattern_names(patterns: List[Tuple[str, re.Pattern[str], int]], text: str) -> List[str]:
     if not text:
         return []
-    return [name for name, pattern, _ in patterns if pattern.search(text)]
+    names: List[str] = []
+    for name, pattern, _ in patterns:
+        if name == "sql_comment":
+            if matches_sqli_pattern(name, pattern, text):
+                names.append(name)
+            continue
+        if pattern.search(text):
+            names.append(name)
+    return names
 
 
 def has_any_attack_pattern(text: str) -> bool:
     if not text:
         return False
-    pattern_groups = (SQLI_PATTERNS, XSS_PATTERNS, TRAVERSAL_PATTERNS, CMDI_PATTERNS)
+    if get_matching_pattern_names(SQLI_PATTERNS, text):
+        return True
+    pattern_groups = (XSS_PATTERNS, TRAVERSAL_PATTERNS, CMDI_PATTERNS)
     return any(pattern.search(text) for group in pattern_groups for _, pattern, _ in group)
 
 
@@ -391,23 +516,30 @@ def detect_decoded_attack_hints(
     score_boost = 0
 
     variant_depth0_attack = False
-    variant_depth1_attack = False
     depth1_has_attack = False
     depth2_has_attack = False
     depth1_has_sqli = False
     depth2_has_sqli = False
+    html_entity_payload = False
+    html_entity_decoded = False
+    html_entity_decoded_xss = False
 
     for variant in query_variants + raw_request_target_variants:
         depth = safe_int(variant.get("depth"), 0)
         text = raw_text(variant.get("text"))
+        variant_type = raw_text(variant.get("variant_type")) or "url_decode"
         if not text:
+            continue
+        if variant_type == "html_entity":
+            html_entity_payload = True
+            html_entity_decoded = True
+            if get_matching_pattern_names(XSS_PATTERNS, text):
+                html_entity_decoded_xss = True
             continue
         variant_has_attack = has_any_attack_pattern(text)
         variant_has_sqli = bool(get_matching_pattern_names(SQLI_PATTERNS, text))
         if depth == 0 and variant_has_attack:
             variant_depth0_attack = True
-        if depth >= 1 and variant_has_attack:
-            variant_depth1_attack = True
         if depth >= 1 and variant_has_attack:
             depth1_has_attack = True
         if depth >= 2 and variant_has_attack:
@@ -426,6 +558,12 @@ def detect_decoded_attack_hints(
         hints.append("encoding:double_decoded_sqli")
     if depth2_has_sqli and not depth1_has_sqli:
         score_boost += 2
+    if html_entity_payload:
+        hints.append("encoding:html_entity_payload")
+    if html_entity_decoded:
+        hints.append("encoding:html_entity_decoded")
+    if html_entity_decoded_xss:
+        hints.append("encoding:html_entity_decoded_xss")
 
     return score_boost, hints
 
@@ -437,13 +575,27 @@ def detect_educational_sql_search_context(text: str) -> bool:
     return any(term in lowered for term in EDUCATIONAL_SQL_SEARCH_TERMS)
 
 
+def detect_educational_xss_search_context(text: str) -> bool:
+    lowered = normalize_text(text).lower()
+    if not lowered:
+        return False
+    natural_language_term = any(
+        re.search(r"(?i)(?<![\w./-])" + re.escape(term).replace(r"\ ", r"\s+") + r"(?![\w./-])", lowered)
+        if re.search(r"[a-z]", term)
+        else term in lowered
+        for term in EDUCATIONAL_XSS_SEARCH_TERMS
+    )
+    return natural_language_term and any(keyword in lowered for keyword in EDUCATIONAL_XSS_KEYWORDS)
+
+
 def get_sqli_structure_flags(text: str) -> Dict[str, bool]:
     raw = raw_text(text)
     normalized = normalize_text(text)
     samples = unique_non_empty_texts([raw, normalized])
+    comment_samples = [strip_html_entities_for_sql_comment_scan(sample) for sample in samples]
     return {
         "quote_termination": any(SQLI_PATTERNS[-1][1].search(sample) for sample in samples),
-        "sql_comment": any(SQLI_COMMENT_PATTERN.search(sample) for sample in samples),
+        "sql_comment": any(SQLI_COMMENT_PATTERN.search(sample) for sample in comment_samples),
         "xclose": any(SQLI_XCLOSE_PATTERN.search(sample) for sample in samples),
         "boolean_condition": any(SQLI_BOOLEAN_CONDITION_PATTERN.search(sample) for sample in samples),
         "union_column_list": any(SQLI_UNION_COLUMN_ENUM_PATTERN.search(sample) for sample in samples),
@@ -455,6 +607,163 @@ def get_sqli_structure_flags(text: str) -> Dict[str, bool]:
 def has_encoded_payload_marker(text: str) -> bool:
     lowered = raw_text(text).lower()
     return any(marker in lowered for marker in ENCODED_PAYLOAD_MARKERS)
+
+
+def has_mixed_case_script_tag(text: str) -> bool:
+    for match in SCRIPT_TAG_CAPTURE_RE.finditer(raw_text(text)):
+        tag = raw_text(match.group(1))
+        if tag.lower() == "script" and not (tag.islower() or tag.isupper()):
+            return True
+    return False
+
+
+def get_xss_context_hints(
+    *,
+    raw_query_string: str,
+    query_string: str,
+    raw_request_target: str,
+    combined_target: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> List[str]:
+    hints: List[str] = []
+    raw_samples = unique_non_empty_texts([raw_query_string, raw_request_target])
+    analysis_samples = unique_non_empty_texts(
+        [query_string, combined_target]
+        + [raw_text(item.get("text")) for item in query_variants + raw_request_target_variants]
+    )
+
+    browser_data_access = False
+    external_navigation = False
+    external_url_seen = False
+    html_entity_decoded_script = False
+    html_entity_present = any(HTML_ENTITY_RE.search(sample) for sample in raw_samples)
+
+    for sample in analysis_samples:
+        if SCRIPT_TAG_PATTERN.search(sample):
+            append_unique_hint(hints, "xss:script_tag")
+        if has_mixed_case_script_tag(sample):
+            append_unique_hint(hints, "xss:mixed_case_script_tag")
+
+        event_names = sorted({raw_text(name).lower() for name in EVENT_HANDLER_ASSIGNMENT_RE.findall(sample) if raw_text(name)})
+        if event_names:
+            append_unique_hint(hints, "xss:event_handler")
+            for event_name in event_names:
+                append_unique_hint(hints, f"xss:event_handler:{event_name}")
+
+        if JAVASCRIPT_PROTOCOL_RE.search(sample):
+            append_unique_hint(hints, "xss:javascript_protocol")
+
+        browser_access_matches = [raw_text(name).lower() for name in BROWSER_DATA_ACCESS_RE.findall(sample) if raw_text(name)]
+        if browser_access_matches:
+            browser_data_access = True
+            append_unique_hint(hints, "xss:browser_data_access")
+            if any(name == "document.cookie" for name in browser_access_matches):
+                append_unique_hint(hints, "xss:document_cookie")
+
+        if EXTERNAL_NAVIGATION_RE.search(sample):
+            external_navigation = True
+            append_unique_hint(hints, "xss:external_navigation")
+        if EXTERNAL_URL_RE.search(sample):
+            external_url_seen = True
+
+    for variant in query_variants + raw_request_target_variants:
+        if raw_text(variant.get("variant_type")) != "html_entity":
+            continue
+        if SCRIPT_TAG_PATTERN.search(raw_text(variant.get("text"))):
+            html_entity_decoded_script = True
+            break
+
+    if html_entity_decoded_script:
+        if html_entity_present:
+            append_unique_hint(hints, "xss:html_entity_encoded")
+        append_unique_hint(hints, "xss:html_entity_decoded_script")
+    if browser_data_access and (external_navigation or external_url_seen):
+        append_unique_hint(hints, "xss:external_exfil_intent")
+
+    return hints
+
+
+def has_xss_attack_structure(texts: Iterable[str]) -> bool:
+    for sample in unique_non_empty_texts(texts):
+        if (
+            XSS_QUOTE_BREAKOUT_PATTERN.search(sample)
+            or XSS_TAG_INJECTION_PATTERN.search(sample)
+            or EVENT_HANDLER_ASSIGNMENT_RE.search(sample)
+            or JAVASCRIPT_PROTOCOL_RE.search(sample)
+            or re.search(r"(?i)\balert\s*\(", sample)
+            or BROWSER_DATA_ACCESS_RE.search(sample)
+        ):
+            return True
+        if HTML_ENTITY_RE.search(sample):
+            decoded = build_html_entity_decoded_variant(sample)
+            if decoded != sample and (
+                SCRIPT_TAG_PATTERN.search(decoded)
+                or EVENT_HANDLER_ASSIGNMENT_RE.search(decoded)
+                or JAVASCRIPT_PROTOCOL_RE.search(decoded)
+            ):
+                return True
+    return False
+
+
+def get_xss_structure_flags(
+    *,
+    combined_target: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Dict[str, bool]:
+    samples = unique_non_empty_texts(
+        [combined_target] + [raw_text(item.get("text")) for item in query_variants + raw_request_target_variants]
+    )
+    html_entity_decoded_samples = [
+        raw_text(item.get("text"))
+        for item in query_variants + raw_request_target_variants
+        if raw_text(item.get("variant_type")) == "html_entity"
+    ]
+    return {
+        "script_tag": any(SCRIPT_TAG_PATTERN.search(sample) for sample in samples),
+        "mixed_case_script_tag": any(has_mixed_case_script_tag(sample) for sample in samples),
+        "event_handler_assignment": any(EVENT_HANDLER_ASSIGNMENT_RE.search(sample) for sample in samples),
+        "javascript_protocol": any(JAVASCRIPT_PROTOCOL_RE.search(sample) for sample in samples),
+        "browser_data_access": any(BROWSER_DATA_ACCESS_RE.search(sample) for sample in samples),
+        "external_navigation": any(EXTERNAL_NAVIGATION_RE.search(sample) for sample in samples),
+        "quote_breakout": any(XSS_QUOTE_BREAKOUT_PATTERN.search(sample) for sample in samples),
+        "html_entity_decoded_script": any(SCRIPT_TAG_PATTERN.search(sample) for sample in html_entity_decoded_samples),
+    }
+
+
+def build_false_positive_review_candidate(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    raw_req_original = raw_text(row.get("raw_request"))
+    raw_request_target = extract_raw_request_target(raw_req_original)
+    raw_qs = raw_text(row.get("query_string"))
+    qs = normalize_text(row.get("query_string"))
+    _, combined_target, query_variants, raw_request_target_variants = build_analysis_texts(
+        raw_request=raw_req_original,
+        uri=get_uri(row),
+        query_string=raw_qs,
+        raw_request_target=raw_request_target,
+        raw_log="",
+    )
+    text_for_context = " ".join(unique_non_empty_texts([qs, raw_request_target, combined_target]))
+    attack_samples = unique_non_empty_texts(
+        [raw_qs, qs, raw_request_target, combined_target]
+        + [raw_text(item.get("text")) for item in query_variants + raw_request_target_variants]
+    )
+    if not detect_educational_xss_search_context(text_for_context):
+        return None
+    if has_xss_attack_structure(attack_samples):
+        return None
+    return {
+        "review_reason": "educational_xss_keyword_search",
+        "source_table": normalize_text(row.get("_source_table")),
+        "log_time": choose_best_time(row),
+        "src_ip": get_src_ip(row),
+        "uri": get_uri(row),
+        "query_string": qs,
+        "user_agent": get_user_agent(row),
+        "status_code": get_status_code(row),
+        "response_body_bytes": get_response_body_bytes(row),
+    }
 
 
 def endpoint_family_key(uri: str) -> str:
@@ -1255,7 +1564,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     automation_ua_hits = 0
 
     for name, pattern, points in SQLI_PATTERNS:
-        if pattern.search(combined_target):
+        if matches_sqli_pattern(name, pattern, combined_target):
             score += points
             sqli_hits += 1
             reason_hints.append(f"sqli:{name}(+{points})")
@@ -1292,6 +1601,17 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     if decoded_score_boost > 0:
         score += decoded_score_boost
     reason_hints.extend(decoded_hints)
+    extend_unique_hints(
+        reason_hints,
+        get_xss_context_hints(
+            raw_query_string=raw_qs,
+            query_string=qs,
+            raw_request_target=raw_request_target,
+            combined_target=combined_target,
+            query_variants=query_variants,
+            raw_request_target_variants=raw_request_target_variants,
+        ),
+    )
 
     if hpp_detected:
         score += 1
@@ -1381,10 +1701,28 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         reason_hints.append("error_table_context(+2)")
 
     educational_sql_context = detect_educational_sql_search_context(qs)
+    educational_xss_context = detect_educational_xss_search_context(" ".join(unique_non_empty_texts([qs, raw_request_target])))
     structure_flags = get_sqli_structure_flags(combined_target)
+    xss_structure_flags = get_xss_structure_flags(
+        combined_target=combined_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
     strong_sqli_structure = any(
         structure_flags.get(name, False)
         for name in ("quote_termination", "sql_comment", "xclose", "boolean_condition", "union_column_list", "schema_access")
+    )
+    strong_xss_structure = any(
+        xss_structure_flags.get(name, False)
+        for name in (
+            "mixed_case_script_tag",
+            "event_handler_assignment",
+            "javascript_protocol",
+            "browser_data_access",
+            "external_navigation",
+            "quote_breakout",
+            "html_entity_decoded_script",
+        )
     )
     weak_from_users_only = structure_flags.get("from_users", False) and not strong_sqli_structure
     if educational_sql_context and sqli_hits > 0:
@@ -1402,6 +1740,18 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
                 score = max(0, score - 2)
             else:
                 score = max(0, score - 4)
+    if educational_xss_context and xss_hits > 0:
+        reason_hints.append("context:educational_xss_search")
+        reason_hints.append("context:natural_language_query")
+        if not xss_structure_flags.get("event_handler_assignment"):
+            reason_hints.append("no_event_handler_assignment")
+        if not xss_structure_flags.get("javascript_protocol"):
+            reason_hints.append("no_javascript_protocol")
+        if not xss_structure_flags.get("browser_data_access"):
+            reason_hints.append("no_browser_data_access")
+        if not strong_xss_structure:
+            reason_hints.append("fp_hint:xss_keyword_without_attack_structure")
+            score = max(0, score - 4)
 
     path_normalized_from_raw_request = False
     likely_html_fallback_response = False
@@ -1463,6 +1813,11 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     if educational_sql_context and sqli_hits > 0 and not strong_sqli_structure:
         if score >= min_score:
             verdict_hint = "possible_false_positive_sql_keyword_search"
+        else:
+            return None, filtered_noise_category
+    elif educational_xss_context and xss_hits > 0 and not strong_xss_structure:
+        if score >= min_score:
+            verdict_hint = "possible_false_positive_xss_keyword_search"
         else:
             return None, filtered_noise_category
     elif xss_hits > 0 and score >= max(min_score, 7):
@@ -1634,6 +1989,14 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
     raw_candidate_count = len(candidates)
     deduped_candidates, candidate_group_summaries = deduplicate_candidates(candidates)
     supporting_events = build_supporting_events(filtered_out_rows, deduped_candidates, min_score=min_score)
+    false_positive_review_candidates = [
+        item
+        for item in (
+            build_false_positive_review_candidate(row)
+            for row in non_aggregated_filtered
+        )
+        if item
+    ]
 
     candidate_payload = [asdict(x) for x in deduped_candidates]
     noise_payload = [asdict(x) for x in noise_aggregates]
@@ -1664,6 +2027,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "hpp_context_is_preserved": True,
                 "filtered_noise_breakdown_is_preserved": True,
                 "supporting_events_are_context_only": True,
+                "false_positive_review_candidates_are_context_only": True,
             },
             "thresholds": {
                 "candidate_min_score": min_score,
@@ -1681,6 +2045,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "candidate_duplicate_rows_removed": raw_candidate_count - len(candidate_payload),
                 "distinct_incident_candidates": len(candidate_payload),
                 "supporting_events": len(supporting_events),
+                "false_positive_review_candidates": len(false_positive_review_candidates),
             },
             "filtered_out_breakdown": dict(noise_counter),
         },
@@ -1688,6 +2053,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         "candidate_group_summary": candidate_group_summaries,
         "analysis_candidates": candidate_payload,
         "supporting_events": supporting_events,
+        "false_positive_review_candidates": false_positive_review_candidates,
     }
 
     filtered_payload = [build_filtered_row_payload(r) for r in non_aggregated_filtered]
