@@ -1,7 +1,7 @@
 # 02_Juice_shop_환경_구축_및_설치
 
 - 문서 상태: 구축문서
-- 버전: v1.3
+- 버전: v1.4
 - 작성일: 2026-04-09
 - 수정일: 2026-04-26
 
@@ -9,7 +9,7 @@
 
 Ubuntu 22.04 Server에서 Apache2와 Docker를 사용해 OWASP Juice Shop 실험 환경을 재현하고, 현재 로그 파이프라인이 기대하는 access/security/error 로그를 생성하는 절차를 정리한다.
 
-현재 `apache_log_shipper.py`는 DB 접속 정보와 로그 경로를 코드에 하드코딩하지 않고 환경변수에서 읽는다. 따라서 이 문서는 Juice Shop 자체 구축뿐 아니라 `/opt/web_log_analysis/config/shipper.env` 생성과 shipper 실행 절차까지 포함한다.
+현재 `apache_log_shipper.py`는 DB 접속 정보와 로그 경로를 코드에 하드코딩하지 않고 환경변수에서 읽는다. 이 문서는 기존 운영 구조를 유지해 `/opt/shipper.env`와 `/opt/apache_log_shipper.py` 기준으로 shipper를 실행하는 절차까지 포함한다.
 
 ## 2. 최종 구성
 
@@ -19,8 +19,9 @@ Ubuntu 22.04 Server에서 Apache2와 Docker를 사용해 OWASP Juice Shop 실험
 - 실행 방식: Docker
 - 외부 접속: `http://서버IP/`
 - 내부 앱 바인딩: `127.0.0.1:3000`
-- shipper 작업 디렉터리: `/opt/web_log_analysis`
-- shipper 환경변수 파일: `/opt/web_log_analysis/config/shipper.env`
+- shipper 스크립트: `/opt/apache_log_shipper.py`
+- shipper 환경변수 파일: `/opt/shipper.env`
+- 선택 공통 env 파일: `/opt/config/llm.env`
 - 로그 파일:
   - `/var/log/apache2/app_access.log`
   - `/var/log/apache2/app_security.log`
@@ -48,8 +49,8 @@ hostnamectl
 ## 4. 구축 순서
 
 1. 시스템 업데이트
-2. Python 및 shipper 작업 디렉터리 준비
-3. shipper 환경변수 파일 생성
+2. Python 및 shipper 배치
+3. `/opt/shipper.env` 생성
 4. Apache 설치
 5. Docker 설치
 6. Juice Shop 컨테이너 실행
@@ -65,43 +66,29 @@ hostnamectl
 ```bash
 sudo apt update
 sudo apt upgrade -y
-sudo apt install -y curl wget unzip ca-certificates gnupg lsb-release python3 python3-pip python3-venv netcat-openbsd
+sudo apt install -y curl wget unzip ca-certificates gnupg lsb-release python3 python3-pip python3-venv python3-pymysql netcat-openbsd
 ```
 
-## 6. Python 및 shipper 작업 디렉터리 준비
+## 6. Python 및 shipper 배치
 
-웹서버에서 `apache_log_shipper.py`를 함께 배치할 경우 `/opt/web_log_analysis` 아래에 스크립트와 설정을 둔다.
+웹서버에서는 기존 운영 구조에 맞춰 `/opt/apache_log_shipper.py`를 사용한다.
 
 ```bash
-sudo mkdir -p /opt/web_log_analysis/{config,src}
-sudo chown -R "$USER":"$USER" /opt/web_log_analysis
-
-cd /opt/web_log_analysis
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-pip install PyMySQL
+python3 --version
+python3 -c "import pymysql; print(pymysql.__version__)"
 ```
 
-현재 저장소에는 웹서버용 별도 `requirements.txt`가 없으므로, 로그 적재 스크립트 실행에 필요한 외부 모듈은 `PyMySQL`을 직접 설치한다.
-
-저장소의 shipper를 웹서버에 배치한다. 이미 `/opt/apache_log_shipper.py`로 운영 중인 환경이면 기존 경로를 유지해도 되지만, 신규 구축은 아래 경로를 권장한다.
+저장소의 shipper를 웹서버에 배치한다.
 
 ```bash
-# 저장소가 웹서버에 있는 경우 예시
-cp /path/to/project/src/apache_log_shipper.py /opt/web_log_analysis/src/apache_log_shipper.py
-chmod +x /opt/web_log_analysis/src/apache_log_shipper.py
+sudo cp /path/to/project/src/apache_log_shipper.py /opt/apache_log_shipper.py
+sudo chmod +x /opt/apache_log_shipper.py
+ls -l /opt/apache_log_shipper.py
 ```
 
-확인:
+이미 `/opt/apache_log_shipper.py`로 운영 중이면 기존 파일을 유지해도 된다. 단, 최신 코드와 다른지 확인하려면 저장소의 `src/apache_log_shipper.py`와 비교한다.
 
-```bash
-/opt/web_log_analysis/.venv/bin/python --version
-/opt/web_log_analysis/.venv/bin/python -c "import pymysql; print(pymysql.__version__)"
-ls -l /opt/web_log_analysis/src/apache_log_shipper.py
-```
-
-## 7. shipper 환경변수 파일 생성
+## 7. shipper env 생성
 
 `apache_log_shipper.py`는 아래 환경변수를 읽는다.
 
@@ -118,11 +105,10 @@ ls -l /opt/web_log_analysis/src/apache_log_shipper.py
 - `SHIPPER_APP_LOG`
 - `SHIPPER_*` 튜닝값
 
-환경변수 파일 생성:
+`/opt/shipper.env` 생성:
 
 ```bash
-sudo mkdir -p /opt/web_log_analysis/config
-sudo tee /opt/web_log_analysis/config/shipper.env >/dev/null <<'EOF'
+sudo tee /opt/shipper.env >/dev/null <<'EOF'
 # MariaDB log storage
 LOG_DB_HOST=192.168.56.109
 LOG_DB_PORT=3306
@@ -150,40 +136,74 @@ SHIPPER_READ_TIMEOUT_SEC=10
 SHIPPER_WRITE_TIMEOUT_SEC=10
 EOF
 
-sudo chown root:root /opt/web_log_analysis/config/shipper.env
-sudo chmod 600 /opt/web_log_analysis/config/shipper.env
+sudo chown root:root /opt/shipper.env
+sudo chmod 600 /opt/shipper.env
 ```
 
 확인:
 
 ```bash
-sudo ls -l /opt/web_log_analysis/config/shipper.env
-sudo grep -v 'PASSWORD' /opt/web_log_analysis/config/shipper.env
+sudo ls -l /opt/shipper.env
+sudo grep -v 'PASSWORD' /opt/shipper.env
 ```
 
 주의:
 
 - `LOG_DB_HOST`는 Juice Shop 서버 IP가 아니라 MariaDB 로그 저장 서버 IP다. 현재 예시는 `192.168.56.109`다.
 - `LOG_DB_PASSWORD`는 실제 `log_writer` 계정 비밀번호로 바꾼다.
-- `shipper.env`에는 비밀번호가 들어 있으므로 public repo에 올리지 않는다.
-- `sudo python3 ...`처럼 바로 실행하면 현재 셸의 env가 사라질 수 있다. 아래처럼 `sudo bash -c 'source ...'` 방식으로 실행한다.
+- `/opt/shipper.env`에는 비밀번호가 들어 있으므로 public repo에 올리지 않는다.
 
-환경변수 로드 테스트:
+### 7.1 실행 시 env 로드 방식
 
-```bash
-sudo bash -c 'set -a; source /opt/web_log_analysis/config/shipper.env; set +a; env | grep -E "^(LOG_DB_HOST|LOG_DB_PORT|LOG_DB_USER|LOG_DB_NAME|APACHE_SECURITY_LOG)="'
-```
+`shipper.env`가 `LOG_DB_HOST=...`처럼 `export` 없는 형식이면 `set -a`를 source 전에 켜야 Python 프로세스가 값을 읽을 수 있다.
 
-DB 연결 테스트는 Apache 설정 후 또는 DB 서버 준비 후 수행한다.
+권장 로드 방식:
 
 ```bash
-sudo bash -c 'set -a; source /opt/web_log_analysis/config/shipper.env; set +a; exec /opt/web_log_analysis/.venv/bin/python /opt/web_log_analysis/src/apache_log_shipper.py --test-db'
+cd /opt
+set -a
+source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
+set +a
 ```
 
-기대 결과:
+DB 연결 테스트:
 
-```text
-DB connection: OK
+```bash
+cd /opt
+set -a
+source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
+set +a
+sudo -E python3 ./apache_log_shipper.py --test-db
+```
+
+1회 적재 테스트:
+
+```bash
+cd /opt
+set -a
+source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
+set +a
+sudo -E python3 ./apache_log_shipper.py --once
+```
+
+상시 실행:
+
+```bash
+cd /opt
+set -a
+source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
+set +a
+sudo -E python3 ./apache_log_shipper.py
+```
+
+`sudo -E`가 환경변수를 보존하지 않는 환경이면 아래처럼 한 줄로 실행한다.
+
+```bash
+sudo bash -c 'cd /opt && set -a && source ./shipper.env && [ -f ./config/llm.env ] && source ./config/llm.env; set +a; exec python3 ./apache_log_shipper.py --test-db'
 ```
 
 ## 8. Apache 설치
@@ -392,8 +412,10 @@ curl -s http://127.0.0.1/ > /dev/null
 DB 서버와 연결 가능한지 확인한다.
 
 ```bash
+cd /opt
 set -a
-source /opt/web_log_analysis/config/shipper.env
+source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 nc -vz "$LOG_DB_HOST" "$LOG_DB_PORT"
 ```
@@ -401,20 +423,35 @@ nc -vz "$LOG_DB_HOST" "$LOG_DB_PORT"
 DB 연결 테스트:
 
 ```bash
-sudo bash -c 'set -a; source /opt/web_log_analysis/config/shipper.env; set +a; exec /opt/web_log_analysis/.venv/bin/python /opt/web_log_analysis/src/apache_log_shipper.py --test-db'
+cd /opt
+set -a
+source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
+set +a
+sudo -E python3 ./apache_log_shipper.py --test-db
 ```
 
 1회 적재 테스트:
 
 ```bash
 curl -s http://127.0.0.1/ >/dev/null
-sudo bash -c 'set -a; source /opt/web_log_analysis/config/shipper.env; set +a; exec /opt/web_log_analysis/.venv/bin/python /opt/web_log_analysis/src/apache_log_shipper.py --once'
+cd /opt
+set -a
+source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
+set +a
+sudo -E python3 ./apache_log_shipper.py --once
 ```
 
 상시 실행:
 
 ```bash
-sudo bash -c 'set -a; source /opt/web_log_analysis/config/shipper.env; set +a; exec /opt/web_log_analysis/.venv/bin/python /opt/web_log_analysis/src/apache_log_shipper.py'
+cd /opt
+set -a
+source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
+set +a
+sudo -E python3 ./apache_log_shipper.py
 ```
 
 기대 결과:
@@ -434,9 +471,9 @@ Flushed: access=N security=N error=N
 - 브라우저에서 Juice Shop 화면 확인
 - `apache2ctl configtest` 가 `Syntax OK`
 - `app_access.log`, `app_security.log` 생성 확인
-- `/opt/web_log_analysis/config/shipper.env` 존재 확인
-- `apache_log_shipper.py --test-db` 성공 확인
-- `apache_log_shipper.py --once` 실행 시 `Flushed:` 로그 확인
+- `/opt/shipper.env` 존재 확인
+- `/opt/apache_log_shipper.py --test-db` 성공 확인
+- `/opt/apache_log_shipper.py --once` 실행 시 `Flushed:` 로그 확인
 
 ## 19. env 관련 문제 해결
 
@@ -444,26 +481,38 @@ Flushed: access=N security=N error=N
 
 원인:
 
-- `shipper.env`를 source하지 않고 실행했다.
-- `sudo python3 ...`로 실행하면서 env가 사라졌다.
+- `/opt/shipper.env`를 source하지 않고 실행했다.
+- `set -a` 없이 source해서 변수가 export되지 않았다.
+- `sudo` 실행 중 환경변수가 보존되지 않았다.
 
 해결:
 
 ```bash
-sudo bash -c 'set -a; source /opt/web_log_analysis/config/shipper.env; set +a; exec /opt/web_log_analysis/.venv/bin/python /opt/web_log_analysis/src/apache_log_shipper.py --test-db'
+cd /opt
+set -a
+source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
+set +a
+sudo -E python3 ./apache_log_shipper.py --test-db
+```
+
+`sudo -E`가 안 되면:
+
+```bash
+sudo bash -c 'cd /opt && set -a && source ./shipper.env && [ -f ./config/llm.env ] && source ./config/llm.env; set +a; exec python3 ./apache_log_shipper.py --test-db'
 ```
 
 ### 19.2 `LOG_DB_PASSWORD is required`
 
 원인:
 
-- `shipper.env`의 `LOG_DB_PASSWORD`가 비어 있다.
+- `/opt/shipper.env`의 `LOG_DB_PASSWORD`가 비어 있다.
 - placeholder를 실제 비밀번호로 바꾸지 않았다.
 
 확인:
 
 ```bash
-sudo grep '^LOG_DB_PASSWORD=' /opt/web_log_analysis/config/shipper.env
+sudo grep '^LOG_DB_PASSWORD=' /opt/shipper.env
 ```
 
 ### 19.3 로그는 생기는데 DB에 안 들어감
@@ -472,8 +521,13 @@ sudo grep '^LOG_DB_PASSWORD=' /opt/web_log_analysis/config/shipper.env
 
 ```bash
 sudo tail -n 3 /var/log/apache2/app_security.log
-sudo bash -c 'set -a; source /opt/web_log_analysis/config/shipper.env; set +a; env | grep -E "^(LOG_DB_HOST|APACHE_SECURITY_LOG)="'
-sudo bash -c 'set -a; source /opt/web_log_analysis/config/shipper.env; set +a; exec /opt/web_log_analysis/.venv/bin/python /opt/web_log_analysis/src/apache_log_shipper.py --test-db'
+cd /opt
+set -a
+source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
+set +a
+env | grep -E '^(LOG_DB_HOST|APACHE_SECURITY_LOG)='
+sudo -E python3 ./apache_log_shipper.py --test-db
 sudo tail -n 20 /var/log/apache2/apache_log_shipper.log
 ```
 
@@ -481,10 +535,9 @@ sudo tail -n 20 /var/log/apache2/apache_log_shipper.log
 
 Juice Shop 환경 구축 후 진행 순서:
 
-1. DB 서버에 `web_logs` 구축
-2. `/opt/web_log_analysis/config/shipper.env` 작성
-3. `apache_log_shipper.py` 배치 및 DB 연결 확인
-4. `security` export 실행
-5. `prepare_llm_input.py`
-6. `llm_stage1_classifier.py`
-7. `llm_stage2_reporter.py`
+1. `/opt/shipper.env` 작성
+2. `/opt/apache_log_shipper.py` 배치 및 DB 연결 확인
+3. `security` export 실행
+4. `prepare_llm_input.py`
+5. `llm_stage1_classifier.py`
+6. `llm_stage2_reporter.py`
