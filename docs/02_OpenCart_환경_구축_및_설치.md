@@ -1,7 +1,7 @@
 # 02_OpenCart_환경_구축_및_설치
 
 - 문서 상태: 재현 절차서
-- 버전: v1.5
+- 버전: v1.6
 - 작성일: 2026-04-09
 - 수정일: 2026-04-26
 - 적용 대상: Ubuntu 22.04 Server 기반 OpenCart 비교 실험 환경
@@ -9,7 +9,6 @@
   - Apache + PHP + MySQL 계열 OpenCart 단독 서버
   - Apache 로그를 `/opt/apache_log_shipper.py`가 읽어 DB로 적재하는 현재 운영 구조
   - shipper 설정은 하드코딩하지 않고 `/opt/shipper.env`에서 읽는다.
-  - 선택 공통 env 파일은 `/opt/config/llm.env`에 둔다.
 
 ## 1. 목적
 
@@ -35,7 +34,6 @@
 - Apache 사이트 설정: `/etc/apache2/sites-available/opencart.conf`
 - shipper 스크립트: `/opt/apache_log_shipper.py`
 - shipper 환경변수 파일: `/opt/shipper.env`
-- 선택 공통 env 파일: `/opt/config/llm.env`
 - Apache 로그:
   - `/var/log/apache2/app_access.log`
   - `/var/log/apache2/app_security.log`
@@ -61,7 +59,7 @@ timedatectl
 로그 시간 정책:
 
 - 서버 timezone은 UTC를 권장한다.
-- 다만 shipper는 Apache `log_time`의 timezone offset을 읽어 DB `log_time`을 항상 UTC naive datetime으로 저장한다.
+- shipper는 Apache `log_time`의 timezone offset을 읽어 DB `log_time`을 항상 UTC naive datetime으로 저장한다.
 - `export_db_logs_cli.py`는 KST 입력 시간을 UTC DB 조회 범위로 변환하고, export JSON의 `log_time`/`created_at`은 항상 KST ISO-8601 문자열로 출력한다.
 - 따라서 OpenCart 서버 timezone이 UTC든 KST든 DB 저장 정책과 export 결과는 같아야 한다.
 
@@ -196,7 +194,6 @@ sudo grep -v 'PASSWORD' /opt/shipper.env
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 ```
 
@@ -206,7 +203,6 @@ DB 연결 테스트:
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --test-db
 ```
@@ -217,7 +213,6 @@ sudo -E python3 ./apache_log_shipper.py --test-db
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --once
 ```
@@ -228,7 +223,6 @@ sudo -E python3 ./apache_log_shipper.py --once
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py
 ```
@@ -236,7 +230,7 @@ sudo -E python3 ./apache_log_shipper.py
 `sudo -E`가 환경변수를 보존하지 않는 환경이면 아래처럼 한 줄로 실행한다.
 
 ```bash
-sudo bash -c 'cd /opt && set -a && source ./shipper.env && { [ ! -f ./config/llm.env ] || source ./config/llm.env; } && set +a && exec python3 ./apache_log_shipper.py --test-db'
+sudo bash -c 'cd /opt && set -a && source ./shipper.env && set +a && exec python3 ./apache_log_shipper.py --test-db'
 ```
 
 기대 결과:
@@ -459,7 +453,6 @@ DB 서버 연결:
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 nc -vz "$LOG_DB_HOST" "$LOG_DB_PORT"
 ```
@@ -470,7 +463,6 @@ DB 연결 테스트:
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --test-db
 ```
@@ -482,7 +474,6 @@ curl -s http://127.0.0.1/ >/dev/null
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --once
 ```
@@ -493,7 +484,6 @@ sudo -E python3 ./apache_log_shipper.py --once
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py
 ```
@@ -514,7 +504,6 @@ sudo -E python3 ./apache_log_shipper.py
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --test-db
 ```
@@ -522,7 +511,7 @@ sudo -E python3 ./apache_log_shipper.py --test-db
 `sudo -E`가 안 되면:
 
 ```bash
-sudo bash -c 'cd /opt && set -a && source ./shipper.env && { [ ! -f ./config/llm.env ] || source ./config/llm.env; } && set +a && exec python3 ./apache_log_shipper.py --test-db'
+sudo bash -c 'cd /opt && set -a && source ./shipper.env && set +a && exec python3 ./apache_log_shipper.py --test-db'
 ```
 
 ### 16.2 `LOG_DB_PASSWORD is required`
@@ -547,7 +536,6 @@ sudo tail -n 3 /var/log/apache2/app_security.log
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 env | grep -E '^(LOG_DB_HOST|APACHE_SECURITY_LOG)='
 sudo -E python3 ./apache_log_shipper.py --test-db
