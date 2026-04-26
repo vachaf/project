@@ -1,0 +1,116 @@
+{
+  "meta": {
+    "generated_at": "2026-04-26T20:44:01.448+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_0b1eef3bc597f3f30169edfa73936c8193bdd7881dcc6ebe47",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_20-40-00_to_2026-04-26_20-42-00_kst_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_20-40-00_to_2026-04-26_20-42-00_kst_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 웹 로그 사건형 분석 요약 (2026-04-26 20:40~20:42 KST)",
+    "overall_assessment": "짧은 시간 구간에 동일 출발지 IP에서 SQL 인젝션 1건과 XSS 시도 2건이 연속 관찰되었습니다. 다만 대상 IP가 알려진 자산이므로 내부 테스트, 자체 호출, 운영 점검 트래픽일 가능성도 함께 고려해야 합니다. 현재 제공된 Apache 로그만으로는 실제 악용 성공이나 침해 확정을 할 수 없고, 시도 정황 중심으로 해석하는 것이 적절합니다.",
+    "executive_summary": [
+      "분석 구간은 2026-04-26 20:40:00~20:42:00(KST)이며, 이 안에 총 3건의 후보 incident가 확인되었습니다.",
+      "출발지 IP 192.168.56.110에서 `/index.php` 대상의 SQLi 1건과 XSS 2건이 거의 연속으로 발생했습니다.",
+      "모든 요청이 200 응답과 `text/html` 응답을 반환했지만, 이것만으로 취약점 성공이나 브라우저 실행 성공은 판단할 수 없습니다.",
+      "해당 IP는 known asset에 포함되어 있어 내부 테스트/운영 점검 가능성을 반드시 함께 봐야 합니다."
+    ],
+    "key_findings": [
+      {
+        "title": "동일 IP에서 짧은 시간 내 다중 공격성 요청 관찰",
+        "detail": "192.168.56.110에서 `/index.php`로 향하는 SQLi와 XSS 페이로드가 20초 내외 간격으로 연속 관찰되었습니다. 패턴상 단일 사용자의 검색 입력 테스트라기보다 취약점 점검 또는 자동화된 시험 흐름에 가깝습니다. 다만 known asset IP이므로 내부 검증 트래픽일 가능성도 큽니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "SQL 인젝션 시도 정황이 비교적 뚜렷함",
+        "detail": "`search=x')) OR 1=1 --` 형태로 전형적인 조건 우회 및 주석 패턴이 포함되어 있습니다. 이는 SQLi 시도로 해석하는 것이 타당하지만, 응답이 200 `text/html`인 점만으로 성공 여부는 확인되지 않습니다.",
+        "severity": "high"
+      },
+      {
+        "title": "XSS는 반사/실행 가능성보다 입력 반영 시도 관점이 안전함",
+        "detail": "`<script>alert(1)</script>` 및 HTML 엔티티 인코딩된 동일 계열 페이로드가 관찰되었습니다. 이는 전형적인 XSS 테스트 시도이지만, Apache 로그만으로 브라우저 실행 성공이나 실제 취약점 악용 성공을 확정할 수는 없습니다.",
+        "severity": "medium"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:ae35nAb8HHcwGKZUlmm8IwAAAAI|table:security|log_id:9907|candidate:2",
+        "request_id": "ae35nAb8HHcwGKZUlmm8IwAAAAI",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "`OR 1=1`와 SQL 주석 `--`가 포함된 전형적인 SQL 인젝션 시도로 보입니다. 다만 응답 코드 200과 `text/html`만으로는 실제 데이터 노출이나 성공 여부를 확인할 수 없으며, known asset IP이므로 내부 점검 가능성도 함께 고려해야 합니다."
+      },
+      {
+        "incident_ref": "request_id:ae35r64-w3nAn_dndx6NxgAAAAE|table:security|log_id:9909|candidate:0",
+        "request_id": "ae35r64-w3nAn_dndx6NxgAAAAE",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "HTML 엔티티로 인코딩된 `<script>alert(1)</script>` 형태의 XSS 테스트 페이로드가 포함되어 있습니다. 이는 우회/복원 가능한 공격 시도 정황이지만, 200 `text/html` 응답만으로 브라우저 실행 성공을 단정할 수는 없습니다."
+      },
+      {
+        "incident_ref": "request_id:ae35py14xhCPYl9QScJWUwAAAAM|table:security|log_id:9908|candidate:1",
+        "request_id": "ae35py14xhCPYl9QScJWUwAAAAM",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "`<script>alert(1)</script>`가 직접 포함된 전형적 XSS 테스트 요청입니다. 응답이 200 `text/html`이지만, 이는 반사 여부 또는 일반 HTML 페이지 응답일 수 있어 실제 실행 성공 근거로 쓰기 어렵습니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.110",
+        "reason": "분석 구간 내 3건의 후보 incident를 모두 생성한 핵심 출발지입니다. SQLi 1건과 XSS 2건이 같은 URI(`/index.php`)로 집중되었고, known asset IP와 일치하므로 내부 테스트·자체 호출·운영 점검 가능성을 함께 검토해야 합니다."
+      }
+    ],
+    "noise_interpretation": "이번 구간에서는 filtered-out 요청이 별도로 집계되지 않았고(filtered_out_rows=0), filtered_out_breakdown도 비어 있습니다. 따라서 후보 밖 탐색성 요청의 세부 분포는 현재 자료상 확인되지 않습니다. 다만 최종 후보로 남은 3건 자체가 모두 공격성 정황이 강한 편이므로, 추가로 원본 로그 상관분석을 통해 동일 세션/사용자 여부를 확인하는 것이 좋습니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "192.168.56.110의 요청을 원본 Apache 로그와 함께 재검토하고, 같은 시간대의 세션/인증/프록시 로그와 대조해 내부 테스트인지 외부 시도인지 구분하세요.",
+        "why": "known asset IP이어서 공격자로 단정할 수 없지만, 동일 출발지에서 SQLi와 XSS가 연속 발생해 점검 또는 공격 모두 가능한 상태입니다."
+      },
+      {
+        "priority": "P1",
+        "action": "`/index.php?route=product/search` 파라미터 처리 경로에 대해 서버측 입력 검증과 쿼리 바인딩 적용 여부를 확인하세요.",
+        "why": "SQLi 시도 정황이 비교적 명확하므로, 실제 취약점 존재 여부를 가장 먼저 확인할 필요가 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "검색 파라미터의 HTML 이스케이프/출력 인코딩 처리 여부를 점검하고, 반사 입력이 페이지 템플릿에 어떻게 반영되는지 확인하세요.",
+        "why": "XSS 시도 2건이 관찰되어 입력 반영 지점이 존재할 수 있으나, 로그만으로 실행 성공은 확인되지 않았습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "동일 출발지 IP에서 짧은 시간 내 반복된 공격성 요청이 정상 점검인지, 자동화 도구 사용인지, 또는 비정상 접근인지 운영 부서와 확인하세요.",
+        "why": "패턴상 연속성 있는 시험 행위로 보이지만, 내부 테스트 가능성을 배제할 수 없습니다."
+      },
+      {
+        "priority": "P3",
+        "action": "추후 동일 패턴이 반복되면 WAF/애플리케이션 레벨에서 검색 파라미터에 대한 탐지 규칙과 경보 임계값을 보강하세요.",
+        "why": "현재는 시도 정황 중심이지만, 반복되면 실제 악용 전 단계의 재시도 신호로 볼 수 있습니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "분석 신뢰도는 높지만, 근거는 Apache 로그 요약에 한정됩니다.",
+      "200 응답과 `text/html`은 정상 라우팅, 템플릿 응답, 또는 단순 반사 페이지일 수 있어 성공 여부를 확정하지 못합니다.",
+      "known asset IP와 일치하므로 공격성 정황과 함께 내부 테스트 가능성을 반드시 병기해야 합니다.",
+      "현재 자료에는 supporting_events, probing_sequence_summaries, filtered-out 세부 분포가 없어 추가 문맥은 제한적입니다."
+    ],
+    "presentation_takeaway": "이번 구간의 핵심은 동일한 내부 자산 IP에서 SQLi 1건과 XSS 2건이 연속 관찰된 점입니다. 다만 성공 여부는 확인되지 않았고, 내부 테스트 가능성도 있어 ‘공격 시도 또는 점검 트래픽’으로 신중하게 보고하는 것이 적절합니다."
+  }
+}
