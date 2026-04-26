@@ -1,0 +1,111 @@
+{
+  "meta": {
+    "generated_at": "2026-04-26T13:16:08.058+09:00",
+    "input_file": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_13-12-00_to_2026-04-26_13-15-00_kst_llm_input.json",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.openai.com/v1",
+    "source_window": {
+      "start": "2026-04-26T13:12:00.000+09:00",
+      "end_exclusive": "2026-04-26T13:15:00.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-04-26T13:15:11.880+09:00",
+    "source_prepared_at": "2026-04-26T13:16:05.017+09:00",
+    "source_counts": {
+      "total_exported_rows": 10,
+      "selected_source_rows": 10,
+      "filtered_out_rows": 9,
+      "filtered_out_non_aggregated_rows": 9,
+      "noise_group_count": 0,
+      "candidate_rows_before_dedup": 1,
+      "candidate_rows": 1,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 1,
+      "supporting_events": 0,
+      "false_positive_review_candidates": 0,
+      "probing_sequence_summaries": 1
+    },
+    "candidate_group_summary_count": 1,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id",
+      "response_body_bytes",
+      "resp_content_type",
+      "raw_request_target",
+      "path_normalized_from_raw_request",
+      "likely_html_fallback_response"
+    ],
+    "processed_candidate_count": 1,
+    "success_count": 1,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:ae2Q7TR6OlgGU3kma7WX5wAAAFI",
+      "request_id": "ae2Q7TR6OlgGU3kma7WX5wAAAFI",
+      "error_link_id": "ae2Q7TR6OlgGU3kma7WX5wAAAFI",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9604
+      ],
+      "log_id": 9604,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/server-status",
+      "query_string": "",
+      "log_time": "2026-04-26T13:13:33.429 09:00",
+      "status_code": 403,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:403(+2)",
+        "error_linked(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 279,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/server-status",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_scan",
+      "severity": "low",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "`/server-status`에 대한 GET 요청이 403으로 거부되었고, 비브라우저성 사용자 에이전트가 사용되어 서버 상태 페이지를 탐색한 정황이 보입니다. 다만 쿼리스트링이나 페이로드가 없고, 단일 차단 응답만으로는 단순 점검/오탐 가능성도 있어 정찰 시도로 낮은 수준으로 분류합니다.",
+      "evidence_fields": [
+        "uri=/server-status",
+        "status_code=403 거부",
+        "user_agent=lab-d-set-probe-burst-1",
+        "referer 비어 있음",
+        "error_link_id 연계"
+      ],
+      "recommended_actions": [
+        "watch",
+        "correlate_src_ip",
+        "review_raw_log"
+      ],
+      "response_id": "resp_077dcd91b03d84c70169ed9185eb388194b56148622cc96525",
+      "raw_output_text": "{\"verdict\":\"suspicious_scan\",\"severity\":\"low\",\"confidence\":\"medium\",\"false_positive_possible\":true,\"reasoning_summary\":\"`/server-status`에 대한 GET 요청이 403으로 거부되었고, 비브라우저성 사용자 에이전트가 사용되어 서버 상태 페이지를 탐색한 정황이 보입니다. 다만 쿼리스트링이나 페이로드가 없고, 단일 차단 응답만으로는 단순 점검/오탐 가능성도 있어 정찰 시도로 낮은 수준으로 분류합니다.\",\"evidence_fields\":[\"uri=/server-status\", \"status_code=403 거부\", \"user_agent=lab-d-set-probe-burst-1\", \"referer 비어 있음\", \"error_link_id 연계\"],\"recommended_actions\":[\"watch\",\"correlate_src_ip\",\"review_raw_log\"]}"
+    }
+  ]
+}

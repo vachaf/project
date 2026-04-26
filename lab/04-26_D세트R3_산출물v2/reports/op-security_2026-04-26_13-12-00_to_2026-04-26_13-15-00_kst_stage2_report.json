@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "generated_at": "2026-04-26T13:16:21.477+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_0396f011e3e46fa60169ed9188713481938c90045fc8e22a4a",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_13-12-00_to_2026-04-26_13-15-00_kst_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_13-12-00_to_2026-04-26_13-15-00_kst_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 로그 2차 분석 요약: 내부 자산 IP에서의 서버 상태/디렉터리 탐색 징후",
+    "overall_assessment": "짧은 분석 구간 동안 1건의 낮은 수준 정찰성 요청과 다수의 후보 밖 탐색성 요청이 관찰되었습니다. 현재 제공된 근거만으로는 침해 성공이나 민감 정보 노출을 단정하기 어렵고, 특히 대상 IP가 known asset 이므로 내부 테스트 또는 운영 점검 가능성도 함께 고려해야 합니다.",
+    "executive_summary": [
+      "분석 구간: 2026-04-26 13:12:00~13:15:00(KST)이며, 총 10건 중 1건이 incident 후보로 남고 9건은 후보 밖 탐색성 요청으로 분류되었습니다.",
+      "주요 incident 는 192.168.56.110에서 발생한 /server-status 접근 시도이며, 403으로 차단되어 서버 상태 페이지 탐색 정황으로 보는 것이 타당합니다.",
+      "동일 IP에서 /.git/config, /.env, /admin, /phpmyadmin 등 민감/관리 경로를 짧은 시간에 넓게 훑는 정찰 흐름이 함께 보이지만, 반복 200 text/html 응답은 fallback HTML 가능성도 있어 실제 노출 성공으로는 볼 수 없습니다."
+    ],
+    "key_findings": [
+      {
+        "title": "/server-status 접근은 차단되었으며 낮은 수준의 정찰로 해석 가능",
+        "detail": "192.168.56.110에서 /server-status로 GET 요청이 발생했고 403으로 거부되었습니다. 쿼리 파라미터나 페이로드가 없고, 비브라우저성 사용자 에이전트와 error_link 연계가 보여 서버 상태 페이지를 탐색한 정황은 있으나, 내부 점검 또는 자체 호출 가능성도 배제할 수 없습니다.",
+        "severity": "low"
+      },
+      {
+        "title": "같은 IP에서 민감 경로를 폭넓게 탐색한 보조 문맥 존재",
+        "detail": "probing_sequence_summary 상 같은 출발지에서 /.git/config, /.env, /admin, /administrator, /backup, /phpmyadmin, /manager/html 등 10개 경로를 짧은 시간에 시도했습니다. 403과 다수의 200 text/html 응답이 보이지만, 반복적인 동일 응답 크기는 fallback HTML 가능성으로도 해석해야 하며 실제 리소스 노출로 단정하면 안 됩니다.",
+        "severity": "low"
+      },
+      {
+        "title": "후보 밖 탐색성 요청이 다수 존재",
+        "detail": "filtered_out_breakdown 에 low_signal_dir_probe 7건, low_signal_fuzzing 2건이 보존되어 있어, 경미한 탐색성 트래픽이 적지 않았음을 시사합니다. 다만 기본 정책상 이들은 개별 incident 로 승격하지 않고 보조 문맥으로만 해석합니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:ae2Q7TR6OlgGU3kma7WX5wAAAFI|table:security|log_id:9604|candidate:0",
+        "request_id": "ae2Q7TR6OlgGU3kma7WX5wAAAFI",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_scan",
+        "severity": "low",
+        "why_it_matters": "서버 상태 페이지(/server-status)에 대한 접근이 403으로 차단되어, 관리 페이지 또는 서비스 상태를 확인하려는 정찰 시도로 볼 수 있습니다. 다만 known asset IP 이므로 내부 테스트, 자체 호출, 운영 점검일 가능성도 함께 고려해야 하며, 이 한 건만으로 공격자 행위로 단정할 수는 없습니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.110",
+        "reason": "유일한 incident 발생 IP이며, 동시에 known asset IP 입니다. /server-status 차단 시도와 함께 여러 민감 경로 탐색이 관찰되어 주의가 필요하지만, 내부 점검 트래픽일 가능성도 반드시 열어두어야 합니다."
+      }
+    ],
+    "noise_interpretation": "후보 밖 탐색성 요청은 low_signal_dir_probe 7건과 low_signal_fuzzing 2건으로 구성되어 있습니다. 이는 짧은 시간에 여러 경로를 시험한 경미한 탐색성 트래픽으로 해석할 수 있으며, 단독으로는 침해 징후로 보기 어렵습니다. 다만 동일 IP에서 정찰성 incident 와 같은 시간대에 함께 나타나므로 추후 상관분석 대상은 됩니다. filtered_out_breakdown 이 존재하므로 noise_summary 가 비어 있어도 실제로 후보 밖 세부 분포는 보존된 것으로 해석해야 합니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "192.168.56.110의 요청 원천을 내부 테스트/운영 점검 일정과 대조하고, /server-status 및 민감 경로 접근이 의도된 작업인지 확인하십시오.",
+        "why": "known asset IP 에서의 탐색성 트래픽은 공격뿐 아니라 자체 점검일 수 있으므로, 먼저 합법적 활동 여부를 확인해야 오탐을 줄일 수 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "동일 IP의 직전/직후 로그를 추가로 확인하여 /.git/config, /.env, /admin, /phpmyadmin 등 다중 경로 접근이 단일 점검 스크립트인지 정찰성 행위인지 상관분석하십시오.",
+        "why": "짧은 시간의 다중 경로 시도는 reconnaissance 패턴일 수 있지만, 현재 요약만으로는 성공 여부나 의도를 확정할 수 없습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "/server-status, /phpmyadmin, /manager/html, /admin, /backup 류 경로에 대해 접근 제어가 의도대로 동작하는지 점검하고, 필요 시 허용 대역만 제한하십시오.",
+        "why": "차단 응답이 관찰되었으므로 접근 통제가 작동한 정황은 있으나, 노출면 자체를 줄이는 것이 재시도 위험을 낮춥니다."
+      },
+      {
+        "priority": "P3",
+        "action": "후보 밖 탐색성 요청(low_signal_dir_probe, low_signal_fuzzing)의 빈도 추이를 모니터링하고 동일 출발지에서 재발 여부를 추적하십시오.",
+        "why": "현재는 저강도 탐색 수준이지만, 동일 IP에서 반복되거나 다른 고신호 incident 와 결합되면 우선순위가 올라갈 수 있습니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "이 보고서는 Apache 로그 전처리 및 1차 분류 요약만을 기반으로 하므로, 실제 침해 성공, 파일 노출, 브라우저 실행, 외부 전송 성공은 확정할 수 없습니다.",
+      "probing_sequence_summary 는 context-only 이므로 개별 침해로 승격하지 않았고, 200 text/html 반복 응답은 fallback HTML 가능성으로만 해석했습니다.",
+      "known_asset IP 와 일치하므로 내부 테스트, 자체 호출, 운영 점검 가능성을 항상 함께 고려해야 합니다.",
+      "후보 밖 탐색성 요청은 filtered_out_breakdown 으로 보존된 사실이지만, 단독으로는 악성 여부를 확정하지 않습니다."
+    ],
+    "presentation_takeaway": "이번 구간의 핵심은 ‘차단된 서버 상태 접근 1건’과 ‘같은 내부 자산 IP에서의 짧은 다중 경로 탐색’입니다. 현재 증거는 정찰 또는 점검 수준에 가깝고, 침해 성공은 보이지 않습니다. 다만 동일 IP의 의도와 재발 여부는 추가 확인이 필요합니다."
+  }
+}
