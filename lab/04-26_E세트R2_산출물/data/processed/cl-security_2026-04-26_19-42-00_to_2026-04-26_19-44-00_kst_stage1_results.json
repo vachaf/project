@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "generated_at": "2026-04-26T19:47:30.861+09:00",
+    "input_file": "/opt/web_log_analysis/data/processed/cl-security_2026-04-26_19-42-00_to_2026-04-26_19-44-00_kst_llm_input.json",
+    "mode": "routine",
+    "provider": "anthropic",
+    "selected_model": "claude-haiku-4-5-20251001",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.anthropic.com/v1",
+    "source_window": {
+      "start": "2026-04-26T19:42:00.000+09:00",
+      "end_exclusive": "2026-04-26T19:44:00.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-04-26T19:44:13.567+09:00",
+    "source_prepared_at": "2026-04-26T19:47:25.159+09:00",
+    "source_counts": {
+      "total_exported_rows": 4,
+      "selected_source_rows": 4,
+      "filtered_out_rows": 3,
+      "filtered_out_non_aggregated_rows": 3,
+      "noise_group_count": 0,
+      "candidate_rows_before_dedup": 1,
+      "candidate_rows": 1,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 1,
+      "supporting_events": 0,
+      "false_positive_review_candidates": 0,
+      "probing_sequence_summaries": 1
+    },
+    "candidate_group_summary_count": 1,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id",
+      "response_body_bytes",
+      "resp_content_type",
+      "raw_request_target",
+      "path_normalized_from_raw_request",
+      "likely_html_fallback_response"
+    ],
+    "processed_candidate_count": 1,
+    "success_count": 1,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:ae3sGS14xhCPYl9QScJWUgAAAAM",
+      "request_id": "ae3sGS14xhCPYl9QScJWUgAAAAM",
+      "error_link_id": "",
+      "model": "claude-haiku-4-5-20251001",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9898
+      ],
+      "log_id": 9898,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/index.php",
+      "query_string": "?route=php://filter/convert.base64-encode/resource=index.php",
+      "log_time": "2026-04-26T19:42:33.039 09:00",
+      "status_code": 404,
+      "score": 4,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "long_query(+1)",
+        "error_status:404(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 19874,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/index.php?route=php%3A%2F%2Ffilter%2Fconvert.base64-encode%2Fresource%3Dindex.php",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_scan",
+      "severity": "medium",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "쿼리 문자열에 PHP 래퍼(php://filter/convert.base64-encode/resource=)를 통한 파일 읽기 시도가 명확히 드러났으나, 404 응답과 text/html 콘텐츠 타입으로 보아 애플리케이션이 해당 라우트를 인식하지 못하고 에러 페이지를 반환한 것으로 보인다. 공격 의도는 분명하지만 실제 파일 노출 성공 여부는 확인되지 않으며, 테스트 환경(user_agent: lab-e-set-php-wrapper-route-1)임을 시사한다.",
+      "evidence_fields": [
+        "query_string에 php://filter/convert.base64-encode/resource=index.php 패턴 검출",
+        "status_code 404: 요청된 라우트 미존재",
+        "resp_content_type text/html: HTML 에러 페이지 반환",
+        "response_body_bytes 19874: 실제 파일이 아닌 큰 응답 본문",
+        "user_agent 'lab-e-set-php-wrapper-route-1': 실험 또는 테스트 환경 시사",
+        "referer 부재 + 장시간 ttfb(140501us): 정상 브라우저 트래픽이 아님"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "msg_01SReG1ytvopR8eRB3vSTgGq",
+      "raw_output_text": "{\n  \"verdict\": \"suspicious_scan\",\n  \"severity\": \"medium\",\n  \"confidence\": \"medium\",\n  \"false_positive_possible\": true,\n  \"reasoning_summary\": \"쿼리 문자열에 PHP 래퍼(php://filter/convert.base64-encode/resource=)를 통한 파일 읽기 시도가 명확히 드러났으나, 404 응답과 text/html 콘텐츠 타입으로 보아 애플리케이션이 해당 라우트를 인식하지 못하고 에러 페이지를 반환한 것으로 보인다. 공격 의도는 분명하지만 실제 파일 노출 성공 여부는 확인되지 않으며, 테스트 환경(user_agent: lab-e-set-php-wrapper-route-1)임을 시사한다.\",\n  \"evidence_fields\": [\n    \"query_string에 php://filter/convert.base64-encode/resource=index.php 패턴 검출\",\n    \"status_code 404: 요청된 라우트 미존재\",\n    \"resp_content_type text/html: HTML 에러 페이지 반환\",\n    \"response_body_bytes 19874: 실제 파일이 아닌 큰 응답 본문\",\n    \"user_agent 'lab-e-set-php-wrapper-route-1': 실험 또는 테스트 환경 시사\",\n    \"referer 부재 + 장시간 ttfb(140501us): 정상 브라우저 트래픽이 아님\"\n  ],\n  \"recommended_actions\": [\n    \"review_raw_log\",\n    \"correlate_src_ip\",\n    \"watch\"\n  ]\n}"
+    }
+  ]
+}
