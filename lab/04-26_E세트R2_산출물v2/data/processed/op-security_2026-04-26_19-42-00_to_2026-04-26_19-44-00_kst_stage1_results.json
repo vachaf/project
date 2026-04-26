@@ -1,0 +1,178 @@
+{
+  "meta": {
+    "generated_at": "2026-04-26T20:21:02.990+09:00",
+    "input_file": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_19-42-00_to_2026-04-26_19-44-00_kst_llm_input.json",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.openai.com/v1",
+    "source_window": {
+      "start": "2026-04-26T19:42:00.000+09:00",
+      "end_exclusive": "2026-04-26T19:44:00.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-04-26T20:19:53.031+09:00",
+    "source_prepared_at": "2026-04-26T20:20:55.208+09:00",
+    "source_counts": {
+      "total_exported_rows": 4,
+      "selected_source_rows": 4,
+      "filtered_out_rows": 2,
+      "filtered_out_non_aggregated_rows": 2,
+      "noise_group_count": 0,
+      "candidate_rows_before_dedup": 2,
+      "candidate_rows": 2,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 2,
+      "supporting_events": 0,
+      "false_positive_review_candidates": 0,
+      "probing_sequence_summaries": 1
+    },
+    "candidate_group_summary_count": 2,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id",
+      "response_body_bytes",
+      "resp_content_type",
+      "raw_request_target",
+      "path_normalized_from_raw_request",
+      "likely_html_fallback_response"
+    ],
+    "processed_candidate_count": 2,
+    "success_count": 2,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:ae3sGS14xhCPYl9QScJWUgAAAAM",
+      "request_id": "ae3sGS14xhCPYl9QScJWUgAAAAM",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9898
+      ],
+      "log_id": 9898,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/index.php",
+      "query_string": "?route=php://filter/convert.base64-encode/resource=index.php",
+      "log_time": "2026-04-26T19:42:33.039 09:00",
+      "status_code": 404,
+      "score": 14,
+      "verdict_hint": "suspicious_file_disclosure",
+      "reason_hints": [
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:base64_source_intent",
+        "file_disclosure:resource_parameter",
+        "file_disclosure:sensitive_resource:index_php",
+        "long_query(+1)",
+        "error_status:404(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 19874,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/index.php?route=php%3A%2F%2Ffilter%2Fconvert.base64-encode%2Fresource%3Dindex.php",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_path_traversal",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "요청 파라미터에 php://filter/convert.base64-encode/resource=index.php 형태가 포함되어 있어 PHP 래퍼를 이용한 소스 노출 시도가 강하게 보입니다. 다만 응답 상태가 404이고 응답 본문 유형이 text/html이어서 실제 파일 노출 성공 여부는 확인되지 않았고, 앱의 오류/HTML 응답일 가능성도 남아 있습니다.",
+      "evidence_fields": [
+        "php://filter 래퍼 사용",
+        "base64 인코딩 소스 추출 의도",
+        "resource=index.php 지정",
+        "404 응답",
+        "resp_content_type=text/html",
+        "짧지 않은 쿼리 문자열"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "response_id": "resp_06d7ec77f01a94d60169edf5187b7081939ec4c4a21b726929",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"요청 파라미터에 php://filter/convert.base64-encode/resource=index.php 형태가 포함되어 있어 PHP 래퍼를 이용한 소스 노출 시도가 강하게 보입니다. 다만 응답 상태가 404이고 응답 본문 유형이 text/html이어서 실제 파일 노출 성공 여부는 확인되지 않았고, 앱의 오류/HTML 응답일 가능성도 남아 있습니다.\",\"evidence_fields\":[\"php://filter 래퍼 사용\",\"base64 인코딩 소스 추출 의도\",\"resource=index.php 지정\",\"404 응답\",\"resp_content_type=text/html\",\"짧지 않은 쿼리 문자열\"],\"recommended_actions\":[\"review_raw_log\",\"review_error_log\",\"correlate_request_id\",\"correlate_src_ip\"]}"
+    },
+    {
+      "candidate_index": 1,
+      "incident_group_key": "rid:ae3sKa4-w3nAn_dndx6NxQAAAAE",
+      "request_id": "ae3sKa4-w3nAn_dndx6NxQAAAAE",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9899
+      ],
+      "log_id": 9899,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/index.php",
+      "query_string": "?path=php://filter/convert.base64-encode/resource=config.php",
+      "log_time": "2026-04-26T19:42:49.266 09:00",
+      "status_code": 200,
+      "score": 12,
+      "verdict_hint": "suspicious_file_disclosure",
+      "reason_hints": [
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:base64_source_intent",
+        "file_disclosure:resource_parameter",
+        "file_disclosure:sensitive_resource:config_php",
+        "long_query(+1)"
+      ],
+      "response_body_bytes": 32777,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/index.php?path=php%3A%2F%2Ffilter%2Fconvert.base64-encode%2Fresource%3Dconfig.php",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_path_traversal",
+      "severity": "high",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "요청 파라미터에 php://filter/convert.base64-encode/resource=config.php 형태가 포함되어 있어 PHP wrapper를 이용한 파일 읽기/소스 노출 시도로 보는 것이 타당합니다. 응답은 200이고 text/html이며 HTML 폴백 여부는 명시적으로 확인되지 않아, 실제 파일 노출 성공은 이 로그만으로 단정하지 않고 시도 정황 위주로 판단합니다.",
+      "evidence_fields": [
+        "query_string의 php://filter wrapper",
+        "base64 인코딩 소스 읽기 의도",
+        "resource=config.php 대상",
+        "status_code 200",
+        "resp_content_type=text/html",
+        "likely_html_fallback_response=false",
+        "response_body_bytes 32777"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_0beaa27da27d91100169edf51cf4d08193a834be538b32e3e7",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"high\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"요청 파라미터에 php://filter/convert.base64-encode/resource=config.php 형태가 포함되어 있어 PHP wrapper를 이용한 파일 읽기/소스 노출 시도로 보는 것이 타당합니다. 응답은 200이고 text/html이며 HTML 폴백 여부는 명시적으로 확인되지 않아, 실제 파일 노출 성공은 이 로그만으로 단정하지 않고 시도 정황 위주로 판단합니다.\",\"evidence_fields\":[\"query_string의 php://filter wrapper\",\"base64 인코딩 소스 읽기 의도\",\"resource=config.php 대상\",\"status_code 200\",\"resp_content_type=text/html\",\"likely_html_fallback_response=false\",\"response_body_bytes 32777\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"watch\"]}"
+    }
+  ]
+}
