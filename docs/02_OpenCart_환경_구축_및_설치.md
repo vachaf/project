@@ -39,8 +39,8 @@
 
 예시 기준:
 
-- OpenCart 서버 IP: `192.168.35.193`
-- OpenCart 접속 URL: `http://192.168.35.193/`
+- OpenCart 서버 IP: `192.168.56.111`
+- OpenCart 접속 URL: `http://192.168.56.111/`
 - OpenCart 관리자 URL: 설치 후 출력되는 admin 경로
 
 패키지 설치 전에 시간대를 맞춘다.
@@ -230,7 +230,7 @@ sudo nano /etc/apache2/sites-available/opencart.conf
 ```apache
 <VirtualHost *:80>
     ServerAdmin admin@example.com
-    ServerName 192.168.35.193
+    ServerName 192.168.56.111
     DocumentRoot /var/www/opencart
 
     <Directory /var/www/opencart>
@@ -276,7 +276,7 @@ sudo systemctl reload apache2
 브라우저에서 아래 주소로 접속한다.
 
 ```text
-http://192.168.35.193/
+http://192.168.56.111/
 ```
 
 설치 화면에서 입력할 값:
@@ -369,7 +369,7 @@ sudo tail -n 5 /var/log/apache2/app_error.log
 연결 점검 예시:
 
 ```bash
-nc -vz 192.168.35.223 3306
+nc -vz 192.168.56.111 3306
 ```
 
 shipper 점검 예시:
