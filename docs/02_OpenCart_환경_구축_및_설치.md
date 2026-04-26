@@ -116,18 +116,6 @@ python3 --version
 pip3 --version
 ```
 
-선택 사항으로 shipper 전용 가상환경을 둘 수 있다.
-
-```bash
-sudo mkdir -p /opt/apache_log_shipper
-cd /opt/apache_log_shipper
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install PyMySQL
-deactivate
-```
-
 ## 7. MySQL 설치 및 OpenCart DB 생성
 
 ```bash
@@ -378,24 +366,3 @@ shipper 점검 예시:
 python3 /opt/apache_log_shipper.py --test-db
 python3 /opt/apache_log_shipper.py --once
 ```
-
-## 15. 현재 분석 파이프라인과 직접 연결되는 필드
-
-현재 분석 파이프라인에서 직접 쓰는 축은 아래다.
-
-- `resp_content_type`
-- `response_body_bytes`
-- `raw_request_target`
-- `path_normalized_from_raw_request`
-- `likely_html_fallback_response`
-
-이 중 `raw_request_target`, `path_normalized_from_raw_request`, `likely_html_fallback_response`는 DB 적재 후 LLM 준비 단계에서 계산 또는 해석에 사용된다.
-
-## 16. `resp_html_*` 처리 기준
-
-`resp_html_*` 계열은 현재 필수 구축 항목이 아니다.
-
-- 현재 Apache 표준 로그 포맷에 넣지 않는다.
-- `src/apache_log_shipper.py`와 DB 스키마에 관련 컬럼은 남아 있을 수 있다.
-- 현재 운영과 분석의 핵심 기준으로 취급하지 않는다.
-- 필요하면 나중에 선택 컬럼으로 확장할 수 있지만, 지금 문서 기준 기본 환경에서는 제외한다.
