@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-04-26T19:45:32.972+09:00",
+    "generated_at": "2026-04-26T20:21:15.906+09:00",
     "mode": "routine",
     "provider": "openai",
     "selected_model": "gpt-5.4-mini",
@@ -13,88 +13,96 @@
       "192.168.56.110"
     ],
     "base_url": "https://api.openai.com/v1",
-    "response_id": "resp_0ca98741278b4c760169edecc2d8fc8196892c36de3ec157f3",
+    "response_id": "resp_03bd4ce4a7b23b180169edf51fe71c81949b988ab5ea3c96f6",
     "stop_reason": null,
     "json_parse_strategy": "direct",
     "input_stage1_results": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_19-42-00_to_2026-04-26_19-44-00_kst_stage1_results.json",
     "input_llm_input": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_19-42-00_to_2026-04-26_19-44-00_kst_llm_input.json"
   },
   "report": {
-    "report_title": "Apache 웹 로그 2차 분석 요약 보고서",
-    "overall_assessment": "분석 구간에는 1건의 중간 수준 경로 탐색/파일 읽기 유도 시도가 확인되었고, 같은 출발지 IP에서 짧은 시간 내 추가적인 디렉터리 탐색 정황도 보입니다. 다만 대상 IP가 내부 자산으로 분류되어 있어 내부 테스트, 자체 호출, 운영 점검 가능성을 반드시 함께 고려해야 하며, 로그만으로 실제 파일 노출이나 침해 성공을 단정할 수는 없습니다.",
+    "report_title": "Apache 웹 로그 2차 요약 보고서: PHP wrapper 기반 파일 노출 시도 정황",
+    "overall_assessment": "해당 시간 구간에는 동일 출발지 IP(192.168.56.110)에서 PHP wrapper를 이용한 파일 읽기/소스 노출 시도가 2건 관찰되었습니다. 모두 known asset IP와 일치하므로 내부 테스트나 운영 점검 가능성을 함께 열어두어야 하며, Apache 로그만으로 실제 파일 내용 노출 성공은 확인되지 않습니다. 별도의 침해 확정 증거보다는 탐색·시도 정황으로 보는 것이 적절합니다.",
     "executive_summary": [
-      "분석 시간대는 2026-04-26 19:42~19:44(KST)이며, 총 4건 중 1건만 후보 사건으로 남았습니다.",
-      "핵심 사건은 `php://filter` 래퍼를 이용한 파일 읽기 유도 시도로 보이며, 응답만으로 실제 노출 성공은 확인되지 않습니다.",
-      "같은 IP에서 `/config.php`, `/admin/config.php` 등 민감 경로를 짧은 시간에 추가 조회한 정황이 있어 탐색성 요청이 함께 관찰되었습니다.",
-      "해당 IP는 known_asset 로 분류되어 있어 공격 단정 대신 내부 점검/테스트 가능성을 함께 봐야 합니다."
+      "분석 구간(19:42:00~19:44:00)에서 192.168.56.110의 동일한 대상(/index.php) 요청이 연속 관찰되었습니다.",
+      "핵심 패턴은 php://filter/convert.base64-encode/resource=를 이용한 파일 읽기 또는 소스 노출 시도입니다.",
+      "/config.php, /admin/config.php 접근은 같은 IP의 짧은 시간대 추가 탐색으로 보이지만, 본문 증거가 없어 설정 파일 노출 성공으로 단정할 수 없습니다.",
+      "동일 IP가 known asset에 포함되어 있어 내부 점검/자체 호출 가능성을 반드시 고려해야 합니다."
     ],
     "key_findings": [
       {
-        "title": "PHP wrapper를 이용한 파일 읽기 유도 정황",
-        "detail": "`/index.php?route=php://filter/convert.base64-encode/resource=index.php` 형태의 요청이 관찰되어 로컬 파일을 읽어내려는 시도로 해석됩니다. 다만 상태코드가 404이고 응답이 `text/html` 이라서, 실제 파일 내용 노출보다는 시도 단계로 보는 것이 타당합니다.",
+        "title": "PHP wrapper를 이용한 파일 읽기/소스 노출 시도 정황",
+        "detail": "192.168.56.110에서 /index.php?path=php://filter/convert.base64-encode/resource=config.php 및 /index.php?route=php://filter/convert.base64-encode/resource=index.php 요청이 관찰되었습니다. 이는 PHP wrapper를 이용해 파일 내용을 읽거나 소스를 노출시키려는 시도로 해석하는 것이 타당합니다. 다만 응답이 200 text/html 또는 404 text/html이며, Apache 로그만으로 실제 소스/설정 파일 내용 노출 성공은 확인되지 않습니다.",
+        "severity": "high"
+      },
+      {
+        "title": "짧은 시간대의 민감 경로 탐색 및 디렉터리 프로빙 문맥",
+        "detail": "같은 출발지 IP에서 /index.php, /config.php, /admin/config.php가 120초 내 연속 관찰되었고 모두 200 text/html이었습니다. 이는 민감 경로를 확인하는 탐색성 요청으로 볼 수 있으나, 반복되는 HTML 응답만으로 실제 민감 리소스 노출이나 우회 성공을 단정할 수는 없습니다. known asset IP이므로 내부 테스트 또는 운영 점검 가능성도 함께 고려해야 합니다.",
         "severity": "medium"
       },
       {
-        "title": "동일 출발지의 짧은 시간대 디렉터리 탐색 정황",
-        "detail": "같은 src_ip에서 `/index.php`, `/config.php`, `/admin/config.php` 등 여러 경로가 짧은 시간 안에 조회되었습니다. 이는 reconnaissance 또는 directory probing 흐름으로 볼 수 있으나, `200 text/html` 반복만으로 민감 파일 노출 성공을 단정할 수는 없습니다.",
-        "severity": "low"
-      },
-      {
-        "title": "내부 자산 IP와 일치하여 해석에 주의 필요",
-        "detail": "관찰된 src_ip `192.168.56.110`은 known_asset IP 목록과 일치합니다. 따라서 외부 공격자 활동으로 단정하기보다 내부 테스트, 자체 호출, 운영 점검 트래픽 가능성을 함께 고려해야 합니다.",
-        "severity": "info"
-      },
-      {
-        "title": "후보 밖 탐색성 요청이 별도로 존재",
-        "detail": "필터링 단계에서 `low_signal_dir_probe` 2건, `low_signal_fuzzing` 1건이 보존되었습니다. 이는 incident 로 승격되지는 않았지만, 같은 IP의 탐색 패턴이 존재했다는 배경 문맥으로 반영할 수 있습니다.",
+        "title": "후보 밖 탐색성 요청이 일부 필터링됨",
+        "detail": "filtered_out_breakdown에 low_signal_dir_probe 2건이 보존되어 있어, 후보로 올라오지 않은 디렉터리 탐색성 요청이 실제로 존재합니다. 이는 별도 악성 확정 근거라기보다 주변 탐색 잡음으로 해석하는 것이 적절합니다.",
         "severity": "info"
       }
     ],
     "notable_incidents": [
+      {
+        "incident_ref": "request_id:ae3sKa4-w3nAn_dndx6NxQAAAAE|table:security|log_id:9899|candidate:1",
+        "request_id": "ae3sKa4-w3nAn_dndx6NxQAAAAE",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_path_traversal",
+        "severity": "high",
+        "why_it_matters": "php://filter/convert.base64-encode/resource=config.php 패턴은 파일 읽기 또는 소스 노출을 노린 시도로 볼 수 있습니다. 다만 응답 본문이 확인되지 않으므로 실제 노출 성공으로는 단정하지 말아야 하며, known asset IP이어서 내부 테스트 가능성도 함께 검토해야 합니다."
+      },
       {
         "incident_ref": "request_id:ae3sGS14xhCPYl9QScJWUgAAAAM|table:security|log_id:9898|candidate:0",
         "request_id": "ae3sGS14xhCPYl9QScJWUgAAAAM",
         "src_ip": "192.168.56.110",
         "verdict": "suspicious_path_traversal",
         "severity": "medium",
-        "why_it_matters": "`php://filter` 래퍼를 이용해 `index.php`의 내용을 읽어내려는 시도로 보이며, 경로 탐색/로컬 파일 노출 시도 가능성을 시사합니다. 다만 404 응답과 `text/html` 응답 특성만으로 실제 파일 노출 성공이나 침해 성공은 확인되지 않습니다."
+        "why_it_matters": "php://filter를 이용해 index.php 소스를 읽으려는 정황이 강합니다. 그러나 404 text/html 응답만으로는 실제 소스 노출 여부를 확인할 수 없고, 오류 페이지 또는 앱 라우팅 실패 가능성도 남습니다."
       }
     ],
     "notable_source_ips": [
       {
         "src_ip": "192.168.56.110",
-        "reason": "유일한 후보 사건의 출발지이며, 짧은 시간대에 민감 경로 probing 정황도 함께 관찰되었습니다. 다만 known_asset IP 이므로 내부 테스트 또는 운영 점검 가능성을 함께 검토해야 합니다."
+        "reason": "2건의 고신호 incident가 모두 이 IP에서 발생했으며, 짧은 시간대에 /index.php, /config.php, /admin/config.php로 이어지는 탐색성 요청도 관찰되었습니다. 다만 known asset IP이므로 내부 테스트, 자체 호출, 운영 점검 트래픽일 가능성을 함께 고려해야 합니다."
       }
     ],
-    "noise_interpretation": "후보 밖 탐색성 요청으로 `low_signal_dir_probe` 2건과 `low_signal_fuzzing` 1건이 남아 있습니다. 이는 본 보고서의 사건 수에는 포함되지 않았지만, 동일 출발지에서 추가적인 탐색이 있었다는 배경 문맥입니다. `200 text/html` 응답이 반복된 경로는 앱의 fallback HTML 가능성으로도 해석할 수 있으므로, 실제 민감 리소스 노출로 단정하지 않는 것이 적절합니다.",
+    "noise_interpretation": "후보 밖 탐색성 요청은 low_signal_dir_probe 2건으로 집계되었습니다. 이는 동일 출발지에서 추가적인 디렉터리/경로 탐색이 있었음을 뜻하지만, 기본적으로 incident로 승격할 수준은 아닙니다. 반복된 200 text/html 응답은 fallback HTML, 라우팅 결과, 또는 빈 출력 가능성도 있으므로 민감 파일 노출 성공으로 해석하지 않았습니다.",
     "recommended_actions": [
       {
         "priority": "P1",
-        "action": "해당 request_id와 원문 Apache 로그를 즉시 재검토해 쿼리스트링, 헤더, 리다이렉트 여부, 애플리케이션 라우팅을 함께 확인하세요.",
-        "why": "`php://filter` 기반 파일 읽기 시도인지, 단순 오탐성 라우팅 입력인지 구분하는 데 필요합니다."
+        "action": "해당 request_id 두 건의 원문 로그와 애플리케이션/에러 로그를 대조해 실제 라우팅, 오류, 본문 노출 여부를 확인하세요.",
+        "why": "Apache 요약만으로는 파일 내용 노출 성공을 확정할 수 없으므로, 상관 로그 확인이 가장 중요합니다."
+      },
+      {
+        "priority": "P1",
+        "action": "192.168.56.110의 요청 주체가 내부 점검 계정, 테스트 장비, 또는 정상 운영 자동화인지 소유자 확인을 진행하세요.",
+        "why": "known asset IP이므로 공격 트래픽으로 단정하면 오탐 위험이 있습니다."
       },
       {
         "priority": "P2",
-        "action": "src_ip `192.168.56.110`의 최근 동일 시간대 접근을 애플리케이션/인증 로그와 대조하세요.",
-        "why": "내부 테스트·운영 점검인지, 탐색 후속 행동이 있었는지 구분하는 데 도움이 됩니다."
+        "action": "/index.php, /config.php, /admin/config.php 및 php://filter 패턴에 대한 WAF/앱 레벨 탐지 규칙을 점검하고, 동일 패턴의 반복 여부를 모니터링하세요.",
+        "why": "파일 읽기·소스 노출 시도는 재시도 패턴이 자주 나타나며, 추가 시도를 조기에 포착하는 데 유용합니다."
       },
       {
         "priority": "P2",
-        "action": "`/config.php`, `/admin/config.php` 등 탐색된 경로가 실제 노출 자산인지 점검하고, 불필요한 공개 여부를 확인하세요.",
-        "why": "후보 밖 탐색성 요청이 같은 시간대에 존재해 추가 노출 가능성 검토가 필요합니다."
+        "action": "민감 설정 파일의 직접 접근 경로에 대해 접근 통제와 비노출 설계를 재확인하세요.",
+        "why": "설정 파일 경로 probing이 관찰되었으므로 경로 노출 자체를 줄이는 것이 필요합니다."
       },
       {
         "priority": "P3",
-        "action": "해당 자산에 대해 WAF 또는 웹서버 측 경로 탐색 탐지 규칙을 점검하고, 반복 probing이 있으면 알림 기준을 조정하세요.",
-        "why": "동일 IP의 짧은 시간대 탐색 패턴을 조기에 식별하는 데 유용합니다."
+        "action": "후보 밖 탐색성 요청(low_signal_dir_probe)도 동일 IP 기준으로 짧은 시간대에 묶어 추적하세요.",
+        "why": "현재는 낮은 신호이지만, 후속 고신호 요청과 결합될 경우 의미가 커질 수 있습니다."
       }
     ],
     "confidence_and_limitations": [
-      "본 결론은 Apache 웹 로그 요약 데이터에 기반하며, 원문 원격 응답이나 서버 내부 파일 접근 증거는 없습니다.",
-      "`text/html` 응답은 앱 fallback HTML일 수 있어, 200 응답만으로 파일 노출 또는 관리 페이지 노출 성공을 단정할 수 없습니다.",
-      "대상 IP가 known_asset 이므로 내부 테스트, 자체 호출, 운영 점검 가능성을 배제할 수 없습니다.",
-      "필터링된 `low_signal_dir_probe`/`low_signal_fuzzing`는 후보 밖 요청으로 유지되었으며, 별도 고신호 사건과의 결합 증거는 없습니다."
+      "confidence는 incident 분류 수준은 높지만, 실제 침해 성공 여부는 낮습니다.",
+      "분석은 Apache 웹 로그 요약 데이터에 한정되며, 응답 본문 원문이나 애플리케이션 내부 로그가 없어 file disclosure 성공을 확정할 수 없습니다.",
+      "known asset IP가 포함되어 있어 내부 테스트/자체 호출 가능성을 배제할 수 없습니다.",
+      "probing_sequence_summary는 context-only로만 해석했으며, 민감 리소스 노출 성공으로 승격하지 않았습니다."
     ],
-    "presentation_takeaway": "이번 구간의 핵심은 내부 자산 IP에서 관찰된 `php://filter` 기반 파일 읽기 유도와 짧은 시간대의 경로 탐색 정황입니다. 다만 현재 로그만으로는 실제 침해 성공을 말할 수 없고, 내부 점검 트래픽 가능성도 있어 원문 로그와 다른 계층의 로그를 함께 확인하는 것이 가장 중요합니다."
+    "presentation_takeaway": "이 구간의 핵심은 ‘침해 확정’이 아니라 ‘known asset에서 관찰된 PHP wrapper 기반 파일 노출 시도와 짧은 시간대의 민감 경로 탐색’입니다. 실제 노출 성공 여부는 추가 로그 상관분석이 필요하며, 내부 테스트 가능성도 함께 검토해야 합니다."
   }
 }
