@@ -21,7 +21,6 @@ Ubuntu 22.04 Server에서 Apache2와 Docker를 사용해 OWASP Juice Shop 실험
 - 내부 앱 바인딩: `127.0.0.1:3000`
 - shipper 스크립트: `/opt/apache_log_shipper.py`
 - shipper 환경변수 파일: `/opt/shipper.env`
-- 선택 공통 env 파일: `/opt/config/llm.env`
 - 로그 파일:
   - `/var/log/apache2/app_access.log`
   - `/var/log/apache2/app_security.log`
@@ -31,6 +30,7 @@ Ubuntu 22.04 Server에서 Apache2와 Docker를 사용해 OWASP Juice Shop 실험
 
 - Juice Shop 서버 IP: `192.168.56.105`
 - MariaDB 로그 DB 서버 IP: `192.168.56.109`
+- Juice Sho 접속 URL: `http://192.168.56.108/`
 
 ## 3. 사전 조건
 
@@ -71,22 +71,13 @@ sudo apt install -y curl wget unzip ca-certificates gnupg lsb-release python3 py
 
 ## 6. Python 및 shipper 배치
 
-웹서버에서는 기존 운영 구조에 맞춰 `/opt/apache_log_shipper.py`를 사용한다.
+웹서버에서 `/opt/apache_log_shipper.py`를 실행하기 위해 Python과 PyMySQL을 준비한다.
 
 ```bash
+sudo apt install -y python3 python3-pip python3-venv python3-pymysql
 python3 --version
-python3 -c "import pymysql; print(pymysql.__version__)"
+sudo pip3 install pymysql
 ```
-
-저장소의 shipper를 웹서버에 배치한다.
-
-```bash
-sudo cp /path/to/project/src/apache_log_shipper.py /opt/apache_log_shipper.py
-sudo chmod +x /opt/apache_log_shipper.py
-ls -l /opt/apache_log_shipper.py
-```
-
-이미 `/opt/apache_log_shipper.py`로 운영 중이면 기존 파일을 유지해도 된다. 단, 최신 코드와 다른지 확인하려면 저장소의 `src/apache_log_shipper.py`와 비교한다.
 
 ## 7. shipper env 생성
 
@@ -136,8 +127,8 @@ SHIPPER_READ_TIMEOUT_SEC=10
 SHIPPER_WRITE_TIMEOUT_SEC=10
 EOF
 
-sudo chown root:root /opt/shipper.env
-sudo chmod 600 /opt/shipper.env
+sudo chown $USER:$USER /opt/shipper.env
+sudo chmod 770 /opt/shipper.env
 ```
 
 확인:
@@ -163,7 +154,6 @@ sudo grep -v 'PASSWORD' /opt/shipper.env
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 ```
 
@@ -173,7 +163,6 @@ DB 연결 테스트:
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --test-db
 ```
@@ -184,7 +173,6 @@ sudo -E python3 ./apache_log_shipper.py --test-db
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --once
 ```
@@ -195,7 +183,6 @@ sudo -E python3 ./apache_log_shipper.py --once
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py
 ```
@@ -203,7 +190,7 @@ sudo -E python3 ./apache_log_shipper.py
 `sudo -E`가 환경변수를 보존하지 않는 환경이면 아래처럼 한 줄로 실행한다.
 
 ```bash
-sudo bash -c 'cd /opt && set -a && source ./shipper.env && [ -f ./config/llm.env ] && source ./config/llm.env; set +a; exec python3 ./apache_log_shipper.py --test-db'
+sudo bash -c 'cd /opt && set -a && source ./shipper.env set +a; exec python3 ./apache_log_shipper.py --test-db'
 ```
 
 ## 8. Apache 설치
@@ -409,13 +396,12 @@ curl -s http://127.0.0.1/ > /dev/null
 
 ## 17. shipper DB 연결 및 적재 확인
 
-DB 서버와 연결 가능한지 확인한다.
+DB 서버 연결:
 
 ```bash
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 nc -vz "$LOG_DB_HOST" "$LOG_DB_PORT"
 ```
@@ -426,19 +412,17 @@ DB 연결 테스트:
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --test-db
 ```
 
-1회 적재 테스트:
+1회 적재:
 
 ```bash
 curl -s http://127.0.0.1/ >/dev/null
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --once
 ```
@@ -449,18 +433,8 @@ sudo -E python3 ./apache_log_shipper.py --once
 cd /opt
 set -a
 source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py
-```
-
-기대 결과:
-
-```text
-Apache log shipper started.
-Using logs: access=/var/log/apache2/app_access.log security=/var/log/apache2/app_security.log error=/var/log/apache2/app_error.log
-Connected to MariaDB 192.168.56.109:3306
-Flushed: access=N security=N error=N
 ```
 
 ## 18. 설치 후 최소 점검
@@ -475,63 +449,8 @@ Flushed: access=N security=N error=N
 - `/opt/apache_log_shipper.py --test-db` 성공 확인
 - `/opt/apache_log_shipper.py --once` 실행 시 `Flushed:` 로그 확인
 
-## 19. env 관련 문제 해결
 
-### 19.1 `LOG_DB_HOST is required`
-
-원인:
-
-- `/opt/shipper.env`를 source하지 않고 실행했다.
-- `set -a` 없이 source해서 변수가 export되지 않았다.
-- `sudo` 실행 중 환경변수가 보존되지 않았다.
-
-해결:
-
-```bash
-cd /opt
-set -a
-source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
-set +a
-sudo -E python3 ./apache_log_shipper.py --test-db
-```
-
-`sudo -E`가 안 되면:
-
-```bash
-sudo bash -c 'cd /opt && set -a && source ./shipper.env && [ -f ./config/llm.env ] && source ./config/llm.env; set +a; exec python3 ./apache_log_shipper.py --test-db'
-```
-
-### 19.2 `LOG_DB_PASSWORD is required`
-
-원인:
-
-- `/opt/shipper.env`의 `LOG_DB_PASSWORD`가 비어 있다.
-- placeholder를 실제 비밀번호로 바꾸지 않았다.
-
-확인:
-
-```bash
-sudo grep '^LOG_DB_PASSWORD=' /opt/shipper.env
-```
-
-### 19.3 로그는 생기는데 DB에 안 들어감
-
-확인 순서:
-
-```bash
-sudo tail -n 3 /var/log/apache2/app_security.log
-cd /opt
-set -a
-source ./shipper.env
-[ -f ./config/llm.env ] && source ./config/llm.env
-set +a
-env | grep -E '^(LOG_DB_HOST|APACHE_SECURITY_LOG)='
-sudo -E python3 ./apache_log_shipper.py --test-db
-sudo tail -n 20 /var/log/apache2/apache_log_shipper.log
-```
-
-## 20. 다음 단계
+## 19. 다음 단계
 
 Juice Shop 환경 구축 후 진행 순서:
 

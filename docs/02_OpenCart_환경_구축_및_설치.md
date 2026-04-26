@@ -152,8 +152,8 @@ SHIPPER_READ_TIMEOUT_SEC=10
 SHIPPER_WRITE_TIMEOUT_SEC=10
 EOF
 
-sudo chown root:root /opt/shipper.env
-sudo chmod 600 /opt/shipper.env
+sudo chown $USER:$USER /opt/shipper.env
+sudo chmod 770 /opt/shipper.env
 ```
 
 확인:
