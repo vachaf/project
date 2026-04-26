@@ -1,7 +1,7 @@
 # 02_OpenCart_환경_구축_및_설치
 
 - 문서 상태: 재현 절차서
-- 버전: v1.4
+- 버전: v1.5
 - 작성일: 2026-04-09
 - 수정일: 2026-04-26
 - 적용 대상: Ubuntu 22.04 Server 기반 OpenCart 비교 실험 환경
@@ -9,6 +9,7 @@
   - Apache + PHP + MySQL 계열 OpenCart 단독 서버
   - Apache 로그를 `/opt/apache_log_shipper.py`가 읽어 DB로 적재하는 현재 운영 구조
   - shipper 설정은 하드코딩하지 않고 `/opt/shipper.env`에서 읽는다.
+  - 선택 공통 env 파일은 `/opt/config/llm.env`에 둔다.
 
 ## 1. 목적
 
@@ -34,6 +35,7 @@
 - Apache 사이트 설정: `/etc/apache2/sites-available/opencart.conf`
 - shipper 스크립트: `/opt/apache_log_shipper.py`
 - shipper 환경변수 파일: `/opt/shipper.env`
+- 선택 공통 env 파일: `/opt/config/llm.env`
 - Apache 로그:
   - `/var/log/apache2/app_access.log`
   - `/var/log/apache2/app_security.log`
@@ -43,9 +45,9 @@
 
 예시 기준:
 
-- OpenCart 서버 IP: `192.168.56.108`
+- OpenCart 서버 IP: `192.168.56.111`
 - MariaDB 로그 DB 서버 IP: `192.168.56.109`
-- OpenCart 접속 URL: `http://192.168.56.108/`
+- OpenCart 접속 URL: `http://192.168.56.111/`
 
 ## 3. 사전 준비
 
@@ -121,7 +123,15 @@ sudo systemctl restart apache2
 ```bash
 sudo apt install -y python3 python3-pip python3-venv python3-pymysql
 python3 --version
-sudo pip3 install pymysql
+python3 -c "import pymysql; print(pymysql.__version__)"
+```
+
+필요하면 저장소의 최신 shipper를 웹서버에 배치한다.
+
+```bash
+sudo cp /path/to/project/src/apache_log_shipper.py /opt/apache_log_shipper.py
+sudo chmod +x /opt/apache_log_shipper.py
+python3 -m py_compile /opt/apache_log_shipper.py
 ```
 
 ## 7. shipper env 생성
@@ -186,6 +196,7 @@ sudo grep -v 'PASSWORD' /opt/shipper.env
 cd /opt
 set -a
 source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 ```
 
@@ -195,6 +206,7 @@ DB 연결 테스트:
 cd /opt
 set -a
 source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --test-db
 ```
@@ -205,6 +217,7 @@ sudo -E python3 ./apache_log_shipper.py --test-db
 cd /opt
 set -a
 source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --once
 ```
@@ -215,6 +228,7 @@ sudo -E python3 ./apache_log_shipper.py --once
 cd /opt
 set -a
 source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py
 ```
@@ -222,7 +236,7 @@ sudo -E python3 ./apache_log_shipper.py
 `sudo -E`가 환경변수를 보존하지 않는 환경이면 아래처럼 한 줄로 실행한다.
 
 ```bash
-sudo bash -c 'cd /opt && set -a && source ./shipper.env set +a; exec python3 ./apache_log_shipper.py --test-db'
+sudo bash -c 'cd /opt && set -a && source ./shipper.env && { [ ! -f ./config/llm.env ] || source ./config/llm.env; } && set +a && exec python3 ./apache_log_shipper.py --test-db'
 ```
 
 기대 결과:
@@ -333,7 +347,7 @@ sudo nano /etc/apache2/sites-available/opencart.conf
 ```apache
 <VirtualHost *:80>
     ServerAdmin admin@example.com
-    ServerName 192.168.56.108
+    ServerName 192.168.56.111
     DocumentRoot /var/www/opencart
 
     <Directory /var/www/opencart>
@@ -379,7 +393,7 @@ sudo systemctl reload apache2
 브라우저에서 아래 주소로 접속한다.
 
 ```text
-http://192.168.56.108/
+http://192.168.56.111/
 ```
 
 설치 화면에서 입력할 값:
@@ -434,7 +448,7 @@ sudo tail -n 5 /var/log/apache2/app_error.log
 
 - `app_access.log`에 일반 Apache access 라인이 남는다.
 - `app_security.log`에 `log_time=`, `request_id=`, `raw_request=`, `resp_content_type=` 형식의 key/value 로그가 남는다.
-- `host="192.168.56.108"` 또는 OpenCart host가 남는지 확인한다.
+- `host="192.168.56.111"` 또는 OpenCart host가 남는지 확인한다.
 - `app_error.log`는 에러가 없으면 빈 상태일 수 있다.
 
 ## 15. shipper 적재 확인
@@ -445,6 +459,7 @@ DB 서버 연결:
 cd /opt
 set -a
 source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 nc -vz "$LOG_DB_HOST" "$LOG_DB_PORT"
 ```
@@ -455,6 +470,7 @@ DB 연결 테스트:
 cd /opt
 set -a
 source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --test-db
 ```
@@ -466,6 +482,7 @@ curl -s http://127.0.0.1/ >/dev/null
 cd /opt
 set -a
 source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --once
 ```
@@ -476,6 +493,7 @@ sudo -E python3 ./apache_log_shipper.py --once
 cd /opt
 set -a
 source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py
 ```
@@ -496,6 +514,7 @@ sudo -E python3 ./apache_log_shipper.py
 cd /opt
 set -a
 source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 sudo -E python3 ./apache_log_shipper.py --test-db
 ```
@@ -503,7 +522,7 @@ sudo -E python3 ./apache_log_shipper.py --test-db
 `sudo -E`가 안 되면:
 
 ```bash
-sudo bash -c 'cd /opt && set -a && source ./shipper.env set +a; exec python3 ./apache_log_shipper.py --test-db'
+sudo bash -c 'cd /opt && set -a && source ./shipper.env && { [ ! -f ./config/llm.env ] || source ./config/llm.env; } && set +a && exec python3 ./apache_log_shipper.py --test-db'
 ```
 
 ### 16.2 `LOG_DB_PASSWORD is required`
@@ -528,6 +547,7 @@ sudo tail -n 3 /var/log/apache2/app_security.log
 cd /opt
 set -a
 source ./shipper.env
+[ -f ./config/llm.env ] && source ./config/llm.env
 set +a
 env | grep -E '^(LOG_DB_HOST|APACHE_SECURITY_LOG)='
 sudo -E python3 ./apache_log_shipper.py --test-db
