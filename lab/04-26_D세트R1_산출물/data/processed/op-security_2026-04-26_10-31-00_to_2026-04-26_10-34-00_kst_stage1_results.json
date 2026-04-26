@@ -1,0 +1,231 @@
+{
+  "meta": {
+    "generated_at": "2026-04-26T10:37:09.866+09:00",
+    "input_file": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_10-31-00_to_2026-04-26_10-34-00_kst_llm_input.json",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.openai.com/v1",
+    "source_window": {
+      "start": "2026-04-26T10:31:00.000+09:00",
+      "end_exclusive": "2026-04-26T10:34:00.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-04-26T10:34:18.007+09:00",
+    "source_prepared_at": "2026-04-26T10:37:01.088+09:00",
+    "source_counts": {
+      "total_exported_rows": 6,
+      "selected_source_rows": 6,
+      "filtered_out_rows": 3,
+      "filtered_out_non_aggregated_rows": 3,
+      "noise_group_count": 0,
+      "candidate_rows_before_dedup": 3,
+      "candidate_rows": 3,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 3,
+      "supporting_events": 0,
+      "false_positive_review_candidates": 0
+    },
+    "candidate_group_summary_count": 3,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id",
+      "response_body_bytes",
+      "resp_content_type",
+      "raw_request_target",
+      "path_normalized_from_raw_request",
+      "likely_html_fallback_response"
+    ],
+    "processed_candidate_count": 3,
+    "success_count": 3,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:ae1q9wUzzALRBdLWugyhiQAAAAs",
+      "request_id": "ae1q9wUzzALRBdLWugyhiQAAAAs",
+      "error_link_id": "ae1q9wUzzALRBdLWugyhiQAAAAs",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9578
+      ],
+      "log_id": 9578,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/etc/passwd\u0000.pdf",
+      "query_string": "",
+      "log_time": "2026-04-26T10:31:35.742 09:00",
+      "status_code": 400,
+      "score": 14,
+      "verdict_hint": "path_traversal",
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "error_status:400(+2)",
+        "error_linked(+2)",
+        "no_referer_non_browser_error(+1)",
+        "traversal:raw_request_uri_diff"
+      ],
+      "response_body_bytes": 306,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/public/images/../../../../etc/passwd%00.pdf",
+      "path_normalized_from_raw_request": true,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_path_traversal",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": false,
+      "reasoning_summary": "raw_request에서 ../../../../etc/passwd 및 널바이트(%00) 조합이 보여 전형적인 경로 탐색/파일 노출 시도로 보입니다. 다만 응답이 400이고 resp_content_type이 text/html이라 실제 파일 노출 성공보다는 차단 또는 오류 응답으로 보는 것이 타당합니다.",
+      "evidence_fields": [
+        "raw_request의 ../../../../etc/passwd 경로 시도",
+        "널바이트(%00) 포함",
+        "uri에 /etc/passwd 흔적",
+        "status_code 400 오류 응답",
+        "resp_content_type=text/html",
+        "error_link_id/request_id 상관 단서"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "review_error_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "response_id": "resp_0a5ec439f46d2c410169ed6c3e240881949cd8ceacb81f6f6c",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":false,\"reasoning_summary\":\"raw_request에서 ../../../../etc/passwd 및 널바이트(%00) 조합이 보여 전형적인 경로 탐색/파일 노출 시도로 보입니다. 다만 응답이 400이고 resp_content_type이 text/html이라 실제 파일 노출 성공보다는 차단 또는 오류 응답으로 보는 것이 타당합니다.\",\"evidence_fields\":[\"raw_request의 ../../../../etc/passwd 경로 시도\",\"널바이트(%00) 포함\",\"uri에 /etc/passwd 흔적\",\"status_code 400 오류 응답\",\"resp_content_type=text/html\",\"error_link_id/request_id 상관 단서\"],\"recommended_actions\":[\"review_raw_log\",\"review_error_log\",\"correlate_request_id\",\"correlate_src_ip\"]}"
+    },
+    {
+      "candidate_index": 1,
+      "incident_group_key": "rid:ae1q7wUzzALRBdLWugyhiAAAAAk",
+      "request_id": "ae1q7wUzzALRBdLWugyhiAAAAAk",
+      "error_link_id": "ae1q7wUzzALRBdLWugyhiAAAAAk",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9577
+      ],
+      "log_id": 9577,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/etc/passwd",
+      "query_string": "",
+      "log_time": "2026-04-26T10:31:27.798 09:00",
+      "status_code": 400,
+      "score": 14,
+      "verdict_hint": "path_traversal",
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "error_status:400(+2)",
+        "error_linked(+2)",
+        "no_referer_non_browser_error(+1)",
+        "traversal:raw_request_uri_diff"
+      ],
+      "response_body_bytes": 306,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/public/images/../../../../etc/passwd",
+      "path_normalized_from_raw_request": true,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_path_traversal",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "raw_request에서 `/public/images/../../../../etc/passwd` 형태의 디렉터리 상승 시도가 확인되고, URI도 `/etc/passwd`로 정규화되어 경로 탐색 의도가 분명합니다. 다만 status_code 400과 text/html 응답만으로는 실제 파일 노출 성공을 의미하지 않으므로, 이는 노출 시도 탐지로 보는 것이 타당합니다.",
+      "evidence_fields": [
+        "raw_request의 ../ 경로 상승",
+        "uri=/etc/passwd 정규화",
+        "status_code 400",
+        "resp_content_type=text/html",
+        "error_link_id 연결",
+        "user_agent의 시험용 패턴"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip"
+      ],
+      "response_id": "resp_0c67124e9938ca8e0169ed6c416d5481948f13a8f2f74bf12b",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"raw_request에서 `/public/images/../../../../etc/passwd` 형태의 디렉터리 상승 시도가 확인되고, URI도 `/etc/passwd`로 정규화되어 경로 탐색 의도가 분명합니다. 다만 status_code 400과 text/html 응답만으로는 실제 파일 노출 성공을 의미하지 않으므로, 이는 노출 시도 탐지로 보는 것이 타당합니다.\",\"evidence_fields\":[\"raw_request의 ../ 경로 상승\",\"uri=/etc/passwd 정규화\",\"status_code 400\",\"resp_content_type=text/html\",\"error_link_id 연결\",\"user_agent의 시험용 패턴\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\"]}"
+    },
+    {
+      "candidate_index": 2,
+      "incident_group_key": "rid:ae1q_wUzzALRBdLWugyhigAAAAA",
+      "request_id": "ae1q_wUzzALRBdLWugyhigAAAAA",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        9579
+      ],
+      "log_id": 9579,
+      "src_ip": "192.168.56.110",
+      "method": "GET",
+      "uri": "/public/images/../../../.env",
+      "query_string": "",
+      "log_time": "2026-04-26T10:31:43.141 09:00",
+      "status_code": 404,
+      "score": 7,
+      "verdict_hint": "path_traversal",
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "error_status:404(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 276,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/public/images/%2e%2e%2f%2e%2e%2f%2e%2e%2f.env",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_path_traversal",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "상대 경로 점프와 .env 파일을 직접 지정한 요청으로 경로 탐색 시도가 뚜렷합니다. 다만 응답은 404와 text/html이라 실제 파일 노출 성공으로 보기는 어렵고, 탐지된 것은 시도 정황에 가깝습니다.",
+      "evidence_fields": [
+        "경로 탐색 패턴(../ 반복)",
+        "민감 파일 대상(.env)",
+        "상태코드 404",
+        "응답 형식 text/html",
+        "비브라우저성 사용자 에이전트"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_0c82d5eb7a5244550169ed6c43f1b88196837263105637b1fe",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"상대 경로 점프와 .env 파일을 직접 지정한 요청으로 경로 탐색 시도가 뚜렷합니다. 다만 응답은 404와 text/html이라 실제 파일 노출 성공으로 보기는 어렵고, 탐지된 것은 시도 정황에 가깝습니다.\",\"evidence_fields\":[\"경로 탐색 패턴(../ 반복)\",\"민감 파일 대상(.env)\",\"상태코드 404\",\"응답 형식 text/html\",\"비브라우저성 사용자 에이전트\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_src_ip\",\"watch\"]}"
+    }
+  ]
+}

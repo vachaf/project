@@ -1,0 +1,115 @@
+{
+  "meta": {
+    "generated_at": "2026-04-26T10:37:21.675+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_0e3b6b82c1ae45a50169ed6c4667708196a881dd5ad62a95c4",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_10-31-00_to_2026-04-26_10-34-00_kst_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/op-security_2026-04-26_10-31-00_to_2026-04-26_10-34-00_kst_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 웹 로그 2차 분석 요약 - 경로 탐색 시도 중심",
+    "overall_assessment": "분석 구간(2026-04-26 10:31:00~10:34:00 KST) 동안 동일 출발지 IP에서 경로 탐색(path traversal) 시도가 3건 연속 관찰되었습니다. 모두 known asset IP와 일치하므로 내부 테스트, 자체 호출, 운영 점검 트래픽일 가능성도 함께 고려해야 합니다. 현재 제공된 로그만으로는 실제 파일 노출이나 침해 성공은 확인되지 않았고, 주로 시도 정황으로 해석하는 것이 타당합니다.",
+    "executive_summary": [
+      "10:31대에 동일 IP(192.168.56.110)에서 경로 탐색 시도가 짧은 간격으로 3건 확인되었습니다.",
+      "대상은 /etc/passwd와 .env로, 민감 파일 접근 의도가 분명하지만 응답은 400/404 및 text/html이라 성공으로 단정할 근거는 없습니다.",
+      "출발지 IP가 known asset에 포함되어 있어 내부 점검 또는 테스트 가능성을 반드시 열어두고 추가 상관분석이 필요합니다."
+    ],
+    "key_findings": [
+      {
+        "title": "동일 IP에서 경로 탐색 시도 3건 연속 관찰",
+        "detail": "192.168.56.110에서 /public/images/../../../../etc/passwd, /public/images/../../../../etc/passwd%00.pdf, /public/images/../../../.env 요청이 10:31대에 연속으로 발생했습니다. 전형적인 디렉터리 상승 및 민감 파일 대상 시도로 보이며, 널바이트와 URL 인코딩도 포함되어 우회 시도 정황이 있습니다. 다만 모두 known asset IP에서 발생했으므로 내부 테스트 가능성을 함께 고려해야 합니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "응답만으로 실제 노출 성공은 확인되지 않음",
+        "detail": "세 건 모두 400 또는 404 응답이며 응답 형식은 text/html입니다. 이 조합은 차단, 오류 처리, 또는 앱의 HTML fallback 가능성과도 맞을 수 있어, 실제 /etc/passwd나 .env 파일이 노출되었다고 단정할 수 없습니다.",
+        "severity": "info"
+      },
+      {
+        "title": "후보 밖 탐색성 요청이 일부 존재",
+        "detail": "filtered_out_breakdown에 low_signal_fuzzing 2건과 benign_fallback_html 1건이 보존되어 있어, 본 사건 외에도 약한 탐색성 요청과 일반적 HTML fallback 요청이 함께 있었던 것으로 해석됩니다. 이는 공격 강도보다 시험/탐색 성격을 시사할 수 있습니다.",
+        "severity": "low"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:ae1q9wUzzALRBdLWugyhiQAAAAs|table:security|log_id:9578|candidate:0",
+        "request_id": "ae1q9wUzzALRBdLWugyhiQAAAAs",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_path_traversal",
+        "severity": "medium",
+        "why_it_matters": "../ 경로와 널바이트(%00)를 이용해 /etc/passwd 접근을 시도한 정황입니다. 다만 400 응답과 text/html 응답만으로는 실제 파일 노출 성공을 의미하지 않으므로, 시도 탐지로 보는 것이 적절합니다."
+      },
+      {
+        "incident_ref": "request_id:ae1q7wUzzALRBdLWugyhiAAAAAk|table:security|log_id:9577|candidate:1",
+        "request_id": "ae1q7wUzzALRBdLWugyhiAAAAAk",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_path_traversal",
+        "severity": "medium",
+        "why_it_matters": "정규화된 URI가 /etc/passwd로 보이며, raw_request_target에는 ../../../../etc/passwd가 드러납니다. 전형적인 경로 탐색 시도이지만 400 응답이므로 파일 노출 성공으로 단정할 수는 없습니다."
+      },
+      {
+        "incident_ref": "request_id:ae1q_wUzzALRBdLWugyhigAAAAA|table:security|log_id:9579|candidate:2",
+        "request_id": "ae1q_wUzzALRBdLWugyhigAAAAA",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_path_traversal",
+        "severity": "medium",
+        "why_it_matters": "상대 경로 점프와 .env 대상 지정이 함께 보여 민감 설정 파일 탐색 시도로 해석됩니다. 404 및 text/html 응답이므로 실제 노출 성공보다는 탐색 시도로 보는 것이 안전합니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.110",
+        "reason": "3건의 경로 탐색 시도가 모두 이 IP에서 발생했습니다. known asset IP와 일치하므로 내부 테스트, 자체 호출, 운영 점검일 수 있어 공격자 단정은 피해야 합니다."
+      }
+    ],
+    "noise_interpretation": "후보 밖으로 제외된 요청은 low_signal_fuzzing 2건과 benign_fallback_html 1건이었습니다. 즉, 본 구간에는 명확한 고신호 사건 외에도 약한 탐색성 요청과 일반적인 HTML fallback 정황이 함께 존재했습니다. 다만 이들 낮은 신호는 stage2에서 별도 incident로 승격하지 않고 보조 문맥으로만 해석하는 것이 맞습니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "192.168.56.110의 요청을 원본 Apache 로그와 오류 로그로 재확인하고, 동일 시각대의 애플리케이션 로그와 함께 상관분석을 수행하세요.",
+        "why": "경로 탐색 시도인지, 내부 점검/테스트인지, 혹은 차단된 공격인지 구분하려면 단일 웹 로그만으로는 부족합니다."
+      },
+      {
+        "priority": "P1",
+        "action": "해당 IP가 내부 테스트 자산인지 운영 점검 주체인지 소유자/목적을 확인하세요.",
+        "why": "known asset IP와 일치하므로 오탐 가능성을 배제할 수 없고, 자산 맥락 확인이 우선입니다."
+      },
+      {
+        "priority": "P2",
+        "action": "/etc/passwd, .env, 널바이트(%00), ../ 패턴에 대한 탐지 규칙과 알림 임계값을 점검하세요.",
+        "why": "동일 유형의 경로 탐색 재시도나 변형 패턴을 빠르게 식별하는 데 도움이 됩니다."
+      },
+      {
+        "priority": "P2",
+        "action": "해당 호스트와 인접 시간대의 다른 요청을 추가로 확인해 low_signal_fuzzing 여부와 반복성, 후속 고신호 사건 결합 여부를 검토하세요.",
+        "why": "후보 밖 탐색성 요청이 있었으므로, 반복 탐색이 본 사건과 연결되는지 확인할 필요가 있습니다."
+      },
+      {
+        "priority": "P3",
+        "action": "응답이 text/html인 400/404 케이스는 실제 파일 노출로 자동 판정하지 않도록 검토 절차를 정리하세요.",
+        "why": "HTML 오류/대체 페이지가 경로 탐색 결과처럼 보일 수 있어, 오탐을 줄이기 위한 운영 기준이 필요합니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "본 보고서는 Apache 웹 로그 전처리 요약만을 근거로 했으며, 원본 DB 로그와 애플리케이션 내부 증거는 직접 확인하지 못했습니다.",
+      "known asset IP와 일치하므로 내부 테스트, 자체 호출, 운영 점검 가능성을 배제할 수 없습니다.",
+      "경로 탐색 시도는 분명하지만, 400/404 및 text/html 응답만으로 실제 파일 노출 성공을 단정할 수 없습니다.",
+      "filtered_out_breakdown에 low_signal_fuzzing과 benign_fallback_html이 있어, 전체 맥락에는 낮은 신호의 탐색성 요청과 일반 fallback 응답이 섞여 있었을 가능성이 있습니다."
+    ],
+    "presentation_takeaway": "이번 구간은 동일 내부 IP에서의 경로 탐색 시도가 핵심이며, 성공적인 노출보다는 탐색·차단 정황으로 보는 것이 가장 안전합니다. 내부 테스트 여부 확인과 원본 로그 상관분석이 우선입니다."
+  }
+}

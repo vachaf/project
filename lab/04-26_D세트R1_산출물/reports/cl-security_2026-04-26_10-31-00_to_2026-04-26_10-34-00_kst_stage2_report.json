@@ -1,0 +1,134 @@
+{
+  "meta": {
+    "generated_at": "2026-04-26T10:39:09.545+09:00",
+    "mode": "routine",
+    "provider": "anthropic",
+    "selected_model": "claude-haiku-4-5-20251001",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "base_url": "https://api.anthropic.com/v1",
+    "response_id": "msg_01DifRUyArZMh2mJaxLgp2Jm",
+    "stop_reason": "end_turn",
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/cl-security_2026-04-26_10-31-00_to_2026-04-26_10-34-00_kst_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/cl-security_2026-04-26_10-31-00_to_2026-04-26_10-34-00_kst_llm_input.json"
+  },
+  "report": {
+    "report_title": "경로 탐색(Path Traversal) 공격 시도 분석 보고서 - 2026-04-26 10:31~10:34",
+    "overall_assessment": "분석 구간(10:31~10:34)에서 3건의 경로 탐색 공격 시도가 감지되었습니다. 모두 192.168.56.110(내부 네트워크)에서 발생하였으며, 서버 응답(400/404 상태 코드)으로 볼 때 실제 파일 노출은 성공하지 않았습니다. 그러나 체계적인 테스트 도구 사용과 다양한 우회 기법(null byte, URL 인코딩)이 관찰되므로 내부 보안 검증 활동이거나 의도적 테스트 시나리오로 판단되며, 운영 문맥 확인이 필요합니다.",
+    "executive_summary": [
+      "3건의 경로 탐색 공격 시도 탐지, 모두 동일 내부 IP(192.168.56.110)에서 발생 - 서버는 400/404 상태 코드로 요청 거부",
+      "요청 대상: /etc/passwd(기본 2건), .env 환경 설정 파일(1건) - null byte(%00), URL 인코딩(%2e%2e%2f) 등 우회 기법 적용됨",
+      "User-Agent가 'lab-d-set-trav-*' 형태로 명시되어 있고 referer 없음 - 자동화된 보안 검증 도구 또는 테스트 지정 강력히 시사",
+      "알려진 자산 IP(known_asset) 범주이므로 내부 테스트/자체 호출 가능성 우선 검토 필요",
+      "필터링된 요청 3건(low_signal_fuzzing 2건, benign_fallback_html 1건) 추가 존재 - 저신호 탐색성 활동으로 분류됨",
+      "실제 파일 노출 성공은 확인되지 않음 - 공격 시도(attempt) 탐지 수준"
+    ],
+    "key_findings": [
+      {
+        "title": "체계적인 경로 탐색 공격 시도 시리즈",
+        "detail": "192.168.56.110에서 12분 이내에 3건의 서로 다른 경로 탐색 공격이 연속 시도됨. 첫 번째 요청은 /etc/passwd에 null byte(%00) 삽입(10:31:35), 두 번째는 기본 /etc/passwd 접근(10:31:27), 세 번째는 URL 인코딩된 .env 파일 접근(10:31:43). raw_request_target의 ../../../../ 패턴과 정규화된 URI의 차이가 명확히 보이며, 이는 경로 정규화 우회 의도를 시사합니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "모든 요청이 서버 에러 응답으로 차단됨 - 실제 파일 노출 성공 없음",
+        "detail": "3건 모두 HTTP 400 또는 404 상태 코드 + text/html 응답(306~276 바이트의 에러 페이지 크기)로 응답됨. 서버가 경로 탐색 시도를 정규화 단계에서 거부했거나 해당 경로를 제공하지 않는 것으로 해석됩니다. likely_html_fallback_response가 false인 점은 실제 HTML 대응 페이지가 반환되었음을 의미하므로, 웹 애플리케이션이 경로 탐색 방어 메커니즘을 작동시켰을 가능성이 높습니다.",
+        "severity": "low"
+      },
+      {
+        "title": "명시적 테스트 도구 특성 - 내부 보안 검증 활동 가능성 높음",
+        "detail": "User-Agent 값이 'lab-d-set-trav-nullbyte-passwd-1', 'lab-d-set-trav-basic-passwd-1', 'lab-d-set-trav-urlenc-env-1' 형태로 명시적으로 '테스트' 시나리오와 기법을 표기하고 있습니다. Referer 헤더가 모두 비어 있고, 요청이 순차적이며 각각 다른 우회 기법을 적용한 점은 자동화된 보안 스캔이나 침투 테스트 도구 사용을 강하게 시사합니다. IP가 known_asset_ips 범주인 점을 함께 고려하면, 조직 내부의 보안 검증 활동일 가능성이 높습니다.",
+        "severity": "info"
+      },
+      {
+        "title": "URL 인코딩과 null byte 등 다층 우회 기법 적용",
+        "detail": "세 번째 요청의 raw_request_target에서 %2e%2e%2f 형태의 URL 인코딩이 관찰되며, 첫 번째 요청에서는 null byte(%00) 삽입이 시도됨. 이는 기본적인 경로 탐색 필터를 우회하기 위한 의도적 기법이며, 공격자의 기술 수준이 초급을 넘어 중급 이상임을 시사합니다. 다만, 서버가 이러한 우회 기법도 모두 방어한 점은 방어 체계의 상대적 성숙도를 반영합니다.",
+        "severity": "low"
+      },
+      {
+        "title": "필터링된 저신호 탐색 요청 2건 추가 존재",
+        "detail": "prepare 단계에서 후보 밖으로 분류된 요청 중 low_signal_fuzzing이 2건(66.7%) 있습니다. 이는 경로 탐색 공격과 유사한 시간대와 IP에서 발생한 추가 탐색성 활동을 의미하며, 동일 IP의 체계적인 보안 검증 시나리오를 강화하는 증거입니다. benign_fallback_html 1건도 있어 일부 요청이 애플리케이션의 기본 HTML 폴백으로 처리된 것으로 보입니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:ae1q9wUzzALRBdLWugyhiQAAAAs|table:security|log_id:9578|candidate:0",
+        "request_id": "ae1q9wUzzALRBdLWugyhiQAAAAs",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_path_traversal",
+        "severity": "medium",
+        "why_it_matters": "null byte(%00) 삽입을 통한 경로 탐색 우회 시도로, 신호 점수 14점(높음)이며 'lab-d-set-trav-nullbyte-passwd-1' User-Agent 명시. /etc/passwd 접근 의도가 분명하고 기법이 정교함. 단, 400 상태 코드로 서버 거부 확인되었으며, known_asset IP이므로 내부 테스트 가능성 우선 검토 필요."
+      },
+      {
+        "incident_ref": "request_id:ae1q7wUzzALRBdLWugyhiAAAAAk|table:security|log_id:9577|candidate:1",
+        "request_id": "ae1q7wUzzALRBdLWugyhiAAAAAk",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_path_traversal",
+        "severity": "medium",
+        "why_it_matters": "기본 경로 탐색 기법(../../../../etc/passwd)으로 시도되었으며, 신호 점수 14점. 400 상태 코드 거부 응답 확인. 신뢰도(confidence)는 medium이지만 공격 의도 자체는 명확하며, 동일 IP에서 3분 이내 반복되는 체계적 시도의 일부. known_asset 확인 후 내부 보안 검증 활동 여부 판단 필요."
+      },
+      {
+        "incident_ref": "request_id:ae1q_wUzzALRBdLWugyhigAAAAA|table:security|log_id:9579|candidate:2",
+        "request_id": "ae1q_wUzzALRBdLWugyhigAAAAA",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_path_traversal",
+        "severity": "medium",
+        "why_it_matters": ".env 환경 파일 접근 시도로, URL 인코딩(%2e%2e%2f) 우회 기법 적용됨. 404 상태 코드로 파일 없음 또는 접근 거부 확인. 신호 점수 7점(중간) 수준이나, 연속된 3건 시도의 세 번째로 체계성이 확인됨. 민감 설정 파일 노출 시도이므로 모니터링 대상으로 유지 권장."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.110",
+        "reason": "분석 구간 내 3건 모든 경로 탐색 의심 요청의 발생 출처. known_asset_ips 범주로 확인됨(내부 네트워크). User-Agent가 'lab-d-set-trav-*' 형태로 명시된 자동화 도구 사용, 순차적 시도, 다층 우회 기법(null byte, URL 인코딩) 적용 등으로 보아 내부 보안 검증 활동 또는 의도적 테스트 시나리오일 가능성 높음. 운영팀과 보안팀 간 조정 후 확인 필요."
+      }
+    ],
+    "noise_interpretation": "분석 구간 내 후보 밖 필터링 요청은 총 3건(전체 6건 중 50%): low_signal_fuzzing 2건(66.7%), benign_fallback_html 1건(33.3%). low_signal_fuzzing은 탐색 시그널이 약하지만 파동 형태의 요청이며, benign_fallback_html은 애플리케이션의 기본 HTML 폴백 응답으로 분류된 정상 대응입니다. 이들은 candidate 후보 밖으로 배제되었으나, 동일 IP(192.168.56.110)에서 동일 시간대(10:31~10:34)에 발생한 점을 고려하면 고신호 경로 탐색 시도(3건)와 함께 보안 검증 활동의 통합 시나리오로 해석하는 것이 타당합니다. 즉, low_signal_fuzzing 요청들도 같은 테스트 세션의 보조 탐색 활동으로 판단됩니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "192.168.56.110 IP 소유자/담당팀 확인 및 보안 검증 활동 승인 여부 조회",
+        "why": "3건의 경로 탐색 시도가 known_asset IP에서 모두 발생했으며, User-Agent가 명시적 테스트 도구(lab-d-set-trav-*)로 표기됨. 내부 정책적 승인된 침투 테스트 또는 자체 보안 검증이라면 false positive로 확인되어야 하고, 그렇지 않다면 내부 자산 도용 또는 권한 이상 사용으로 신속 조사 필요."
+      },
+      {
+        "priority": "P1",
+        "action": "웹 애플리케이션 방어 메커니즘 검증 - 경로 탐색 필터 및 null byte 처리 확인",
+        "why": "모든 요청이 400/404 상태로 거부되어 파일 노출이 방지된 것으로 보이나, Apache 로그만으로는 애플리케이션 내부 처리 로직까지 확인 불가. 만약 필터 우회 가능한 취약점이 존재한다면 공격자도 같은 기법을 악용할 수 있으므로, 웹 애플리케이션 및 웹 서버 설정(예: mod_rewrite, Location 정규화)의 경로 정규화 규칙을 재검토할 것."
+      },
+      {
+        "priority": "P1",
+        "action": "error log 및 애플리케이션 로그 상호 참조 - 서버 거부 사유 확인",
+        "why": "raw_log_excerpt에 'error_link_id' 필드가 있으며, error_log와 security 로그 연계 분석이 필요함. 400 상태 코드가 방화벽 규칙 거부인지, 애플리케이션 유효성 검사인지, 웹 서버 설정인지 확인하면 방어 체계의 실제 작동 위치를 파악할 수 있음."
+      },
+      {
+        "priority": "P2",
+        "action": "filtering된 low_signal_fuzzing 2건의 상세 내용 검토",
+        "why": "후보 밖으로 필터링된 2건의 low_signal_fuzzing이 동일 IP, 동일 시간대에 있음. candidate 밖이더라도 동일 IP의 고신호 사건과 함께 봤을 때 체계적 테스트의 일부일 가능성이 높으므로, 준비 단계에서 제외된 이유와 상세 요청 내용 검토 필요."
+      },
+      {
+        "priority": "P2",
+        "action": "향후 내부 보안 테스트 활동 사전 공지 체계 강화",
+        "why": "이번 사건이 승인된 내부 테스트라면, User-Agent, IP, 테스트 일정 등을 보안팀과 운영팀이 사전에 공유해 오탐 분석 시간을 단축할 수 있음. 향후 유사 테스트 시 사전 등록 및 타이밍 공지 절차를 수립할 것."
+      },
+      {
+        "priority": "P3",
+        "action": "192.168.56.110 IP 기반 지속 모니터링 목록 등록",
+        "why": "내부 테스트 IP로 확정되더라도, 이후 비정상 활동 발생 시 빠른 식별을 위해 감시 목록에 유지. 특히 known_asset IP이면서 테스트 도구를 사용한 기록이 있으므로, 향후 유사 기법의 변종이나 추가 대상 파일 접근 시도가 감지되면 즉시 보고."
+      }
+    ],
+    "confidence_and_limitations": [
+      "Apache 웹 로그만을 기반으로 한 분석이므로, 서버 내부 처리 로직(예: 애플리케이션 코드의 경로 정규화, 데이터베이스 접근 시도 여부)은 확인 불가. 400/404 응답이 실제 경로 탐색 방어인지 아니면 다른 원인인지는 error log와 애플리케이션 로그 참조 필요.",
+      "User-Agent가 'lab-d-set-trav-*' 형태로 명시적이고, known_asset IP이며, 모든 시도가 거부된 점은 내부 테스트 가능성을 높이지만, 확정되지 않음. IP 도용, 권한 이상 사용, 또는 테스트 도구를 가장한 공격 가능성도 배제할 수 없으므로, IP 소유자 확인이 절대적으로 필수.",
+      "XSS, SQLi 등 다른 공격 유형과 달리 경로 탐색은 200 성공 응답이 없으므로 실제 파일 노출 여부를 log만으로 판단하기 어려움. 만약 /etc/passwd, .env 등 파일이 실제 제공되었다면 응답 바디 분석이 필요하나, 로그 요약에는 파일 내용이 없으므로 제한적.",
+      "3건의 candidate incident만 분석 대상이며, 필터링된 3건(low_signal_fuzzing 2, benign_fallback_html 1)은 상세 내용 미제공. 이들이 경로 탐색 시도의 일부인지, 아니면 독립적인 노이즈인지는 prepare 단계 필터링 기준이 공개되지 않으면 재검토 불가.",
+      "분석 시간 구간이 10:31~10:34(3분)로 매우 짧으므로, 같은 IP의 이전/이후 시간대 활동을 파악할 수 없음. 더 넓은 시간창에서 조회하면 IP의 전체 행동 패턴(테스트 vs. 공격)을 더 명확히 판단할 수 있을 것으로 예상."
+    ],
+    "presentation_takeaway": "분석 구간(10:31~10:34) 내 경로 탐색 공격 3건이 감지되었으나, 모두 서버에 의해 400/404 상태 코드로 차단되어 실제 파일 노출 성공은 없습니다. 발생 출처는 내부 네트워크 IP(192.168.56.110, known_asset)이며, User-Agent가 명시적 테스트 도구('lab-d-set-trav-*')로 표기된 점과 체계적 시도(null byte, URL 인코딩 등 다층 우회 기법)는 승인된 내부 보안 검증 활동 또는 의도적 테스트 시나리오를 강하게 시사합니다. **즉시 확인할 사항은 이 IP의 담당자/팀이 해당 기간에 보안 테스트를 수행했는지 여부**이며, 확정되면 오탐으로 종료, 미확정되면 내부 자산 도용이나 권한 이상 사용 여부를 신속히 조사해야 합니다. 현재 방어 체계는 기본적인 경로 탐색 및 우회 기법 모두를 방어한 점은 긍정적이나, error log와 애플리케이션 로그를 함께 검토하여 방어 계층의 명확한 위치(WAF, 웹 서버 설정, 애플리케이션 코드)를 파악하면 향후 유사 공격 대비도 더욱 견고해질 것입니다."
+  }
+}
