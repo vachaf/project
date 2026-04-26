@@ -14,7 +14,7 @@
 ## 2. 최종 구성
 
 - DB 서버 호스트 예시: `maria`
-- DB 서버 IP 예시: `192.168.35.223`
+- DB 서버 IP 예시: `192.168.56.109`
 - DB 이름: `web_logs`
 - 문자셋: `utf8mb4`
 - 테이블:
@@ -78,7 +78,7 @@ sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
 아래처럼 DB 서버 IP로 맞춘다.
 
 ```ini
-bind-address = 192.168.35.223
+bind-address = 192.168.56.109
 ```
 
 설정 반영:
@@ -108,20 +108,14 @@ CREATE DATABASE IF NOT EXISTS web_logs
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_general_ci;
 
-CREATE USER IF NOT EXISTS 'log_writer'@'192.168.35.113' IDENTIFIED BY 'change_writer_password';
-CREATE USER IF NOT EXISTS 'log_reader'@'192.168.35.120' IDENTIFIED BY 'change_reader_password';
+CREATE USER IF NOT EXISTS 'log_writer'@'192.168.56.105' IDENTIFIED BY 'YourPass'; -- JUICE SHOP
+CREATE USER IF NOT EXISTS 'log_writer'@'192.168.56.111' IDENTIFIED BY 'YourPass'; -- OPENCART
+CREATE USER IF NOT EXISTS 'log_reader'@'192.168.56.110' IDENTIFIED BY 'YourPass'; -- LLM
 
-GRANT SELECT, INSERT, UPDATE ON web_logs.* TO 'log_writer'@'192.168.35.113';
-GRANT SELECT ON web_logs.* TO 'log_reader'@'192.168.35.120';
+GRANT SELECT, INSERT, UPDATE ON web_logs.* TO 'log_writer'@'192.168.56.105'; -- JUICE SHOP
+GRANT SELECT, INSERT, UPDATE ON web_logs.* TO 'log_writer'@'192.168.56.111'; -- OPENCART
+GRANT SELECT ON web_logs.* TO 'log_reader'@'1192.168.56.110'; -- LLM
 
-FLUSH PRIVILEGES;
-```
-
-OpenCart 서버도 적재 대상으로 포함하면 추가:
-
-```sql
-CREATE USER IF NOT EXISTS 'log_writer'@'192.168.35.193' IDENTIFIED BY 'change_writer_password';
-GRANT SELECT, INSERT, UPDATE ON web_logs.* TO 'log_writer'@'192.168.35.193';
 FLUSH PRIVILEGES;
 ```
 
@@ -262,8 +256,9 @@ SHOW INDEX FROM apache_error_logs;
 
 ```sql
 SELECT User, Host FROM mysql.user WHERE User IN ('log_writer', 'log_reader');
-SHOW GRANTS FOR 'log_writer'@'192.168.35.113';
-SHOW GRANTS FOR 'log_reader'@'192.168.35.120';
+SHOW GRANTS FOR 'log_writer'@'192.168.56.105';
+SHOW GRANTS FOR 'log_writer'@'192.168.56.111';
+SHOW GRANTS FOR 'log_reader'@'192.168.56.110';
 ```
 
 기대 결과:
@@ -286,7 +281,7 @@ mariadb -u log_reader -p -h 127.0.0.1 -D web_logs -e "SHOW TABLES;"
 웹서버에서 shipper 계정으로 접속:
 
 ```bash
-mariadb -u log_writer -p -h 192.168.35.223 -D web_logs -e "SHOW TABLES;"
+mariadb -u log_writer -p -h 192.168.56.109 -D web_logs -e "SHOW TABLES;"
 ```
 
 기대 결과:
@@ -298,16 +293,16 @@ mariadb -u log_writer -p -h 192.168.35.223 -D web_logs -e "SHOW TABLES;"
 LLM 서버에서 조회 계정으로 접속:
 
 ```bash
-mariadb -u log_reader -p -h 192.168.35.223 -D web_logs -e "SHOW TABLES;"
+mariadb -u log_reader -p -h 192.168.56.109 -D web_logs -e "SHOW TABLES;"
 ```
 
 또는 Python 패키지 설치 후 export 연결 점검:
 
 ```bash
 python3 /opt/web_log_analysis/src/export_db_logs_cli.py \
-  --host 192.168.35.223 \
+  --host 192.168.56.109 \
   --user log_reader \
-  --password 'reader_password' \
+  --password 'YourPass' \
   --today \
   --table security \
   --test-connection
