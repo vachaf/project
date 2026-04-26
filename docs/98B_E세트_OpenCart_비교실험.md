@@ -95,6 +95,17 @@ curl -i -G \
 - `uri=/index.php`
 - `query_string=?route=product%2Fcategory` 또는 동등 형태
 - 정상 route parameter는 candidate로 과승격하지 않음
+  
+실제:
+- route=product/category가 404라서 “정상 route와 공격 route의 차이”를 비교하는 힘은 약함. 따라서 실제 브라우저에서 200으로 확인된 상품/카테고리 URL을 baseline으로 써야 함. 그 예시가 밑임.
+  
+```bash
+curl -i -G \
+  -A "lab-e-set-route-base-2" \
+  --data-urlencode "route=product/product" \
+  --data-urlencode "product_id=43" \
+  "$OPENCART_URL/index.php"
+```
 
 ### E-03 Route Probing — Unknown Route
 
