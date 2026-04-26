@@ -179,6 +179,10 @@ class LogExporter:
 # -------------------------
 def parse_datetime_text(text: str) -> datetime:
     text = text.strip()
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        pass
     formats = [
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%dT%H:%M:%S",
@@ -193,7 +197,7 @@ def parse_datetime_text(text: str) -> datetime:
             continue
     raise ValueError(
         f"잘못된 날짜/시간 형식입니다: {text} "
-        f"(예: 2026-04-02 또는 2026-04-02 09:00:00)"
+        f"(예: 2026-04-02 또는 2026-04-02 09:00:00 또는 2026-04-02T09:00:00+09:00)"
     )
 
 
@@ -204,11 +208,15 @@ def parse_date_text(text: str) -> datetime:
         raise ValueError(f"잘못된 날짜 형식입니다: {text} (예: 2026-04-02)") from exc
 
 
-def attach_tz(naive_dt: datetime, tzinfo) -> datetime:
-    return naive_dt.replace(tzinfo=tzinfo)
+def attach_tz(dt: datetime, tzinfo) -> datetime:
+    if dt.tzinfo is not None:
+        return dt.astimezone(tzinfo)
+    return dt.replace(tzinfo=tzinfo)
 
 
 def to_mysql_datetime(dt: datetime) -> str:
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(DB_TZ).replace(tzinfo=None)
     return dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
 
@@ -217,7 +225,10 @@ def convert_naive_db_dt_to_output_text(value: Optional[datetime]) -> Optional[st
         return None
     if not isinstance(value, datetime):
         return value
-    aware_db = value.replace(tzinfo=DB_TZ)
+    if value.tzinfo is not None:
+        aware_db = value.astimezone(DB_TZ)
+    else:
+        aware_db = value.replace(tzinfo=DB_TZ)
     aware_out = aware_db.astimezone(QUERY_TZ)
     return aware_out.isoformat(timespec="milliseconds")
 

@@ -46,6 +46,13 @@ ip addr
 hostnamectl
 ```
 
+로그 시간 정책:
+
+- 서버 timezone은 UTC를 권장한다.
+- 다만 shipper는 Apache `log_time`의 timezone offset을 읽어 DB `log_time`을 항상 UTC naive datetime으로 저장한다.
+- `export_db_logs_cli.py`는 KST 입력 시간을 UTC DB 조회 범위로 변환하고, export JSON의 `log_time`/`created_at`은 항상 KST ISO-8601 문자열로 출력한다.
+- 따라서 Juice Shop 서버 timezone이 UTC든 KST든 DB 저장 정책과 export 결과는 같아야 한다.
+
 ## 4. 구축 순서
 
 1. 시스템 업데이트

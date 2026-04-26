@@ -7,7 +7,7 @@ import os
 import re
 import signal
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
 import pymysql
@@ -150,6 +150,8 @@ def parse_iso8601_msec(raw: str) -> Optional[datetime]:
 
 def parse_error_time(raw: str) -> Optional[datetime]:
     for fmt in (
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S",
         "%a %b %d %H:%M:%S.%f %Y",
         "%a %b %d %H:%M:%S %Y",
     ):
@@ -163,6 +165,10 @@ def parse_error_time(raw: str) -> Optional[datetime]:
 def to_mysql_datetime(dt: Optional[datetime]) -> Optional[str]:
     if dt is None:
         return None
+    # Apache access/security 로그는 %z offset을 가진 aware datetime일 수 있다.
+    # DB에는 항상 UTC naive datetime으로 저장한다.
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
 
