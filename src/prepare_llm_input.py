@@ -75,6 +75,15 @@ TRAVERSAL_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
     ("etc_passwd", re.compile(r"(?i)/etc/passwd|win\.ini"), 5),
 ]
 
+FILE_DISCLOSURE_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
+    ("php_filter_wrapper", re.compile(r"(?i)php\s*://\s*filter|php%3a%2f%2ffilter|php%253a%252f%252ffilter"), 5),
+    ("base64_source_filter", re.compile(r"(?i)convert\.base64-encode"), 2),
+    ("resource_parameter", re.compile(r"(?i)(?:^|[?&/])resource\s*=|resource%3d|resource%253d"), 2),
+    ("admin_config_php", re.compile(r"(?i)(?:resource\s*=|resource%3d|resource%253d)admin/config\.php\b"), 2),
+    ("config_php", re.compile(r"(?i)(?:resource\s*=|resource%3d|resource%253d)config\.php\b"), 2),
+    ("index_php", re.compile(r"(?i)(?:resource\s*=|resource%3d|resource%253d)index\.php\b"), 1),
+]
+
 CMDI_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
     ("pipe_exec", re.compile(r"(?i)\|\s*(?:whoami|id|cat|uname|ls|pwd)\b"), 4),
     ("semicolon_exec", re.compile(r"(?i);\s*(?:cat|id|whoami|uname|curl|wget|bash|sh)\b"), 4),
@@ -283,6 +292,7 @@ EXTERNAL_NAVIGATION_RE = re.compile(
 EXTERNAL_URL_RE = re.compile(r"(?i)\b(?:https?:)?//[^\s\"'<>]+")
 XSS_QUOTE_BREAKOUT_PATTERN = re.compile(r"(?i)(?:['\"]\s*>|['\"]\s*<|['\"]\s*on[a-z0-9_]+\s*=)")
 XSS_TAG_INJECTION_PATTERN = re.compile(r"(?i)<\s*(?:script|img|svg|iframe|body|a)\b")
+PHP_FILTER_CANONICAL_PATTERN = re.compile(r"(?i)php\s*://\s*filter")
 EDUCATIONAL_XSS_SEARCH_TERMS = (
     "how to",
     "tutorial",
@@ -621,6 +631,76 @@ def detect_decoded_attack_hints(
         hints.append("encoding:html_entity_decoded")
     if html_entity_decoded_xss:
         hints.append("encoding:html_entity_decoded_xss")
+
+    return score_boost, hints
+
+
+def detect_file_disclosure_hints(
+    combined_target: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    hints: List[str] = []
+    score_boost = 0
+    variants = query_variants + raw_request_target_variants
+    samples = unique_non_empty_texts(
+        [combined_target] + [raw_text(item.get("text")) for item in variants]
+    )
+    if not samples:
+        return 0, []
+
+    pattern_hits = {
+        name: any(pattern.search(sample) for sample in samples)
+        for name, pattern, _ in FILE_DISCLOSURE_PATTERNS
+    }
+    points_by_name = {name: points for name, _, points in FILE_DISCLOSURE_PATTERNS}
+
+    canonical_in_base = bool(PHP_FILTER_CANONICAL_PATTERN.search(combined_target))
+    canonical_depth1 = False
+    canonical_depth2 = False
+    for variant in variants:
+        text = raw_text(variant.get("text"))
+        depth = safe_int(variant.get("depth"), 0)
+        if not text or not PHP_FILTER_CANONICAL_PATTERN.search(text):
+            continue
+        if depth >= 1:
+            canonical_depth1 = True
+        if depth >= 2:
+            canonical_depth2 = True
+
+    resource_context = any(
+        pattern_hits.get(name, False)
+        for name in ("php_filter_wrapper", "base64_source_filter", "resource_parameter")
+    )
+
+    if pattern_hits.get("php_filter_wrapper"):
+        score_boost += points_by_name["php_filter_wrapper"]
+        append_unique_hint(hints, "file_disclosure:php_filter_wrapper")
+    if pattern_hits.get("base64_source_filter"):
+        score_boost += points_by_name["base64_source_filter"]
+        append_unique_hint(hints, "file_disclosure:base64_source_intent")
+    if pattern_hits.get("resource_parameter"):
+        score_boost += points_by_name["resource_parameter"]
+        append_unique_hint(hints, "file_disclosure:resource_parameter")
+
+    if resource_context:
+        if pattern_hits.get("admin_config_php"):
+            score_boost += points_by_name["admin_config_php"]
+            append_unique_hint(hints, "file_disclosure:sensitive_resource:admin_config_php")
+        elif pattern_hits.get("config_php"):
+            score_boost += points_by_name["config_php"]
+            append_unique_hint(hints, "file_disclosure:sensitive_resource:config_php")
+
+        if pattern_hits.get("index_php"):
+            score_boost += points_by_name["index_php"]
+            append_unique_hint(hints, "file_disclosure:sensitive_resource:index_php")
+
+    if not canonical_in_base and canonical_depth1:
+        append_unique_hint(hints, "encoding:url_decoded_php_wrapper")
+    if canonical_depth2:
+        append_unique_hint(hints, "encoding:double_decoded_php_wrapper")
+        if not canonical_in_base and not canonical_depth1:
+            score_boost += 1
 
     return score_boost, hints
 
@@ -1430,6 +1510,12 @@ def get_probe_sequence_reason_hints(path: str) -> List[str]:
     sensitive_segment = any(segment in PROBING_SEQUENCE_PATH_SEGMENT_HINTS for segment in segments)
     if hidden_segment or sensitive_prefix or sensitive_suffix or sensitive_segment:
         append_unique_hint(hints, "dir_probe:sensitive_path")
+    if normalized_path in {"/config.php", "/admin/config.php"}:
+        append_unique_hint(hints, "dir_probe:sensitive_config_path")
+    if normalized_path == "/config.php":
+        append_unique_hint(hints, "file_probe:config_php")
+    if normalized_path == "/admin/config.php":
+        append_unique_hint(hints, "file_probe:admin_config_php")
 
     admin_prefix = (
         "/admin",
@@ -1725,6 +1811,7 @@ def build_filtered_row_payload(row: Dict[str, Any]) -> Dict[str, Any]:
     uri = get_uri(row)
     qs = normalize_text(row.get("query_string"))
     raw_request_target = extract_raw_request_target(raw_req_original)
+    probe_path = get_effective_request_path(uri, raw_request_target).lower()
     normalized_raw_path = path_from_target(raw_request_target)
     normalized_uri = normalize_text(uri)
     response_body_bytes = get_response_body_bytes(row)
@@ -1754,6 +1841,8 @@ def build_filtered_row_payload(row: Dict[str, Any]) -> Dict[str, Any]:
         if status_code == 200 and resp_ct_lower.startswith("text/html") and response_body_bytes >= 10000:
             likely_html_fallback_response = True
 
+    reason_hints = get_probe_sequence_reason_hints(probe_path)
+
     return {
         "source_table": normalize_text(row.get("_source_table")),
         "noise_category": normalize_text(row.get("_noise_category")) or "low_signal_fuzzing",
@@ -1772,6 +1861,7 @@ def build_filtered_row_payload(row: Dict[str, Any]) -> Dict[str, Any]:
         "likely_html_fallback_response": likely_html_fallback_response,
         "hpp_detected": hpp_detected,
         "hpp_param_names": hpp_param_names,
+        "reason_hints": reason_hints,
     }
 
 
@@ -1799,6 +1889,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     resp_content_type = get_resp_content_type(row)
     raw_request_target = extract_raw_request_target(raw_req_original)
     normalized_raw_path = path_from_target(raw_request_target)
+    probe_path = get_effective_request_path(uri, raw_request_target).lower()
     hpp_detected, hpp_param_names = analyze_query_parameters(qs)
     log_time = choose_best_time(row)
 
@@ -1864,6 +1955,14 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     if decoded_score_boost > 0:
         score += decoded_score_boost
     reason_hints.extend(decoded_hints)
+    file_disclosure_score_boost, file_disclosure_hints = detect_file_disclosure_hints(
+        combined_target=combined_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    if file_disclosure_score_boost > 0:
+        score += file_disclosure_score_boost
+    extend_unique_hints(reason_hints, file_disclosure_hints)
     extend_unique_hints(
         reason_hints,
         get_xss_context_hints(
@@ -2061,6 +2160,8 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         cmdi_hits=cmdi_hits,
         hpp_detected=hpp_detected,
     )
+    direct_sensitive_config_probe = probe_path in {"/config.php", "/admin/config.php"}
+    php_filter_wrapper_detected = "file_disclosure:php_filter_wrapper" in reason_hints
 
     if is_benign_fallback_html(
         traversal_hits=traversal_hits,
@@ -2091,9 +2192,13 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         verdict_hint = "path_traversal"
     elif cmdi_hits > 0 and score >= max(min_score, 6):
         verdict_hint = "command_injection"
+    elif php_filter_wrapper_detected and score >= max(min_score, 6):
+        verdict_hint = "suspicious_file_disclosure"
     elif is_login_success_json_response and score >= min_score:
         verdict_hint = "suspicious_auth_success"
     elif score >= min_score:
+        if direct_sensitive_config_probe and not php_filter_wrapper_detected:
+            return None, filtered_noise_category
         verdict_hint = "suspicious"
     else:
         return None, filtered_noise_category

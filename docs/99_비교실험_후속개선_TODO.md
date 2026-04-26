@@ -220,6 +220,8 @@ D-05:
 ### 남은 TODO
 
 - Stage2 실제 LLM 호출 결과가 provider별로 probing sequence 문맥을 얼마나 안정적으로 서술하는지 추가 확인
+- PHP wrapper(`php://filter`, `convert.base64-encode`, `resource=`) candidate를 Stage2가 file disclosure intent로 일관되게 설명하는지 provider별 비교
+- `/config.php`, `/admin/config.php` direct probe를 context-only 또는 low-signal probing으로 유지하는지 재확인
 - fallback-like HTML의 “유사 크기” 허용 범위를 더 일반화할지 여부는 후속 검토
 - public repo용 비교 문서(`개선후_비교.md`)는 실제 재처리 결과를 정리할 때 별도 작성
 

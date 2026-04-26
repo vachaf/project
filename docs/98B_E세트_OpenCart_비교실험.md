@@ -170,7 +170,9 @@ curl -i -G \
 
 - query_string에 `php%3A%2F%2Ffilter...` 형태가 남음
 - decoded view에서 `php://filter/convert.base64-encode/resource=index.php` 의미 복원
-- PHP wrapper/file disclosure intent로 분류 가능
+- `route=php://filter...index.php` 요청이 candidate로 올라감
+- verdict 또는 hint에 PHP wrapper 기반 file disclosure intent가 명시됨
+- 404면 route 미인식 또는 실패 가능성까지만 서술
 - 실제 base64 소스 노출 여부는 response body 원문 없이는 확정하지 않음
 
 ### E-12 PHP Wrapper via Path-like Parameter
@@ -189,7 +191,9 @@ curl -i -G \
 기대 관찰:
 
 - `path=` parameter 내 PHP wrapper intent 식별
-- config.php 접근 의도 식별
+- `path=php://filter...config.php` 요청도 candidate로 올라감
+- config.php 접근 의도와 file disclosure intent를 함께 식별
+- status 200이어도 실제 config 노출 성공은 단정하지 않음
 - 실제 config 노출 성공 단정 금지
 
 ### E-13 Direct Config Path Probe
@@ -211,7 +215,9 @@ curl -i --path-as-is \
 기대 관찰:
 
 - `/config.php`, `/admin/config.php` 접근 시도 식별
-- status 200/403/404와 무관하게 sensitive config path intent는 context로 보존
+- direct sensitive config path probe로 context-only 보존
+- 단발 요청이면 candidate 과승격보다 `low_signal_dir_probe` 또는 context-only 해석이 적절
+- `response_body_bytes=0`이면 파일 노출 성공이 아니라 본문 노출 증거 없음으로 기록
 - 실제 파일 내용 노출은 response body 원문 없이는 확정하지 않음
 
 ---

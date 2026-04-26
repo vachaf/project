@@ -1,0 +1,2030 @@
+[1mdiff --git "a/docs/98B_E\354\204\270\355\212\270_OpenCart_\353\271\204\352\265\220\354\213\244\355\227\230.md" "b/docs/98B_E\354\204\270\355\212\270_OpenCart_\353\271\204\352\265\220\354\213\244\355\227\230.md"[m
+[1mindex 9691e53..367178b 100644[m
+[1m--- "a/docs/98B_E\354\204\270\355\212\270_OpenCart_\353\271\204\352\265\220\354\213\244\355\227\230.md"[m
+[1m+++ "b/docs/98B_E\354\204\270\355\212\270_OpenCart_\353\271\204\352\265\220\354\213\244\355\227\230.md"[m
+[36m@@ -1,482 +1,488 @@[m
+[31m-# 98B_E세트_OpenCart_비교실험[m
+[31m-[m
+[31m-- 작성 기준일: 2026-04-26[m
+[31m-- 문서 역할: `docs/98_비교_실험_요청_세트_표준.md` 계열을 따르는 E세트 비교 실험 초안[m
+[31m-- 적용 범위: OpenCart / PHP / route parameter / PHP wrapper / admin probing / config exposure / POST body visibility[m
+[31m-- 기준 데이터: Apache `security` 로그 표면 지표[m
+[31m-- 대상 서비스: OpenCart[m
+[31m-- 기본 URL: `http://192.168.56.111`[m
+[31m-- UA prefix: `lab-e-set`[m
+[31m-[m
+[31m-> 주의: 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로는 PHP wrapper 실행 성공, config 파일 내용 노출, SQLi 성공, 로그인/권한 상승 성공, POST body 내부 처리 결과를 확정하지 않는다.[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 1. 실험 목적[m
+[31m-[m
+[31m-E세트는 Juice Shop 중심 A/B/C/D세트 이후 OpenCart/PHP 기반 환경에서 다음을 확인하기 위한 실험이다.[m
+[31m-[m
+[31m-1. OpenCart의 `index.php?route=...` 구조에서 route parameter probing을 식별하는가.[m
+[31m-2. PHP 기반 환경에서 `php://filter` 같은 wrapper/file disclosure intent를 인식하는가.[m
+[31m-3. `/admin`, `/admin/index.php`, `/admin/config.php`, `/config.php` 같은 OpenCart/PHP 경로 탐색을 directory probing 또는 sensitive file intent로 해석하는가.[m
+[31m-4. product/search/category 계열 query에서 SQLi/XSS payload가 Apache 로그에 남을 때 기존 B/C세트 탐지 로직이 일반화되는가.[m
+[31m-5. POST login/register/admin form에서 raw POST body visibility 한계를 재확인하는가.[m
+[31m-6. D세트 R3에서 추가한 `probing_sequence_summaries`가 OpenCart 경로에서도 실험환경 특화 없이 동작하는가.[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 2. 기본 변수 및 환경[m
+[31m-[m
+[31m-```bash[m
+[31m-export OPENCART_URL="http://192.168.56.111"[m
+[31m-export UA_PREFIX="lab-e-set"[m
+[31m-```[m
+[31m-[m
+[31m-사전 확인:[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i "$OPENCART_URL/"[m
+[31m-curl -i "$OPENCART_URL/index.php"[m
+[31m-curl -i "$OPENCART_URL/admin/"[m
+[31m-```[m
+[31m-[m
+[31m-Apache 로그 확인:[m
+[31m-[m
+[31m-```bash[m
+[31m-sudo tail -n 10 /var/log/apache2/app_security.log[m
+[31m-```[m
+[31m-[m
+[31m-확인할 것:[m
+[31m-[m
+[31m-- `host="192.168.56.111"` 또는 OpenCart vhost로 남는지[m
+[31m-- `uri`, `query_string`, `raw_request`가 정상 기록되는지[m
+[31m-- Juice Shop fallback으로 잘못 들어가지 않는지[m
+[31m-- OpenCart와 Juice Shop이 같은 Apache vhost/proxy 설정을 공유하는 경우 host/vhost 구분이 가능한지[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 3. Round 1 — OpenCart route / admin probing[m
+[31m-[m
+[31m-Round 1은 OpenCart 특유의 route 구조와 관리자 경로 탐색을 확인한다.[m
+[31m-[m
+[31m-### E-01 Basic OpenCart Home[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- OpenCart 정상 기준 요청을 확보한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i \[m
+[31m-  -A "${UA_PREFIX}-base-home-1" \[m
+[31m-  "$OPENCART_URL/"[m
+[31m-```[m
+[31m-[m
+[31m-기대 관찰:[m
+[31m-[m
+[31m-- 정상 baseline 요청[m
+[31m-- candidate로 과승격하지 않는 것이 적절[m
+[31m-- 이후 fallback/response size 비교 기준으로 활용 가능[m
+[31m-[m
+[31m-### E-02 Route Parameter Baseline[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- 정상 route parameter 요청이 어떻게 기록되는지 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i -G \[m
+[31m-  -A "${UA_PREFIX}-route-base-1" \[m
+[31m-  --data-urlencode "route=product/category" \[m
+[31m-  "$OPENCART_URL/index.php"[m
+[31m-```[m
+[31m-[m
+[31m-기대 관찰:[m
+[31m-[m
+[31m-- `uri=/index.php`[m
+[31m-- `query_string=?route=product%2Fcategory` 또는 동등 형태[m
+[31m-- 정상 route parameter는 candidate로 과승격하지 않음[m
+[31m-  [m
+[31m-실제:[m
+[31m-- route=product/category가 404라서 “정상 route와 공격 route의 차이”를 비교하는 힘은 약함. 따라서 실제 브라우저에서 200으로 확인된 상품/카테고리 URL을 baseline으로 써야 함. 그 예시가 밑임.[m
+[31m-  [m
+[31m-```bash[m
+[31m-curl -i -G \[m
+[31m-  -A "lab-e-set-route-base-2" \[m
+[31m-  --data-urlencode "route=product/product" \[m
+[31m-  --data-urlencode "product_id=43" \[m
+[31m-  "$OPENCART_URL/index.php"[m
+[31m-```[m
+[31m-[m
+[31m-### E-03 Route Probing — Unknown Route[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- 존재하지 않는 route 접근을 route probing으로 식별하는지 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i -G \[m
+[31m-  -A "${UA_PREFIX}-route-unknown-1" \[m
+[31m-  --data-urlencode "route=../../../../etc/passwd" \[m
+[31m-  "$OPENCART_URL/index.php"[m
+[31m-```[m
+[31m-[m
+[31m-기대 관찰:[m
+[31m-[m
+[31m-- route parameter 내부 traversal intent가 query_string에 남는지 확인[m
+[31m-- 파일 읽기 성공은 단정하지 않음[m
+[31m-- route parameter abuse 또는 traversal intent로 해석 가능[m
+[31m-[m
+[31m-### E-04 Admin Path Probe[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- OpenCart 관리자 경로 접근을 탐지하되, 단발 요청을 과도하게 high severity로 올리지 않는지 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i --path-as-is \[m
+[31m-  -A "${UA_PREFIX}-admin-path-1" \[m
+[31m-  "$OPENCART_URL/admin/"[m
+[31m-[m
+[31m-curl -i --path-as-is \[m
+[31m-  -A "${UA_PREFIX}-admin-index-1" \[m
+[31m-  "$OPENCART_URL/admin/index.php"[m
+[31m-```[m
+[31m-[m
+[31m-기대 관찰:[m
+[31m-[m
+[31m-- admin path probing으로 context 보존[m
+[31m-- 실제 관리자 로그인 성공 또는 권한 획득은 단정하지 않음[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 4. Round 2 — PHP wrapper / config exposure intent[m
+[31m-[m
+[31m-Round 2는 PHP 기반 file disclosure intent를 확인한다.[m
+[31m-[m
+[31m-### E-11 PHP Wrapper via Route Parameter[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- `php://filter` wrapper payload를 OpenCart/PHP 환경에서 file disclosure intent로 식별하는지 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i -G \[m
+[31m-  -A "${UA_PREFIX}-php-wrapper-route-1" \[m
+[31m-  --data-urlencode "route=php://filter/convert.base64-encode/resource=index.php" \[m
+[31m-  "$OPENCART_URL/index.php"[m
+[31m-```[m
+[31m-[m
+[32m+[m[32m# 98B_E세트_OpenCart_비교실험[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 작성 기준일: 2026-04-26[m[41m[m
+[32m+[m[32m- 문서 역할: `docs/98_비교_실험_요청_세트_표준.md` 계열을 따르는 E세트 비교 실험 초안[m[41m[m
+[32m+[m[32m- 적용 범위: OpenCart / PHP / route parameter / PHP wrapper / admin probing / config exposure / POST body visibility[m[41m[m
+[32m+[m[32m- 기준 데이터: Apache `security` 로그 표면 지표[m[41m[m
+[32m+[m[32m- 대상 서비스: OpenCart[m[41m[m
+[32m+[m[32m- 기본 URL: `http://192.168.56.111`[m[41m[m
+[32m+[m[32m- UA prefix: `lab-e-set`[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m> 주의: 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로는 PHP wrapper 실행 성공, config 파일 내용 노출, SQLi 성공, 로그인/권한 상승 성공, POST body 내부 처리 결과를 확정하지 않는다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 1. 실험 목적[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mE세트는 Juice Shop 중심 A/B/C/D세트 이후 OpenCart/PHP 기반 환경에서 다음을 확인하기 위한 실험이다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m1. OpenCart의 `index.php?route=...` 구조에서 route parameter probing을 식별하는가.[m[41m[m
+[32m+[m[32m2. PHP 기반 환경에서 `php://filter` 같은 wrapper/file disclosure intent를 인식하는가.[m[41m[m
+[32m+[m[32m3. `/admin`, `/admin/index.php`, `/admin/config.php`, `/config.php` 같은 OpenCart/PHP 경로 탐색을 directory probing 또는 sensitive file intent로 해석하는가.[m[41m[m
+[32m+[m[32m4. product/search/category 계열 query에서 SQLi/XSS payload가 Apache 로그에 남을 때 기존 B/C세트 탐지 로직이 일반화되는가.[m[41m[m
+[32m+[m[32m5. POST login/register/admin form에서 raw POST body visibility 한계를 재확인하는가.[m[41m[m
+[32m+[m[32m6. D세트 R3에서 추가한 `probing_sequence_summaries`가 OpenCart 경로에서도 실험환경 특화 없이 동작하는가.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 2. 기본 변수 및 환경[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mexport OPENCART_URL="http://192.168.56.111"[m[41m[m
+[32m+[m[32mexport UA_PREFIX="lab-e-set"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m사전 확인:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i "$OPENCART_URL/"[m[41m[m
+[32m+[m[32mcurl -i "$OPENCART_URL/index.php"[m[41m[m
+[32m+[m[32mcurl -i "$OPENCART_URL/admin/"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mApache 로그 확인:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32msudo tail -n 10 /var/log/apache2/app_security.log[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m확인할 것:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- `host="192.168.56.111"` 또는 OpenCart vhost로 남는지[m[41m[m
+[32m+[m[32m- `uri`, `query_string`, `raw_request`가 정상 기록되는지[m[41m[m
+[32m+[m[32m- Juice Shop fallback으로 잘못 들어가지 않는지[m[41m[m
+[32m+[m[32m- OpenCart와 Juice Shop이 같은 Apache vhost/proxy 설정을 공유하는 경우 host/vhost 구분이 가능한지[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 3. Round 1 — OpenCart route / admin probing[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mRound 1은 OpenCart 특유의 route 구조와 관리자 경로 탐색을 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### E-01 Basic OpenCart Home[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- OpenCart 정상 기준 요청을 확보한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-base-home-1" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m기대 관찰:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 정상 baseline 요청[m[41m[m
+[32m+[m[32m- candidate로 과승격하지 않는 것이 적절[m[41m[m
+[32m+[m[32m- 이후 fallback/response size 비교 기준으로 활용 가능[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### E-02 Route Parameter Baseline[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 정상 route parameter 요청이 어떻게 기록되는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i -G \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-route-base-1" \[m[41m[m
+[32m+[m[32m  --data-urlencode "route=product/category" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m기대 관찰:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- `uri=/index.php`[m[41m[m
+[32m+[m[32m- `query_string=?route=product%2Fcategory` 또는 동등 형태[m[41m[m
+[32m+[m[32m- 정상 route parameter는 candidate로 과승격하지 않음[m[41m[m
+[32m+[m[41m  [m
+[32m+[m[32m실제:[m[41m[m
+[32m+[m[32m- route=product/category가 404라서 “정상 route와 공격 route의 차이”를 비교하는 힘은 약함. 따라서 실제 브라우저에서 200으로 확인된 상품/카테고리 URL을 baseline으로 써야 함. 그 예시가 밑임.[m[41m[m
+[32m+[m[41m  [m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i -G \[m[41m[m
+[32m+[m[32m  -A "lab-e-set-route-base-2" \[m[41m[m
+[32m+[m[32m  --data-urlencode "route=product/product" \[m[41m[m
+[32m+[m[32m  --data-urlencode "product_id=43" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### E-03 Route Probing — Unknown Route[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 존재하지 않는 route 접근을 route probing으로 식별하는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i -G \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-route-unknown-1" \[m[41m[m
+[32m+[m[32m  --data-urlencode "route=../../../../etc/passwd" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m기대 관찰:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- route parameter 내부 traversal intent가 query_string에 남는지 확인[m[41m[m
+[32m+[m[32m- 파일 읽기 성공은 단정하지 않음[m[41m[m
+[32m+[m[32m- route parameter abuse 또는 traversal intent로 해석 가능[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### E-04 Admin Path Probe[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- OpenCart 관리자 경로 접근을 탐지하되, 단발 요청을 과도하게 high severity로 올리지 않는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i --path-as-is \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-admin-path-1" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/admin/"[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mcurl -i --path-as-is \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-admin-index-1" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/admin/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m기대 관찰:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- admin path probing으로 context 보존[m[41m[m
+[32m+[m[32m- 실제 관리자 로그인 성공 또는 권한 획득은 단정하지 않음[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 4. Round 2 — PHP wrapper / config exposure intent[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mRound 2는 PHP 기반 file disclosure intent를 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### E-11 PHP Wrapper via Route Parameter[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- `php://filter` wrapper payload를 OpenCart/PHP 환경에서 file disclosure intent로 식별하는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i -G \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-php-wrapper-route-1" \[m[41m[m
+[32m+[m[32m  --data-urlencode "route=php://filter/convert.base64-encode/resource=index.php" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+ 기대 관찰:[m
+ [m
+ - query_string에 `php%3A%2F%2Ffilter...` 형태가 남음[m
+ - decoded view에서 `php://filter/convert.base64-encode/resource=index.php` 의미 복원[m
+[31m-- PHP wrapper/file disclosure intent로 분류 가능[m
+[32m+[m[32m- `route=php://filter...index.php` 요청이 candidate로 올라감[m
+[32m+[m[32m- verdict 또는 hint에 PHP wrapper 기반 file disclosure intent가 명시됨[m
+[32m+[m[32m- 404면 route 미인식 또는 실패 가능성까지만 서술[m
+ - 실제 base64 소스 노출 여부는 response body 원문 없이는 확정하지 않음[m
+[31m-[m
+[31m-### E-12 PHP Wrapper via Path-like Parameter[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- 일반 file/path parameter에 wrapper를 넣었을 때도 intent를 인식하는지 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i -G \[m
+[31m-  -A "${UA_PREFIX}-php-wrapper-path-1" \[m
+[31m-  --data-urlencode "path=php://filter/convert.base64-encode/resource=config.php" \[m
+[31m-  "$OPENCART_URL/index.php"[m
+[31m-```[m
+[31m-[m
+[32m+[m[41m[m
+[32m+[m[32m### E-12 PHP Wrapper via Path-like Parameter[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 일반 file/path parameter에 wrapper를 넣었을 때도 intent를 인식하는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i -G \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-php-wrapper-path-1" \[m[41m[m
+[32m+[m[32m  --data-urlencode "path=php://filter/convert.base64-encode/resource=config.php" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+ 기대 관찰:[m
+ [m
+ - `path=` parameter 내 PHP wrapper intent 식별[m
+[31m-- config.php 접근 의도 식별[m
+[32m+[m[32m- `path=php://filter...config.php` 요청도 candidate로 올라감[m
+[32m+[m[32m- config.php 접근 의도와 file disclosure intent를 함께 식별[m
+[32m+[m[32m- status 200이어도 실제 config 노출 성공은 단정하지 않음[m
+ - 실제 config 노출 성공 단정 금지[m
+[31m-[m
+[31m-### E-13 Direct Config Path Probe[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- OpenCart/PHP config 파일 접근 시도 식별.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i --path-as-is \[m
+[31m-  -A "${UA_PREFIX}-config-root-1" \[m
+[31m-  "$OPENCART_URL/config.php"[m
+[31m-[m
+[31m-curl -i --path-as-is \[m
+[31m-  -A "${UA_PREFIX}-config-admin-1" \[m
+[31m-  "$OPENCART_URL/admin/config.php"[m
+[31m-```[m
+[31m-[m
+[32m+[m[41m[m
+[32m+[m[32m### E-13 Direct Config Path Probe[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- OpenCart/PHP config 파일 접근 시도 식별.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i --path-as-is \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-config-root-1" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/config.php"[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mcurl -i --path-as-is \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-config-admin-1" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/admin/config.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+ 기대 관찰:[m
+ [m
+ - `/config.php`, `/admin/config.php` 접근 시도 식별[m
+[31m-- status 200/403/404와 무관하게 sensitive config path intent는 context로 보존[m
+[32m+[m[32m- direct sensitive config path probe로 context-only 보존[m
+[32m+[m[32m- 단발 요청이면 candidate 과승격보다 `low_signal_dir_probe` 또는 context-only 해석이 적절[m
+[32m+[m[32m- `response_body_bytes=0`이면 파일 노출 성공이 아니라 본문 노출 증거 없음으로 기록[m
+ - 실제 파일 내용 노출은 response body 원문 없이는 확정하지 않음[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 5. Round 3 — OpenCart SQLi / XSS query 재검증[m
+[31m-[m
+[31m-Round 3은 B/C세트 탐지 로직이 OpenCart URL 구조에도 일반화되는지 확인한다.[m
+[31m-[m
+[31m-### E-21 Product Search SQLi[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- OpenCart product/search 계열 query에서 SQLi payload가 query_string에 남을 때 탐지되는지 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i -G \[m
+[31m-  -A "${UA_PREFIX}-search-sqli-1" \[m
+[31m-  --data-urlencode "route=product/search" \[m
+[31m-  --data-urlencode "search=x')) OR 1=1 --" \[m
+[31m-  "$OPENCART_URL/index.php"[m
+[31m-```[m
+[31m-[m
+[31m-기대 관찰:[m
+[31m-[m
+[31m-- `route=product/search`, `search=` parameter 보존[m
+[31m-- SQLi payload가 B세트와 유사하게 탐지되는지 확인[m
+[31m-- response size anomaly가 있어도 실제 SQLi 성공 단정 금지[m
+[31m-[m
+[31m-### E-22 Product Search XSS[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- OpenCart product/search 계열 query에서 XSS payload가 query_string에 남을 때 탐지되는지 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i -G \[m
+[31m-  -A "${UA_PREFIX}-search-xss-1" \[m
+[31m-  --data-urlencode "route=product/search" \[m
+[31m-  --data-urlencode "search=<script>alert(1)</script>" \[m
+[31m-  "$OPENCART_URL/index.php"[m
+[31m-```[m
+[31m-[m
+[31m-기대 관찰:[m
+[31m-[m
+[31m-- XSS payload 탐지[m
+[31m-- 브라우저 실행 성공은 단정하지 않음[m
+[31m-- response body 반영 여부는 Apache 로그만으로 확정하지 않음[m
+[31m-[m
+[31m-### E-23 Encoded XSS / Entity XSS[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- C세트의 URL/entity decode 개선이 OpenCart query에서도 유지되는지 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i -G \[m
+[31m-  -A "${UA_PREFIX}-search-xss-entity-1" \[m
+[31m-  --data-urlencode "route=product/search" \[m
+[31m-  --data-urlencode "search=&#x3C;script&#x3E;alert(1)&#x3C;/script&#x3E;" \[m
+[31m-  "$OPENCART_URL/index.php"[m
+[31m-```[m
+[31m-[m
+[31m-기대 관찰:[m
+[31m-[m
+[31m-- HTML entity payload 식별[m
+[31m-- `xss:html_entity_decoded_script` 계열 hint 유지[m
+[31m-- SQL comment `#` 오탐 재발 방지[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 6. Round 4 — POST body visibility 재확인[m
+[31m-[m
+[31m-Round 4는 OpenCart login/admin form에서 POST body visibility 한계를 다시 확인한다.[m
+[31m-[m
+[31m-### E-31 Admin Login POST Baseline[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- POST 요청이 Apache 로그 표면에서 어떻게 보이는지 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i \[m
+[31m-  -A "${UA_PREFIX}-post-login-base-1" \[m
+[31m-  -H "Content-Type: application/x-www-form-urlencoded" \[m
+[31m-  --data "username=admin&password=test" \[m
+[31m-  "$OPENCART_URL/admin/index.php"[m
+[31m-```[m
+[31m-[m
+[31m-기대 관찰:[m
+[31m-[m
+[31m-- method=POST[m
+[31m-- req_content_type / req_content_length 기록[m
+[31m-- raw POST body 원문은 baseline에서 보이지 않음[m
+[31m-- 로그인 성공/실패 또는 계정 존재 여부는 Apache 로그만으로 확정하지 않음[m
+[31m-[m
+[31m-### E-32 Admin Login SQLi POST[m
+[31m-[m
+[31m-목적:[m
+[31m-[m
+[31m-- POST body SQLi payload가 현재 baseline에서 직접 보이지 않는다는 점을 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i \[m
+[31m-  -A "${UA_PREFIX}-post-login-sqli-1" \[m
+[31m-  -H "Content-Type: application/x-www-form-urlencoded" \[m
+[31m-  --data "username=admin' OR '1'='1&password=x" \[m
+[31m-  "$OPENCART_URL/admin/index.php"[m
+[31m-```[m
+[31m-[m
+[31m-기대 관찰:[m
+[31m-[m
+[31m-- Apache 로그에는 method, URI, content-type, content-length 중심으로 남음[m
+[31m-- body 내부 SQLi payload는 직접 보이지 않음[m
+[31m-- Stage2는 POST body visibility 한계를 명시해야 함[m
+[31m-- SQLi 성공 단정 금지[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 7. Round 5 — Directory probing sequence 일반성 확인[m
+[31m-[m
+[31m-Round 5는 D세트 R3에서 개선한 `probing_sequence_summaries`가 OpenCart/PHP 경로에서도 동작하는지 확인한다.[m
+[31m-[m
+[31m-```bash[m
+[31m-for path in \[m
+[31m-  "/admin/" \[m
+[31m-  "/admin/index.php" \[m
+[31m-  "/config.php" \[m
+[31m-  "/admin/config.php" \[m
+[31m-  "/backup.zip" \[m
+[31m-  "/backup.sql" \[m
+[31m-  "/phpmyadmin" \[m
+[31m-  "/vendor/" \[m
+[31m-  "/storage/"; do[m
+[31m-  curl -i --path-as-is \[m
+[31m-    -A "${UA_PREFIX}-probe-burst-1" \[m
+[31m-    "$OPENCART_URL${path}"[m
+[31m-  sleep 1[m
+[31m-done[m
+[31m-```[m
+[31m-[m
+[31m-기대 관찰:[m
+[31m-[m
+[31m-- 개별 요청을 candidate로 과승격하지 않음[m
+[31m-- 같은 src_ip/window 내 3개 이상 민감/관리/백업 경로 접근을 `probing_sequence_summaries`로 보존[m
+[31m-- 200/403/404 status 분포와 content-type/response size 반복성을 context로 전달[m
+[31m-- 실제 config/admin/backup 노출 성공은 단정하지 않음[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 8. 실행 순서 권장[m
+[31m-[m
+[31m-OpenCart E세트는 처음부터 전부 실행하지 말고 round별로 분리한다.[m
+[31m-[m
+[31m-권장 순서:[m
+[31m-[m
+[31m-1. E Round 0: URL/vhost/log 확인[m
+[31m-2. E Round 1: route/admin probing[m
+[31m-3. export + prepare + Stage1/Stage2 + 비교 문서[m
+[31m-4. E Round 2: PHP wrapper/config exposure intent[m
+[31m-5. export + 분석[m
+[31m-6. E Round 3: SQLi/XSS query 재검증[m
+[31m-7. export + 분석[m
+[31m-8. E Round 4: POST body visibility[m
+[31m-9. export + 분석[m
+[31m-10. E Round 5: directory probing sequence 일반성 확인[m
+[31m-11. E세트 통합 비교 문서 작성[m
+[31m-[m
+[31m-한 export window에 모든 round를 섞지 않는 것이 좋다. OpenCart는 route, PHP wrapper, probing, POST body visibility의 평가 축이 다르기 때문이다.[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 9. 평가 기준[m
+[31m-[m
+[31m-| 평가 축 | 성공 기준 | 보수적 해석 |[m
+[31m-|---|---|---|[m
+[31m-| Route parameter visibility | `route=`가 query_string에 보존됨 | route 처리 성공은 단정하지 않음 |[m
+[31m-| PHP wrapper intent | `php://filter` decoded view가 확인됨 | source disclosure 성공은 body 없이는 미확정 |[m
+[31m-| Config exposure intent | `/config.php`, `/admin/config.php` 접근 확인 | 파일 내용 노출 단정 금지 |[m
+[31m-| SQLi query | `search=` 등 query parameter에 SQLi payload 보존 | DB 결과 변경/유출 단정 금지 |[m
+[31m-| XSS query | query parameter에 XSS payload 보존 | 브라우저 실행/DOM 반영 단정 금지 |[m
+[31m-| POST body | content-type/length 확인 | body payload는 직접 보이지 않음 |[m
+[31m-| Probing sequence | `probing_sequence_summaries` 생성 | context-only, incident 과승격 금지 |[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 10. Provider 비교 포인트[m
+[31m-[m
+[31m-| 비교 항목 | 확인 내용 |[m
+[31m-|---|---|[m
+[31m-| OpenCart route 이해 | `route=product/search`, `route=product/category`를 일반 query parameter로만 볼지, route abuse로 볼지 |[m
+[31m-| PHP wrapper 보수성 | `php://filter`를 file disclosure intent로 보되 성공 단정은 피하는지 |[m
+[31m-| Config file intent | config.php 접근을 sensitive file probe로 설명하는지 |[m
+[31m-| POST body 한계 | raw body가 없을 때 SQLi/login 성공을 단정하지 않는지 |[m
+[31m-| probing sequence | D세트 R3 개선 구조를 활용해 burst를 context-only로 설명하는지 |[m
+[31m-| known asset 고려 | 내부 테스트/실험 가능성을 병기하는지 |[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 11. 산출물 관리[m
+[31m-[m
+[31m-public repo 공개 권장:[m
+[31m-[m
+[31m-- E세트 비교 Markdown[m
+[31m-- 최종 Stage2 Markdown[m
+[31m-- 통합 요약 문서[m
+[31m-[m
+[31m-public repo 공개 비권장:[m
+[31m-[m
+[31m-- raw export[m
+[31m-- LLM input JSON[m
+[31m-- Stage2 report input JSON[m
+[31m-- analysis_candidates JSON[m
+[31m-- noise_summary JSON[m
+[31m-- stage1_errors JSON[m
+[31m-[m
+[31m-OpenCart에서는 admin path, config path, route query, host/vhost 정보가 포함될 수 있으므로 raw/LLM input 공개에 더 주의한다.[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 12. 후속 코드 개선 후보[m
+[31m-[m
+[31m-E세트 결과에 따라 다음을 검토한다.[m
+[31m-[m
+[31m-1. PHP wrapper hint 세분화[m
+[31m-   - `file_disclosure:php_filter_wrapper`[m
+[31m-   - `file_disclosure:base64_source_intent`[m
+[31m-[m
+[31m-2. OpenCart route parameter context[m
+[31m-   - `opencart:route_parameter`[m
+[31m-   - 단, OpenCart 전용 조건을 일반 탐지 score에 과하게 넣지 않음[m
+[31m-[m
+[31m-3. config file probing hint[m
+[31m-   - `file_probe:config_php`[m
+[31m-   - `file_probe:admin_config_php`[m
+[31m-[m
+[31m-4. POST body visibility 정책 유지/확장[m
+[31m-   - raw POST body를 넣지 않는 현재 정책 유지가 기본[m
+[31m-   - 실험 전용 body capture는 별도 보안 정책 필요[m
+[31m-[m
+[31m-5. probing sequence generality[m
+[31m-   - D세트 R3 개선 로직이 OpenCart에서도 불필요하게 과탐하지 않는지 확인[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 13. 최종 주의[m
+[31m-[m
+[31m-E세트는 OpenCart/PHP라는 특정 앱을 대상으로 하지만, 코드 개선은 실험환경 특화가 되면 안 된다.[m
+[31m-[m
+[31m-금지:[m
+[31m-[m
+[31m-- `lab-e-set-*` UA를 탐지 조건으로 사용[m
+[31m-- `192.168.56.111`을 탐지 조건으로 사용[m
+[31m-- 특정 OpenCart 응답 크기를 hard-code[m
+[31m-- `/admin/config.php` 등 특정 경로 하나만 보고 high severity 자동 승격[m
+[31m-- 200 응답을 source/config 노출 성공으로 단정[m
+[31m-[m
+[31m-허용:[m
+[31m-[m
+[31m-- 일반적인 PHP wrapper 패턴 인식[m
+[31m-- 일반적인 config/admin/backup path probing 인식[m
+[31m-- route/query parameter에 남은 공격 payload 인식[m
+[31m-- same src_ip/time window 기반 probing sequence context 보존[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 14. 발표용 한 줄 정리[m
+[31m-[m
+[31m-E세트는 OpenCart/PHP 환경에서 route parameter, PHP wrapper, config/admin path probing, SQLi/XSS query, POST body visibility를 검증하는 실험이다. 핵심은 PHP/OpenCart 특성을 활용하되, 실제 파일 노출·로그인 성공·SQLi 성공·XSS 실행은 Apache 로그만으로 단정하지 않는 것이다.[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 5. Round 3 — OpenCart SQLi / XSS query 재검증[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mRound 3은 B/C세트 탐지 로직이 OpenCart URL 구조에도 일반화되는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### E-21 Product Search SQLi[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- OpenCart product/search 계열 query에서 SQLi payload가 query_string에 남을 때 탐지되는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i -G \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-search-sqli-1" \[m[41m[m
+[32m+[m[32m  --data-urlencode "route=product/search" \[m[41m[m
+[32m+[m[32m  --data-urlencode "search=x')) OR 1=1 --" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m기대 관찰:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- `route=product/search`, `search=` parameter 보존[m[41m[m
+[32m+[m[32m- SQLi payload가 B세트와 유사하게 탐지되는지 확인[m[41m[m
+[32m+[m[32m- response size anomaly가 있어도 실제 SQLi 성공 단정 금지[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### E-22 Product Search XSS[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- OpenCart product/search 계열 query에서 XSS payload가 query_string에 남을 때 탐지되는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i -G \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-search-xss-1" \[m[41m[m
+[32m+[m[32m  --data-urlencode "route=product/search" \[m[41m[m
+[32m+[m[32m  --data-urlencode "search=<script>alert(1)</script>" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m기대 관찰:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- XSS payload 탐지[m[41m[m
+[32m+[m[32m- 브라우저 실행 성공은 단정하지 않음[m[41m[m
+[32m+[m[32m- response body 반영 여부는 Apache 로그만으로 확정하지 않음[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### E-23 Encoded XSS / Entity XSS[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- C세트의 URL/entity decode 개선이 OpenCart query에서도 유지되는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i -G \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-search-xss-entity-1" \[m[41m[m
+[32m+[m[32m  --data-urlencode "route=product/search" \[m[41m[m
+[32m+[m[32m  --data-urlencode "search=&#x3C;script&#x3E;alert(1)&#x3C;/script&#x3E;" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m기대 관찰:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- HTML entity payload 식별[m[41m[m
+[32m+[m[32m- `xss:html_entity_decoded_script` 계열 hint 유지[m[41m[m
+[32m+[m[32m- SQL comment `#` 오탐 재발 방지[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 6. Round 4 — POST body visibility 재확인[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mRound 4는 OpenCart login/admin form에서 POST body visibility 한계를 다시 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### E-31 Admin Login POST Baseline[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- POST 요청이 Apache 로그 표면에서 어떻게 보이는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-post-login-base-1" \[m[41m[m
+[32m+[m[32m  -H "Content-Type: application/x-www-form-urlencoded" \[m[41m[m
+[32m+[m[32m  --data "username=admin&password=test" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/admin/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m기대 관찰:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- method=POST[m[41m[m
+[32m+[m[32m- req_content_type / req_content_length 기록[m[41m[m
+[32m+[m[32m- raw POST body 원문은 baseline에서 보이지 않음[m[41m[m
+[32m+[m[32m- 로그인 성공/실패 또는 계정 존재 여부는 Apache 로그만으로 확정하지 않음[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### E-32 Admin Login SQLi POST[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m목적:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- POST body SQLi payload가 현재 baseline에서 직접 보이지 않는다는 점을 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i \[m[41m[m
+[32m+[m[32m  -A "${UA_PREFIX}-post-login-sqli-1" \[m[41m[m
+[32m+[m[32m  -H "Content-Type: application/x-www-form-urlencoded" \[m[41m[m
+[32m+[m[32m  --data "username=admin' OR '1'='1&password=x" \[m[41m[m
+[32m+[m[32m  "$OPENCART_URL/admin/index.php"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m기대 관찰:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- Apache 로그에는 method, URI, content-type, content-length 중심으로 남음[m[41m[m
+[32m+[m[32m- body 내부 SQLi payload는 직접 보이지 않음[m[41m[m
+[32m+[m[32m- Stage2는 POST body visibility 한계를 명시해야 함[m[41m[m
+[32m+[m[32m- SQLi 성공 단정 금지[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 7. Round 5 — Directory probing sequence 일반성 확인[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mRound 5는 D세트 R3에서 개선한 `probing_sequence_summaries`가 OpenCart/PHP 경로에서도 동작하는지 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mfor path in \[m[41m[m
+[32m+[m[32m  "/admin/" \[m[41m[m
+[32m+[m[32m  "/admin/index.php" \[m[41m[m
+[32m+[m[32m  "/config.php" \[m[41m[m
+[32m+[m[32m  "/admin/config.php" \[m[41m[m
+[32m+[m[32m  "/backup.zip" \[m[41m[m
+[32m+[m[32m  "/backup.sql" \[m[41m[m
+[32m+[m[32m  "/phpmyadmin" \[m[41m[m
+[32m+[m[32m  "/vendor/" \[m[41m[m
+[32m+[m[32m  "/storage/"; do[m[41m[m
+[32m+[m[32m  curl -i --path-as-is \[m[41m[m
+[32m+[m[32m    -A "${UA_PREFIX}-probe-burst-1" \[m[41m[m
+[32m+[m[32m    "$OPENCART_URL${path}"[m[41m[m
+[32m+[m[32m  sleep 1[m[41m[m
+[32m+[m[32mdone[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m기대 관찰:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 개별 요청을 candidate로 과승격하지 않음[m[41m[m
+[32m+[m[32m- 같은 src_ip/window 내 3개 이상 민감/관리/백업 경로 접근을 `probing_sequence_summaries`로 보존[m[41m[m
+[32m+[m[32m- 200/403/404 status 분포와 content-type/response size 반복성을 context로 전달[m[41m[m
+[32m+[m[32m- 실제 config/admin/backup 노출 성공은 단정하지 않음[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 8. 실행 순서 권장[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mOpenCart E세트는 처음부터 전부 실행하지 말고 round별로 분리한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m권장 순서:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m1. E Round 0: URL/vhost/log 확인[m[41m[m
+[32m+[m[32m2. E Round 1: route/admin probing[m[41m[m
+[32m+[m[32m3. export + prepare + Stage1/Stage2 + 비교 문서[m[41m[m
+[32m+[m[32m4. E Round 2: PHP wrapper/config exposure intent[m[41m[m
+[32m+[m[32m5. export + 분석[m[41m[m
+[32m+[m[32m6. E Round 3: SQLi/XSS query 재검증[m[41m[m
+[32m+[m[32m7. export + 분석[m[41m[m
+[32m+[m[32m8. E Round 4: POST body visibility[m[41m[m
+[32m+[m[32m9. export + 분석[m[41m[m
+[32m+[m[32m10. E Round 5: directory probing sequence 일반성 확인[m[41m[m
+[32m+[m[32m11. E세트 통합 비교 문서 작성[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m한 export window에 모든 round를 섞지 않는 것이 좋다. OpenCart는 route, PHP wrapper, probing, POST body visibility의 평가 축이 다르기 때문이다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 9. 평가 기준[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m| 평가 축 | 성공 기준 | 보수적 해석 |[m[41m[m
+[32m+[m[32m|---|---|---|[m[41m[m
+[32m+[m[32m| Route parameter visibility | `route=`가 query_string에 보존됨 | route 처리 성공은 단정하지 않음 |[m[41m[m
+[32m+[m[32m| PHP wrapper intent | `php://filter` decoded view가 확인됨 | source disclosure 성공은 body 없이는 미확정 |[m[41m[m
+[32m+[m[32m| Config exposure intent | `/config.php`, `/admin/config.php` 접근 확인 | 파일 내용 노출 단정 금지 |[m[41m[m
+[32m+[m[32m| SQLi query | `search=` 등 query parameter에 SQLi payload 보존 | DB 결과 변경/유출 단정 금지 |[m[41m[m
+[32m+[m[32m| XSS query | query parameter에 XSS payload 보존 | 브라우저 실행/DOM 반영 단정 금지 |[m[41m[m
+[32m+[m[32m| POST body | content-type/length 확인 | body payload는 직접 보이지 않음 |[m[41m[m
+[32m+[m[32m| Probing sequence | `probing_sequence_summaries` 생성 | context-only, incident 과승격 금지 |[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 10. Provider 비교 포인트[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m| 비교 항목 | 확인 내용 |[m[41m[m
+[32m+[m[32m|---|---|[m[41m[m
+[32m+[m[32m| OpenCart route 이해 | `route=product/search`, `route=product/category`를 일반 query parameter로만 볼지, route abuse로 볼지 |[m[41m[m
+[32m+[m[32m| PHP wrapper 보수성 | `php://filter`를 file disclosure intent로 보되 성공 단정은 피하는지 |[m[41m[m
+[32m+[m[32m| Config file intent | config.php 접근을 sensitive file probe로 설명하는지 |[m[41m[m
+[32m+[m[32m| POST body 한계 | raw body가 없을 때 SQLi/login 성공을 단정하지 않는지 |[m[41m[m
+[32m+[m[32m| probing sequence | D세트 R3 개선 구조를 활용해 burst를 context-only로 설명하는지 |[m[41m[m
+[32m+[m[32m| known asset 고려 | 내부 테스트/실험 가능성을 병기하는지 |[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 11. 산출물 관리[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mpublic repo 공개 권장:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- E세트 비교 Markdown[m[41m[m
+[32m+[m[32m- 최종 Stage2 Markdown[m[41m[m
+[32m+[m[32m- 통합 요약 문서[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mpublic repo 공개 비권장:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- raw export[m[41m[m
+[32m+[m[32m- LLM input JSON[m[41m[m
+[32m+[m[32m- Stage2 report input JSON[m[41m[m
+[32m+[m[32m- analysis_candidates JSON[m[41m[m
+[32m+[m[32m- noise_summary JSON[m[41m[m
+[32m+[m[32m- stage1_errors JSON[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mOpenCart에서는 admin path, config path, route query, host/vhost 정보가 포함될 수 있으므로 raw/LLM input 공개에 더 주의한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 12. 후속 코드 개선 후보[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mE세트 결과에 따라 다음을 검토한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m1. PHP wrapper hint 세분화[m[41m[m
+[32m+[m[32m   - `file_disclosure:php_filter_wrapper`[m[41m[m
+[32m+[m[32m   - `file_disclosure:base64_source_intent`[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m2. OpenCart route parameter context[m[41m[m
+[32m+[m[32m   - `opencart:route_parameter`[m[41m[m
+[32m+[m[32m   - 단, OpenCart 전용 조건을 일반 탐지 score에 과하게 넣지 않음[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m3. config file probing hint[m[41m[m
+[32m+[m[32m   - `file_probe:config_php`[m[41m[m
+[32m+[m[32m   - `file_probe:admin_config_php`[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m4. POST body visibility 정책 유지/확장[m[41m[m
+[32m+[m[32m   - raw POST body를 넣지 않는 현재 정책 유지가 기본[m[41m[m
+[32m+[m[32m   - 실험 전용 body capture는 별도 보안 정책 필요[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m5. probing sequence generality[m[41m[m
+[32m+[m[32m   - D세트 R3 개선 로직이 OpenCart에서도 불필요하게 과탐하지 않는지 확인[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 13. 최종 주의[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mE세트는 OpenCart/PHP라는 특정 앱을 대상으로 하지만, 코드 개선은 실험환경 특화가 되면 안 된다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m금지:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- `lab-e-set-*` UA를 탐지 조건으로 사용[m[41m[m
+[32m+[m[32m- `192.168.56.111`을 탐지 조건으로 사용[m[41m[m
+[32m+[m[32m- 특정 OpenCart 응답 크기를 hard-code[m[41m[m
+[32m+[m[32m- `/admin/config.php` 등 특정 경로 하나만 보고 high severity 자동 승격[m[41m[m
+[32m+[m[32m- 200 응답을 source/config 노출 성공으로 단정[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m허용:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 일반적인 PHP wrapper 패턴 인식[m[41m[m
+[32m+[m[32m- 일반적인 config/admin/backup path probing 인식[m[41m[m
+[32m+[m[32m- route/query parameter에 남은 공격 payload 인식[m[41m[m
+[32m+[m[32m- same src_ip/time window 기반 probing sequence context 보존[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 14. 발표용 한 줄 정리[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mE세트는 OpenCart/PHP 환경에서 route parameter, PHP wrapper, config/admin path probing, SQLi/XSS query, POST body visibility를 검증하는 실험이다. 핵심은 PHP/OpenCart 특성을 활용하되, 실제 파일 노출·로그인 성공·SQLi 성공·XSS 실행은 Apache 로그만으로 단정하지 않는 것이다.[m[41m[m
+[1mdiff --git "a/docs/99_\353\271\204\352\265\220\354\213\244\355\227\230_\355\233\204\354\206\215\352\260\234\354\204\240_TODO.md" "b/docs/99_\353\271\204\352\265\220\354\213\244\355\227\230_\355\233\204\354\206\215\352\260\234\354\204\240_TODO.md"[m
+[1mindex 24d1105..37ac4c7 100644[m
+[1m--- "a/docs/99_\353\271\204\352\265\220\354\213\244\355\227\230_\355\233\204\354\206\215\352\260\234\354\204\240_TODO.md"[m
+[1m+++ "b/docs/99_\353\271\204\352\265\220\354\213\244\355\227\230_\355\233\204\354\206\215\352\260\234\354\204\240_TODO.md"[m
+[36m@@ -1,206 +1,206 @@[m
+[31m-# 99_비교실험_후속개선_TODO[m
+[31m-[m
+[31m-- 작성일: 2026-04-26[m
+[31m-- 문서 역할: A/B/C/D 비교실험 이후 남은 후속 개선 과제 정리[m
+[31m-- 기준: Apache 로그 표면 기반 LLM 분석 파이프라인[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 1. 우선순위 요약[m
+[31m-[m
+[31m-| 우선순위 | 과제 | 이유 |[m
+[31m-|---|---|---|[m
+[31m-| P1 | `low_signal_dir_probe` burst grouping 강화 | D세트 R3에서 가장 큰 한계로 확인됨 |[m
+[31m-| P1 | Stage2 후보 밖 탐색성 요청 섹션 강화 | filtered-out 요청을 단순 분포가 아니라 sequence/context로 보여줄 필요 |[m
+[31m-| P2 | fallback HTML 반복 응답 보조 지표 정리 | 200 text/html 대용량 응답을 성공으로 오해하지 않도록 보조 설명 필요 |[m
+[31m-| P2 | Time-based SQLi 재설계 여부 결정 | B세트 R2A에서 실패로 기록됨 |[m
+[31m-| P2 | POST body visibility 정책 유지/확장 판단 | B세트 R1, D세트 R2에서 반복적으로 한계 확인 |[m
+[31m-| P3 | D세트 R1 D-04/D-05 재실험 여부 결정 | absolute path / PHP wrapper는 현재 핵심 평가에서 제외됨 |[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 2. P1 — Directory Probing burst grouping 강화[m
+[31m-[m
+[31m-### 배경[m
+[31m-[m
+[31m-D세트 R3에서는 10건의 directory probing 성격 요청이 수집되었다. 그러나 Stage1 candidate는 `/server-status` 403 요청 1건뿐이었고, 나머지 9건은 `low_signal_dir_probe` 또는 `low_signal_fuzzing`으로 filtered out 처리되었다.[m
+[31m-[m
+[31m-이 판단 자체는 보수적이고 안전하지만, R3의 실험 목적이었던 “짧은 시간 내 여러 민감 경로 요청을 하나의 probing sequence로 묶는 능력”은 충분히 만족하지 못했다.[m
+[31m-[m
+[31m-### 개선 방향[m
+[31m-[m
+[31m-- 같은 `src_ip`[m
+[31m-- 짧은 시간 window, 예: 60~120초[m
+[31m-- 민감 경로 사전 기반 요청 3건 이상[m
+[31m-- 동일 또는 유사 User-Agent[m
+[31m-- `404`, `403`, 또는 반복적인 fallback HTML 응답[m
+[31m-[m
+[31m-위 조건을 만족하면 개별 incident로 과승격하지 않고 다음 중 하나로 보존한다.[m
+[31m-[m
+[31m-```json[m
+[31m-{[m
+[31m-  "probing_sequence_summary": [[m
+[31m-    {[m
+[31m-      "src_ip": "...",[m
+[31m-      "start": "...",[m
+[31m-      "end": "...",[m
+[31m-      "request_count": 7,[m
+[31m-      "paths": ["/.git/config", "/.env", "/admin", "/backup"],[m
+[31m-      "category": "low_signal_dir_probe_burst",[m
+[31m-      "policy": "context_only"[m
+[31m-    }[m
+[31m-  ][m
+[31m-}[m
+[31m-```[m
+[31m-[m
+[31m-또는 기존 구조와 맞추려면 `supporting_events`에 context-only로 보존한다.[m
+[31m-[m
+[31m-### 주의[m
+[31m-[m
+[31m-- 단발 `/admin` 요청을 high severity incident로 올리면 안 된다.[m
+[31m-- public repo에 raw path list를 공개할 때는 내부 IP/민감 payload 노출 정책을 확인한다.[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 3. P1 — Stage2 후보 밖 탐색성 요청 섹션 강화[m
+[31m-[m
+[31m-### 배경[m
+[31m-[m
+[31m-현재 Stage2는 `filtered_out_breakdown`을 기반으로 `low_signal_dir_probe 7건`, `low_signal_fuzzing 2건` 정도를 요약한다. 그러나 실제 경로 목록, 시간 집중도, 동일 출발지 여부가 충분히 드러나지 않는다.[m
+[31m-[m
+[31m-### 개선 방향[m
+[31m-[m
+[31m-Stage2 report input에 다음 요약을 추가하는 방식을 검토한다.[m
+[31m-[m
+[31m-- filtered-out directory probe 경로 목록 상위 N개[m
+[31m-- 같은 IP의 연속 요청 수[m
+[31m-- 첫 요청/마지막 요청 시각[m
+[31m-- status 분포[m
+[31m-- response_body_bytes 반복 패턴[m
+[31m-- fallback HTML 가능성[m
+[31m-[m
+[31m-예시 출력:[m
+[31m-[m
+[31m-```text[m
+[31m-후보 밖 탐색성 요청:[m
+[31m-- 192.168.56.110에서 17초 동안 7건의 directory probe 성격 요청 발생[m
+[31m-- 경로: /.git/config, /.env, /admin, /administrator, /backup, /phpmyadmin, /manager/html[m
+[31m-- 다수 요청은 200 text/html 75002B로 동일 fallback HTML 가능성[m
+[31m-- /server-status만 403으로 차단되어 candidate로 승격[m
+[31m-```[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 4. P2 — fallback HTML 반복 응답 보조 지표 정리[m
+[31m-[m
+[31m-### 배경[m
+[31m-[m
+[31m-C/D세트에서 `200 text/html`, `response_body_bytes=75002` 같은 응답이 반복적으로 관찰되었다. Juice Shop SPA fallback HTML 가능성이 높지만, 현재 정책상 `resp_html_*` fingerprint는 핵심 근거로 쓰지 않고 있다.[m
+[31m-[m
+[31m-### 개선 방향[m
+[31m-[m
+[31m-- 핵심 판정 근거가 아니라 보조 설명으로만 사용한다.[m
+[31m-- 반복되는 `status=200`, `resp_content_type=text/html`, 동일/유사 `response_body_bytes`를 fallback candidate로 표시한다.[m
+[31m-- “파일 노출 성공” 또는 “관리 페이지 접근 성공”으로 단정하지 않도록 Stage2 문구를 보강한다.[m
+[31m-[m
+[31m-권장 표현:[m
+[31m-[m
+[31m-```text[m
+[31m-200 text/html 대용량 응답이 반복되지만, response body 원문이 없고 동일 크기 fallback 패턴이 반복되므로 민감 리소스 노출 성공으로 단정하지 않는다.[m
+[31m-```[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 5. P2 — Time-based SQLi 재설계 여부[m
+[31m-[m
+[31m-### 배경[m
+[31m-[m
+[31m-B세트 R2A에서 `randomblob` 기반 Time-based Track은 `duration_us` / `ttfb_us` 기준으로 충분한 지연 차이를 만들지 못했다.[m
+[31m-[m
+[31m-### 현재 결론[m
+[31m-[m
+[31m-- 실패 또는 미검증으로 유지한다.[m
+[31m-- Time-based를 억지로 성공 처리하지 않는다.[m
+[31m-- Boolean xclose처럼 물리 지표가 명확한 실험과 분리한다.[m
+[31m-[m
+[31m-### 후속 검토[m
+[31m-[m
+[31m-- DB/애플리케이션별로 실제 지연을 만드는 payload를 별도 조사한다.[m
+[31m-- baseline median 3회 이상과 delay median 3회 이상을 비교한다.[m
+[31m-- 네트워크 편차보다 충분히 큰 차이, 예: 30배 이상 또는 2초 이상을 기준으로 둔다.[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 6. P2 — POST body visibility 정책[m
+[31m-[m
+[31m-### 배경[m
+[31m-[m
+[31m-B세트 R1과 D세트 R2에서 POST body 내부 payload/HPP가 Apache 로그 baseline에서 직접 보이지 않는 문제가 반복 확인되었다.[m
+[31m-[m
+[31m-### 현재 정책[m
+[31m-[m
+[31m-- raw POST body를 baseline LLM input에 포함하지 않는다.[m
+[31m-- POST body 공격은 method, URI, content-type, content-length, status 정도로만 보수적으로 해석한다.[m
+[31m-- 실제 body payload나 서버 내부 처리 결과는 단정하지 않는다.[m
+[31m-[m
+[31m-### 후속 선택지[m
+[31m-[m
+[31m-1. 현재 정책 유지[m
+[31m-   - privacy/security 관점에서 안전[m
+[31m-   - POST body 분석 한계는 문서화[m
+[31m-[m
+[31m-2. 제한적 body metadata만 추가[m
+[31m-   - field name hash[m
+[31m-   - length bucket[m
+[31m-   - content-type[m
+[31m-   - form field count[m
+[31m-[m
+[31m-3. 실험 전용 body capture[m
+[31m-   - public repo에는 절대 raw body 공개 금지[m
+[31m-   - 보고서에는 요약만 포함[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 7. P3 — D세트 R1 D-04/D-05 재실험[m
+[31m-[m
+[31m-### 배경[m
+[31m-[m
+[31m-D세트 R1에서 D-01~D-03은 성공했지만, D-04 absolute path와 D-05 PHP wrapper는 핵심 평가에 포함되지 않았다.[m
+[31m-[m
+[31m-### 재실험 조건[m
+[31m-[m
+[31m-D-04:[m
+[31m-[m
+[31m-```bash[m
+[31m-curl -i --path-as-is \[m
+[31m-  -A "lab-d-set-trav-absolute-passwd-2" \[m
+[31m-  "$JUICE_URL/etc/passwd"[m
+[31m-```[m
+[31m-[m
+[31m-D-05:[m
+[31m-[m
+[31m-- 실제 OpenCart/PHP target URL 확인 후 실행[m
+[31m-- Juice Shop URL로는 PHP wrapper 검증으로 보지 않음[m
+[31m-[m
+[31m-### 판단[m
+[31m-[m
+[31m-현재 D세트 결론을 위해 필수는 아니다. 발표 또는 추가 검증 시간이 있으면 수행한다.[m
+[31m-[m
+[31m----[m
+[31m-[m
+[31m-## 8. 유지해야 할 원칙[m
+[31m-[m
+[31m-- raw_request_target 보존[m
+[31m-- query_string 원본 보존[m
+[31m-- URL decode/entity decode view는 분석용으로만 추가[m
+[31m-- response body 원문 없는 성공 단정 금지[m
+[31m-- raw POST body 없는 POST payload 단정 금지[m
+[31m-- known asset IP는 내부 테스트 가능성으로 병기[m
+[31m-- provider별 표현 차이는 Apache 로그 표면 지표로 보정[m
+[31m-- public repo에는 상세 로그성 JSON 비공개[m
+[31m-[m
+[31m----[m
+[31m-[m
+[32m+[m[32m# 99_비교실험_후속개선_TODO[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 작성일: 2026-04-26[m[41m[m
+[32m+[m[32m- 문서 역할: A/B/C/D 비교실험 이후 남은 후속 개선 과제 정리[m[41m[m
+[32m+[m[32m- 기준: Apache 로그 표면 기반 LLM 분석 파이프라인[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 1. 우선순위 요약[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m| 우선순위 | 과제 | 이유 |[m[41m[m
+[32m+[m[32m|---|---|---|[m[41m[m
+[32m+[m[32m| P1 | `low_signal_dir_probe` burst grouping 강화 | D세트 R3에서 가장 큰 한계로 확인됨 |[m[41m[m
+[32m+[m[32m| P1 | Stage2 후보 밖 탐색성 요청 섹션 강화 | filtered-out 요청을 단순 분포가 아니라 sequence/context로 보여줄 필요 |[m[41m[m
+[32m+[m[32m| P2 | fallback HTML 반복 응답 보조 지표 정리 | 200 text/html 대용량 응답을 성공으로 오해하지 않도록 보조 설명 필요 |[m[41m[m
+[32m+[m[32m| P2 | Time-based SQLi 재설계 여부 결정 | B세트 R2A에서 실패로 기록됨 |[m[41m[m
+[32m+[m[32m| P2 | POST body visibility 정책 유지/확장 판단 | B세트 R1, D세트 R2에서 반복적으로 한계 확인 |[m[41m[m
+[32m+[m[32m| P3 | D세트 R1 D-04/D-05 재실험 여부 결정 | absolute path / PHP wrapper는 현재 핵심 평가에서 제외됨 |[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 2. P1 — Directory Probing burst grouping 강화[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 배경[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mD세트 R3에서는 10건의 directory probing 성격 요청이 수집되었다. 그러나 Stage1 candidate는 `/server-status` 403 요청 1건뿐이었고, 나머지 9건은 `low_signal_dir_probe` 또는 `low_signal_fuzzing`으로 filtered out 처리되었다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m이 판단 자체는 보수적이고 안전하지만, R3의 실험 목적이었던 “짧은 시간 내 여러 민감 경로 요청을 하나의 probing sequence로 묶는 능력”은 충분히 만족하지 못했다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 개선 방향[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 같은 `src_ip`[m[41m[m
+[32m+[m[32m- 짧은 시간 window, 예: 60~120초[m[41m[m
+[32m+[m[32m- 민감 경로 사전 기반 요청 3건 이상[m[41m[m
+[32m+[m[32m- 동일 또는 유사 User-Agent[m[41m[m
+[32m+[m[32m- `404`, `403`, 또는 반복적인 fallback HTML 응답[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m위 조건을 만족하면 개별 incident로 과승격하지 않고 다음 중 하나로 보존한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```json[m[41m[m
+[32m+[m[32m{[m[41m[m
+[32m+[m[32m  "probing_sequence_summary": [[m[41m[m
+[32m+[m[32m    {[m[41m[m
+[32m+[m[32m      "src_ip": "...",[m[41m[m
+[32m+[m[32m      "start": "...",[m[41m[m
+[32m+[m[32m      "end": "...",[m[41m[m
+[32m+[m[32m      "request_count": 7,[m[41m[m
+[32m+[m[32m      "paths": ["/.git/config", "/.env", "/admin", "/backup"],[m[41m[m
+[32m+[m[32m      "category": "low_signal_dir_probe_burst",[m[41m[m
+[32m+[m[32m      "policy": "context_only"[m[41m[m
+[32m+[m[32m    }[m[41m[m
+[32m+[m[32m  ][m[41m[m
+[32m+[m[32m}[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m또는 기존 구조와 맞추려면 `supporting_events`에 context-only로 보존한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 주의[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 단발 `/admin` 요청을 high severity incident로 올리면 안 된다.[m[41m[m
+[32m+[m[32m- public repo에 raw path list를 공개할 때는 내부 IP/민감 payload 노출 정책을 확인한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 3. P1 — Stage2 후보 밖 탐색성 요청 섹션 강화[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 배경[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m현재 Stage2는 `filtered_out_breakdown`을 기반으로 `low_signal_dir_probe 7건`, `low_signal_fuzzing 2건` 정도를 요약한다. 그러나 실제 경로 목록, 시간 집중도, 동일 출발지 여부가 충분히 드러나지 않는다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 개선 방향[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mStage2 report input에 다음 요약을 추가하는 방식을 검토한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- filtered-out directory probe 경로 목록 상위 N개[m[41m[m
+[32m+[m[32m- 같은 IP의 연속 요청 수[m[41m[m
+[32m+[m[32m- 첫 요청/마지막 요청 시각[m[41m[m
+[32m+[m[32m- status 분포[m[41m[m
+[32m+[m[32m- response_body_bytes 반복 패턴[m[41m[m
+[32m+[m[32m- fallback HTML 가능성[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m예시 출력:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```text[m[41m[m
+[32m+[m[32m후보 밖 탐색성 요청:[m[41m[m
+[32m+[m[32m- 192.168.56.110에서 17초 동안 7건의 directory probe 성격 요청 발생[m[41m[m
+[32m+[m[32m- 경로: /.git/config, /.env, /admin, /administrator, /backup, /phpmyadmin, /manager/html[m[41m[m
+[32m+[m[32m- 다수 요청은 200 text/html 75002B로 동일 fallback HTML 가능성[m[41m[m
+[32m+[m[32m- /server-status만 403으로 차단되어 candidate로 승격[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 4. P2 — fallback HTML 반복 응답 보조 지표 정리[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 배경[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mC/D세트에서 `200 text/html`, `response_body_bytes=75002` 같은 응답이 반복적으로 관찰되었다. Juice Shop SPA fallback HTML 가능성이 높지만, 현재 정책상 `resp_html_*` fingerprint는 핵심 근거로 쓰지 않고 있다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 개선 방향[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 핵심 판정 근거가 아니라 보조 설명으로만 사용한다.[m[41m[m
+[32m+[m[32m- 반복되는 `status=200`, `resp_content_type=text/html`, 동일/유사 `response_body_bytes`를 fallback candidate로 표시한다.[m[41m[m
+[32m+[m[32m- “파일 노출 성공” 또는 “관리 페이지 접근 성공”으로 단정하지 않도록 Stage2 문구를 보강한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m권장 표현:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```text[m[41m[m
+[32m+[m[32m200 text/html 대용량 응답이 반복되지만, response body 원문이 없고 동일 크기 fallback 패턴이 반복되므로 민감 리소스 노출 성공으로 단정하지 않는다.[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 5. P2 — Time-based SQLi 재설계 여부[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 배경[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mB세트 R2A에서 `randomblob` 기반 Time-based Track은 `duration_us` / `ttfb_us` 기준으로 충분한 지연 차이를 만들지 못했다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 현재 결론[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 실패 또는 미검증으로 유지한다.[m[41m[m
+[32m+[m[32m- Time-based를 억지로 성공 처리하지 않는다.[m[41m[m
+[32m+[m[32m- Boolean xclose처럼 물리 지표가 명확한 실험과 분리한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 후속 검토[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- DB/애플리케이션별로 실제 지연을 만드는 payload를 별도 조사한다.[m[41m[m
+[32m+[m[32m- baseline median 3회 이상과 delay median 3회 이상을 비교한다.[m[41m[m
+[32m+[m[32m- 네트워크 편차보다 충분히 큰 차이, 예: 30배 이상 또는 2초 이상을 기준으로 둔다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 6. P2 — POST body visibility 정책[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 배경[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mB세트 R1과 D세트 R2에서 POST body 내부 payload/HPP가 Apache 로그 baseline에서 직접 보이지 않는 문제가 반복 확인되었다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 현재 정책[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- raw POST body를 baseline LLM input에 포함하지 않는다.[m[41m[m
+[32m+[m[32m- POST body 공격은 method, URI, content-type, content-length, status 정도로만 보수적으로 해석한다.[m[41m[m
+[32m+[m[32m- 실제 body payload나 서버 내부 처리 결과는 단정하지 않는다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 후속 선택지[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m1. 현재 정책 유지[m[41m[m
+[32m+[m[32m   - privacy/security 관점에서 안전[m[41m[m
+[32m+[m[32m   - POST body 분석 한계는 문서화[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m2. 제한적 body metadata만 추가[m[41m[m
+[32m+[m[32m   - field name hash[m[41m[m
+[32m+[m[32m   - length bucket[m[41m[m
+[32m+[m[32m   - content-type[m[41m[m
+[32m+[m[32m   - form field count[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m3. 실험 전용 body capture[m[41m[m
+[32m+[m[32m   - public repo에는 절대 raw body 공개 금지[m[41m[m
+[32m+[m[32m   - 보고서에는 요약만 포함[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 7. P3 — D세트 R1 D-04/D-05 재실험[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 배경[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mD세트 R1에서 D-01~D-03은 성공했지만, D-04 absolute path와 D-05 PHP wrapper는 핵심 평가에 포함되지 않았다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 재실험 조건[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mD-04:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m```bash[m[41m[m
+[32m+[m[32mcurl -i --path-as-is \[m[41m[m
+[32m+[m[32m  -A "lab-d-set-trav-absolute-passwd-2" \[m[41m[m
+[32m+[m[32m  "$JUICE_URL/etc/passwd"[m[41m[m
+[32m+[m[32m```[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32mD-05:[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- 실제 OpenCart/PHP target URL 확인 후 실행[m[41m[m
+[32m+[m[32m- Juice Shop URL로는 PHP wrapper 검증으로 보지 않음[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m### 판단[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m현재 D세트 결론을 위해 필수는 아니다. 발표 또는 추가 검증 시간이 있으면 수행한다.[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m## 8. 유지해야 할 원칙[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m- raw_request_target 보존[m[41m[m
+[32m+[m[32m- query_string 원본 보존[m[41m[m
+[32m+[m[32m- URL decode/entity decode view는 분석용으로만 추가[m[41m[m
+[32m+[m[32m- response body 원문 없는 성공 단정 금지[m[41m[m
+[32m+[m[32m- raw POST body 없는 POST payload 단정 금지[m[41m[m
+[32m+[m[32m- known asset IP는 내부 테스트 가능성으로 병기[m[41m[m
+[32m+[m[32m- provider별 표현 차이는 Apache 로그 표면 지표로 보정[m[41m[m
+[32m+[m[32m- public repo에는 상세 로그성 JSON 비공개[m[41m[m
+[32m+[m[41m[m
+[32m+[m[32m---[m[41m[m
+[32m+[m[41m[m
+ ## 9. 구현 상태 (2026-04-26)[m
+ [m
+ ### 완료[m
+[36m@@ -220,6 +220,8 @@[m [mD-05:[m
+ ### 남은 TODO[m
+ [m
+ - Stage2 실제 LLM 호출 결과가 provider별로 probing sequence 문맥을 얼마나 안정적으로 서술하는지 추가 확인[m
+[32m+[m[32m- PHP wrapper(`php://filter`, `convert.base64-encode`, `resource=`) candidate를 Stage2가 file disclosure intent로 일관되게 설명하는지 provider별 비교[m
+[32m+[m[32m- `/config.php`, `/admin/config.php` direct probe를 context-only 또는 low-signal probing으로 유지하는지 재확인[m
+ - fallback-like HTML의 “유사 크기” 허용 범위를 더 일반화할지 여부는 후속 검토[m
+ - public repo용 비교 문서(`개선후_비교.md`)는 실제 재처리 결과를 정리할 때 별도 작성[m
+ [m
+[1mdiff --git a/src/llm_stage2_reporter.py b/src/llm_stage2_reporter.py[m
+[1mindex 298c7c8..a52b3ad 100755[m
+[1m--- a/src/llm_stage2_reporter.py[m
+[1m+++ b/src/llm_stage2_reporter.py[m
+[36m@@ -1,722 +1,722 @@[m
+[31m-#!/usr/bin/env python3[m
+[31m-# -*- coding: utf-8 -*-[m
+[31m-"""[m
+[31m-prepare_llm_input.py / llm_stage1_classifier.py 산출물을 바탕으로[m
+[31m-최종 Markdown 분석 보고서를 생성하는 2차 LLM 리포터.[m
+[31m-[m
+[31m-주요 개선 사항[m
+[31m-- request_id 단독 매칭을 제거하고 incident_ref 기반으로 안전하게 재매칭[m
+[31m-- access/security 중복 row 를 incident 단위로 묶어 distinct incident 중심으로 요약[m
+[31m-- known asset IP(웹서버/DB/LLM 서버 등) 목록을 받아 내부 테스트/자체 호출 가능성을 보고서에 반영[m
+[31m-- filtered_out_breakdown 을 stage2 입력과 Markdown 에 보존해 후보 밖 저신호 요청 분포를 가시화[m
+[31m-"""[m
+[31m-[m
+[31m-from __future__ import annotations[m
+[31m-[m
+[31m-import argparse[m
+[31m-import json[m
+[31m-import os[m
+[31m-import sys[m
+[31m-from collections import Counter, defaultdict[m
+[31m-from dataclasses import dataclass, asdict[m
+[31m-from datetime import datetime, timezone[m
+[31m-from pathlib import Path[m
+[31m-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple[m
+[31m-from urllib import error[m
+[31m-[m
+[31m-from llm_client import SUPPORTED_PROVIDERS, call_llm_json, provider_api_key_error, resolve_llm_config[m
+[31m-[m
+[31m-DEFAULT_TIMEOUT_SEC = 180[m
+[31m-DEFAULT_MODE = "routine"[m
+[31m-DEFAULT_ROUTINE_MODEL = "gpt-5.4-mini"[m
+[31m-DEFAULT_MILESTONE_MODEL = "gpt-5.4"[m
+[31m-DEFAULT_PRESENTATION_MODEL = "gpt-5.4"[m
+[31m-ALLOWED_MODES = {"routine", "milestone", "presentation"}[m
+[31m-SEVERITY_ORDER = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}[m
+[31m-CONFIDENCE_ORDER = {"high": 3, "medium": 2, "low": 1}[m
+[31m-TABLE_PRIORITY = {"security": 3, "error": 2, "access": 1}[m
+[31m-RECON_FILTERED_CATEGORIES = ("low_signal_fuzzing", "low_signal_dir_probe")[m
+[31m-ENV_FILE_NAMES = ("config/llm.env", "llm.env", ".env")[m
+[31m-[m
+[31m-[m
+[31m-@dataclass[m
+[31m-class IncidentBrief:[m
+[31m-    rank: int[m
+[31m-    incident_ref: str[m
+[31m-    dedup_key: str[m
+[31m-    duplicate_count: int[m
+[31m-    request_id: str[m
+[31m-    src_ip: str[m
+[31m-    verdict: str[m
+[31m-    severity: str[m
+[31m-    confidence: str[m
+[31m-    source_table: str[m
+[31m-    source_tables: List[str][m
+[31m-    method: str[m
+[31m-    uri: str[m
+[31m-    status_code: int[m
+[31m-    score: int[m
+[31m-    log_time: str[m
+[31m-    response_body_bytes: int[m
+[31m-    resp_content_type: str[m
+[31m-    raw_request_target: str[m
+[31m-    path_normalized_from_raw_request: bool[m
+[31m-    likely_html_fallback_response: bool[m
+[31m-    hpp_detected: bool[m
+[31m-    hpp_param_names: List[str][m
+[31m-    embedded_attack_hint: str[m
+[31m-    reasoning_summary: str[m
+[31m-    evidence_fields: List[str][m
+[31m-    reason_hints: List[str][m
+[31m-    user_agent: str[m
+[31m-    raw_request: str[m
+[31m-    raw_log_excerpt: str[m
+[31m-    recommended_actions: List[str][m
+[31m-    known_asset: bool[m
+[31m-[m
+[31m-[m
+[31m-@dataclass[m
+[31m-class LLMJsonParseResult:[m
+[31m-    parsed: Dict[str, Any][m
+[31m-    json_text: str[m
+[31m-    strategy: str[m
+[31m-[m
+[31m-[m
+[31m-class LLMJsonParseError(ValueError):[m
+[31m-    def __init__([m
+[31m-        self,[m
+[31m-        message: str,[m
+[31m-        *,[m
+[31m-        output_text: str,[m
+[31m-        normalized_text: str,[m
+[31m-        candidate_text: str,[m
+[31m-        original_error: Exception,[m
+[31m-    ) -> None:[m
+[31m-        super().__init__(message)[m
+[31m-        self.output_text = output_text[m
+[31m-        self.normalized_text = normalized_text[m
+[31m-        self.candidate_text = candidate_text[m
+[31m-        self.original_error = original_error[m
+[31m-[m
+[31m-[m
+[31m-def parse_args() -> argparse.Namespace:[m
+[31m-    parser = argparse.ArgumentParser(description="LLM 2차 보고서 생성기 (OpenAI/Anthropic)")[m
+[31m-    parser.add_argument("--stage1-results", required=True, help="llm_stage1_classifier.py 결과 <base>_stage1_results.json")[m
+[31m-    parser.add_argument("--llm-input", default=None, help="prepare_llm_input.py 결과 <base>_llm_input.json")[m
+[31m-    parser.add_argument("--stage1-errors", default=None, help="선택: <base>_stage1_errors.json")[m
+[31m-    parser.add_argument("--out-dir", default=".", help="산출물 저장 디렉터리")[m
+[31m-    parser.add_argument("--base-name", default=None, help="산출물 파일명 접두어")[m
+[31m-    parser.add_argument("--mode", default=DEFAULT_MODE, choices=sorted(ALLOWED_MODES), help="모델 사용 모드")[m
+[31m-    parser.add_argument("--provider", choices=SUPPORTED_PROVIDERS, default=None, help="LLM provider (기본값: LLM_PROVIDER 또는 openai)")[m
+[31m-    parser.add_argument("--model", default=None, help="명시적 모델 override")[m
+[31m-    parser.add_argument("--top-incidents", type=int, default=12, help="모델에 전달할 상위 incident 수")[m
+[31m-    parser.add_argument("--top-noise-groups", type=int, default=8, help="모델에 전달할 상위 noise group 수")[m
+[31m-    parser.add_argument("--top-ips", type=int, default=8, help="모델에 전달할 상위 src_ip 수")[m
+[31m-    parser.add_argument([m
+[31m-        "--known-asset-ips",[m
+[31m-        default=None,[m
+[31m-        help="쉼표 구분 known asset IP 목록 (.env 의 KNOWN_ASSET_IPS fallback 사용 가능)",[m
+[31m-    )[m
+[31m-    parser.add_argument("--timeout-sec", type=int, default=DEFAULT_TIMEOUT_SEC, help="HTTP 타임아웃")[m
+[31m-    parser.add_argument("--store", action="store_true", help="OpenAI Responses API 결과 저장 활성화 (Anthropic에서는 무시)")[m
+[31m-    parser.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high", "xhigh"], default="none", help="선택적 reasoning effort")[m
+[31m-    parser.add_argument("--pretty", action="store_true", help="JSON pretty 출력")[m
+[31m-    parser.add_argument("--dry-run", action="store_true", help="실제 API 호출 없이 요청 payload 와 markdown 초안만 생성")[m
+[31m-    return parser.parse_args()[m
+[31m-[m
+[31m-[m
+[31m-def load_json(path: str) -> Dict[str, Any]:[m
+[31m-    with open(path, "r", encoding="utf-8") as f:[m
+[31m-        return json.load(f)[m
+[31m-[m
+[31m-[m
+[31m-def dump_json(path: str, payload: Any, pretty: bool) -> None:[m
+[31m-    out_path = Path(path)[m
+[31m-    out_path.parent.mkdir(parents=True, exist_ok=True)[m
+[31m-    with open(out_path, "w", encoding="utf-8") as f:[m
+[31m-        json.dump(payload, f, ensure_ascii=False, indent=2 if pretty else None)[m
+[31m-[m
+[31m-[m
+[31m-def write_text(path: str, text: str) -> None:[m
+[31m-    out_path = Path(path)[m
+[31m-    out_path.parent.mkdir(parents=True, exist_ok=True)[m
+[31m-    with open(out_path, "w", encoding="utf-8") as f:[m
+[31m-        f.write(text)[m
+[31m-[m
+[31m-[m
+[31m-def strip_fenced_code_block(text: str) -> str:[m
+[31m-    stripped = text.strip()[m
+[31m-    if not stripped.startswith("```"):[m
+[31m-        return stripped[m
+[31m-[m
+[31m-    lines = stripped.splitlines()[m
+[31m-    if not lines:[m
+[31m-        return stripped[m
+[31m-    if lines[0].strip().startswith("```"):[m
+[31m-        lines = lines[1:][m
+[31m-    if lines and lines[-1].strip() == "```":[m
+[31m-        lines = lines[:-1][m
+[31m-    return "\n".join(lines).strip()[m
+[31m-[m
+[31m-[m
+[31m-def extract_outer_json_object(text: str) -> Optional[str]:[m
+[31m-    start = text.find("{")[m
+[31m-    if start < 0:[m
+[31m-        return None[m
+[31m-[m
+[31m-    depth = 0[m
+[31m-    in_string = False[m
+[31m-    escaped = False[m
+[31m-    for idx in range(start, len(text)):[m
+[31m-        ch = text[idx][m
+[31m-        if in_string:[m
+[31m-            if escaped:[m
+[31m-                escaped = False[m
+[31m-            elif ch == "\\":[m
+[31m-                escaped = True[m
+[31m-            elif ch == '"':[m
+[31m-                in_string = False[m
+[31m-            continue[m
+[31m-[m
+[31m-        if ch == '"':[m
+[31m-            in_string = True[m
+[31m-        elif ch == "{":[m
+[31m-            depth += 1[m
+[31m-        elif ch == "}":[m
+[31m-            depth -= 1[m
+[31m-            if depth == 0:[m
+[31m-                return text[start:idx + 1].strip()[m
+[31m-[m
+[31m-    return None[m
+[31m-[m
+[31m-[m
+[31m-def safe_parse_llm_json(output_text: str) -> LLMJsonParseResult:[m
+[31m-    normalized_text = strip_fenced_code_block(output_text)[m
+[31m-    candidates: List[Tuple[str, str]] = [("direct", normalized_text)][m
+[31m-    extracted_text = extract_outer_json_object(normalized_text)[m
+[31m-    if extracted_text and extracted_text != normalized_text:[m
+[31m-        candidates.append(("outer_object", extracted_text))[m
+[31m-[m
+[31m-    last_error: Exception = ValueError("no JSON object found")[m
+[31m-    last_candidate = normalized_text[m
+[31m-    for strategy, candidate in candidates:[m
+[31m-        last_candidate = candidate[m
+[31m-        try:[m
+[31m-            parsed = json.loads(candidate)[m
+[31m-        except json.JSONDecodeError as e:[m
+[31m-            last_error = e[m
+[31m-            continue[m
+[31m-        if not isinstance(parsed, dict):[m
+[31m-            last_error = ValueError("LLM output JSON root is not an object")[m
+[31m-            continue[m
+[31m-        return LLMJsonParseResult(parsed=parsed, json_text=candidate, strategy=strategy)[m
+[31m-[m
+[31m-    raise LLMJsonParseError([m
+[31m-        str(last_error),[m
+[31m-        output_text=output_text,[m
+[31m-        normalized_text=normalized_text,[m
+[31m-        candidate_text=last_candidate,[m
+[31m-        original_error=last_error,[m
+[31m-    )[m
+[31m-[m
+[31m-[m
+[31m-def build_repair_messages(invalid_output_text: str) -> List[Dict[str, str]]:[m
+[31m-    return [[m
+[31m-        {[m
+[31m-            "role": "system",[m
+[31m-            "content": ([m
+[31m-                "You repair invalid LLM JSON output. Return only one pure JSON object. "[m
+[31m-                "Do not include Markdown, prose, or explanations."[m
+[31m-            ),[m
+[31m-        },[m
+[31m-        {[m
+[31m-            "role": "user",[m
+[31m-            "content": ([m
+[31m-                "아래 텍스트를 동일 스키마를 만족하는 순수 JSON 객체 하나로만 다시 반환하라.\n\n"[m
+[31m-                + invalid_output_text[m
+[31m-            ),[m
+[31m-        },[m
+[31m-    ][m
+[31m-[m
+[31m-[m
+[31m-def log_llm_response_summary(label: str, provider: str, response_id: Optional[str], stop_reason: Optional[str]) -> None:[m
+[31m-    print([m
+[31m-        f"[INFO] {label}: provider={provider} response_id={response_id or '-'} stop_reason={stop_reason or '-'}"[m
+[31m-    )[m
+[31m-    if provider == "anthropic" and stop_reason == "max_tokens":[m
+[31m-        print("[WARN] Anthropic stop_reason=max_tokens: 응답 truncation 가능성이 있습니다.", file=sys.stderr)[m
+[31m-[m
+[31m-[m
+[31m-def dump_stage2_parse_error([m
+[31m-    *,[m
+[31m-    report_error_path: Path,[m
+[31m-    raw_dump_path: Path,[m
+[31m-    provider: str,[m
+[31m-    model: str,[m
+[31m-    response_id: Optional[str],[m
+[31m-    stop_reason: Optional[str],[m
+[31m-    output_text: str,[m
+[31m-    raw_response: Dict[str, Any],[m
+[31m-    parse_error: Exception,[m
+[31m-    pretty: bool,[m
+[31m-    repair_attempted: bool,[m
+[31m-    repair_response: Optional[Dict[str, Any]] = None,[m
+[31m-) -> None:[m
+[31m-    payload = {[m
+[31m-        "error_type": "json_decode_error",[m
+[31m-        "provider": provider,[m
+[31m-        "model": model,[m
+[31m-        "response_id": response_id,[m
+[31m-        "stop_reason": stop_reason,[m
+[31m-        "parse_error": str(parse_error),[m
+[31m-        "repair_attempted": repair_attempted,[m
+[31m-        "raw_dump_path": str(raw_dump_path),[m
+[31m-    }[m
+[31m-    if provider == "anthropic" and stop_reason == "max_tokens":[m
+[31m-        payload["diagnostic_hint"] = "Anthropic stop_reason=max_tokens 이므로 JSON 응답이 잘렸을 가능성이 있습니다. ANTHROPIC_MAX_TOKENS 증가를 검토하세요."[m
+[31m-[m
+[31m-    raw_payload = {[m
+[31m-        "provider": provider,[m
+[31m-        "model": model,[m
+[31m-        "response_id": response_id,[m
+[31m-        "stop_reason": stop_reason,[m
+[31m-        "output_text": output_text,[m
+[31m-        "raw_response": raw_response,[m
+[31m-        "parse_error": str(parse_error),[m
+[31m-        "repair_attempted": repair_attempted,[m
+[31m-        "repair_response": repair_response,[m
+[31m-    }[m
+[31m-    dump_json(str(raw_dump_path), raw_payload, pretty=pretty)[m
+[31m-    dump_json(str(report_error_path), payload, pretty=pretty)[m
+[31m-[m
+[31m-[m
+[31m-def normalize_str(value: Any) -> str:[m
+[31m-    if value is None:[m
+[31m-        return ""[m
+[31m-    return str(value).strip()[m
+[31m-[m
+[31m-[m
+[31m-def safe_int(value: Any, default: int = 0) -> int:[m
+[31m-    try:[m
+[31m-        return int(value)[m
+[31m-    except (TypeError, ValueError):[m
+[31m-        return default[m
+[31m-[m
+[31m-[m
+[31m-def iso_now() -> str:[m
+[31m-    return datetime.now(tz=timezone.utc).astimezone().isoformat(timespec="milliseconds")[m
+[31m-[m
+[31m-[m
+[31m-def choose_model(provider: str, mode: str, override: Optional[str], dry_run: bool = False) -> str:[m
+[31m-    if override:[m
+[31m-        return override[m
+[31m-    if provider == "anthropic":[m
+[31m-        model = os.getenv("ANTHROPIC_MODEL", "").strip()[m
+[31m-        if model:[m
+[31m-            return model[m
+[31m-        if dry_run:[m
+[31m-            return "anthropic-model-required"[m
+[31m-        raise ValueError("Anthropic provider는 --model 또는 ANTHROPIC_MODEL 설정이 필요합니다.")[m
+[31m-    if mode == "routine":[m
+[31m-        return DEFAULT_ROUTINE_MODEL[m
+[31m-    if mode == "milestone":[m
+[31m-        return DEFAULT_MILESTONE_MODEL[m
+[31m-    if mode == "presentation":[m
+[31m-        return DEFAULT_PRESENTATION_MODEL[m
+[31m-    raise ValueError(f"unsupported mode: {mode}")[m
+[31m-[m
+[31m-[m
+[31m-def derive_base_name(stage1_results_path: str, explicit_base_name: Optional[str]) -> str:[m
+[31m-    if explicit_base_name:[m
+[31m-        return explicit_base_name[m
+[31m-    return Path(stage1_results_path).stem.replace("_stage1_results", "")[m
+[31m-[m
+[31m-[m
+[31m-def infer_related_path(stage1_results_path: str, replacement_suffix: str) -> str:[m
+[31m-    p = Path(stage1_results_path)[m
+[31m-    return str(p.with_name(p.stem.replace("_stage1_results", replacement_suffix) + p.suffix))[m
+[31m-[m
+[31m-[m
+[31m-def parse_known_asset_ips(raw: str) -> List[str]:[m
+[31m-    return sorted({part.strip() for part in raw.split(",") if part.strip()})[m
+[31m-[m
+[31m-[m
+[31m-def iter_env_file_candidates(extra_roots: Optional[Sequence[Path]] = None) -> List[Path]:[m
+[31m-    roots = [Path.cwd(), Path(__file__).resolve().parent.parent][m
+[31m-    if extra_roots:[m
+[31m-        roots.extend(extra_roots)[m
+[31m-    candidates: List[Path] = [][m
+[31m-    seen = set()[m
+[31m-    for root in roots:[m
+[31m-        for name in ENV_FILE_NAMES:[m
+[31m-            path = (root / name).resolve()[m
+[31m-            if path not in seen:[m
+[31m-                candidates.append(path)[m
+[31m-                seen.add(path)[m
+[31m-    return candidates[m
+[31m-[m
+[31m-[m
+[31m-def read_env_file_value(key: str, extra_roots: Optional[Sequence[Path]] = None) -> str:[m
+[31m-    for path in iter_env_file_candidates(extra_roots=extra_roots):[m
+[31m-        if not path.exists():[m
+[31m-            continue[m
+[31m-        try:[m
+[31m-            lines = path.read_text(encoding="utf-8").splitlines()[m
+[31m-        except OSError:[m
+[31m-            continue[m
+[31m-        for line in lines:[m
+[31m-            stripped = line.strip()[m
+[31m-            if not stripped or stripped.startswith("#") or "=" not in stripped:[m
+[31m-                continue[m
+[31m-            name, value = stripped.split("=", 1)[m
+[31m-            name = name.strip()[m
+[31m-            if name.startswith("export "):[m
+[31m-                name = name[len("export "):].strip()[m
+[31m-            if name != key:[m
+[31m-                continue[m
+[31m-            value = value.strip().strip("'\"")[m
+[31m-            return value[m
+[31m-    return ""[m
+[31m-[m
+[31m-[m
+[31m-def resolve_known_asset_ips(cli_value: Optional[str], extra_env_roots: Optional[Sequence[Path]] = None) -> List[str]:[m
+[31m-    if cli_value is not None:[m
+[31m-        return parse_known_asset_ips(cli_value)[m
+[31m-    raw = os.getenv("KNOWN_ASSET_IPS", "").strip() or read_env_file_value([m
+[31m-        "KNOWN_ASSET_IPS",[m
+[31m-        extra_roots=extra_env_roots,[m
+[31m-    )[m
+[31m-    return parse_known_asset_ips(raw)[m
+[31m-[m
+[31m-[m
+[31m-def parse_dt(text: str) -> Optional[datetime]:[m
+[31m-    s = normalize_str(text)[m
+[31m-    if not s:[m
+[31m-        return None[m
+[31m-    candidates = [s][m
+[31m-    if len(s) >= 6 and (s[-6] in {"+", "-"}) and s[-3] == ":":[m
+[31m-        candidates.append(s[:-6] + s[-6:].replace(":", ""))[m
+[31m-    for item in candidates:[m
+[31m-        try:[m
+[31m-            return datetime.fromisoformat(item)[m
+[31m-        except ValueError:[m
+[31m-            pass[m
+[31m-    return None[m
+[31m-[m
+[31m-[m
+[31m-def time_bucket_seconds(text: str) -> str:[m
+[31m-    dt = parse_dt(text)[m
+[31m-    if dt is None:[m
+[31m-        return normalize_str(text)[m
+[31m-    return dt.replace(microsecond=0).isoformat()[m
+[31m-[m
+[31m-[m
+[31m-def sort_results(results: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:[m
+[31m-    return sorted([m
+[31m-        list(results),[m
+[31m-        key=lambda x: ([m
+[31m-            SEVERITY_ORDER.get(normalize_str(x.get("severity")), 0),[m
+[31m-            CONFIDENCE_ORDER.get(normalize_str(x.get("confidence")), 0),[m
+[31m-            safe_int(x.get("score"), 0),[m
+[31m-            TABLE_PRIORITY.get(normalize_str(x.get("source_table")), 0),[m
+[31m-            normalize_str(x.get("log_time")),[m
+[31m-        ),[m
+[31m-        reverse=True,[m
+[31m-    )[m
+[31m-[m
+[31m-[m
+[31m-def shorten_evidence_text(value: Any, max_len: int = 280) -> str:[m
+[31m-    text = normalize_str(value)[m
+[31m-    if not text:[m
+[31m-        return ""[m
+[31m-    text = " ".join(text.split())[m
+[31m-    if len(text) <= max_len:[m
+[31m-        return text[m
+[31m-    return text[: max_len - 3].rstrip() + "..."[m
+[31m-[m
+[31m-[m
+[31m-def build_dedup_key(item: Dict[str, Any]) -> str:[m
+[31m-    request_id = normalize_str(item.get("request_id"))[m
+[31m-    if request_id and request_id != "-":[m
+[31m-        return f"request_id:{request_id}"[m
+[31m-    src_ip = normalize_str(item.get("src_ip")) or "-"[m
+[31m-    method = normalize_str(item.get("method")) or "-"[m
+[31m-    uri = normalize_str(item.get("uri")) or "-"[m
+[31m-    status_code = safe_int(item.get("status_code"), 0)[m
+[31m-    bucket = time_bucket_seconds(normalize_str(item.get("log_time"))) or "-"[m
+[31m-    return f"fallback:{src_ip}|{method}|{uri}|{status_code}|{bucket}"[m
+[31m-[m
+[31m-[m
+[31m-def build_incident_ref(item: Dict[str, Any], dedup_key: str) -> str:[m
+[31m-    source_table = normalize_str(item.get("source_table")) or "-"[m
+[31m-    log_id = normalize_str(item.get("log_id")) or "-"[m
+[31m-    candidate_index = normalize_str(item.get("candidate_index")) or "-"[m
+[31m-    return f"{dedup_key}|table:{source_table}|log_id:{log_id}|candidate:{candidate_index}"[m
+[31m-[m
+[31m-[m
+[31m-def choose_best_representative(items: Sequence[Dict[str, Any]]) -> Dict[str, Any]:[m
+[31m-    return sorted([m
+[31m-        items,[m
+[31m-        key=lambda x: ([m
+[31m-            TABLE_PRIORITY.get(normalize_str(x.get("source_table")), 0),[m
+[31m-            SEVERITY_ORDER.get(normalize_str(x.get("severity")), 0),[m
+[31m-            CONFIDENCE_ORDER.get(normalize_str(x.get("confidence")), 0),[m
+[31m-            safe_int(x.get("score"), 0),[m
+[31m-            normalize_str(x.get("log_time")),[m
+[31m-        ),[m
+[31m-        reverse=True,[m
+[31m-    )[0][m
+[31m-[m
+[31m-[m
+[31m-def dedup_stage1_results(results: List[Dict[str, Any]], known_asset_ips: Sequence[str]) -> List[Dict[str, Any]]:[m
+[31m-    grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)[m
+[31m-    for item in results:[m
+[31m-        grouped[build_dedup_key(item)].append(item)[m
+[31m-[m
+[31m-    deduped: List[Dict[str, Any]] = [][m
+[31m-    known_asset_set = set(known_asset_ips)[m
+[31m-    for dedup_key, items in grouped.items():[m
+[31m-        representative = dict(choose_best_representative(items))[m
+[31m-        source_tables = sorted({normalize_str(x.get("source_table")) or "-" for x in items})[m
+[31m-        merged_actions: List[str] = [][m
+[31m-        for entry in items:[m
+[31m-            for action in entry.get("recommended_actions") or []:[m
+[31m-                action_text = normalize_str(action)[m
+[31m-                if action_text and action_text not in merged_actions:[m
+[31m-                    merged_actions.append(action_text)[m
+[31m-        representative["duplicate_count"] = len(items)[m
+[31m-        representative["source_tables"] = source_tables[m
+[31m-        representative["merged_request_ids"] = sorted({normalize_str(x.get("request_id")) or "-" for x in items})[m
+[31m-        representative["dedup_key"] = dedup_key[m
+[31m-        representative["incident_ref"] = build_incident_ref(representative, dedup_key)[m
+[31m-        representative["recommended_actions"] = merged_actions or [normalize_str(x) for x in (representative.get("recommended_actions") or []) if normalize_str(x)][m
+[31m-        representative["known_asset"] = (normalize_str(representative.get("src_ip")) or "-") in known_asset_set[m
+[31m-        deduped.append(representative)[m
+[31m-[m
+[31m-    return sort_results(deduped)[m
+[31m-[m
+[31m-[m
+[31m-def build_candidate_evidence_lookup(llm_input_payload: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, Dict[str, Any]]]:[m
+[31m-    candidates = (llm_input_payload or {}).get("analysis_candidates") or [][m
+[31m-    by_incident_group_key: Dict[str, Dict[str, Any]] = {}[m
+[31m-    by_request_id: Dict[str, Dict[str, Any]] = {}[m
+[31m-    by_source_log: Dict[str, Dict[str, Any]] = {}[m
+[31m-[m
+[31m-    for candidate in candidates:[m
+[31m-        incident_group_key = normalize_str(candidate.get("incident_group_key"))[m
+[31m-        request_id = normalize_str(candidate.get("request_id"))[m
+[31m-        source_table = normalize_str(candidate.get("source_table"))[m
+[31m-        log_id = normalize_str(candidate.get("log_id"))[m
+[31m-        if incident_group_key and incident_group_key not in by_incident_group_key:[m
+[31m-            by_incident_group_key[incident_group_key] = candidate[m
+[31m-        if request_id and request_id not in by_request_id:[m
+[31m-            by_request_id[request_id] = candidate[m
+[31m-        if source_table and log_id and log_id != "-":[m
+[31m-            by_source_log.setdefault(f"{source_table}:{log_id}", candidate)[m
+[31m-[m
+[31m-    return {[m
+[31m-        "by_incident_group_key": by_incident_group_key,[m
+[31m-        "by_request_id": by_request_id,[m
+[31m-        "by_source_log": by_source_log,[m
+[31m-    }[m
+[31m-[m
+[31m-[m
+[31m-def resolve_incident_evidence([m
+[31m-    item: Dict[str, Any],[m
+[31m-    candidate_lookup: Optional[Dict[str, Dict[str, Dict[str, Any]]]],[m
+[31m-) -> Dict[str, Any]:[m
+[31m-    if not candidate_lookup:[m
+[31m-        return {}[m
+[31m-[m
+[31m-    incident_group_key = normalize_str(item.get("incident_group_key"))[m
+[31m-    if incident_group_key:[m
+[31m-        candidate = candidate_lookup.get("by_incident_group_key", {}).get(incident_group_key)[m
+[31m-        if candidate:[m
+[31m-            return candidate[m
+[31m-[m
+[31m-    request_id = normalize_str(item.get("request_id"))[m
+[31m-    if request_id:[m
+[31m-        candidate = candidate_lookup.get("by_request_id", {}).get(request_id)[m
+[31m-        if candidate:[m
+[31m-            return candidate[m
+[31m-[m
+[31m-    source_table = normalize_str(item.get("source_table"))[m
+[31m-    log_id = normalize_str(item.get("log_id"))[m
+[31m-    if source_table and log_id and log_id != "-":[m
+[31m-        candidate = candidate_lookup.get("by_source_log", {}).get(f"{source_table}:{log_id}")[m
+[31m-        if candidate:[m
+[31m-            return candidate[m
+[31m-[m
+[31m-    return {}[m
+[31m-[m
+[31m-[m
+[31m-def build_incident_briefs([m
+[31m-    results: List[Dict[str, Any]],[m
+[31m-    top_n: int,[m
+[31m-    known_asset_ips: Sequence[str],[m
+[31m-    candidate_lookup: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None,[m
+[31m-) -> List[IncidentBrief]:[m
+[31m-    deduped = dedup_stage1_results(results, known_asset_ips=known_asset_ips)[m
+[31m-    briefs: List[IncidentBrief] = [][m
+[31m-    for idx, item in enumerate(deduped[:top_n], start=1):[m
+[31m-        evidence_source = resolve_incident_evidence(item, candidate_lookup)[m
+[31m-        briefs.append([m
+[31m-            IncidentBrief([m
+[31m-                rank=idx,[m
+[31m-                incident_ref=normalize_str(item.get("incident_ref")),[m
+[31m-                dedup_key=normalize_str(item.get("dedup_key")),[m
+[31m-                duplicate_count=safe_int(item.get("duplicate_count"), 1),[m
+[31m-                request_id=normalize_str(item.get("request_id")) or "-",[m
+[31m-                src_ip=normalize_str(item.get("src_ip")) or "-",[m
+[31m-                verdict=normalize_str(item.get("verdict")) or "inconclusive",[m
+[31m-                severity=normalize_str(item.get("severity")) or "low",[m
+[31m-                confidence=normalize_str(item.get("confidence")) or "low",[m
+[31m-                source_table=normalize_str(item.get("source_table")) or "-",[m
+[31m-                source_tables=[normalize_str(x) for x in (item.get("source_tables") or []) if normalize_str(x)],[m
+[31m-                method=normalize_str(item.get("method")) or "-",[m
+[31m-                uri=normalize_str(item.get("uri")) or "-",[m
+[31m-                status_code=safe_int(item.get("status_code"), 0),[m
+[31m-                score=safe_int(item.get("score"), 0),[m
+[31m-                log_time=normalize_str(item.get("log_time")),[m
+[31m-                response_body_bytes=safe_int(item.get("response_body_bytes"), 0),[m
+[31m-                resp_content_type=normalize_str(item.get("resp_content_type")),[m
+[31m-                raw_request_target=normalize_str(item.get("raw_request_target")),[m
+[31m-                path_normalized_from_raw_request=bool(item.get("path_normalized_from_raw_request")),[m
+[31m-                likely_html_fallback_response=bool(item.get("likely_html_fallback_response")),[m
+[31m-                hpp_detected=bool(item.get("hpp_detected")),[m
+[31m-                hpp_param_names=[normalize_str(x) for x in (item.get("hpp_param_names") or []) if normalize_str(x)],[m
+[31m-                embedded_attack_hint=normalize_str(item.get("embedded_attack_hint")),[m
+[31m-                reasoning_summary=normalize_str(item.get("reasoning_summary")),[m
+[31m-                evidence_fields=[normalize_str(x) for x in (item.get("evidence_fields") or []) if normalize_str(x)],[m
+[31m-                reason_hints=[normalize_str(x) for x in (evidence_source.get("reason_hints") or item.get("reason_hints") or []) if normalize_str(x)],[m
+[31m-                user_agent=shorten_evidence_text(evidence_source.get("user_agent"), max_len=160),[m
+[31m-                raw_request=shorten_evidence_text(evidence_source.get("raw_request"), max_len=180),[m
+[31m-                raw_log_excerpt=shorten_evidence_text(evidence_source.get("raw_log"), max_len=280),[m
+[31m-                recommended_actions=[normalize_str(x) for x in (item.get("recommended_actions") or []) if normalize_str(x)],[m
+[31m-                known_asset=bool(item.get("known_asset")),[m
+[31m-            )[m
+[31m-        )[m
+[31m-    return briefs[m
+[31m-[m
+[31m-[m
+[31m-def summarize_ips(results: List[Dict[str, Any]], top_n: int, known_asset_ips: Sequence[str]) -> List[Dict[str, Any]]:[m
+[31m-    deduped = dedup_stage1_results(results, known_asset_ips=known_asset_ips)[m
+[31m-    known_asset_set = set(known_asset_ips)[m
+[31m-    ip_buckets: Dict[str, Dict[str, Any]] = defaultdict([m
+[31m-        lambda: {[m
+[31m-            "count": 0,[m
+[31m-            "raw_row_count": 0,[m
+[31m-            "max_severity": "info",[m
+[31m-            "max_confidence": "low",[m
+[31m-            "verdicts": Counter(),[m
+[31m-            "uris": Counter(),[m
+[31m-            "actions": Counter(),[m
+[31m-            "known_asset": False,[m
+[31m-        }[m
+[31m-    )[m
+[31m-[m
+[31m-    raw_counts = Counter(normalize_str(x.get("src_ip")) or "-" for x in results)[m
+[31m-    for item in deduped:[m
+[31m-        ip = normalize_str(item.get("src_ip")) or "-"[m
+[31m-        bucket = ip_buckets[ip][m
+[31m-        bucket["count"] += 1[m
+[31m-        bucket["raw_row_count"] = raw_counts.get(ip, bucket["raw_row_count"])[m
+[31m-        sev = normalize_str(item.get("severity")) or "info"[m
+[31m-        conf = normalize_str(item.get("confidence")) or "low"[m
+[31m-        verdict = normalize_str(item.get("verdict")) or "inconclusive"[m
+[31m-        uri = normalize_str(item.get("uri")) or "-"[m
+[31m-        bucket["verdicts"][verdict] += 1[m
+[31m-        bucket["uris"][uri] += 1[m
+[31m-        for action in item.get("recommended_actions") or []:[m
+[31m-            action_text = normalize_str(action)[m
+[31m-            if action_text:[m
+[31m-                bucket["actions"][action_text] += 1[m
+[31m-        if SEVERITY_ORDER.get(sev, 0) > SEVERITY_ORDER.get(bucket["max_severity"], 0):[m
+[31m-            bucket["max_severity"] = sev[m
+[31m-        if CONFIDENCE_ORDER.get(conf, 0) > CONFIDENCE_ORDER.get(bucket["max_confidence"], 0):[m
+[31m-            bucket["max_confidence"] = conf[m
+[31m-        bucket["known_asset"] = ip in known_asset_set[m
+[31m-[m
+[

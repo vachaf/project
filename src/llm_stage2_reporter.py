@@ -846,6 +846,13 @@ def build_report_input(
                 "fallback_rule": "반복되는 200 text/html 동일 응답 크기는 fallback HTML 가능성으로만 설명하고 민감 리소스 노출 성공으로 단정하지 않음",
                 "blocked_rule": "예: /server-status 403 같은 차단 응답은 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급 가능",
             },
+            "file_disclosure_policy": {
+                "php_wrapper_rule": "php://filter, convert.base64-encode, resource= 는 PHP wrapper 를 이용한 file disclosure 또는 source disclosure intent 로 설명 가능",
+                "success_rule": "Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공을 확정하지 않음",
+                "status_200_rule": "200 text/html 또는 200 empty body 는 정상 라우팅, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답 가능성을 함께 검토",
+                "direct_config_rule": "/config.php, /admin/config.php 직접 접근은 sensitive config path probing context 로 설명하고 response body 원문 없이는 노출 성공으로 단정하지 않음",
+                "empty_body_rule": "response_body_bytes=0 은 직접 접근 시도 또는 라우팅 성공 가능성만 시사하며 본문 노출 증거는 아님",
+            },
             "supporting_events_policy": {
                 "default_action": "supporting_events 는 개별 incident 가 아니라 문맥 정보로만 해석",
                 "temporal_rule": "같은 src_ip 와 같은 uri 또는 endpoint family 의 근접 시계열로 해석",
@@ -968,6 +975,10 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "Apache 로그만으로 XSS payload 의 브라우저 실행 성공을 확정하지 마라. "
         "500 text/html 은 서버 처리 오류 정황일 수 있지만 XSS 실행 성공 근거로 단정하지 마라. "
         "200 application/json 응답도 브라우저 실행 성공 근거로 사용하지 마라. "
+        "php://filter, convert.base64-encode, resource= 정황은 PHP wrapper 를 이용한 file disclosure 또는 source disclosure intent 로 설명할 수 있지만, Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공을 확정하지 마라. "
+        "200 text/html 또는 response_body_bytes=0 응답은 정상 라우팅, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답일 수 있으므로 file disclosure 성공 근거로 사용하지 마라. "
+        "/config.php, /admin/config.php 직접 접근은 민감 설정 파일 경로 probing context 로 설명하되 response body 원문 없이는 config 노출 성공으로 단정하지 마라. "
+        "php://filter candidate 와 /config.php 또는 /admin/config.php 직접 접근은 같은 범주로 뭉뚱그리지 말고, 전자는 file disclosure intent, 후자는 sensitive config path probing context 로 구분해서 서술하라. "
         "document.cookie, localStorage, sessionStorage 접근 문자열은 브라우저 데이터 접근 의도 또는 탈취 시도 형태로만 표현하고, 실제 탈취 성공으로 단정하지 마라. "
         "외부 URL, fetch, location 변경, Image beacon 정황이 있어도 별도 네트워크나 애플리케이션 증거 없이는 외부 전송 성공을 확정하지 마라. "
         "HTML entity, URL encoding, double encoding 은 우회 또는 복원 가능한 payload 표현으로만 설명하고, 실행 성공의 직접 증거처럼 서술하지 마라. "
@@ -1000,6 +1011,12 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "likely_false_positive 와 inconclusive 는 특히 조심해서 해석하라.",
             "제공된 근거가 강하지 않으면 성공적인 침해나 악용 성공을 단정하지 마라.",
             "path traversal 은 raw_request_target, uri, resp_content_type, response_body_bytes, likely_html_fallback_response 를 함께 보고 시도와 실제 노출 가능성을 구분하라.",
+            "php://filter, convert.base64-encode, resource= 는 PHP wrapper 를 이용한 파일 읽기 또는 소스 노출 시도로 설명할 수 있다.",
+            "그러나 Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공은 확정하지 마라.",
+            "200 text/html 또는 response_body_bytes=0 은 정상 라우팅, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답 가능성이 있으므로 file disclosure 성공 근거로 사용하지 마라.",
+            "/config.php, /admin/config.php 가 200 이어도 response body 원문이 없으면 config 노출 성공으로 단정하지 마라.",
+            "response_body_bytes=0 인 경우에는 직접 접근은 되었으나 응답 본문은 비어 있거나 로그상 본문 노출 증거가 없다고 표현하라.",
+            "php://filter candidate 와 direct config path probe 는 구분해서 설명하라. 전자는 file disclosure intent, 후자는 sensitive config path probing context 다.",
             "resp_content_type 이 text/html 이고 likely_html_fallback_response 가 true 면 앱 fallback HTML 가능성을 우선 검토하라.",
             "Apache 로그만으로 XSS payload 의 브라우저 실행 성공을 확정하지 마라.",
             "500 text/html 은 처리 오류 정황일 수 있지만 XSS 실행 성공 근거로 단정하지 마라.",
@@ -1016,6 +1033,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "false_positive_review_candidates 는 prepare 단계에서 제외된 자연어형 보안 검색 질의 검토용 정보로만 사용하고 incident 로 승격하지 마라.",
             "probing_sequence_summaries 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip, 짧은 시간 window, 여러 민감/관리/백업 경로 접근이 관찰된 reconnaissance 또는 directory probing 흐름으로만 설명하라.",
             "probing_sequence_summaries 에서 200 text/html 반복 응답이나 동일 response_body_bytes 반복은 fallback HTML 가능성으로만 설명하고 실제 민감 리소스 노출 성공으로 단정하지 마라.",
+            "probing_sequence_summaries 안의 direct config path 접근은 context_only 이며 개별 incident 나 config 노출 성공으로 과승격하지 마라.",
             "probing_sequence_summaries 에 403 또는 401 응답이 있으면 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급하라.",
             "known_asset 이거나 known asset IP 와 겹치는 probing_sequence_summaries 는 내부 테스트/운영 점검 가능성을 함께 병기하라.",
             "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, 별도 '후보 밖 탐색성 요청' 섹션에서 설명하라.",
