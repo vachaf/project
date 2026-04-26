@@ -182,8 +182,8 @@ sudo mv /var/www/opencart/.htaccess.txt /var/www/opencart/.htaccess 2>/dev/null 
 
 ```bash
 sudo chown -R www-data:www-data /var/www/opencart
-sudo find /var/www/opencart -type d -exec chmod 755 {} \\;
-sudo find /var/www/opencart -type f -exec chmod 644 {} \\;
+sudo find /var/www/opencart -type d -exec chmod 755 {} +
+sudo find /var/www/opencart -type f -exec chmod 644 {} +
 ```
 
 검증:
