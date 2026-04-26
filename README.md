@@ -11,7 +11,7 @@ Apache 웹 로그를 MariaDB에 적재한 뒤 `export -> prepare -> stage1 -> st
 - Apache `access`, `security`, `error` 로그를 MariaDB에 적재합니다.
 - raw export 전체를 LLM에 그대로 보내지 않고, 전처리 단계에서 후보 요청과 요약 정보를 선별합니다.
 - Stage1은 개별 후보 요청을 분류합니다.
-- Stage2는 Stage1 결과, 후보 밖 탐색성 요청, supporting context를 종합해 보고서를 생성합니다.
+- Stage2는 Stage1 결과, 후보 밖 탐색성 요청, supporting context, probing sequence context를 종합해 보고서를 생성합니다.
 - 결론은 **Apache 로그에서 직접 관찰 가능한 지표**를 기준으로 보수적으로 작성합니다.
 
 직접 관찰 가능한 대표 필드:
@@ -46,7 +46,7 @@ Apache logs
 | 단계 | 스크립트 | 역할 |
 |---|---|---|
 | Export | `src/export_db_logs_cli.py` | MariaDB 로그를 JSON으로 export |
-| Prepare | `src/prepare_llm_input.py` | 후보 선별, noise 요약, supporting events 구성 |
+| Prepare | `src/prepare_llm_input.py` | 후보 선별, noise 요약, supporting events, probing sequence summary 구성 |
 | Stage1 | `src/llm_stage1_classifier.py` | 후보 요청 LLM 분류 |
 | Stage2 | `src/llm_stage2_reporter.py` | 종합 보고서 생성 |
 | 통합 실행 | `src/run_analysis_pipeline.py` | prepare/stage1/stage2 통합 실행 |
@@ -106,6 +106,7 @@ DB export와 통합 실행 명령은 운영 가이드와 스크립트 설명 문
 - [docs/98B_D세트_비교실험.md](docs/98B_D세트_비교실험.md)
 - [docs/99_POST_body_visibility_한계와_해석_기준.md](docs/99_POST_body_visibility_한계와_해석_기준.md)
 - [docs/99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](docs/99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md)
+- [docs/99_비교실험_후속개선_TODO.md](docs/99_비교실험_후속개선_TODO.md)
 
 ---
 
@@ -122,8 +123,9 @@ DB export와 통합 실행 명령은 운영 가이드와 스크립트 설명 문
 | C세트 | `lab/04-25_C세트_산출물/04-25_C세트_비교.md` | XSS 탐지, HTML entity decode, FP review 개선 |
 | D세트 R1 | `lab/04-26_D세트R1_산출물/2026-04-26_D세트R1_비교.md` | Traversal D-01~D-03 탐지 성공, D-04/D-05는 보조/미평가 |
 | D세트 R2 | `lab/04-26_D세트R2_산출물/2026-04-26_D세트R2_비교.md` | HPP+SQLi / HPP+XSS 탐지 성공, benign HPP는 context |
-| D세트 R3 | `lab/04-26_D세트R3_산출물/2026-04-26_D세트R3_비교.md` | Directory probing 보수적 판단 성공, sequence grouping은 부분 성공 |
-| D세트 통합 | `lab/04-26_D세트_산출물/2026-04-26_D세트_통합비교.md` | R1/R2/R3 통합 정리 |
+| D세트 R3 | `lab/04-26_D세트R3_산출물/2026-04-26_D세트R3_비교.md` | Directory probing 보수적 판단 성공, 초기 sequence grouping은 부분 성공 |
+| D세트 R3 개선후 | `lab/04-26_D세트R3_산출물/2026-04-26_D세트R3_개선후_비교.md` | `probing_sequence_summaries`로 candidate 과승격 없이 probing burst context 전달 개선 |
+| D세트 통합 | `lab/04-26_D세트_산출물/2026-04-26_D세트_통합비교.md` | R1/R2/R3 및 R3 개선 결과 통합 정리 |
 | 전체 요약 | `lab/2026-04-24_to_04-26_전체_비교실험_요약.md` | A/B/C/D세트 전체 결과 요약 |
 
 B세트 핵심:
@@ -142,7 +144,7 @@ D세트 핵심:
 
 - R1 Traversal은 D-01~D-03 핵심 요청 기준 성공했습니다.
 - R2 HPP는 HPP+SQLi / HPP+XSS 결합 공격 탐지에 성공했습니다.
-- R3 Directory Probing은 보수적 판단은 성공했지만, burst probing을 sequence-level context로 묶는 부분은 개선이 필요합니다.
+- R3 Directory Probing은 초기에는 sequence grouping이 약했지만, `probing_sequence_summaries` 도입 후 candidate를 늘리지 않고 burst probing context를 Stage2에 전달할 수 있게 되었습니다.
 
 ---
 
