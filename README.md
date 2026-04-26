@@ -102,6 +102,8 @@ DB export와 통합 실행 명령은 운영 가이드와 스크립트 설명 문
 
 - [docs/98B_B세트_비교실험.md](docs/98B_B세트_비교실험.md)
 - [docs/98B_B세트_비교실험_라운드2.md](docs/98B_B세트_비교실험_라운드2.md)
+- [docs/98B_C세트_비교실험.md](docs/98B_C세트_비교실험.md)
+- [docs/98B_D세트_비교실험.md](docs/98B_D세트_비교실험.md)
 - [docs/99_POST_body_visibility_한계와_해석_기준.md](docs/99_POST_body_visibility_한계와_해석_기준.md)
 - [docs/99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](docs/99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md)
 
@@ -117,18 +119,30 @@ DB export와 통합 실행 명령은 운영 가이드와 스크립트 설명 문
 | B세트 R1 | `lab/04-25_B세트R1_산출물/2026-04-25_B세트R1_비교.md` | GET SQLi 가시성과 POST body visibility 한계 확인 |
 | B세트 R2A | `lab/04-25_B세트R2A_산출물/2026-04-25_B세트R2A_비교.md` | xclose Boolean Blind는 byte delta 관찰, Time-based는 실패 |
 | B세트 R2B | `lab/04-25_B세트R2B_산출물/2026-04-25_B세트R2B_비교.md` | double encoding 보존, temporal supporting context, educational SQL search FP 분리 |
+| C세트 | `lab/04-25_C세트_산출물/04-25_C세트_비교.md` | XSS 탐지, HTML entity decode, FP review 개선 |
+| D세트 R1 | `lab/04-26_D세트R1_산출물/2026-04-26_D세트R1_비교.md` | Traversal D-01~D-03 탐지 성공, D-04/D-05는 보조/미평가 |
+| D세트 R2 | `lab/04-26_D세트R2_산출물/2026-04-26_D세트R2_비교.md` | HPP+SQLi / HPP+XSS 탐지 성공, benign HPP는 context |
+| D세트 R3 | `lab/04-26_D세트R3_산출물/2026-04-26_D세트R3_비교.md` | Directory probing 보수적 판단 성공, sequence grouping은 부분 성공 |
+| D세트 통합 | `lab/04-26_D세트_산출물/2026-04-26_D세트_통합비교.md` | R1/R2/R3 통합 정리 |
+| 전체 요약 | `lab/2026-04-24_to_04-26_전체_비교실험_요약.md` | A/B/C/D세트 전체 결과 요약 |
 
-Round 2A:
+B세트 핵심:
 
 - `xclose` Boolean pair는 Apache 로그 표면 기준 `response_body_bytes` 차이가 명확하게 관찰되었습니다.
 - `randomblob` 기반 Time-based Track은 기준치에 도달하지 못해 실패/미검증으로 기록했습니다.
+- double URL encoding payload가 candidate로 보존되었고, temporal chain 저신호 step은 `supporting_events`로 보존되었습니다.
 
-Round 2B:
+C세트 핵심:
 
-- double URL encoding payload가 candidate로 보존되었습니다.
-- temporal chain 저신호 step은 candidate로 과승격하지 않고 `supporting_events`로 보존했습니다.
-- 교육용 SQL 검색은 `likely_false_positive`로 분리되었습니다.
-- 개선의 핵심은 탐지 건수 증가보다 **보존성, 오탐 억제, Stage2 문맥 제공 강화**입니다.
+- XSS payload 탐지와 URL/entity encoding 복원이 성공했습니다.
+- `document.cookie`, external navigation, event handler, `javascript:` protocol 등 XSS 세부 hint가 강화되었습니다.
+- 교육용 event handler 검색은 false positive review context로 보존되었습니다.
+
+D세트 핵심:
+
+- R1 Traversal은 D-01~D-03 핵심 요청 기준 성공했습니다.
+- R2 HPP는 HPP+SQLi / HPP+XSS 결합 공격 탐지에 성공했습니다.
+- R3 Directory Probing은 보수적 판단은 성공했지만, burst probing을 sequence-level context로 묶는 부분은 개선이 필요합니다.
 
 ---
 
