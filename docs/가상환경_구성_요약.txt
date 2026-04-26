@@ -97,7 +97,7 @@ JSON 산출물 / Markdown 보고서
 
 - 호스트명: opencart
 - 운영체제: Ubuntu 22.04.5
-- IP: 192.168.56.108
+- IP: 192.168.56.111
 
 역할:
 - 외부 HTTP 요청 수신
@@ -129,7 +129,7 @@ JSON 산출물 / Markdown 보고서
 웹서버가 접속하는 DB 대상:
 - DB 서버: 192.168.56.109
 - DB 이름: web_logs
-- 사용 계정: log_writer@192.168.56.108
+- 사용 계정: log_writer@192.168.56.111
 
 웹서버가 하는 것:
 - 로그 DB 적재
@@ -166,7 +166,7 @@ DB 계정:
 - log_writer@192.168.56.105
   - 권한: SELECT, INSERT, UPDATE
   - 용도: Juice Shop 웹서버 shipper 가 로그 적재
-- log_writer@192.168.56.108
+- log_writer@192.168.56.111
   - 권한: SELECT, INSERT, UPDATE
   - 용도: OpenCart 웹서버 shipper 가 로그 적재
 - log_reader@192.168.35.%
@@ -300,7 +300,7 @@ LLM 서버가 하지 않는 것:
 
 - known asset 후보 IP
   - 192.168.56.105 (juice 웹서버)
-  - 192.168.56.108 (opencart 웹서버)
+  - 192.168.56.111 (opencart 웹서버)
   - 192.168.56.109 (maria DB 서버)
   - 192.168.56.110 (llm 분석 서버)
 
