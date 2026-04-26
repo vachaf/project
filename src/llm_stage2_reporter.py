@@ -721,6 +721,7 @@ def build_report_input(
     noise_summary = (llm_input_payload or {}).get("noise_summary") or []
     supporting_events = (llm_input_payload or {}).get("supporting_events") or []
     false_positive_review_candidates = (llm_input_payload or {}).get("false_positive_review_candidates") or []
+    probing_sequence_summaries = (llm_input_payload or {}).get("probing_sequence_summaries") or []
     stage1_errors = (stage1_errors_payload or {}).get("errors") or []
     filtered_out_breakdown = normalize_counter_dict(llm_meta.get("filtered_out_breakdown"))
     total_filtered_out_rows = safe_int(counts.get("filtered_out_rows"), 0)
@@ -794,6 +795,10 @@ def build_report_input(
                 counts.get("false_positive_review_candidates"),
                 len(false_positive_review_candidates),
             ),
+            "probing_sequence_summary_count": safe_int(
+                counts.get("probing_sequence_summaries"),
+                len(probing_sequence_summaries),
+            ),
             "stage1_success_count": safe_int(meta.get("success_count"), len(results)),
             "stage1_error_count": safe_int(meta.get("error_count"), len(stage1_errors)),
         },
@@ -809,6 +814,11 @@ def build_report_input(
         "top_noise_groups": top_noise,
         "top_filtered_categories": top_filtered_categories,
         "top_out_of_candidate_recon": top_out_of_candidate_recon,
+        "probing_sequence_summary_count": safe_int(
+            counts.get("probing_sequence_summaries"),
+            len(probing_sequence_summaries),
+        ),
+        "probing_sequence_summaries": probing_sequence_summaries[:10],
         "supporting_events": supporting_events[:20],
         "false_positive_review_candidates": false_positive_review_candidates[:20],
         "stage1_errors_excerpt": stage1_errors[:5],
@@ -829,6 +839,12 @@ def build_report_input(
                 "default_action": "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않음",
                 "reporting_rule": "stage2 에서는 후보 밖 탐색성 요청 섹션으로 고정 표기",
                 "promotion_review_rule": "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토",
+            },
+            "probing_sequence_policy": {
+                "default_action": "probing_sequence_summaries 는 context-only 이며 개별 incident 로 승격하지 않음",
+                "interpretation_rule": "같은 src_ip, 짧은 시간 window, 여러 민감/관리/백업 경로 접근은 reconnaissance 또는 directory probing 정황으로만 설명",
+                "fallback_rule": "반복되는 200 text/html 동일 응답 크기는 fallback HTML 가능성으로만 설명하고 민감 리소스 노출 성공으로 단정하지 않음",
+                "blocked_rule": "예: /server-status 403 같은 차단 응답은 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급 가능",
             },
             "supporting_events_policy": {
                 "default_action": "supporting_events 는 개별 incident 가 아니라 문맥 정보로만 해석",
@@ -961,6 +977,9 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "supporting_events 가 있으면 이는 개별 incident 가 아니라 같은 src_ip, uri 또는 endpoint family, 인접 시간대의 보조 문맥으로 해석하라. "
         "supporting_events 의 encoding:* hint 는 우회성 인코딩 시도 보조 근거이며, educational_sql_search 계열 hint 는 자연어 검색 가능성을 함께 검토하라는 뜻이다. "
         "false_positive_review_candidates 가 있으면 prepare 단계에서 제외된 자연어형 보안 검색 질의 검토 정보로만 사용하라. "
+        "probing_sequence_summaries 가 있으면 이는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 에서 짧은 시간 안에 여러 민감/관리/백업 경로에 접근한 reconnaissance 또는 directory probing 흐름으로만 설명하라. "
+        "probing_sequence_summaries 의 200 text/html 반복 응답과 동일 response_body_bytes 반복은 fallback HTML 가능성으로만 설명하고, .env/.git/config/admin page/backup file 노출 성공으로 단정하지 마라. "
+        "probing_sequence_summaries 안의 403, 401 같은 차단 응답은 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 남길 수 있다. "
         "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, stage2 에서는 '후보 밖 탐색성 요청'으로 고정 표기하라. "
         "단, 동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라. "
         "filtered_out_breakdown, top_filtered_categories, top_out_of_candidate_recon 은 prepare 단계에서 보존된 사실 정보이므로 후보 밖 탐색성 요청 섹션과 recommended_actions 에 반영하라. "
@@ -995,6 +1014,10 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "supporting_events 에 educational_sql_search 또는 sql_keyword_without_attack_structure 계열 hint 가 있으면 SQL 키워드 검색을 공격으로 단정하지 마라.",
             "supporting_events 나 incident reason_hints 에 encoding:double_decoded_sqli, encoding:decoded_depth_2 같은 hint 가 있으면 인코딩 기반 evasion 시도 가능성을 보조적으로 언급하라.",
             "false_positive_review_candidates 는 prepare 단계에서 제외된 자연어형 보안 검색 질의 검토용 정보로만 사용하고 incident 로 승격하지 마라.",
+            "probing_sequence_summaries 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip, 짧은 시간 window, 여러 민감/관리/백업 경로 접근이 관찰된 reconnaissance 또는 directory probing 흐름으로만 설명하라.",
+            "probing_sequence_summaries 에서 200 text/html 반복 응답이나 동일 response_body_bytes 반복은 fallback HTML 가능성으로만 설명하고 실제 민감 리소스 노출 성공으로 단정하지 마라.",
+            "probing_sequence_summaries 에 403 또는 401 응답이 있으면 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급하라.",
+            "known_asset 이거나 known asset IP 와 겹치는 probing_sequence_summaries 는 내부 테스트/운영 점검 가능성을 함께 병기하라.",
             "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, 별도 '후보 밖 탐색성 요청' 섹션에서 설명하라.",
             "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라.",
             "low_signal_fuzzing, low_signal_dir_probe, benign_normal_search, benign_fallback_html 같은 filtered_out_breakdown 카테고리가 있으면 noise_interpretation 에 구체적으로 반영하라.",
@@ -1019,6 +1042,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     top_incidents = report_input.get("top_incidents") or []
     top_filtered_categories = report_input.get("top_filtered_categories") or []
     top_out_of_candidate_recon = report_input.get("top_out_of_candidate_recon") or []
+    probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
     verdicts = distributions.get("verdicts") or {}
     severities = distributions.get("severities") or {}
     source_tables = distributions.get("source_tables") or {}
@@ -1138,6 +1162,27 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
             lines.append(
                 f"- {normalize_str(row.get('category'))}: {safe_int(row.get('count'), 0)}건 ({row.get('share_pct', 0)}%)"
             )
+    if probing_sequence_summaries:
+        lines.append("")
+        lines.append("Context-only probing sequence 요약:")
+        for item in probing_sequence_summaries[:5]:
+            sample_paths = ", ".join(item.get("sample_paths") or []) or "-"
+            lines.append(
+                f"- src_ip={normalize_str(item.get('src_ip')) or '-'} | "
+                f"window={normalize_str(item.get('start')) or '-'} ~ {normalize_str(item.get('end')) or '-'} | "
+                f"requests={safe_int(item.get('request_count'), 0)} | "
+                f"distinct_paths={safe_int(item.get('distinct_path_count'), 0)} | "
+                f"sample_paths={sample_paths}"
+            )
+            if item.get("response_size_repetition"):
+                repetition = item.get("response_size_repetition") or {}
+                lines.append(
+                    f"  - 반복 응답 힌트: dominant_response_body_bytes={safe_int(repetition.get('dominant_response_body_bytes'), 0)} | "
+                    f"dominant_count={safe_int(repetition.get('dominant_count'), 0)}"
+                )
+            interpretation_hint = normalize_str(item.get("interpretation_hint"))
+            if interpretation_hint:
+                lines.append(f"  - 해석: {interpretation_hint}")
     lines.append("")
 
     lines.append("## 8. 권고 조치")
@@ -1164,6 +1209,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     incidents = report_input.get("top_incidents") or []
     filtered_rows = report_input.get("top_filtered_categories") or []
     recon_rows = report_input.get("top_out_of_candidate_recon") or []
+    probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
     asset_context = report_input.get("asset_context") or {}
     lines: List[str] = []
     lines.append("# 드라이런 보안 분석 보고서")
@@ -1181,6 +1227,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append(f"- 1차 후보 row 수: {safe_int(counts.get('candidate_rows'), 0)}")
     lines.append(f"- distinct incident 수: {safe_int(counts.get('distinct_incident_count'), 0)}")
     lines.append(f"- filtered out row 수: {safe_int(counts.get('filtered_out_rows'), 0)}")
+    lines.append(f"- probing sequence summary 수: {safe_int(counts.get('probing_sequence_summary_count'), len(probing_sequence_summaries))}")
     lines.append(f"- stage1 성공/오류: {safe_int(counts.get('stage1_success_count'), 0)} / {safe_int(counts.get('stage1_error_count'), 0)}")
     if filtered_rows:
         lines.append("- 후보 밖 주요 카테고리:")
@@ -1190,6 +1237,16 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
             )
     if recon_rows:
         lines.append("- 후보 밖 탐색성 요청 승격 정책: low_signal_fuzzing / low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않고, 동일 IP·동일 시간대·후속 고신호 incident 와 결합될 때만 승격 검토")
+    if probing_sequence_summaries:
+        lines.append("- context-only probing sequence:")
+        for item in probing_sequence_summaries[:5]:
+            sample_paths = ", ".join(item.get("sample_paths") or []) or "-"
+            lines.append(
+                f"  - src_ip={normalize_str(item.get('src_ip')) or '-'} | "
+                f"requests={safe_int(item.get('request_count'), 0)} | "
+                f"distinct_paths={safe_int(item.get('distinct_path_count'), 0)} | "
+                f"sample_paths={sample_paths}"
+            )
     lines.append("")
     lines.append("## 상위 incident 미리보기")
     for item in incidents[:5]:

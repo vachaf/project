@@ -158,6 +158,59 @@ DIR_PROBE_FILE_HINTS = (
     "composer.json",
 )
 
+PROBING_SEQUENCE_PATH_PREFIX_HINTS = (
+    "/.git",
+    "/.svn",
+    "/.hg",
+    "/.env",
+    "/config",
+    "/config.php",
+    "/backup",
+    "/backups",
+    "/db",
+    "/database",
+    "/admin",
+    "/administrator",
+    "/manager",
+    "/manager/html",
+    "/server-status",
+    "/server-info",
+    "/phpmyadmin",
+    "/wp-admin",
+    "/wp-login.php",
+    "/login",
+    "/console",
+)
+
+PROBING_SEQUENCE_PATH_SEGMENT_HINTS = (
+    ".git",
+    ".svn",
+    ".hg",
+    ".env",
+    "admin",
+    "administrator",
+    "manager",
+    "backup",
+    "backups",
+    "config",
+    "database",
+    "phpmyadmin",
+    "console",
+)
+
+PROBING_SEQUENCE_SUFFIX_HINTS = (
+    ".bak",
+    ".old",
+    ".backup",
+    ".zip",
+    ".tar",
+    ".gz",
+    ".sql",
+    ".conf",
+    ".ini",
+    ".env",
+)
+
 STATIC_EXTENSIONS = (
     ".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".map", ".webp",
 )
@@ -175,6 +228,10 @@ SOURCE_ORDER = ["security", "access", "error"]
 DECODE_VARIANT_MAX_CHARS = 4096
 SUPPORTING_EVENT_TIME_WINDOW_SEC = 120
 TEMPORAL_CONTEXT_BUCKET_SEC = 120
+PROBING_SEQUENCE_WINDOW_SEC = 120
+PROBING_SEQUENCE_MIN_REQUESTS = 3
+PROBING_SEQUENCE_MIN_DISTINCT_PATHS = 3
+PROBING_SEQUENCE_SAMPLE_PATH_LIMIT = 10
 EDUCATIONAL_SQL_SEARCH_TERMS = (
     "how to",
     "tutorial",
@@ -929,6 +986,141 @@ def build_supporting_events(filtered_rows: List[Dict[str, Any]], candidates: Lis
     return supporting_events
 
 
+def finalize_probing_sequence_bucket(
+    items: List[Dict[str, Any]],
+    window_sec: int,
+) -> Optional[Dict[str, Any]]:
+    if len(items) < PROBING_SEQUENCE_MIN_REQUESTS:
+        return None
+
+    distinct_paths: List[str] = []
+    seen_paths = set()
+    for item in items:
+        path = normalize_text(item.get("path")).lower()
+        if not path or path in seen_paths:
+            continue
+        seen_paths.add(path)
+        distinct_paths.append(path)
+
+    if len(distinct_paths) < PROBING_SEQUENCE_MIN_DISTINCT_PATHS:
+        return None
+
+    status_counts = Counter(str(safe_int(item.get("status_code"), 0)) for item in items)
+    content_type_counts = Counter(normalize_content_type_bucket(item.get("resp_content_type")) or "-" for item in items)
+
+    html_200_rows = [
+        item
+        for item in items
+        if safe_int(item.get("status_code"), 0) == 200
+        and normalize_content_type_bucket(item.get("resp_content_type")) == "text/html"
+        and safe_int(item.get("response_body_bytes"), 0) > 0
+    ]
+    response_size_repetition: Dict[str, Any] = {}
+    if html_200_rows:
+        size_counter = Counter(safe_int(item.get("response_body_bytes"), 0) for item in html_200_rows)
+        dominant_size, dominant_count = size_counter.most_common(1)[0]
+        if dominant_size > 0 and dominant_count >= 2 and dominant_count * 2 >= len(html_200_rows):
+            response_size_repetition = {
+                "dominant_response_body_bytes": dominant_size,
+                "dominant_count": dominant_count,
+            }
+
+    reason_hints: List[str] = []
+    for item in items:
+        extend_unique_hints(reason_hints, get_probe_sequence_reason_hints(item.get("path")))
+    if response_size_repetition:
+        append_unique_hint(reason_hints, "dir_probe:repeated_fallback_like_html")
+
+    sorted_items = sorted(items, key=lambda item: normalize_text(item.get("log_time")))
+    return {
+        "category": "low_signal_dir_probe_burst",
+        "policy": "context_only",
+        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
+        "start": normalize_text(sorted_items[0].get("log_time")),
+        "end": normalize_text(sorted_items[-1].get("log_time")),
+        "window_sec": window_sec,
+        "request_count": len(items),
+        "distinct_path_count": len(distinct_paths),
+        "sample_paths": distinct_paths[:PROBING_SEQUENCE_SAMPLE_PATH_LIMIT],
+        "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
+        "content_type_counts": dict(sorted(content_type_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
+        "response_size_repetition": response_size_repetition,
+        "reason_hints": reason_hints,
+        "interpretation_hint": (
+            "Multiple low-signal directory probing paths from the same source in a short window. "
+            "Context only; do not treat as confirmed compromise."
+        ),
+    }
+
+
+def build_probing_sequence_summaries(
+    rows: List[Dict[str, Any]],
+    window_sec: int = PROBING_SEQUENCE_WINDOW_SEC,
+) -> List[Dict[str, Any]]:
+    probe_rows_by_ip: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        method = get_method(row)
+        if method not in {"GET", "HEAD", "OPTIONS"}:
+            continue
+        path = get_probe_sequence_path(
+            uri=get_uri(row),
+            raw_request_target=extract_raw_request_target(raw_text(row.get("raw_request"))),
+        )
+        if not is_likely_probe_sequence_path(path, query_string=normalize_text(row.get("query_string"))):
+            continue
+
+        dt = parse_flexible_iso_dt(choose_best_time(row) or "")
+        if dt is None:
+            continue
+
+        probe_rows_by_ip[get_src_ip(row)].append(
+            {
+                "src_ip": get_src_ip(row),
+                "log_time": choose_best_time(row),
+                "dt": dt,
+                "path": path,
+                "status_code": get_status_code(row),
+                "resp_content_type": get_resp_content_type(row),
+                "response_body_bytes": get_response_body_bytes(row),
+            }
+        )
+
+    summaries: List[Dict[str, Any]] = []
+    for src_ip, items in probe_rows_by_ip.items():
+        sorted_items = sorted(items, key=lambda item: item["dt"])
+        bucket: List[Dict[str, Any]] = []
+        bucket_start: Optional[datetime] = None
+        for item in sorted_items:
+            if not bucket:
+                bucket = [item]
+                bucket_start = item["dt"]
+                continue
+
+            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
+                bucket.append(item)
+                continue
+
+            summary = finalize_probing_sequence_bucket(bucket, window_sec=window_sec)
+            if summary:
+                summaries.append(summary)
+            bucket = [item]
+            bucket_start = item["dt"]
+
+        summary = finalize_probing_sequence_bucket(bucket, window_sec=window_sec)
+        if summary:
+            summaries.append(summary)
+
+    summaries.sort(
+        key=lambda item: (
+            safe_int(item.get("request_count"), 0),
+            safe_int(item.get("distinct_path_count"), 0),
+            normalize_text(item.get("start")),
+        ),
+        reverse=True,
+    )
+    return summaries
+
+
 def safe_int(value: Optional[Any], default: int = 0) -> int:
     if value is None:
         return default
@@ -1207,6 +1399,77 @@ def path_from_target(target: str) -> str:
 def get_effective_request_path(uri: str, raw_request_target: str) -> str:
     normalized_raw_path = path_from_target(raw_request_target)
     return normalized_raw_path or normalize_text(uri)
+
+
+def normalize_content_type_bucket(content_type: str) -> str:
+    value = normalize_text(content_type).lower()
+    if not value:
+        return ""
+    return value.split(";", 1)[0].strip()
+
+
+def get_probe_sequence_path(uri: str, raw_request_target: str) -> str:
+    return get_effective_request_path(uri, raw_request_target).lower()
+
+
+def get_probe_sequence_reason_hints(path: str) -> List[str]:
+    normalized_path = normalize_text(path).lower()
+    if not normalized_path:
+        return []
+
+    hints: List[str] = []
+    append_unique_hint(hints, "dir_probe:burst")
+
+    segments = [segment for segment in normalized_path.split("/") if segment]
+    hidden_segment = any(segment.startswith(".") and segment != ".well-known" for segment in segments)
+    sensitive_prefix = any(
+        normalized_path == prefix or normalized_path.startswith(prefix + "/")
+        for prefix in PROBING_SEQUENCE_PATH_PREFIX_HINTS
+    )
+    sensitive_suffix = any(normalized_path.endswith(suffix) for suffix in PROBING_SEQUENCE_SUFFIX_HINTS)
+    sensitive_segment = any(segment in PROBING_SEQUENCE_PATH_SEGMENT_HINTS for segment in segments)
+    if hidden_segment or sensitive_prefix or sensitive_suffix or sensitive_segment:
+        append_unique_hint(hints, "dir_probe:sensitive_path")
+
+    admin_prefix = (
+        "/admin",
+        "/administrator",
+        "/manager",
+        "/manager/html",
+        "/server-status",
+        "/server-info",
+        "/phpmyadmin",
+        "/wp-admin",
+        "/wp-login.php",
+        "/login",
+        "/console",
+    )
+    if any(normalized_path == prefix or normalized_path.startswith(prefix + "/") for prefix in admin_prefix):
+        append_unique_hint(hints, "dir_probe:admin_path")
+
+    return hints
+
+
+def is_likely_probe_sequence_path(path: str, query_string: str = "") -> bool:
+    normalized_path = normalize_text(path).lower()
+    if not normalized_path or normalized_path == "/":
+        return False
+
+    segments = [segment for segment in normalized_path.split("/") if segment]
+    hidden_segment = any(segment.startswith(".") and segment != ".well-known" for segment in segments)
+    prefix_hint = any(
+        normalized_path == prefix or normalized_path.startswith(prefix + "/")
+        for prefix in PROBING_SEQUENCE_PATH_PREFIX_HINTS
+    )
+    suffix_hint = any(normalized_path.endswith(suffix) for suffix in PROBING_SEQUENCE_SUFFIX_HINTS)
+    segment_hint = any(segment in PROBING_SEQUENCE_PATH_SEGMENT_HINTS for segment in segments)
+    if hidden_segment or prefix_hint or suffix_hint or segment_hint:
+        return True
+
+    query_lower = normalize_text(query_string).lower()
+    if query_lower and any(token in query_lower for token in DIR_PROBE_FILE_HINTS):
+        return True
+    return False
 
 
 def analyze_query_parameters(query_string: str) -> Tuple[bool, List[str]]:
@@ -1989,6 +2252,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
     raw_candidate_count = len(candidates)
     deduped_candidates, candidate_group_summaries = deduplicate_candidates(candidates)
     supporting_events = build_supporting_events(filtered_out_rows, deduped_candidates, min_score=min_score)
+    probing_sequence_summaries = build_probing_sequence_summaries(all_rows)
     false_positive_review_candidates = [
         item
         for item in (
@@ -2028,11 +2292,13 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "filtered_noise_breakdown_is_preserved": True,
                 "supporting_events_are_context_only": True,
                 "false_positive_review_candidates_are_context_only": True,
+                "probing_sequence_summaries_are_context_only": True,
             },
             "thresholds": {
                 "candidate_min_score": min_score,
                 "noise_min_repeat_aggregate": min_repeat_aggregate,
                 "supporting_event_time_window_sec": SUPPORTING_EVENT_TIME_WINDOW_SEC,
+                "probing_sequence_window_sec": PROBING_SEQUENCE_WINDOW_SEC,
             },
             "counts": {
                 "total_exported_rows": safe_int(original_meta.get("total_count"), len(all_rows)),
@@ -2046,6 +2312,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "distinct_incident_candidates": len(candidate_payload),
                 "supporting_events": len(supporting_events),
                 "false_positive_review_candidates": len(false_positive_review_candidates),
+                "probing_sequence_summaries": len(probing_sequence_summaries),
             },
             "filtered_out_breakdown": dict(noise_counter),
         },
@@ -2054,6 +2321,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         "analysis_candidates": candidate_payload,
         "supporting_events": supporting_events,
         "false_positive_review_candidates": false_positive_review_candidates,
+        "probing_sequence_summaries": probing_sequence_summaries,
     }
 
     filtered_payload = [build_filtered_row_payload(r) for r in non_aggregated_filtered]

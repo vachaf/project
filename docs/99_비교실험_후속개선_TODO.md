@@ -201,6 +201,30 @@ D-05:
 
 ---
 
-## 9. 현재 결론
+## 9. 구현 상태 (2026-04-26)
+
+### 완료
+
+- `src/prepare_llm_input.py`
+- 일반화된 path pattern, 동일 `src_ip`, 120초 window 기준으로 `probing_sequence_summaries` 생성
+- 기존 `analysis_candidates` 승격 규칙은 유지하고 sequence summary 는 `context_only` 정책으로만 추가
+- 반복 `200 text/html` + 동일 `response_body_bytes`는 fallback-like HTML 보조 지표로만 요약
+
+### 확인 결과
+
+- D세트 R3 재처리에서 기존 candidate 1건, filtered-out 9건은 유지됨
+- `probing_sequence_summaries` 1건 생성 확인
+- sample path에 `/.git/config`, `/.env`, `/admin`, `/backup`, `/server-status`, `/phpmyadmin`, `/manager/html` 포함 확인
+- Stage2 dry-run report input에 `probing_sequence_summary_count`, `probing_sequence_summaries`, context-only policy 반영 확인
+
+### 남은 TODO
+
+- Stage2 실제 LLM 호출 결과가 provider별로 probing sequence 문맥을 얼마나 안정적으로 서술하는지 추가 확인
+- fallback-like HTML의 “유사 크기” 허용 범위를 더 일반화할지 여부는 후속 검토
+- public repo용 비교 문서(`개선후_비교.md`)는 실제 재처리 결과를 정리할 때 별도 작성
+
+---
+
+## 10. 현재 결론
 
 즉시 수정이 필요한 치명적 문제는 없다. 후속 개선은 D세트 R3에서 드러난 low-signal directory probing sequence 보존과 Stage2 설명력 개선에 집중하는 것이 적절하다.
