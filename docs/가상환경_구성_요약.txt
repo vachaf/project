@@ -52,7 +52,7 @@ JSON 산출물 / Markdown 보고서
 
 - 호스트명: juice
 - 운영체제: Ubuntu 22.04.5
-- IP: 192.168.35.113
+- IP: 192.168.56.105
 
 역할:
 - 외부 HTTP 요청 수신
@@ -79,9 +79,12 @@ JSON 산출물 / Markdown 보고서
 - app_log: /var/log/apache2/apache_log_shipper.log
 
 웹서버가 접속하는 DB 대상:
-- DB 서버: 192.168.35.223
+- DB 서버: 192.168.56.109
 - DB 이름: web_logs
-- 사용 계정: log_writer@192.168.35.113
+- 사용 계정: log_writer@192.168.56.105
+
+웹서버가 하는 것:
+- 로그 DB 적재
 
 웹서버가 하지 않는 것:
 - DB export 실행
@@ -94,7 +97,7 @@ JSON 산출물 / Markdown 보고서
 
 - 호스트명: opencart
 - 운영체제: Ubuntu 22.04.5
-- IP: 192.168.35.193
+- IP: 192.168.56.108
 
 역할:
 - 외부 HTTP 요청 수신
@@ -124,9 +127,12 @@ JSON 산출물 / Markdown 보고서
 - app_log: /var/log/apache2/apache_log_shipper.log
 
 웹서버가 접속하는 DB 대상:
-- DB 서버: 192.168.35.223
+- DB 서버: 192.168.56.109
 - DB 이름: web_logs
-- 사용 계정: log_writer@192.168.35.193
+- 사용 계정: log_writer@192.168.56.108
+
+웹서버가 하는 것:
+- 로그 DB 적재
 
 웹서버가 하지 않는 것:
 - DB export 실행
@@ -139,7 +145,7 @@ JSON 산출물 / Markdown 보고서
 
 - 호스트명: maria
 - 운영체제: Ubuntu 22.04.5
-- IP: 192.168.35.223
+- IP: 192.168.56.109
 
 역할:
 - Apache 로그 중앙 저장
@@ -148,7 +154,7 @@ JSON 산출물 / Markdown 보고서
 
 DB 구성:
 - MariaDB: 10.6.23
-- bind-address: 192.168.35.223
+- bind-address: 192.168.56.109
 - DB 이름: web_logs
 
 DB 서버 안에 존재하는 테이블:
@@ -157,10 +163,10 @@ DB 서버 안에 존재하는 테이블:
 - apache_error_logs
 
 DB 계정:
-- log_writer@192.168.35.113
+- log_writer@192.168.56.105
   - 권한: SELECT, INSERT, UPDATE
   - 용도: Juice Shop 웹서버 shipper 가 로그 적재
-- log_writer@192.168.35.193
+- log_writer@192.168.56.108
   - 권한: SELECT, INSERT, UPDATE
   - 용도: OpenCart 웹서버 shipper 가 로그 적재
 - log_reader@192.168.35.%
@@ -169,8 +175,6 @@ DB 계정:
 
 DB 서버에 존재하는 export 도구:
 - /opt/log_export/export_db_logs_cli.py
-- /opt/log_export/.venv
-- /opt/log_export/output
 
 운영 해석 기준:
 - DB 서버에도 export 도구 사본이 있을 수 있다.
@@ -188,7 +192,7 @@ DB 서버가 하지 않는 것:
 
 - 호스트명: llm
 - 운영체제: Ubuntu 22.04.5
-- IP: 192.168.35.145
+- IP: 192.168.56.110
 
 역할:
 - DB 서버의 로그 조회 및 export
@@ -219,14 +223,19 @@ LLM 서버의 데이터 경로:
 - 실행 로그: /opt/web_log_analysis/logs
 
 LLM 서버가 접속하는 DB 대상:
-- DB 서버: 192.168.35.223
+- DB 서버: 192.168.56.109
 - DB 이름: web_logs
-- 사용 계정: log_reader@192.168.35.%
+- 사용 계정: log_reader@192.168.56.%
 
 LLM 모델 사용 정책:
+
+Openai
 - routine 분석: gpt-5.4-mini
 - milestone 점검: gpt-5.4
 - presentation / 발표용 최종 분석: gpt-5.4
+
+Claude
+- Stage1/Stage2 : claude-haiku-4-5-20251001
 
 LLM 서버가 하지 않는 것:
 - Apache 로그 생성
@@ -250,11 +259,6 @@ LLM 서버가 하지 않는 것:
 
 짧은 기억용 표현:
 요청 발생 → 로그 생성 → DB 적재 → LLM 서버 export → 정제 → stage1 → stage2 → 비교
-
-* (윈도우(가상 머신이 아닌 그냥 내 노트북))
-- 운영체제: Windows 11 Pro (버전 25H2, OS 빌드 26200.8037)
-- IP: 192.168.35.27
-- 역할: server 로는 확인하기 불편한 파일확인 등...
 
 ==================================================
 7. 로그 3종의 역할
@@ -295,11 +299,10 @@ LLM 서버가 하지 않는 것:
 ==================================================
 
 - known asset 후보 IP
-  - 192.168.35.113 (juice 웹서버)
-  - 192.168.35.193 (opencart 웹서버)
-  - 192.168.35.223 (maria DB 서버)
-  - 192.168.35.145 (llm 분석 서버)
-  - 192.168.35.27  (윈도우 노트북 pc)
+  - 192.168.56.105 (juice 웹서버)
+  - 192.168.56.108 (opencart 웹서버)
+  - 192.168.56.109 (maria DB 서버)
+  - 192.168.56.110 (llm 분석 서버)
 
 해석 주의:
 - known asset IP 에서 발생한 요청은 내부 테스트, 자체 호출, 운영 점검 트래픽일 수 있으므로 즉시 외부 공격자로 단정하지 않는다.
