@@ -1,21 +1,22 @@
 *.log
 *.tmp
 
-raw/
-*noise_summary.json
-*stage1_errors.json
-*analysis_candidates.json
-*llm_input.json
-*stage2_report_input.json
+# root runtime only
+/.venv/
+/config/llm.env
+/data/raw/
+/data/processed/
+/reports/
+/logs/
+/tmp/
 
-# local runtime
-.venv/
-config/llm.env
-data/raw/
-data/processed/
-reports/
-logs/
-tmp/
+# lab private / intermediate artifacts
+/lab/**/raw/
+/lab/**/*noise_summary.json
+/lab/**/*stage1_errors.json
+/lab/**/*analysis_candidates.json
+/lab/**/*llm_input.json
+/lab/**/*stage2_report_input.json
 
 # python
 __pycache__/
