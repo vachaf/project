@@ -1,15 +1,5 @@
-.venv/
-__pycache__/
-*.pyc
-
-pipeline_manifest.json
-
 *.log
 *.tmp
-
-.env
-llm.env
-config/*.env
 
 raw/
 *noise_summary.json
@@ -17,3 +7,17 @@ raw/
 *analysis_candidates.json
 *llm_input.json
 *stage2_report_input.json
+
+# local runtime
+.venv/
+config/llm.env
+data/raw/
+data/processed/
+reports/
+logs/
+tmp/
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
