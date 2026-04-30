@@ -1,0 +1,57 @@
+[
+  {
+    "source_table": "security",
+    "noise_category": "low_signal_dir_probe",
+    "log_time": "2026-04-30T13:55:40.408 09:00",
+    "src_ip": "192.168.56.109",
+    "method": "GET",
+    "uri": "/config.php",
+    "query_string": "",
+    "status_code": 200,
+    "request_id": "afLgzLtOyZm6BVpljVMdIwAAAAI",
+    "error_link_id": "",
+    "user_agent": "lab-e-set-r2b-config-root-control-1",
+    "raw_request": "GET /config.php HTTP/1.1",
+    "response_body_bytes": 0,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/config.php",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "reason_hints": [
+      "dir_probe:burst",
+      "dir_probe:sensitive_path",
+      "dir_probe:sensitive_config_path",
+      "file_probe:config_php"
+    ]
+  },
+  {
+    "source_table": "security",
+    "noise_category": "low_signal_dir_probe",
+    "log_time": "2026-04-30T13:55:40.426 09:00",
+    "src_ip": "192.168.56.109",
+    "method": "GET",
+    "uri": "/admin/config.php",
+    "query_string": "",
+    "status_code": 200,
+    "request_id": "afLgzJHt9hGyqryjyhdXYAAAAAE",
+    "error_link_id": "",
+    "user_agent": "lab-e-set-r2b-config-admin-control-1",
+    "raw_request": "GET /admin/config.php HTTP/1.1",
+    "response_body_bytes": 0,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/admin/config.php",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "reason_hints": [
+      "dir_probe:burst",
+      "dir_probe:sensitive_path",
+      "dir_probe:sensitive_config_path",
+      "file_probe:admin_config_php",
+      "dir_probe:admin_path"
+    ]
+  }
+]

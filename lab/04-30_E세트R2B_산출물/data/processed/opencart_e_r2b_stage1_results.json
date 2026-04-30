@@ -1,0 +1,286 @@
+{
+  "meta": {
+    "generated_at": "2026-04-30T14:22:23.391+09:00",
+    "input_file": "/opt/web_log_analysis/lab/04-30_E세트R2B_산출물/data/processed/opencart_e_r2b_llm_input.json",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.openai.com/v1",
+    "source_window": {
+      "start": "2026-04-30T13:55:00.000+09:00",
+      "end_exclusive": "2026-04-30T13:56:00.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-04-30T13:59:38.607+09:00",
+    "source_prepared_at": "2026-04-30T14:01:22.452+09:00",
+    "source_counts": {
+      "total_exported_rows": 6,
+      "selected_source_rows": 6,
+      "filtered_out_rows": 2,
+      "filtered_out_non_aggregated_rows": 2,
+      "noise_group_count": 0,
+      "candidate_rows_before_dedup": 4,
+      "candidate_rows": 4,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 4,
+      "supporting_events": 0,
+      "false_positive_review_candidates": 0,
+      "probing_sequence_summaries": 1
+    },
+    "candidate_group_summary_count": 4,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id",
+      "response_body_bytes",
+      "resp_content_type",
+      "raw_request_target",
+      "path_normalized_from_raw_request",
+      "likely_html_fallback_response"
+    ],
+    "processed_candidate_count": 4,
+    "success_count": 4,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:afLgyRmT0DpdHXxqXheyewAAAAQ",
+      "request_id": "afLgyRmT0DpdHXxqXheyewAAAAQ",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        1593
+      ],
+      "log_id": 1593,
+      "src_ip": "192.168.56.109",
+      "method": "GET",
+      "uri": "/index.php",
+      "query_string": "?route=php://filter/resource=config.php",
+      "log_time": "2026-04-30T13:55:37.427 09:00",
+      "status_code": 404,
+      "score": 12,
+      "verdict_hint": "suspicious_file_disclosure",
+      "reason_hints": [
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:resource_parameter",
+        "file_disclosure:sensitive_resource:config_php",
+        "error_status:404(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 19832,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/index.php?route=php%3A%2F%2Ffilter%2Fresource%3Dconfig.php",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_path_traversal",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "요청 파라미터에 php://filter/resource=config.php가 포함되어 있어 PHP 래퍼를 이용한 민감 파일 접근 시도로 보입니다. 다만 응답이 404이고 resp_content_type 이 text/html이어서 실제 파일 노출 성공보다는 탐지/시도 정황으로 보는 것이 타당합니다.",
+      "evidence_fields": [
+        "query_string의 php://filter 래퍼",
+        "resource=config.php 민감 자원 지목",
+        "raw_request의 파일 노출 시도 형태",
+        "status_code 404",
+        "resp_content_type text/html",
+        "user_agent가 실험용으로 보이는 문자열"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_0aa605b26e08327f0169f2e702f6988196a246af1896bd476a",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"요청 파라미터에 php://filter/resource=config.php가 포함되어 있어 PHP 래퍼를 이용한 민감 파일 접근 시도로 보입니다. 다만 응답이 404이고 resp_content_type 이 text/html이어서 실제 파일 노출 성공보다는 탐지/시도 정황으로 보는 것이 타당합니다.\",\"evidence_fields\":[\"query_string의 php://filter 래퍼\",\"resource=config.php 민감 자원 지목\",\"raw_request의 파일 노출 시도 형태\",\"status_code 404\",\"resp_content_type text/html\",\"user_agent가 실험용으로 보이는 문자열\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 1,
+      "incident_group_key": "rid:afLgxOeAB9en9-liEbFkQAAAAAM",
+      "request_id": "afLgxOeAB9en9-liEbFkQAAAAAM",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        1592
+      ],
+      "log_id": 1592,
+      "src_ip": "192.168.56.109",
+      "method": "GET",
+      "uri": "/index.php",
+      "query_string": "?route=php://filter/resource=config.php",
+      "log_time": "2026-04-30T13:55:32.987 09:00",
+      "status_code": 404,
+      "score": 12,
+      "verdict_hint": "suspicious_file_disclosure",
+      "reason_hints": [
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:resource_parameter",
+        "file_disclosure:sensitive_resource:config_php",
+        "error_status:404(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 19832,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/index.php?route=php%3A%2F%2Ffilter%2Fresource%3Dconfig.php",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_path_traversal",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "`route=php://filter/resource=config.php` 형태의 요청은 PHP 필터 래퍼를 이용해 설정 파일을 읽으려는 전형적인 파일 노출 시도로 보입니다. 다만 응답이 404이고 `resp_content_type` 이 `text/html` 이라 실제 파일 내용 노출 성공은 확인되지 않아, 시도 정황 중심으로 판단했습니다.",
+      "evidence_fields": [
+        "요청 경로: php://filter 래퍼 사용",
+        "민감 자원 힌트: config.php",
+        "상태 코드: 404",
+        "응답 유형: text/html",
+        "비정상 UA 및 referer 없음"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_0fb86d431ace8d650169f2e705fca88190a912569e251eca22",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"`route=php://filter/resource=config.php` 형태의 요청은 PHP 필터 래퍼를 이용해 설정 파일을 읽으려는 전형적인 파일 노출 시도로 보입니다. 다만 응답이 404이고 `resp_content_type` 이 `text/html` 이라 실제 파일 내용 노출 성공은 확인되지 않아, 시도 정황 중심으로 판단했습니다.\",\"evidence_fields\":[\"요청 경로: php://filter 래퍼 사용\",\"민감 자원 힌트: config.php\",\"상태 코드: 404\",\"응답 유형: text/html\",\"비정상 UA 및 referer 없음\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_src_ip\",\"watch\"]}"
+    },
+    {
+      "candidate_index": 2,
+      "incident_group_key": "rid:afLgwWSoHnmpSRvjKFzotAAAAAA",
+      "request_id": "afLgwWSoHnmpSRvjKFzotAAAAAA",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        1591
+      ],
+      "log_id": 1591,
+      "src_ip": "192.168.56.109",
+      "method": "GET",
+      "uri": "/index.php",
+      "query_string": "?path=php://filter/convert.base64-encode/resource=admin/config.php",
+      "log_time": "2026-04-30T13:55:29.540 09:00",
+      "status_code": 200,
+      "score": 12,
+      "verdict_hint": "suspicious_file_disclosure",
+      "reason_hints": [
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:base64_source_intent",
+        "file_disclosure:resource_parameter",
+        "file_disclosure:sensitive_resource:admin_config_php",
+        "long_query(+1)"
+      ],
+      "response_body_bytes": 32783,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/index.php?path=php%3A%2F%2Ffilter%2Fconvert.base64-encode%2Fresource%3Dadmin%2Fconfig.php",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_path_traversal",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": false,
+      "reasoning_summary": "요청 파라미터에 php://filter 래퍼와 base64 인코딩, resource=admin/config.php가 함께 보여 파일 읽기/노출을 노린 경로 탐색 시도로 해석하는 것이 타당합니다. 응답은 200이지만 content-type이 text/html이라 실제 파일 노출 성공 여부는 이 로그만으로 확정할 수 없고, 시도 정황 중심으로 판단했습니다.",
+      "evidence_fields": [
+        "query_string의 php://filter 래퍼",
+        "base64-encode로 소스 노출 시도",
+        "resource=admin/config.php 대상",
+        "응답 200 및 text/html"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_src_ip"
+      ],
+      "response_id": "resp_046a81c4355e614a0169f2e70900cc8196a7b13c56e87bc9cd",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":false,\"reasoning_summary\":\"요청 파라미터에 php://filter 래퍼와 base64 인코딩, resource=admin/config.php가 함께 보여 파일 읽기/노출을 노린 경로 탐색 시도로 해석하는 것이 타당합니다. 응답은 200이지만 content-type이 text/html이라 실제 파일 노출 성공 여부는 이 로그만으로 확정할 수 없고, 시도 정황 중심으로 판단했습니다.\",\"evidence_fields\":[\"query_string의 php://filter 래퍼\",\"base64-encode로 소스 노출 시도\",\"resource=admin/config.php 대상\",\"응답 200 및 text/html\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_src_ip\"]}"
+    },
+    {
+      "candidate_index": 3,
+      "incident_group_key": "rid:afLgvZHt9hGyqryjyhdXXwAAAAE",
+      "request_id": "afLgvZHt9hGyqryjyhdXXwAAAAE",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        1590
+      ],
+      "log_id": 1590,
+      "src_ip": "192.168.56.109",
+      "method": "GET",
+      "uri": "/index.php",
+      "query_string": "?file=php://filter/convert.base64-encode/resource=config.php",
+      "log_time": "2026-04-30T13:55:25.327 09:00",
+      "status_code": 200,
+      "score": 12,
+      "verdict_hint": "suspicious_file_disclosure",
+      "reason_hints": [
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:base64_source_intent",
+        "file_disclosure:resource_parameter",
+        "file_disclosure:sensitive_resource:config_php",
+        "long_query(+1)"
+      ],
+      "response_body_bytes": 32777,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/index.php?file=php%3A%2F%2Ffilter%2Fconvert.base64-encode%2Fresource%3Dconfig.php",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_path_traversal",
+      "severity": "medium",
+      "confidence": "high",
+      "false_positive_possible": true,
+      "reasoning_summary": "`file=php://filter/convert.base64-encode/resource=config.php` 형태의 요청은 PHP 래퍼를 이용해 민감 파일을 읽으려는 전형적인 파일 노출/경로 탐색 시도로 보입니다. 다만 응답이 `text/html`이고 상태코드가 200이라도 실제 파일 내용 노출 성공 여부는 이 필드만으로 확정할 수 없어, 시도 정황으로 분류합니다.",
+      "evidence_fields": [
+        "raw_request의 php://filter 래퍼 사용",
+        "base64 인코딩 후 resource=config.php 접근 의도",
+        "민감 자원(config.php) 지정",
+        "응답 코드 200이나 text/html 응답"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_id": "resp_0c19e351b792e3540169f2e70da99881938c106e7c0b8ced7a",
+      "raw_output_text": "{\"verdict\":\"suspicious_path_traversal\",\"severity\":\"medium\",\"confidence\":\"high\",\"false_positive_possible\":true,\"reasoning_summary\":\"`file=php://filter/convert.base64-encode/resource=config.php` 형태의 요청은 PHP 래퍼를 이용해 민감 파일을 읽으려는 전형적인 파일 노출/경로 탐색 시도로 보입니다. 다만 응답이 `text/html`이고 상태코드가 200이라도 실제 파일 내용 노출 성공 여부는 이 필드만으로 확정할 수 없어, 시도 정황으로 분류합니다.\",\"evidence_fields\":[\"raw_request의 php://filter 래퍼 사용\",\"base64 인코딩 후 resource=config.php 접근 의도\",\"민감 자원(config.php) 지정\",\"응답 코드 200이나 text/html 응답\"],\"recommended_actions\":[\"review_raw_log\",\"correlate_request_id\",\"correlate_src_ip\",\"watch\"]}"
+    }
+  ]
+}
