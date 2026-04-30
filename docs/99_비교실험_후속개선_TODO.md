@@ -13,7 +13,7 @@
 | P1 | 회귀 fixture 정리 | B/C/D/E 개선이 누적되어 다음 수정 때 기존 기능이 깨질 가능성이 커짐 |
 | Done | `ip_behavior_aggregates` context-only 도입 | 동일 `src_ip`의 300초 window에서 다중 path, 높은 4xx 비율, 혼합 공격 category, 민감 경로 접근, 5xx cluster를 Stage2 문맥용으로 보존 |
 | P2 | SQLi xclose/quote termination hint 추가 | B/E SQLi payload 설명력 강화 |
-| P2 | Stage2 PHP wrapper 설명 보강 | `php://filter/convert.base64-encode` source disclosure 의미를 더 안정적으로 설명 |
+| Done | Stage2 PHP wrapper 설명 보강 | `php://filter/convert.base64-encode/resource=...` 를 PHP wrapper 기반 source/config disclosure attempt 로 설명하고 성공 단정 금지 반영 |
 | Done | Stage2 `ip_behavior_aggregates` 설명 보강 | Stage2가 `ip_behavior_aggregates`를 context-only reconnaissance/scanning 문맥으로 읽고, candidate 승격 근거로 사용하지 않도록 반영 |
 | P2 | L3 패턴 소량 확장 | Log4Shell, SSRF, SSTI, webshell 등 Apache 로그 표면에 남는 고신호 패턴만 제한적으로 추가 |
 | P3 | F세트 Auth/Login abuse 설계 | 새 공격 유형 확장 후보. POST body visibility 한계 주의 필요 |
@@ -257,23 +257,20 @@ sqli:boolean_true_condition
 
 ---
 
-## 7. P2 — Stage2 PHP wrapper 설명 보강
+## 7. 완료 — Stage2 PHP wrapper 설명 보강
 
-### 배경
-
-E세트 R2/R2B에서 Stage2는 PHP wrapper 기반 파일 노출 시도를 대체로 잘 설명했다. 다만 `convert.base64-encode`의 의미를 보고서에서 더 안정적으로 설명할 수 있다.
-
-### 권장 설명
+### 반영 설명
 
 ```text
 php://filter/convert.base64-encode/resource=... 는 PHP stream wrapper를 이용해 대상 파일을 base64 인코딩된 형태로 읽어 반환하도록 유도하는 기법으로, PHP source/config disclosure 시도에 해당한다. 다만 Apache 로그만으로 실제 반환 내용은 확인할 수 없다.
 ```
 
-### 적용 위치
+### 반영 원칙
 
-- `llm_stage2_reporter.py` prompt/policy
-- E세트 R2/R2B 비교 문서
-- 발표 자료
+- Stage2 prompt/system/user guidance 에 위 설명을 반영했다.
+- `suspicious_file_disclosure` verdict 또는 `file_disclosure:*` hint 는 의도/시도 근거이지 성공/유출 근거가 아님을 명시했다.
+- `status_code=200`, `text/html`, `response_body_bytes`만으로 성공 단정 금지 문구를 강화했다.
+- direct `/config.php`, `/admin/config.php` 단발 접근은 wrapper payload 와 동일한 강한 file disclosure 시도로 과장하지 않도록 분리했다.
 
 ---
 

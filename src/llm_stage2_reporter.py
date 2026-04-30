@@ -776,6 +776,19 @@ def build_ip_behavior_context_rows(
     return rows[:top_n]
 
 
+def has_php_wrapper_file_disclosure_context(item: Dict[str, Any]) -> bool:
+    verdict = normalize_str(item.get("verdict"))
+    if verdict == "suspicious_file_disclosure":
+        return True
+    hints = [normalize_str(x) for x in (item.get("reason_hints") or []) if normalize_str(x)]
+    required = {
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:base64_source_intent",
+        "file_disclosure:resource_parameter",
+    }
+    return required.issubset(set(hints))
+
+
 def build_report_input(
     stage1_payload: Dict[str, Any],
     llm_input_payload: Optional[Dict[str, Any]],
@@ -947,10 +960,12 @@ def build_report_input(
                 "identity_rule": "동일 src_ip 는 scanning-like behavior 가 관찰된 출발지로만 표현하고 공격자나 침해 주체로 단정하지 않음",
             },
             "file_disclosure_policy": {
-                "php_wrapper_rule": "php://filter, convert.base64-encode, resource= 는 PHP wrapper 를 이용한 file disclosure 또는 source disclosure intent 로 설명 가능",
+                "php_wrapper_rule": "php://filter/convert.base64-encode/resource=... 구조는 PHP stream wrapper 를 통해 대상 파일을 base64 인코딩된 형태로 읽도록 유도하는 source/config disclosure attempt 또는 LFI-like file disclosure attempt 로 설명 가능",
+                "wrapper_vs_traversal_rule": "이는 단순 ../ path traversal 과 구분되는 PHP wrapper 기반 file disclosure 또는 source disclosure 시도이며, suspicious_file_disclosure verdict 또는 file_disclosure:* hint 가 있으면 해당 의미를 우선 설명",
+                "hint_interpretation_rule": "file_disclosure:* reason_hints 는 의도/시도 근거이지 성공/유출 근거가 아님",
                 "success_rule": "Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공을 확정하지 않음",
-                "status_200_rule": "200 text/html 또는 200 empty body 는 정상 라우팅, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답 가능성을 함께 검토",
-                "direct_config_rule": "/config.php, /admin/config.php 직접 접근은 sensitive config path probing context 로 설명하고 response body 원문 없이는 노출 성공으로 단정하지 않음",
+                "status_200_rule": "status_code=200, text/html, response_body_bytes 또는 200 empty body 는 정상 라우팅, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답 가능성을 함께 검토하며 file disclosure 성공 근거로 사용하지 않음",
+                "direct_config_rule": "/config.php, /admin/config.php 직접 접근은 sensitive config path probing context 로 설명하고, wrapper payload 와 동일한 강한 file disclosure 시도로 과장하지 않으며 response body 원문 없이는 노출 성공으로 단정하지 않음",
                 "empty_body_rule": "response_body_bytes=0 은 직접 접근 시도 또는 라우팅 성공 가능성만 시사하며 본문 노출 증거는 아님",
             },
             "supporting_events_policy": {
@@ -1076,10 +1091,13 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "Apache 로그만으로 XSS payload 의 브라우저 실행 성공을 확정하지 마라. "
         "500 text/html 은 서버 처리 오류 정황일 수 있지만 XSS 실행 성공 근거로 단정하지 마라. "
         "200 application/json 응답도 브라우저 실행 성공 근거로 사용하지 마라. "
-        "php://filter, convert.base64-encode, resource= 정황은 PHP wrapper 를 이용한 file disclosure 또는 source disclosure intent 로 설명할 수 있지만, Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공을 확정하지 마라. "
+        "php://filter/convert.base64-encode/resource=... 구조는 PHP stream wrapper 를 통해 대상 파일을 base64 인코딩된 형태로 읽도록 유도하는 source/config disclosure attempt 또는 LFI-like file disclosure attempt 로 설명하라. "
+        "이는 단순 ../ path traversal 과 구분되는 PHP wrapper 기반 file disclosure 시도다. "
+        "file_disclosure:php_filter_wrapper, file_disclosure:base64_source_intent, file_disclosure:resource_parameter 같은 file_disclosure:* hint 는 의도/시도 근거이지 성공/유출 근거가 아니다. "
+        "suspicious_file_disclosure verdict 가 있으면 PHP wrapper 기반 source/config disclosure 시도 의미를 우선 설명하되, Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공을 확정하지 마라. "
         "200 text/html 또는 response_body_bytes=0 응답은 정상 라우팅, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답일 수 있으므로 file disclosure 성공 근거로 사용하지 마라. "
         "/config.php, /admin/config.php 직접 접근은 민감 설정 파일 경로 probing context 로 설명하되 response body 원문 없이는 config 노출 성공으로 단정하지 마라. "
-        "php://filter candidate 와 /config.php 또는 /admin/config.php 직접 접근은 같은 범주로 뭉뚱그리지 말고, 전자는 file disclosure intent, 후자는 sensitive config path probing context 로 구분해서 서술하라. "
+        "php://filter candidate 와 /config.php 또는 /admin/config.php 직접 접근은 같은 범주로 뭉뚱그리지 말고, 전자는 PHP wrapper 기반 file/source disclosure attempt, 후자는 sensitive config path probing context 로 구분해서 서술하라. "
         "document.cookie, localStorage, sessionStorage 접근 문자열은 브라우저 데이터 접근 의도 또는 탈취 시도 형태로만 표현하고, 실제 탈취 성공으로 단정하지 마라. "
         "외부 URL, fetch, location 변경, Image beacon 정황이 있어도 별도 네트워크나 애플리케이션 증거 없이는 외부 전송 성공을 확정하지 마라. "
         "HTML entity, URL encoding, double encoding 은 우회 또는 복원 가능한 payload 표현으로만 설명하고, 실행 성공의 직접 증거처럼 서술하지 마라. "
@@ -1120,12 +1138,15 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "likely_false_positive 와 inconclusive 는 특히 조심해서 해석하라.",
             "제공된 근거가 강하지 않으면 성공적인 침해나 악용 성공을 단정하지 마라.",
             "path traversal 은 raw_request_target, uri, resp_content_type, response_body_bytes, likely_html_fallback_response 를 함께 보고 시도와 실제 노출 가능성을 구분하라.",
-            "php://filter, convert.base64-encode, resource= 는 PHP wrapper 를 이용한 파일 읽기 또는 소스 노출 시도로 설명할 수 있다.",
+            "php://filter/convert.base64-encode/resource=... 구조는 PHP stream wrapper 를 통해 대상 파일을 base64 인코딩된 형태로 읽도록 유도하는 source/config disclosure attempt 또는 LFI-like file disclosure attempt 로 설명하라.",
+            "이는 단순 ../ path traversal 과 구분되는 PHP wrapper 기반 file disclosure 시도다.",
+            "file_disclosure:* reason_hints 는 의도/시도 근거이지 성공/유출 근거가 아니다.",
+            "suspicious_file_disclosure verdict 가 있으면 PHP wrapper 기반 source/config disclosure 시도 의미를 우선 설명하라.",
             "그러나 Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공은 확정하지 마라.",
-            "200 text/html 또는 response_body_bytes=0 은 정상 라우팅, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답 가능성이 있으므로 file disclosure 성공 근거로 사용하지 마라.",
+            "status_code=200, text/html, response_body_bytes 또는 response_body_bytes=0 만으로 file disclosure 성공 근거로 사용하지 마라.",
             "/config.php, /admin/config.php 가 200 이어도 response body 원문이 없으면 config 노출 성공으로 단정하지 마라.",
             "response_body_bytes=0 인 경우에는 직접 접근은 되었으나 응답 본문은 비어 있거나 로그상 본문 노출 증거가 없다고 표현하라.",
-            "php://filter candidate 와 direct config path probe 는 구분해서 설명하라. 전자는 file disclosure intent, 후자는 sensitive config path probing context 다.",
+            "php://filter candidate 와 direct config path probe 는 구분해서 설명하라. 전자는 PHP wrapper 기반 file/source disclosure attempt, 후자는 sensitive config path probing context 다.",
             "resp_content_type 이 text/html 이고 likely_html_fallback_response 가 true 면 앱 fallback HTML 가능성을 우선 검토하라.",
             "Apache 로그만으로 XSS payload 의 브라우저 실행 성공을 확정하지 마라.",
             "500 text/html 은 처리 오류 정황일 수 있지만 XSS 실행 성공 근거로 단정하지 마라.",
@@ -1266,6 +1287,13 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
             reasoning = normalize_str(ref.get("reasoning_summary"))
             if reasoning:
                 lines.append(f"  - stage1 요약: {reasoning}")
+            if has_php_wrapper_file_disclosure_context(ref):
+                lines.append(
+                    "  - file disclosure 해석: php://filter/convert.base64-encode/resource=... 계열은 PHP stream wrapper 를 이용한 source/config disclosure attempt 또는 LFI-like file disclosure attempt 로 해석할 수 있습니다."
+                )
+                lines.append(
+                    "  - 해석 제한: Apache 로그만으로 실제 파일 내용 반환 여부는 확인할 수 없으므로, 성공한 유출이 아니라 시도 정황으로만 제한해 해석해야 합니다."
+                )
         elif incident_ref:
             lines.append(f"  - incident_ref={incident_ref}")
     lines.append("")
@@ -1442,6 +1470,13 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
             f"uri={normalize_str(item.get('uri')) or '-'} | "
             f"merged_rows={safe_int(item.get('duplicate_count'), 1)}{known_asset_note}"
         )
+        if has_php_wrapper_file_disclosure_context(item):
+            lines.append(
+                "  - PHP wrapper 문맥: php://filter/convert.base64-encode/resource=... 계열은 PHP stream wrapper 기반 source/config disclosure attempt 또는 LFI-like file disclosure attempt 로 해석한다."
+            )
+            lines.append(
+                "  - 해석 제한: Apache 로그만으로 실제 파일 내용 반환 여부는 확인할 수 없으므로 성공한 유출이 아니라 시도 정황으로만 본다."
+            )
     lines.append("")
     lines.append("## 메모")
     lines.append("- dry-run 이므로 실제 LLM API 호출 없이 요약 입력만 검증했다.")
