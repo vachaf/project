@@ -3,7 +3,7 @@
 ## 목적
 
 - `src/prepare_llm_input.py`의 prepare 단계만 빠르게 회귀 검증한다.
-- Stage1/Stage2 LLM 호출 없이 synthetic export JSON을 넣고 `analysis_candidates`, `supporting_events`, `false_positive_review_candidates`, `probing_sequence_summaries`, `filtered_out_rows`의 분류 결과를 확인한다.
+- Stage1/Stage2 LLM 호출 없이 synthetic export JSON을 넣고 `analysis_candidates`, `supporting_events`, `false_positive_review_candidates`, `probing_sequence_summaries`, `ip_behavior_aggregates`, `filtered_out_rows`의 분류 결과를 확인한다.
 - Apache 로그 표면 지표만 사용한 현재 규칙 기반 prepare 동작이 의도와 크게 벗어나지 않는지 smoke 수준으로 확인한다.
 
 ## 비목표
@@ -29,6 +29,7 @@
 - `e_r2_php_wrapper`
 - `e_r2_direct_config_path`
 - `e_r3_search_attack_and_baseline`
+- `ip_behavior_multi_signal_context`
 
 ## 최소 Row 필드
 
@@ -81,7 +82,7 @@ fixture는 다음 값을 사용한다.
 
 ## Hint / Category 중심 Assert 원칙
 
-- endpoint 전체 문자열보다 `reason_hints`, `review_reason`, `supporting_role`, `noise_category`, `probing_sequence_summaries` 중심으로 검증한다.
+- endpoint 전체 문자열보다 `reason_hints`, `review_reason`, `supporting_role`, `noise_category`, `probing_sequence_summaries`, `ip_behavior_aggregates` 중심으로 검증한다.
 - 예시:
   - `encoding:decoded_depth_2`
   - `encoding:double_decoded_sqli`
@@ -94,6 +95,7 @@ fixture는 다음 값을 사용한다.
   - `benign_normal_search`
   - `supporting_role=reference_baseline`
   - `dir_probe:*`
+  - `ip_behavior:*`
 
 ## 일반화된 Path / Query 구조 사용 원칙
 
@@ -127,3 +129,13 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 
 - 2026-04-30 기준 normal search baseline row의 `dir_probe:*` hint 잔존 문제는 해결되었다.
 - `e_r3_search_attack_and_baseline` fixture에서는 해당 조건을 `MUST_NOT`으로 회귀 검증한다.
+- 2026-04-30 기준 `ip_behavior_aggregates`는 prepare top-level context-only 출력까지 반영되었고, Stage2 보고서 설명 강화는 후속 작업이다.
+
+## `ip_behavior_multi_signal_context` expected 기준
+
+- 같은 `src_ip`의 300초 window 안에서 다중 path, 높은 4xx 비율, 혼합 공격 category, 민감 경로 접근이 함께 관찰되면 `ip_behavior_aggregates`가 생성되어야 한다.
+- aggregate 는 `context_role=ip_behavior_context`, `aggregate_scope=same_src_ip_time_window`, `should_promote_to_candidate=false`를 유지해야 한다.
+- `reason_hints`에는 `ip_behavior:*` 계열이 포함되어야 한다.
+- `attack_categories_attempted`에는 `sqli`, `xss`, `dir_probe` 같은 요약 category 가 반영되어야 한다.
+- `/admin/`, `/backup/`, `/config.php` 같은 low-signal probe row는 개별 `analysis_candidates`로 과승격되면 안 된다.
+- 같은 fixture 안의 SQLi/XSS payload row는 기존 규칙대로 candidate 로 유지될 수 있다.

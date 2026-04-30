@@ -32,6 +32,7 @@ COLLECTION_KEYS = {
     "supporting_events": "supporting_events",
     "false_positive_review_candidates": "false_positive_review_candidates",
     "probing_sequence_summaries": "probing_sequence_summaries",
+    "ip_behavior_aggregates": "ip_behavior_aggregates",
 }
 
 

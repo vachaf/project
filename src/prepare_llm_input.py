@@ -241,6 +241,9 @@ PROBING_SEQUENCE_WINDOW_SEC = 120
 PROBING_SEQUENCE_MIN_REQUESTS = 3
 PROBING_SEQUENCE_MIN_DISTINCT_PATHS = 3
 PROBING_SEQUENCE_SAMPLE_PATH_LIMIT = 10
+IP_BEHAVIOR_WINDOW_SEC = 300
+IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
+IP_BEHAVIOR_SENSITIVE_PATH_LIMIT = 10
 EDUCATIONAL_SQL_SEARCH_TERMS = (
     "how to",
     "tutorial",
@@ -1226,6 +1229,280 @@ def build_probing_sequence_summaries(
         reverse=True,
     )
     return summaries
+
+
+def build_row_context_reason_hints(row: Dict[str, Any]) -> List[str]:
+    uri = get_uri(row)
+    raw_req_original = raw_text(row.get("raw_request"))
+    raw_request_target = extract_raw_request_target(raw_req_original)
+    raw_qs = raw_text(row.get("query_string"))
+    qs = normalize_text(row.get("query_string"))
+    raw_log = raw_text(row.get("raw_log"))
+    probe_path = get_effective_request_path(uri, raw_request_target).lower()
+    hpp_detected, hpp_param_names = analyze_query_parameters(qs)
+
+    base_text, combined_target, query_variants, raw_request_target_variants = build_analysis_texts(
+        raw_request=raw_req_original,
+        uri=uri,
+        query_string=raw_qs,
+        raw_request_target=raw_request_target,
+        raw_log=raw_log,
+    )
+
+    reason_hints: List[str] = []
+    for name, pattern, _ in SQLI_PATTERNS:
+        if matches_sqli_pattern(name, pattern, combined_target):
+            append_unique_hint(reason_hints, f"sqli:{name}")
+    for name, pattern, _ in XSS_PATTERNS:
+        if pattern.search(combined_target):
+            append_unique_hint(reason_hints, f"xss:{name}")
+    for name, pattern, _ in TRAVERSAL_PATTERNS:
+        if pattern.search(combined_target):
+            append_unique_hint(reason_hints, f"traversal:{name}")
+    for name, pattern, _ in CMDI_PATTERNS:
+        if pattern.search(combined_target):
+            append_unique_hint(reason_hints, f"cmdi:{name}")
+
+    _, decoded_hints = detect_decoded_attack_hints(
+        base_text=base_text,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    extend_unique_hints(reason_hints, decoded_hints)
+
+    _, file_disclosure_hints = detect_file_disclosure_hints(
+        combined_target=combined_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    extend_unique_hints(reason_hints, file_disclosure_hints)
+    extend_unique_hints(
+        reason_hints,
+        get_xss_context_hints(
+            raw_query_string=raw_qs,
+            query_string=qs,
+            raw_request_target=raw_request_target,
+            combined_target=combined_target,
+            query_variants=query_variants,
+            raw_request_target_variants=raw_request_target_variants,
+        ),
+    )
+
+    if is_likely_probe_sequence_path(probe_path, query_string=qs):
+        extend_unique_hints(reason_hints, get_probe_sequence_reason_hints(probe_path))
+
+    if hpp_detected:
+        append_unique_hint(reason_hints, "hpp:duplicate_param_names")
+        if hpp_param_names:
+            append_unique_hint(reason_hints, "hpp:param_names=" + ",".join(hpp_param_names))
+
+    return reason_hints
+
+
+def get_attack_categories_from_reason_hints(reason_hints: Iterable[str]) -> List[str]:
+    categories: List[str] = []
+    for hint in reason_hints:
+        normalized = raw_text(hint)
+        if not normalized:
+            continue
+        if normalized.startswith("sqli:") or normalized == "encoding:double_decoded_sqli":
+            append_unique_hint(categories, "sqli")
+        elif normalized.startswith("xss:") or normalized == "encoding:html_entity_decoded_xss":
+            append_unique_hint(categories, "xss")
+        elif normalized.startswith("traversal:") or normalized.startswith("path_traversal:"):
+            append_unique_hint(categories, "path_traversal")
+        elif normalized.startswith("file_disclosure:"):
+            append_unique_hint(categories, "file_disclosure")
+        elif normalized.startswith("dir_probe:"):
+            append_unique_hint(categories, "dir_probe")
+        elif normalized.startswith("hpp:"):
+            append_unique_hint(categories, "hpp")
+        elif normalized.startswith("cmdi:"):
+            append_unique_hint(categories, "command_injection")
+    return categories
+
+
+def get_sample_request_id(row: Dict[str, Any]) -> str:
+    for value in (
+        normalize_identifier(row.get("request_id")),
+        normalize_identifier(row.get("log_id")),
+        normalize_identifier(row.get("id")),
+        normalize_identifier(row.get("error_link_id")),
+    ):
+        if value:
+            return value
+    return ""
+
+
+def is_sensitive_ip_behavior_path(path: str) -> bool:
+    hints = get_probe_sequence_reason_hints(path)
+    return any(
+        hint in {"dir_probe:sensitive_path", "dir_probe:sensitive_config_path", "dir_probe:admin_path"}
+        or hint.startswith("file_probe:")
+        for hint in hints
+    )
+
+
+def finalize_ip_behavior_bucket(
+    items: List[Dict[str, Any]],
+    window_sec: int,
+) -> Optional[Dict[str, Any]]:
+    if not items:
+        return None
+
+    request_count = len(items)
+
+    distinct_paths: List[str] = []
+    seen_paths = set()
+    distinct_methods: List[str] = []
+    seen_methods = set()
+    distinct_user_agents = set()
+    attack_categories_attempted: List[str] = []
+    sensitive_path_hits: List[str] = []
+    sample_request_ids: List[str] = []
+
+    status_4xx_count = 0
+    status_5xx_count = 0
+
+    for item in items:
+        path = normalize_text(item.get("path")).lower()
+        if path and path not in seen_paths:
+            seen_paths.add(path)
+            distinct_paths.append(path)
+
+        method = normalize_text(item.get("method")).upper()
+        if method and method not in seen_methods:
+            seen_methods.add(method)
+            distinct_methods.append(method)
+
+        user_agent = normalize_text(item.get("user_agent"))
+        if user_agent:
+            distinct_user_agents.add(user_agent)
+
+        status_code = safe_int(item.get("status_code"), 0)
+        if 400 <= status_code < 500:
+            status_4xx_count += 1
+        if 500 <= status_code < 600:
+            status_5xx_count += 1
+
+        for category in get_attack_categories_from_reason_hints(item.get("reason_hints") or []):
+            append_unique_hint(attack_categories_attempted, category)
+
+        if path and bool(item.get("is_sensitive_path")) and len(sensitive_path_hits) < IP_BEHAVIOR_SENSITIVE_PATH_LIMIT:
+            append_unique_hint(sensitive_path_hits, path)
+
+        sample_request_id = normalize_text(item.get("sample_request_id"))
+        if sample_request_id and len(sample_request_ids) < IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT:
+            append_unique_hint(sample_request_ids, sample_request_id)
+
+    status_4xx_ratio = round(status_4xx_count / request_count, 4) if request_count else 0.0
+    reason_hints: List[str] = []
+    if request_count >= 5 and len(distinct_paths) >= 4:
+        append_unique_hint(reason_hints, "ip_behavior:multi_path_burst")
+    if request_count >= 4 and status_4xx_ratio >= 0.5:
+        append_unique_hint(reason_hints, "ip_behavior:high_4xx_ratio")
+    if len(attack_categories_attempted) >= 2:
+        append_unique_hint(reason_hints, "ip_behavior:multiple_attack_categories")
+    if len(sensitive_path_hits) >= 2:
+        append_unique_hint(reason_hints, "ip_behavior:sensitive_path_focus")
+    if status_5xx_count >= 2:
+        append_unique_hint(reason_hints, "ip_behavior:server_error_cluster")
+
+    if not reason_hints:
+        return None
+
+    sorted_items = sorted(items, key=lambda item: item["dt"])
+    return {
+        "context_role": "ip_behavior_context",
+        "aggregate_scope": "same_src_ip_time_window",
+        "should_promote_to_candidate": False,
+        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
+        "window_start": normalize_text(sorted_items[0].get("log_time")),
+        "window_end": normalize_text(sorted_items[-1].get("log_time")),
+        "burst_window_sec": window_sec,
+        "request_count": request_count,
+        "distinct_paths": len(distinct_paths),
+        "distinct_methods": len(distinct_methods),
+        "status_4xx_count": status_4xx_count,
+        "status_4xx_ratio": status_4xx_ratio,
+        "status_5xx_count": status_5xx_count,
+        "distinct_user_agents": len(distinct_user_agents),
+        "attack_categories_attempted": attack_categories_attempted,
+        "sensitive_path_hits": sensitive_path_hits,
+        "sample_request_ids": sample_request_ids,
+        "reason_hints": reason_hints,
+        "interpretation_limit": "context_only_no_success_inference",
+    }
+
+
+def build_ip_behavior_aggregates(
+    rows: List[Dict[str, Any]],
+    window_sec: int = IP_BEHAVIOR_WINDOW_SEC,
+) -> List[Dict[str, Any]]:
+    rows_by_ip: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        src_ip = get_src_ip(row)
+        if not src_ip or src_ip == "-":
+            continue
+
+        log_time = choose_best_time(row)
+        dt = parse_flexible_iso_dt(log_time or "")
+        if dt is None:
+            continue
+
+        uri = get_uri(row)
+        raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+        path = get_effective_request_path(uri, raw_request_target).lower()
+        rows_by_ip[src_ip].append(
+            {
+                "src_ip": src_ip,
+                "log_time": log_time,
+                "dt": dt,
+                "path": path,
+                "method": get_method(row),
+                "status_code": get_status_code(row),
+                "user_agent": get_user_agent(row),
+                "sample_request_id": get_sample_request_id(row),
+                "reason_hints": build_row_context_reason_hints(row),
+                "is_sensitive_path": is_sensitive_ip_behavior_path(path),
+            }
+        )
+
+    aggregates: List[Dict[str, Any]] = []
+    for src_ip, items in rows_by_ip.items():
+        sorted_items = sorted(items, key=lambda item: item["dt"])
+        bucket: List[Dict[str, Any]] = []
+        bucket_start: Optional[datetime] = None
+        for item in sorted_items:
+            if not bucket:
+                bucket = [item]
+                bucket_start = item["dt"]
+                continue
+
+            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
+                bucket.append(item)
+                continue
+
+            aggregate = finalize_ip_behavior_bucket(bucket, window_sec=window_sec)
+            if aggregate:
+                aggregates.append(aggregate)
+            bucket = [item]
+            bucket_start = item["dt"]
+
+        aggregate = finalize_ip_behavior_bucket(bucket, window_sec=window_sec)
+        if aggregate:
+            aggregates.append(aggregate)
+
+    aggregates.sort(
+        key=lambda item: (
+            safe_int(item.get("request_count"), 0),
+            len(item.get("attack_categories_attempted") or []),
+            safe_int(item.get("distinct_paths"), 0),
+            normalize_text(item.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return aggregates
 
 
 def safe_int(value: Optional[Any], default: int = 0) -> int:
@@ -2536,6 +2813,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
     deduped_candidates, candidate_group_summaries = deduplicate_candidates(candidates)
     supporting_events = build_supporting_events(filtered_out_rows, deduped_candidates, min_score=min_score)
     probing_sequence_summaries = build_probing_sequence_summaries(all_rows)
+    ip_behavior_aggregates = build_ip_behavior_aggregates(all_rows)
     false_positive_review_candidates = [
         item
         for item in (
@@ -2576,12 +2854,14 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "supporting_events_are_context_only": True,
                 "false_positive_review_candidates_are_context_only": True,
                 "probing_sequence_summaries_are_context_only": True,
+                "ip_behavior_aggregates_are_context_only": True,
             },
             "thresholds": {
                 "candidate_min_score": min_score,
                 "noise_min_repeat_aggregate": min_repeat_aggregate,
                 "supporting_event_time_window_sec": SUPPORTING_EVENT_TIME_WINDOW_SEC,
                 "probing_sequence_window_sec": PROBING_SEQUENCE_WINDOW_SEC,
+                "ip_behavior_window_sec": IP_BEHAVIOR_WINDOW_SEC,
             },
             "counts": {
                 "total_exported_rows": safe_int(original_meta.get("total_count"), len(all_rows)),
@@ -2596,6 +2876,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "supporting_events": len(supporting_events),
                 "false_positive_review_candidates": len(false_positive_review_candidates),
                 "probing_sequence_summaries": len(probing_sequence_summaries),
+                "ip_behavior_aggregates": len(ip_behavior_aggregates),
             },
             "filtered_out_breakdown": dict(noise_counter),
         },
@@ -2605,6 +2886,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         "supporting_events": supporting_events,
         "false_positive_review_candidates": false_positive_review_candidates,
         "probing_sequence_summaries": probing_sequence_summaries,
+        "ip_behavior_aggregates": ip_behavior_aggregates,
     }
 
     filtered_payload = [build_filtered_row_payload(r) for r in non_aggregated_filtered]

@@ -11,7 +11,7 @@
 | 우선순위 | 과제 | 이유 |
 |---|---|---|
 | P1 | 회귀 fixture 정리 | B/C/D/E 개선이 누적되어 다음 수정 때 기존 기능이 깨질 가능성이 커짐 |
-| P1 | `ip_behavior_aggregates` 설계/도입 | 단일 요청은 약하지만 IP 단위 종합 행동이 명백한 스캐너/공격자인 경우를 context-only로 보존 |
+| Done | `ip_behavior_aggregates` context-only 도입 | 동일 `src_ip`의 300초 window에서 다중 path, 높은 4xx 비율, 혼합 공격 category, 민감 경로 접근, 5xx cluster를 Stage2 문맥용으로 보존 |
 | P2 | SQLi xclose/quote termination hint 추가 | B/E SQLi payload 설명력 강화 |
 | P2 | Stage2 PHP wrapper 설명 보강 | `php://filter/convert.base64-encode` source disclosure 의미를 더 안정적으로 설명 |
 | P2 | L3 패턴 소량 확장 | Log4Shell, SSRF, SSTI, webshell 등 Apache 로그 표면에 남는 고신호 패턴만 제한적으로 추가 |
@@ -67,7 +67,7 @@
 
 ---
 
-## 3. P1 — `ip_behavior_aggregates` 설계/도입
+## 3. 완료 — `ip_behavior_aggregates` context-only 도입
 
 ### 배경
 
@@ -84,9 +84,9 @@
 
 이런 경우 개별 row를 candidate로 과승격하지 않더라도, Stage2에는 “IP 단위 행동 문맥”으로 전달하는 것이 적절하다.
 
-### 목표
+### 반영 내용
 
-`prepare_llm_input.py`의 top-level에 다음과 같은 context-only 구조를 추가하는 방안을 검토한다.
+`prepare_llm_input.py`의 top-level에 다음과 같은 context-only 구조를 반영했다.
 
 ```text
 ip_behavior_aggregates
@@ -96,7 +96,8 @@ ip_behavior_aggregates
 
 - 기본은 `context_only`
 - 개별 요청 candidate 자동 승격 금지
-- Stage2에서 “단일 요청은 약하지만 종합 행동은 scanning/reconnaissance 성격”으로 설명
+- `analysis_candidates` 선정 로직과 분리
+- Apache 로그 표면 지표만 사용
 - 특정 IP, 실험 UA, response size hard-code 금지
 
 ### 후보 지표
@@ -113,53 +114,76 @@ ip_behavior_aggregates
 | `sensitive_path_hits` | config/admin/backup/.git/.env 등 민감 경로 접근 수 |
 | `burst_window_sec` | 집계 window 크기 |
 
-### 후보 hint
+### 반영 조건
+
+다음 중 하나 이상을 만족할 때만 aggregate 를 생성한다.
+
+- `request_count >= 5 and distinct_paths >= 4`
+- `status_4xx_ratio >= 0.5 and request_count >= 4`
+- `attack_categories_attempted` 개수 `>= 2`
+- `sensitive_path_hits` 개수 `>= 2`
+- `status_5xx_count >= 2`
+
+### 반영 hint
 
 ```text
-ip_behavior:high_request_count
-ip_behavior:high_distinct_path_count
 ip_behavior:high_4xx_ratio
-ip_behavior:multi_category_probe
-ip_behavior:sensitive_path_sweep
-ip_behavior:user_agent_rotation
-ip_behavior:method_variety
+ip_behavior:multi_path_burst
+ip_behavior:multiple_attack_categories
+ip_behavior:sensitive_path_focus
+ip_behavior:server_error_cluster
 ```
 
 ### 출력 예시
 
 ```json
 {
+  "context_role": "ip_behavior_context",
+  "aggregate_scope": "same_src_ip_time_window",
+  "should_promote_to_candidate": false,
   "src_ip": "198.51.100.10",
-  "window_sec": 300,
-  "request_count": 42,
-  "distinct_paths": 31,
-  "status_4xx_ratio": 0.81,
+  "window_start": "2026-04-30T10:20:05.000+09:00",
+  "window_end": "2026-04-30T10:21:29.000+09:00",
+  "burst_window_sec": 300,
+  "request_count": 5,
+  "distinct_paths": 4,
+  "distinct_methods": 1,
+  "status_4xx_count": 3,
+  "status_4xx_ratio": 0.6,
+  "status_5xx_count": 0,
   "distinct_user_agents": 1,
-  "attack_categories_attempted": ["xss", "traversal", "file_probe"],
-  "behavior_hints": [
-    "ip_behavior:high_distinct_path_count",
+  "attack_categories_attempted": ["dir_probe", "sqli", "xss"],
+  "sensitive_path_hits": ["/admin/", "/backup/", "/config.php"],
+  "sample_request_ids": ["ip-behavior-admin-1", "ip-behavior-backup-1"],
+  "reason_hints": [
+    "ip_behavior:multi_path_burst",
     "ip_behavior:high_4xx_ratio",
-    "ip_behavior:multi_category_probe"
+    "ip_behavior:multiple_attack_categories",
+    "ip_behavior:sensitive_path_focus"
   ],
-  "policy": "context_only"
+  "interpretation_limit": "context_only_no_success_inference"
 }
 ```
 
-### Stage2 해석 원칙
+### 해석 원칙
 
 - “IP 단위 scanning/reconnaissance 정황”으로만 설명
 - 개별 요청 성공이나 침해를 단정하지 않음
 - request count, 4xx ratio, distinct path 수는 우선순위 조정 보조 지표
 - known asset이면 내부 점검/스캐너 가능성 병기
 
-### 구현 순서
+### 회귀 검증
 
-1. 회귀 fixture 완료
-2. `ip_behavior_aggregates` 설계 문서 확정
-3. synthetic fixture로 high distinct path / high 4xx / multi-category probe 검증
-4. prepare top-level에 context-only aggregate 추가
-5. Stage2 prompt에 interpretation policy 추가
-6. D세트 R3 및 E세트 directory/config probing raw로 회귀 확인
+- synthetic fixture `ip_behavior_multi_signal_context` 추가
+- `scripts/check_prepare_regression.py`가 `ip_behavior_aggregates` collection 검증 지원
+- low-signal `/admin/`, `/backup/`, `/config.php`는 개별 candidate 로 승격되지 않음
+- 같은 fixture 안의 SQLi/XSS payload 는 기존 규칙대로 candidate 유지
+
+### 후속 TODO
+
+1. `llm_stage2_reporter.py`가 `ip_behavior_aggregates`를 직접 읽지 않으므로, Stage2 보고서 입력/설명 보강을 별도 후속 작업으로 반영
+2. known asset IP 와 결합된 IP aggregate 해석 문구 보강
+3. 실데이터 D/E 세트 raw에서 aggregate 과다 생성 여부 점검
 
 ---
 
@@ -357,4 +381,4 @@ HEAD
 
 ## 13. 현재 결론
 
-즉시 수정이 필요한 치명적 문제는 없다. 다음 개발 작업은 payload 추가보다 **회귀 fixture 정리**가 우선이고, 그 다음 구조적 개선으로 **`ip_behavior_aggregates` context-only 도입**을 검토한다.
+즉시 수정이 필요한 치명적 문제는 없다. 다음 개발 작업은 payload 추가보다 **회귀 fixture 유지**와 **Stage2 `ip_behavior_aggregates` 설명 보강**이 우선이다.

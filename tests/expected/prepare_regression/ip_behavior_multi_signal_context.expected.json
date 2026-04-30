@@ -1,0 +1,139 @@
+{
+  "description": "Same-source multi-signal behavior should be preserved as context-only IP aggregate without promoting low-signal path probes.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "ip_behavior_aggregates",
+      "where": {
+        "src_ip": "198.51.100.60",
+        "context_role": "ip_behavior_context",
+        "aggregate_scope": "same_src_ip_time_window",
+        "should_promote_to_candidate": false
+      },
+      "message": "ip behavior aggregate created as context-only"
+    },
+    {
+      "op": "exists",
+      "collection": "ip_behavior_aggregates",
+      "where": {
+        "src_ip": "198.51.100.60",
+        "request_count": 5
+      },
+      "message": "ip behavior aggregate captures the full 5-request window"
+    },
+    {
+      "op": "field_contains",
+      "collection": "ip_behavior_aggregates",
+      "where": {
+        "src_ip": "198.51.100.60"
+      },
+      "field": "reason_hints",
+      "contains": "ip_behavior:multi_path_burst",
+      "message": "multi-path burst hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "ip_behavior_aggregates",
+      "where": {
+        "src_ip": "198.51.100.60"
+      },
+      "field": "reason_hints",
+      "contains": "ip_behavior:multiple_attack_categories",
+      "message": "multi-category hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "ip_behavior_aggregates",
+      "where": {
+        "src_ip": "198.51.100.60"
+      },
+      "field": "attack_categories_attempted",
+      "contains": "sqli",
+      "message": "sqli category captured in IP aggregate"
+    },
+    {
+      "op": "field_contains",
+      "collection": "ip_behavior_aggregates",
+      "where": {
+        "src_ip": "198.51.100.60"
+      },
+      "field": "attack_categories_attempted",
+      "contains": "xss",
+      "message": "xss category captured in IP aggregate"
+    },
+    {
+      "op": "field_contains",
+      "collection": "ip_behavior_aggregates",
+      "where": {
+        "src_ip": "198.51.100.60"
+      },
+      "field": "attack_categories_attempted",
+      "contains": "dir_probe",
+      "message": "dir probe category captured in IP aggregate"
+    },
+    {
+      "op": "field_contains",
+      "collection": "ip_behavior_aggregates",
+      "where": {
+        "src_ip": "198.51.100.60"
+      },
+      "field": "sensitive_path_hits",
+      "contains": "/admin/",
+      "message": "sensitive path hit captured"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "ip-behavior-sqli-1"
+      },
+      "message": "SQLi request remains a candidate"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "ip-behavior-xss-1"
+      },
+      "message": "XSS request remains a candidate"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "ip-behavior-admin-1"
+      },
+      "message": "individual /admin/ probe must not be promoted to a candidate"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "ip-behavior-backup-1"
+      },
+      "message": "individual /backup/ probe must not be promoted to a candidate"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "ip-behavior-config-1"
+      },
+      "message": "individual /config.php probe must not be promoted to a candidate"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "field_contains",
+      "collection": "ip_behavior_aggregates",
+      "where": {
+        "src_ip": "198.51.100.60"
+      },
+      "field": "interpretation_limit",
+      "contains": "context_only_no_success_inference",
+      "message": "aggregate keeps no-success-inference interpretation limit"
+    }
+  ]
+}
