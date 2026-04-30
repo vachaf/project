@@ -11,12 +11,15 @@
 | 우선순위 | 과제 | 이유 |
 |---|---|---|
 | P1 | 회귀 fixture 정리 | B/C/D/E 개선이 누적되어 다음 수정 때 기존 기능이 깨질 가능성이 커짐 |
-| Done | `suspicious_file_disclosure` verdict 정식화 | Stage1 enum/prompt에 verdict 추가, PHP wrapper 3종 hint 조합에서 좁은 정규화 반영 |
-| Done | benign normal search hint 정리 | `benign_normal_search` baseline row의 `dir_probe:*` hint 제거 및 회귀 `MUST_NOT` 반영 완료 |
+| P1 | `ip_behavior_aggregates` 설계/도입 | 단일 요청은 약하지만 IP 단위 종합 행동이 명백한 스캐너/공격자인 경우를 context-only로 보존 |
 | P2 | SQLi xclose/quote termination hint 추가 | B/E SQLi payload 설명력 강화 |
 | P2 | Stage2 PHP wrapper 설명 보강 | `php://filter/convert.base64-encode` source disclosure 의미를 더 안정적으로 설명 |
+| P2 | L3 패턴 소량 확장 | Log4Shell, SSRF, SSTI, webshell 등 Apache 로그 표면에 남는 고신호 패턴만 제한적으로 추가 |
 | P3 | F세트 Auth/Login abuse 설계 | 새 공격 유형 확장 후보. POST body visibility 한계 주의 필요 |
-| P3 | G세트 HTTP method/protocol anomaly 설계 | 앱 의존도가 낮은 reconnaissance/anomaly 후보 |
+| P3 | G세트 HTTP method / protocol anomaly 설계 | 앱 의존도가 낮은 reconnaissance/anomaly 후보 |
+| P3 | Threat intelligence 연동 검토 | 외부 의존성이 크므로 운영 적용 단계 후보 |
+| Done | `suspicious_file_disclosure` verdict 정식화 | Stage1 enum/prompt에 verdict 추가, PHP wrapper 3종 hint 조합에서 좁은 정규화 반영 |
+| Done | benign normal search hint 정리 | `benign_normal_search` baseline row의 `dir_probe:*` hint 제거 및 회귀 `MUST_NOT` 반영 완료 |
 
 ---
 
@@ -34,6 +37,7 @@
 - `probing_sequence_summaries`
 - PHP file disclosure hint
 - normal search baseline/reference baseline 분리
+- `suspicious_file_disclosure` verdict 정식화
 
 수정이 많아졌으므로, 이후 작은 개선이 B/C/D/E 중 하나를 깨뜨릴 수 있다. 실제 raw를 매번 수동으로 찾아 돌리는 방식은 장기적으로 불안정하다.
 
@@ -54,23 +58,116 @@
 
 ### 권장 구현 방식
 
-- `tests/fixtures/` 또는 `lab/regression_fixtures/` 아래 최소 JSON fixture 저장
-- raw 전체가 부담되면 필요한 row만 축약한 synthetic fixture 사용
-- 공개 repo에 올릴 수 있는 수준으로 IP/host/path 노출을 검토
+- `tests/fixtures/prepare_regression/` 아래 synthetic fixture 저장
+- 실제 IP, 실제 UA, 실제 response size, OpenCart/Juice Shop 고유 endpoint hard-code 금지
+- document IP(`198.51.100.x`, `203.0.113.x`)와 `example.test` 계열 host 사용
 - `prepare_llm_input.py` 기준 smoke test부터 시작
-- Stage1/Stage2 LLM 호출은 비용 때문에 기본 회귀에서는 제외하고 dry-run 또는 prompt input 구조만 확인
+- Stage1/Stage2 LLM 호출은 회귀 fixture 1차 범위에서 제외
+- 전체 snapshot 비교가 아니라 MUST / SHOULD / MUST_NOT / WARN 조건 기반 assert 사용
 
 ---
 
-## 3. 완료 — `suspicious_file_disclosure` verdict 정식화
+## 3. P1 — `ip_behavior_aggregates` 설계/도입
 
 ### 배경
 
-E세트 R2/R2B에서 `php://filter`, `resource=config.php`, `convert.base64-encode` 계열 payload는 prepare 단계에서 `suspicious_file_disclosure` hint로 잘 보존된다. 그러나 Stage1 최종 verdict는 여전히 `suspicious_path_traversal`로 수렴하는 경향이 있다.
+현재 구조는 개별 request row 중심이다. 따라서 개별 요청 하나하나는 낮은 점수지만, 같은 IP가 짧은 시간 안에 다수의 경로를 탐색하거나 여러 공격 유형을 시도하는 경우 종합 행동을 충분히 반영하기 어렵다.
 
-### 문제
+예:
 
-`php://filter/convert.base64-encode/resource=config.php`는 단순 `../` path traversal과 다르다. PHP stream wrapper를 이용한 source/config disclosure 또는 LFI 계열 시도에 가깝다.
+```text
+- 5분 동안 서로 다른 path 50개 요청
+- 404 비율 70% 이상
+- 같은 IP에서 traversal, XSS, SQLi, config probe가 혼합 발생
+- 동일 IP가 여러 User-Agent를 바꿔가며 요청
+```
+
+이런 경우 개별 row를 candidate로 과승격하지 않더라도, Stage2에는 “IP 단위 행동 문맥”으로 전달하는 것이 적절하다.
+
+### 목표
+
+`prepare_llm_input.py`의 top-level에 다음과 같은 context-only 구조를 추가하는 방안을 검토한다.
+
+```text
+ip_behavior_aggregates
+```
+
+정책:
+
+- 기본은 `context_only`
+- 개별 요청 candidate 자동 승격 금지
+- Stage2에서 “단일 요청은 약하지만 종합 행동은 scanning/reconnaissance 성격”으로 설명
+- 특정 IP, 실험 UA, response size hard-code 금지
+
+### 후보 지표
+
+| 지표 | 의미 |
+|---|---|
+| `request_count` | window 내 총 요청 수 |
+| `distinct_paths` | 서로 다른 path 수 |
+| `distinct_methods` | method 다양성 |
+| `status_4xx_ratio` | 4xx 비율. fuzzing/probing 정황 |
+| `status_5xx_count` | 서버 오류 유발 정황 |
+| `distinct_user_agents` | UA 변경/자동화 정황. 단독 판단 금지 |
+| `attack_categories_attempted` | SQLi/XSS/traversal/file probe/HPP 등 혼합 시도 |
+| `sensitive_path_hits` | config/admin/backup/.git/.env 등 민감 경로 접근 수 |
+| `burst_window_sec` | 집계 window 크기 |
+
+### 후보 hint
+
+```text
+ip_behavior:high_request_count
+ip_behavior:high_distinct_path_count
+ip_behavior:high_4xx_ratio
+ip_behavior:multi_category_probe
+ip_behavior:sensitive_path_sweep
+ip_behavior:user_agent_rotation
+ip_behavior:method_variety
+```
+
+### 출력 예시
+
+```json
+{
+  "src_ip": "198.51.100.10",
+  "window_sec": 300,
+  "request_count": 42,
+  "distinct_paths": 31,
+  "status_4xx_ratio": 0.81,
+  "distinct_user_agents": 1,
+  "attack_categories_attempted": ["xss", "traversal", "file_probe"],
+  "behavior_hints": [
+    "ip_behavior:high_distinct_path_count",
+    "ip_behavior:high_4xx_ratio",
+    "ip_behavior:multi_category_probe"
+  ],
+  "policy": "context_only"
+}
+```
+
+### Stage2 해석 원칙
+
+- “IP 단위 scanning/reconnaissance 정황”으로만 설명
+- 개별 요청 성공이나 침해를 단정하지 않음
+- request count, 4xx ratio, distinct path 수는 우선순위 조정 보조 지표
+- known asset이면 내부 점검/스캐너 가능성 병기
+
+### 구현 순서
+
+1. 회귀 fixture 완료
+2. `ip_behavior_aggregates` 설계 문서 확정
+3. synthetic fixture로 high distinct path / high 4xx / multi-category probe 검증
+4. prepare top-level에 context-only aggregate 추가
+5. Stage2 prompt에 interpretation policy 추가
+6. D세트 R3 및 E세트 directory/config probing raw로 회귀 확인
+
+---
+
+## 4. 완료 — `suspicious_file_disclosure` verdict 정식화
+
+### 배경
+
+E세트 R2/R2B에서 `php://filter`, `resource=config.php`, `convert.base64-encode` 계열 payload는 prepare 단계에서 `suspicious_file_disclosure` hint로 잘 보존된다. 그러나 Stage1 최종 verdict는 기존에 `suspicious_path_traversal`로 수렴하는 경향이 있었다.
 
 ### 반영 내용
 
@@ -86,23 +183,13 @@ E세트 R2/R2B에서 `php://filter`, `resource=config.php`, `convert.base64-enco
 - Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공은 단정하지 않는다.
 - `status_code=200`, `text/html`, `response_body_bytes`는 보조 근거일 뿐 file disclosure 성공의 확정 증거가 아니다.
 
-### 검증 기준
-
-- E세트 R2/R2B wrapper candidate가 Stage1에서 `suspicious_file_disclosure`로 분류되는지 확인
-- D세트 path traversal은 여전히 `suspicious_path_traversal` 유지
-- direct `/config.php` 단발 probe는 candidate로 과승격하지 않음
-
 ---
 
-## 4. 완료 — benign normal search hint 정리
+## 5. 완료 — benign normal search hint 정리
 
 ### 반영 내용
 
 E세트 R3B에서 정상 `search=apple`은 `benign_normal_search`와 `reference_baseline`으로 잘 분리되었고, 이후 prepare 단계 보정으로 filtered out row의 `dir_probe:*` hint도 제거되었다.
-
-### 원래 문제
-
-`benign_normal_search`와 `dir_probe:burst`가 함께 있으면 데이터 구조상 어색하다. Stage2가 현재는 정상 baseline으로 잘 해석했지만, 후속 provider나 prompt 변경에서 불필요한 혼동을 만들 수 있다.
 
 ### 반영 방식
 
@@ -110,16 +197,9 @@ E세트 R3B에서 정상 `search=apple`은 `benign_normal_search`와 `reference_
 - endpoint 이름 예외가 아니라 query-bearing baseline 판정 결과를 사용
 - `supporting_events`의 `reference_baseline` 분류와 공격 candidate 판정은 유지
 
-### 검증 결과
-
-- E세트 R3B에서 정상 search는 candidate가 아님
-- `filtered_out_breakdown={"benign_normal_search": 1}` 유지
-- supporting event는 `reference_baseline` 유지
-- SQLi/XSS candidate는 유지
-
 ---
 
-## 5. P2 — SQLi xclose/quote termination hint 추가
+## 6. P2 — SQLi xclose/quote termination hint 추가
 
 ### 배경
 
@@ -143,7 +223,7 @@ sqli:boolean_true_condition
 
 ---
 
-## 6. P2 — Stage2 PHP wrapper 설명 보강
+## 7. P2 — Stage2 PHP wrapper 설명 보강
 
 ### 배경
 
@@ -163,7 +243,30 @@ php://filter/convert.base64-encode/resource=... 는 PHP stream wrapper를 이용
 
 ---
 
-## 7. P3 — F세트 Auth/Login abuse 후보
+## 8. P2 — L3 패턴 소량 확장 후보
+
+### 배경
+
+추가 공격 패턴 확장은 커버리지를 늘릴 수 있지만, 정규식만 대량 추가하면 false positive가 늘 수 있다. 따라서 회귀 fixture와 IP 행동 집계 이후 소량으로 시작한다.
+
+### 1차 후보
+
+| 유형 | 예시 패턴 | 해석 제한 |
+|---|---|---|
+| Log4Shell/JNDI | `${jndi:ldap://`, `${jndi:rmi://`, `${jndi:dns://` | exploit 성공 단정 금지 |
+| SSRF | `127.0.0.1`, `localhost`, `169.254.169.254`, `file://`, `gopher://` | 내부 접근 성공 단정 금지 |
+| SSTI | `{{7*7}}`, `${7*7}`, `<%=`, `#{}` | template 실행 성공 단정 금지 |
+| Webshell upload/probe | `.php`, `.jsp`, `.aspx` + upload/probe 흐름 | 업로드 성공 단정 금지 |
+
+### 원칙
+
+- 초기에는 candidate 자동 승격보다 hint/context 우선
+- Stage2 정책에 “성공 단정 금지” 문구를 함께 추가
+- fixture 추가 후 반영
+
+---
+
+## 9. P3 — F세트 Auth/Login abuse 후보
 
 ### 목적
 
@@ -186,7 +289,7 @@ php://filter/convert.base64-encode/resource=... 는 PHP stream wrapper를 이용
 
 ---
 
-## 8. P3 — G세트 HTTP method / protocol anomaly 후보
+## 10. P3 — G세트 HTTP method / protocol anomaly 후보
 
 ### 목적
 
@@ -210,7 +313,31 @@ HEAD
 
 ---
 
-## 9. 계속 유지할 제한
+## 11. P3 — Threat intelligence 연동 검토
+
+### 후보
+
+- AbuseIPDB
+- Tor exit node list
+- Spamhaus DROP/EDROP
+- GreyNoise Community
+
+### 현재 판단
+
+실전성은 있지만 지금은 후순위다.
+
+이유:
+
+- 외부 의존성 증가
+- API key/쿼터/네트워크 실패 처리 필요
+- 결과 재현성 저하
+- 연구 실험 결과가 외부 DB 상태에 좌우됨
+
+운영 적용 확장 단계에서 검토한다.
+
+---
+
+## 12. 계속 유지할 제한
 
 다음은 현재 구조에서 무리하게 확장하지 않는다.
 
@@ -223,9 +350,11 @@ HEAD
   - 현재 구조에서는 하지 않음
 - 특정 실험환경 전용 규칙
   - `lab-*` UA, 특정 IP, 특정 response size hard-code 금지
+- 공격 패턴 대량 확장
+  - 회귀 fixture 없이 한 번에 많이 추가하지 않음
 
 ---
 
-## 10. 현재 결론
+## 13. 현재 결론
 
-즉시 수정이 필요한 치명적 문제는 없다. 다음 개발 작업은 payload 추가보다 회귀 fixture 정리와 `suspicious_file_disclosure` verdict 정식화가 우선이다.
+즉시 수정이 필요한 치명적 문제는 없다. 다음 개발 작업은 payload 추가보다 **회귀 fixture 정리**가 우선이고, 그 다음 구조적 개선으로 **`ip_behavior_aggregates` context-only 도입**을 검토한다.
