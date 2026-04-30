@@ -1,0 +1,26 @@
+[
+  {
+    "source_table": "security",
+    "noise_category": "benign_normal_search",
+    "log_time": "2026-04-29T00:04:26.796 09:00",
+    "src_ip": "192.168.56.109",
+    "method": "GET",
+    "uri": "/index.php",
+    "query_string": "?route=product/search&search=apple",
+    "status_code": 200,
+    "request_id": "afDMelfxWeFCeOMDEVUGfgAAAAA",
+    "error_link_id": "",
+    "user_agent": "lab-e-set-r3b-search-normal-apple-1",
+    "raw_request": "GET /index.php?route=product/search&search=apple HTTP/1.1",
+    "response_body_bytes": 32656,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/index.php?route=product%2Fsearch&search=apple",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "reason_hints": [
+      "dir_probe:burst"
+    ]
+  }
+]
