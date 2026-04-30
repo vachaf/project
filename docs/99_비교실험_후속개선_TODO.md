@@ -11,7 +11,7 @@
 | 우선순위 | 과제 | 이유 |
 |---|---|---|
 | P1 | 회귀 fixture 정리 | B/C/D/E 개선이 누적되어 다음 수정 때 기존 기능이 깨질 가능성이 커짐 |
-| P1 | `suspicious_file_disclosure` verdict 정식화 | E세트 R2/R2B에서 `php://filter`가 아직 `suspicious_path_traversal`로 흡수됨 |
+| Done | `suspicious_file_disclosure` verdict 정식화 | Stage1 enum/prompt에 verdict 추가, PHP wrapper 3종 hint 조합에서 좁은 정규화 반영 |
 | Done | benign normal search hint 정리 | `benign_normal_search` baseline row의 `dir_probe:*` hint 제거 및 회귀 `MUST_NOT` 반영 완료 |
 | P2 | SQLi xclose/quote termination hint 추가 | B/E SQLi payload 설명력 강화 |
 | P2 | Stage2 PHP wrapper 설명 보강 | `php://filter/convert.base64-encode` source disclosure 의미를 더 안정적으로 설명 |
@@ -62,7 +62,7 @@
 
 ---
 
-## 3. P1 — `suspicious_file_disclosure` verdict 정식화
+## 3. 완료 — `suspicious_file_disclosure` verdict 정식화
 
 ### 배경
 
@@ -72,27 +72,19 @@ E세트 R2/R2B에서 `php://filter`, `resource=config.php`, `convert.base64-enco
 
 `php://filter/convert.base64-encode/resource=config.php`는 단순 `../` path traversal과 다르다. PHP stream wrapper를 이용한 source/config disclosure 또는 LFI 계열 시도에 가깝다.
 
-### 개선 방향
+### 반영 내용
 
-Stage1 verdict 후보에 다음 중 하나를 정식 추가하는 방안을 검토한다.
+- Stage1 schema verdict enum에 `suspicious_file_disclosure`를 정식 추가
+- label guidance 와 instructions 에 `php://filter`, `convert.base64-encode`, `resource=...` 는 단순 `../` traversal 과 구분하라고 명시
+- `file_disclosure:php_filter_wrapper`, `file_disclosure:base64_source_intent`, `file_disclosure:resource_parameter` 힌트가 함께 있으면 `suspicious_file_disclosure`를 우선 고려하도록 보강
+- LLM 이 `suspicious_path_traversal`을 반환해도 위 3종 hint 조합이 모두 있는 경우에만 `suspicious_file_disclosure`로 매우 좁게 정규화
+- direct `/config.php`, `/admin/config.php` 단발 접근은 wrapper 구조가 없으면 기존처럼 candidate 과승격이나 high-confidence file disclosure로 해석하지 않음
 
-```text
-suspicious_file_disclosure
-suspicious_source_disclosure
-suspicious_lfi
-```
+### 해석 원칙
 
-권장:
-
-```text
-suspicious_file_disclosure
-```
-
-이유:
-
-- source disclosure와 config disclosure를 모두 포괄
-- Apache 로그 표면 기준의 “의도” 표현에 적합
-- 특정 PHP 앱에 과하게 묶이지 않음
+- `php://filter` 기반 payload는 path traversal 과 분리된 source/config disclosure 시도로 설명한다.
+- Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공은 단정하지 않는다.
+- `status_code=200`, `text/html`, `response_body_bytes`는 보조 근거일 뿐 file disclosure 성공의 확정 증거가 아니다.
 
 ### 검증 기준
 

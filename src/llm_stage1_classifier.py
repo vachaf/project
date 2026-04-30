@@ -45,6 +45,11 @@ DEFAULT_ROUTINE_MODEL = "gpt-5.4-mini"
 DEFAULT_MILESTONE_MODEL = "gpt-5.4"
 DEFAULT_PRESENTATION_MODEL = "gpt-5.4"
 ALLOWED_MODES = {"routine", "milestone", "presentation"}
+FILE_DISCLOSURE_WRAPPER_HINTS = {
+    "file_disclosure:php_filter_wrapper",
+    "file_disclosure:base64_source_intent",
+    "file_disclosure:resource_parameter",
+}
 
 
 @dataclass
@@ -178,6 +183,7 @@ def build_schema() -> Dict[str, Any]:
                     "suspicious_sqli",
                     "suspicious_xss",
                     "suspicious_path_traversal",
+                    "suspicious_file_disclosure",
                     "suspicious_command_injection",
                     "suspicious_auth_abuse",
                     "server_error_probe",
@@ -244,6 +250,9 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
         "verdict, severity, recommended_actions 같은 enum 값은 스키마에 정의된 영어 값을 그대로 사용하라. "
         "reasoning_summary 와 evidence_fields 의 자유서술 내용은 반드시 한국어로 작성하라. "
         "path traversal 의 경우 status_code 200 만으로 실제 파일 노출 성공을 암시하지 마라. "
+        "php://filter, convert.base64-encode, resource= 정황은 단순 ../ path traversal 과 구분하라. "
+        "file_disclosure:php_filter_wrapper, file_disclosure:base64_source_intent, file_disclosure:resource_parameter 힌트가 함께 있으면 suspicious_file_disclosure 를 우선 고려하라. "
+        "PHP wrapper 관련 verdict 는 실제 파일 노출 성공이 아니라 source/config disclosure 시도로 표현하라. "
         "resp_content_type 이 text/html 이고 HTML fallback 정황이 있으면 시도 탐지와 실제 노출 여부를 분리해서 서술하라. "
         "동일 파라미터가 반복되면 HTTP Parameter Pollution(HPP) 가능성을 검토하라. "
         "hpp_detected 가 true 이고 embedded_attack_hint 가 있으면, verdict 는 기존 SQLi/XSS 체계를 유지하되 reasoning_summary 와 evidence_fields 에 중복 파라미터(HPP) 문맥을 명시하라."
@@ -301,7 +310,8 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
             "suspicious_bruteforce": "인증 시도 반복이나 자격 증명 추측 행위로 보는 것이 가장 타당한 경우.",
             "suspicious_sqli": "SQL 인젝션 시도로 해석하는 것이 가장 타당한 경우.",
             "suspicious_xss": "XSS 시도로 해석하는 것이 가장 타당한 경우.",
-            "suspicious_path_traversal": "경로 탐색 또는 파일 노출 시도로 해석하는 것이 가장 타당한 경우.",
+            "suspicious_path_traversal": "../, ..%2f, directory escape 같은 경로 이탈 또는 path traversal 구조로 해석하는 것이 가장 타당한 경우.",
+            "suspicious_file_disclosure": "PHP stream wrapper, file read primitive, source/config disclosure, LFI-like file disclosure 시도로 해석하는 것이 가장 타당한 경우. 예: php://filter, convert.base64-encode, resource=... 조합. 단, Apache 로그만으로 실제 파일 내용 반환 성공은 단정하지 않는다.",
             "suspicious_command_injection": "명령 실행 유도 시도로 해석하는 것이 가장 타당한 경우.",
             "suspicious_auth_abuse": "명확한 brute force 까지는 아니지만 인증 기능 오용 정황이 있는 경우.",
             "server_error_probe": "서버 또는 프록시 오류를 유발하거나 오류 경로를 탐색하는 행위로 보는 것이 가장 타당한 경우.",
@@ -330,6 +340,10 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
             "query_string 이 비어 있고 근거가 status code 나 user agent 위주이면 과도하게 단정하지 마라.",
             "request_id 와 error_link_id 는 상관분석 단서일 뿐 공격의 확정 증거는 아니다.",
             "path traversal 은 raw_request 의 시도 정황과 실제 파일 노출 성공 여부를 분리해서 판단하라.",
+            "php://filter, convert.base64-encode, resource=... 구조는 단순 path traversal 보다 suspicious_file_disclosure 쪽이 더 적절한지 우선 검토하라.",
+            "file_disclosure:php_filter_wrapper, file_disclosure:base64_source_intent, file_disclosure:resource_parameter 힌트가 명확하면 suspicious_path_traversal 보다 suspicious_file_disclosure 를 우선 고려하라.",
+            "response body 원문이 없으므로 PHP wrapper 관련 판단은 파일/source/config disclosure 시도로만 표현하고, 실제 노출 성공으로 단정하지 마라.",
+            "wrapper 구조 없이 /config.php 또는 /admin/config.php 만 직접 접근한 단발 요청은 high-confidence file disclosure 로 과승격하지 마라.",
             "status_code 가 200 이어도 resp_content_type 이 text/html 이고 likely_html_fallback_response 가 true 면 앱의 fallback HTML 반환 가능성을 우선 고려하라.",
             "response_body_bytes 와 resp_content_type 은 응답이 파일처럼 보이는지, HTML 페이지처럼 보이는지 판단하는 보조 근거로 사용하라.",
             "reasoning_summary 는 한국어로 1~3문장 이내로 간결하게 작성하라.",
@@ -342,6 +356,36 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
     ]
+
+
+def maybe_normalize_file_disclosure_verdict(parsed: Dict[str, Any], candidate: Dict[str, Any]) -> Dict[str, Any]:
+    verdict = normalize_str(parsed.get("verdict"))
+    if verdict != "suspicious_path_traversal":
+        return parsed
+
+    reason_hints = {normalize_str(x) for x in (candidate.get("reason_hints") or []) if normalize_str(x)}
+    if not FILE_DISCLOSURE_WRAPPER_HINTS.issubset(reason_hints):
+        return parsed
+
+    parsed["verdict"] = "suspicious_file_disclosure"
+
+    summary = normalize_str(parsed.get("reasoning_summary"))
+    normalization_note = (
+        "PHP wrapper 기반 source/config disclosure 시도가 더 구체적이므로 suspicious_file_disclosure 로 보수 정규화했다."
+    )
+    if summary:
+        if normalization_note not in summary:
+            parsed["reasoning_summary"] = f"{summary} {normalization_note}"
+    else:
+        parsed["reasoning_summary"] = normalization_note
+
+    evidence_fields = [normalize_str(x) for x in (parsed.get("evidence_fields") or []) if normalize_str(x)]
+    normalization_evidence = "php://filter·base64·resource 힌트 조합"
+    if normalization_evidence not in evidence_fields and len(evidence_fields) < 12:
+        evidence_fields.append(normalization_evidence)
+        parsed["evidence_fields"] = evidence_fields
+
+    return parsed
 
 
 def classify_candidate(
@@ -383,7 +427,7 @@ def classify_candidate(
                 raw_response_excerpt=json.dumps(llm_response.raw_response, ensure_ascii=False)[:1500],
             )
 
-        parsed = json.loads(output_text)
+        parsed = maybe_normalize_file_disclosure_verdict(json.loads(output_text), candidate)
         result = Stage1Result(
             candidate_index=candidate_index,
             incident_group_key=incident_group_key,
