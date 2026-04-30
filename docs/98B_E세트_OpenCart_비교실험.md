@@ -1,31 +1,48 @@
 # 98B_E세트_OpenCart_비교실험
 
-- 작성 기준일: 2026-04-26
-- 문서 역할: `docs/98_비교_실험_요청_세트_표준.md` 계열을 따르는 E세트 비교 실험 초안
-- 적용 범위: OpenCart / PHP / route parameter / PHP wrapper / admin probing / config exposure / POST body visibility
+- 작성 기준일: 2026-04-30
+- 문서 역할: E세트(OpenCart/PHP) 비교 실험 인덱스 및 공통 실행 원칙
+- 상세 문서:
+  - `docs/98B_E세트_OpenCart_R2_R2B_php_wrapper.md`
+  - `docs/98B_E세트_OpenCart_R3_R3B_search.md`
 - 기준 데이터: Apache `security` 로그 표면 지표
 - 대상 서비스: OpenCart
 - 기본 URL: `http://192.168.56.111`
-- UA prefix: `lab-e-set`
+- 기본 UA prefix: `lab-e-set`
 
-> 주의: 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로는 PHP wrapper 실행 성공, config 파일 내용 노출, SQLi 성공, 로그인/권한 상승 성공, POST body 내부 처리 결과를 확정하지 않는다.
+> 주의: 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로는 PHP wrapper 실행 성공, config 파일 내용 노출, SQLi 성공, XSS 브라우저 실행, 로그인/권한 상승 성공, POST body 내부 처리 결과를 확정하지 않는다.
 
 ---
 
-## 1. 실험 목적
+## 1. 문서 구조
 
-E세트는 Juice Shop 중심 A/B/C/D세트 이후 OpenCart/PHP 기반 환경에서 다음을 확인하기 위한 실험이다.
+E세트 원문이 길어져, 메인 문서는 인덱스와 공통 기준만 남긴다. 각 round의 상세 payload와 평가 기준은 별도 문서에서 관리한다.
+
+| 문서 | 역할 |
+|---|---|
+| `docs/98B_E세트_OpenCart_비교실험.md` | E세트 전체 인덱스, 공통 원칙, 실행 순서 |
+| `docs/98B_E세트_OpenCart_R2_R2B_php_wrapper.md` | PHP wrapper / config exposure / file disclosure 실험 상세 |
+| `docs/98B_E세트_OpenCart_R3_R3B_search.md` | product/search SQLi/XSS 및 정상 search baseline 상세 |
+| `docs/99_비교실험_후속개선_TODO.md` | 회귀 fixture, verdict taxonomy, hint 품질 개선 등 후속 작업 |
+
+---
+
+## 2. 실험 목적
+
+E세트는 Juice Shop 중심 A/B/C/D세트 이후, OpenCart/PHP 기반 환경에서 탐지 로직이 일반화되는지 확인하기 위한 실험이다.
+
+주요 확인 항목:
 
 1. OpenCart의 `index.php?route=...` 구조에서 route parameter probing을 식별하는가.
 2. PHP 기반 환경에서 `php://filter` 같은 wrapper/file disclosure intent를 인식하는가.
-3. `/admin`, `/admin/index.php`, `/admin/config.php`, `/config.php` 같은 OpenCart/PHP 경로 탐색을 directory probing 또는 sensitive file intent로 해석하는가.
-4. product/search/category 계열 query에서 SQLi/XSS payload가 Apache 로그에 남을 때 기존 B/C세트 탐지 로직이 일반화되는가.
-5. POST login/register/admin form에서 raw POST body visibility 한계를 재확인하는가.
-6. D세트 R3에서 추가한 `probing_sequence_summaries`가 OpenCart 경로에서도 실험환경 특화 없이 동작하는가.
+3. `/admin`, `/admin/index.php`, `/config.php`, `/admin/config.php` 같은 PHP/OpenCart 경로 탐색을 context-only probing으로 보존하는가.
+4. `product/search` 계열 query에서 SQLi/XSS payload가 Apache 로그에 남을 때 기존 B/C세트 탐지 로직이 일반화되는가.
+5. 정상 search baseline과 공격성 search payload를 분리하는가.
+6. POST body visibility 한계를 OpenCart에서도 보수적으로 유지하는가.
 
 ---
 
-## 2. 기본 변수 및 환경
+## 3. 기본 변수 및 환경
 
 ```bash
 export OPENCART_URL="http://192.168.56.111"
@@ -38,11 +55,6 @@ export UA_PREFIX="lab-e-set"
 curl -i "$OPENCART_URL/"
 curl -i "$OPENCART_URL/index.php"
 curl -i "$OPENCART_URL/admin/"
-```
-
-Apache 로그 확인:
-
-```bash
 sudo tail -n 10 /var/log/apache2/app_security.log
 ```
 
@@ -50,544 +62,66 @@ sudo tail -n 10 /var/log/apache2/app_security.log
 
 - `host="192.168.56.111"` 또는 OpenCart vhost로 남는지
 - `uri`, `query_string`, `raw_request`가 정상 기록되는지
-- Juice Shop fallback으로 잘못 들어가지 않는지
-- OpenCart와 Juice Shop이 같은 Apache vhost/proxy 설정을 공유하는 경우 host/vhost 구분이 가능한지
+- OpenCart와 Juice Shop이 같은 Apache/vhost 구성을 공유하는 경우 host/vhost 구분이 가능한지
+- export 시 KST 입력, DB UTC 조회, KST JSON 출력 흐름이 맞는지
 
 ---
 
-## 3. Round 1 — OpenCart route / admin probing
+## 4. Round 구성
 
-Round 1은 OpenCart 특유의 route 구조와 관리자 경로 탐색을 확인한다.
-
-### E-01 Basic OpenCart Home
-
-목적:
-
-- OpenCart 정상 기준 요청을 확보한다.
-
-```bash
-curl -i \
-  -A "${UA_PREFIX}-base-home-1" \
-  "$OPENCART_URL/"
-```
-
-기대 관찰:
-
-- 정상 baseline 요청
-- candidate로 과승격하지 않는 것이 적절
-- 이후 fallback/response size 비교 기준으로 활용 가능
-
-### E-02 Route Parameter Baseline
-
-목적:
-
-- 정상 route parameter 요청이 어떻게 기록되는지 확인한다.
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-route-base-1" \
-  --data-urlencode "route=product/category" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- `uri=/index.php`
-- `query_string=?route=product%2Fcategory` 또는 동등 형태
-- 정상 route parameter는 candidate로 과승격하지 않음
-  
-실제:
-- route=product/category가 404라서 “정상 route와 공격 route의 차이”를 비교하는 힘은 약함. 따라서 실제 브라우저에서 200으로 확인된 상품/카테고리 URL을 baseline으로 써야 함. 그 예시가 밑임.
-  
-```bash
-curl -i -G \
-  -A "lab-e-set-route-base-2" \
-  --data-urlencode "route=product/product" \
-  --data-urlencode "product_id=43" \
-  "$OPENCART_URL/index.php"
-```
-
-### E-03 Route Probing — Unknown Route
-
-목적:
-
-- 존재하지 않는 route 접근을 route probing으로 식별하는지 확인한다.
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-route-unknown-1" \
-  --data-urlencode "route=../../../../etc/passwd" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- route parameter 내부 traversal intent가 query_string에 남는지 확인
-- 파일 읽기 성공은 단정하지 않음
-- route parameter abuse 또는 traversal intent로 해석 가능
-
-### E-04 Admin Path Probe
-
-목적:
-
-- OpenCart 관리자 경로 접근을 탐지하되, 단발 요청을 과도하게 high severity로 올리지 않는지 확인한다.
-
-```bash
-curl -i --path-as-is \
-  -A "${UA_PREFIX}-admin-path-1" \
-  "$OPENCART_URL/admin/"
-
-curl -i --path-as-is \
-  -A "${UA_PREFIX}-admin-index-1" \
-  "$OPENCART_URL/admin/index.php"
-```
-
-기대 관찰:
-
-- admin path probing으로 context 보존
-- 실제 관리자 로그인 성공 또는 권한 획득은 단정하지 않음
+| Round | 주제 | 상태 | 상세 문서/산출물 |
+|---|---|---|---|
+| R1 | route traversal / admin path | 수행 완료, 별도 문서화 선택 | `lab/04-26_E세트R1_산출물` |
+| R2 | PHP wrapper / config exposure | 수행 완료, 코드 개선 반영 | `docs/98B_E세트_OpenCart_R2_R2B_php_wrapper.md`, `lab/04-26_E세트R2_산출물/2026-04-26_E세트R2_비교.md` |
+| R2B | PHP wrapper variant 일반화 | 수행 완료 | `docs/98B_E세트_OpenCart_R2_R2B_php_wrapper.md`, `lab/04-30_E세트R2B_산출물/2026-04-30_E세트R2B_비교.md` |
+| R3 | product/search SQLi/XSS | 수행 완료 | `docs/98B_E세트_OpenCart_R3_R3B_search.md`, `lab/04-26_E세트R3_산출물/2026-04-26_E세트R3_비교.md` |
+| R3B | 정상 search baseline / 공격 search 분리 | 수행 완료 | `docs/98B_E세트_OpenCart_R3_R3B_search.md`, `lab/04-29_E세트R3B_산출물/2026-04-29_E세트R3B_비교.md` |
+| R4 | POST body visibility 재확인 | 후보 | 이 문서의 후속 후보로 유지 |
+| R5 | OpenCart probing sequence 일반성 | 후보 | D세트 R3 개선의 OpenCart 확장 후보 |
 
 ---
 
-## 4. Round 2 — PHP wrapper / config exposure intent
+## 5. 공통 실행 순서
 
-Round 2는 PHP 기반 file disclosure intent를 확인한다.
+각 round는 한 export window에 섞지 않고 분리한다.
 
-### E-11 PHP Wrapper via Route Parameter
+권장 흐름:
 
-목적:
-
-- `php://filter` wrapper payload를 OpenCart/PHP 환경에서 file disclosure intent로 식별하는지 확인한다.
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-php-wrapper-route-1" \
-  --data-urlencode "route=php://filter/convert.base64-encode/resource=index.php" \
-  "$OPENCART_URL/index.php"
+```text
+1. round별 curl 실행
+2. app_security.log tail 또는 DB row 확인
+3. export_db_logs_cli.py로 security 로그 export
+4. prepare_llm_input.py 실행
+5. candidate / filtered_out / supporting_events / probing_sequence_summaries 확인
+6. Stage1 실행
+7. Stage2 실행
+8. 비교 문서 작성
 ```
 
-기대 관찰:
-
-- query_string에 `php%3A%2F%2Ffilter...` 형태가 남음
-- decoded view에서 `php://filter/convert.base64-encode/resource=index.php` 의미 복원
-- `route=php://filter...index.php` 요청이 candidate로 올라감
-- verdict 또는 hint에 PHP wrapper 기반 file disclosure intent가 명시됨
-- 404면 route 미인식 또는 실패 가능성까지만 서술
-- 실제 base64 소스 노출 여부는 response body 원문 없이는 확정하지 않음
-
-### E-12 PHP Wrapper via Path-like Parameter
-
-목적:
-
-- 일반 file/path parameter에 wrapper를 넣었을 때도 intent를 인식하는지 확인한다.
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-php-wrapper-path-1" \
-  --data-urlencode "path=php://filter/convert.base64-encode/resource=config.php" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- `path=` parameter 내 PHP wrapper intent 식별
-- `path=php://filter...config.php` 요청도 candidate로 올라감
-- config.php 접근 의도와 file disclosure intent를 함께 식별
-- status 200이어도 실제 config 노출 성공은 단정하지 않음
-- 실제 config 노출 성공 단정 금지
-
-### E-13 Direct Config Path Probe
-
-목적:
-
-- OpenCart/PHP config 파일 접근 시도 식별.
-
-```bash
-curl -i --path-as-is \
-  -A "${UA_PREFIX}-config-root-1" \
-  "$OPENCART_URL/config.php"
-
-curl -i --path-as-is \
-  -A "${UA_PREFIX}-config-admin-1" \
-  "$OPENCART_URL/admin/config.php"
-```
-
-기대 관찰:
-
-- `/config.php`, `/admin/config.php` 접근 시도 식별
-- direct sensitive config path probe로 context-only 보존
-- 단발 요청이면 candidate 과승격보다 `low_signal_dir_probe` 또는 context-only 해석이 적절
-- `response_body_bytes=0`이면 파일 노출 성공이 아니라 본문 노출 증거 없음으로 기록
-- 실제 파일 내용 노출은 response body 원문 없이는 확정하지 않음
+OpenCart는 route, PHP wrapper, probing, POST body visibility의 평가 축이 다르므로 한 구간에 모든 round를 섞지 않는다.
 
 ---
 
-## 5. Round 2B — PHP wrapper variant 일반화 보강
-
-Round 2B는 Round 2에서 개선한 PHP wrapper/file disclosure 탐지가 `route=`와 `path=`에만 묶이지 않는지 확인하는 보강 실험이다.
-
-목표:
-
-- parameter name이 달라도 `php://filter`, `convert.base64-encode`, `resource=` 조합을 file disclosure intent로 잡는지 확인한다.
-- wrapper 기반 요청은 candidate로 보존하되, 실제 source/config 노출 성공은 단정하지 않는다.
-- direct config path probe는 계속 context-only로 유지한다.
-
-권장 UA prefix:
-
-```bash
-export UA_PREFIX="lab-e-set-r2b"
-```
-
-### E-14 PHP Wrapper via File Parameter
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-php-wrapper-file-config-1" \
-  --data-urlencode "file=php://filter/convert.base64-encode/resource=config.php" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- `file=` parameter 안의 PHP wrapper intent가 candidate로 보존됨
-- `file_disclosure:php_filter_wrapper`, `file_disclosure:base64_source_intent`, `file_disclosure:resource_parameter`, `file_disclosure:sensitive_resource:config_php` 계열 hint 기대
-- status 200/404와 무관하게 실제 config 내용 노출은 단정하지 않음
-
-### E-15 PHP Wrapper Targeting admin/config.php
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-php-wrapper-path-admin-config-1" \
-  --data-urlencode "path=php://filter/convert.base64-encode/resource=admin/config.php" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- `admin/config.php` 대상 wrapper 요청을 file disclosure intent로 보존
-- direct `/admin/config.php` 접근과 달리 wrapper 기반 source/config disclosure 시도로 해석
-- 실제 admin config 노출 성공은 response body 원문 없이는 확정하지 않음
-
-### E-16 Lightweight Wrapper without base64 filter
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-php-wrapper-route-config-nob64-1" \
-  --data-urlencode "route=php://filter/resource=config.php" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- `php://filter`와 `resource=config.php` 조합만으로도 file disclosure intent를 인식하는지 확인
-- `convert.base64-encode`가 없으므로 E-14/E-15보다 confidence는 낮을 수 있음
-- candidate로 보존되더라도 성공 단정은 금지
-
-### E-17 Direct Config Probe Control
-
-```bash
-curl -i --path-as-is \
-  -A "${UA_PREFIX}-config-root-control-1" \
-  "$OPENCART_URL/config.php"
-
-curl -i --path-as-is \
-  -A "${UA_PREFIX}-config-admin-control-1" \
-  "$OPENCART_URL/admin/config.php"
-```
-
-기대 관찰:
-
-- direct config path 단발 요청은 candidate로 과승격하지 않음
-- `probing_sequence_summaries` 또는 `low_signal_dir_probe` context로 보존
-- `response_body_bytes=0`이면 “본문 노출 증거 없음”으로 해석
-
----
-
-## 6. Round 3 — OpenCart SQLi / XSS query 재검증
-
-Round 3은 B/C세트 탐지 로직이 OpenCart URL 구조에도 일반화되는지 확인한다.
-
-### E-21 Product Search SQLi
-
-목적:
-
-- OpenCart product/search 계열 query에서 SQLi payload가 query_string에 남을 때 탐지되는지 확인한다.
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-search-sqli-1" \
-  --data-urlencode "route=product/search" \
-  --data-urlencode "search=x')) OR 1=1 --" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- `route=product/search`, `search=` parameter 보존
-- SQLi payload가 B세트와 유사하게 탐지되는지 확인
-- response size anomaly가 있어도 실제 SQLi 성공 단정 금지
-
-### E-22 Product Search XSS
-
-목적:
-
-- OpenCart product/search 계열 query에서 XSS payload가 query_string에 남을 때 탐지되는지 확인한다.
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-search-xss-1" \
-  --data-urlencode "route=product/search" \
-  --data-urlencode "search=<script>alert(1)</script>" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- XSS payload 탐지
-- 브라우저 실행 성공은 단정하지 않음
-- response body 반영 여부는 Apache 로그만으로 확정하지 않음
-
-### E-23 Encoded XSS / Entity XSS
-
-목적:
-
-- C세트의 URL/entity decode 개선이 OpenCart query에서도 유지되는지 확인한다.
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-search-xss-entity-1" \
-  --data-urlencode "route=product/search" \
-  --data-urlencode "search=&#x3C;script&#x3E;alert(1)&#x3C;/script&#x3E;" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- HTML entity payload 식별
-- `xss:html_entity_decoded_script` 계열 hint 유지
-- SQL comment `#` 오탐 재발 방지
-
----
-
-## 7. Round 3B — 정상 search baseline 보강
-
-Round 3B는 Round 3의 공격성 search 요청과 정상 search 요청을 같은 endpoint에서 비교하는 보강 실험이다.
-
-목표:
-
-- 정상 `search=apple` 요청은 candidate로 과승격하지 않는지 확인한다.
-- 같은 endpoint의 SQLi/XSS payload는 계속 candidate로 보존되는지 확인한다.
-- Stage2가 정상 baseline과 공격 요청을 비교하되, Apache 로그만으로 SQLi 성공/XSS 실행을 단정하지 않도록 한다.
-
-권장 UA prefix:
-
-```bash
-export UA_PREFIX="lab-e-set-r3b"
-```
-
-### E-24 Normal Product Search Baseline
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-search-normal-apple-1" \
-  --data-urlencode "route=product/search" \
-  --data-urlencode "search=apple" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- 정상 검색 baseline
-- candidate로 과승격하지 않음
-- response size/content-type은 공격 요청과 비교하는 보조 지표로만 사용
-
-### E-25 Product Search SQLi Repeat
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-search-sqli-xclose-1" \
-  --data-urlencode "route=product/search" \
-  --data-urlencode "search=x')) OR 1=1 --" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- SQLi candidate 유지
-- `sqli:or_true`, `sqli:sql_comment` 계열 hint 기대
-- 향후 개선 시 `sqli:xclose_pattern` 또는 `sqli:quote_termination` hint 추가 검토
-
-### E-26 Product Search XSS Repeat
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-search-xss-script-1" \
-  --data-urlencode "route=product/search" \
-  --data-urlencode "search=<script>alert(1)</script>" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- XSS candidate 유지
-- 브라우저 실행 성공 단정 금지
-
-### E-27 Product Search HTML Entity XSS Repeat
-
-```bash
-curl -i -G \
-  -A "${UA_PREFIX}-search-xss-entity-1" \
-  --data-urlencode "route=product/search" \
-  --data-urlencode "search=&#x3C;script&#x3E;alert(1)&#x3C;/script&#x3E;" \
-  "$OPENCART_URL/index.php"
-```
-
-기대 관찰:
-
-- HTML entity decode 기반 XSS candidate 유지
-- `xss:html_entity_decoded_script` 계열 hint 유지
-
----
-
-## 8. Round 4 — POST body visibility 재확인
-
-Round 4는 OpenCart login/admin form에서 POST body visibility 한계를 다시 확인한다.
-
-### E-31 Admin Login POST Baseline
-
-목적:
-
-- POST 요청이 Apache 로그 표면에서 어떻게 보이는지 확인한다.
-
-```bash
-curl -i \
-  -A "${UA_PREFIX}-post-login-base-1" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  --data "username=admin&password=test" \
-  "$OPENCART_URL/admin/index.php"
-```
-
-기대 관찰:
-
-- method=POST
-- req_content_type / req_content_length 기록
-- raw POST body 원문은 baseline에서 보이지 않음
-- 로그인 성공/실패 또는 계정 존재 여부는 Apache 로그만으로 확정하지 않음
-
-### E-32 Admin Login SQLi POST
-
-목적:
-
-- POST body SQLi payload가 현재 baseline에서 직접 보이지 않는다는 점을 확인한다.
-
-```bash
-curl -i \
-  -A "${UA_PREFIX}-post-login-sqli-1" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  --data "username=admin' OR '1'='1&password=x" \
-  "$OPENCART_URL/admin/index.php"
-```
-
-기대 관찰:
-
-- Apache 로그에는 method, URI, content-type, content-length 중심으로 남음
-- body 내부 SQLi payload는 직접 보이지 않음
-- Stage2는 POST body visibility 한계를 명시해야 함
-- SQLi 성공 단정 금지
-
----
-
-## 9. Round 5 — Directory probing sequence 일반성 확인
-
-Round 5는 D세트 R3에서 개선한 `probing_sequence_summaries`가 OpenCart/PHP 경로에서도 동작하는지 확인한다.
-
-```bash
-for path in \
-  "/admin/" \
-  "/admin/index.php" \
-  "/config.php" \
-  "/admin/config.php" \
-  "/backup.zip" \
-  "/backup.sql" \
-  "/phpmyadmin" \
-  "/vendor/" \
-  "/storage/"; do
-  curl -i --path-as-is \
-    -A "${UA_PREFIX}-probe-burst-1" \
-    "$OPENCART_URL${path}"
-  sleep 1
-done
-```
-
-기대 관찰:
-
-- 개별 요청을 candidate로 과승격하지 않음
-- 같은 src_ip/window 내 3개 이상 민감/관리/백업 경로 접근을 `probing_sequence_summaries`로 보존
-- 200/403/404 status 분포와 content-type/response size 반복성을 context로 전달
-- 실제 config/admin/backup 노출 성공은 단정하지 않음
-
----
-
-## 10. 실행 순서 권장
-
-OpenCart E세트는 처음부터 전부 실행하지 말고 round별로 분리한다.
-
-권장 순서:
-
-1. E Round 0: URL/vhost/log 확인
-2. E Round 1: route/admin probing
-3. export + prepare + Stage1/Stage2 + 비교 문서
-4. E Round 2: PHP wrapper/config exposure intent
-5. export + 분석
-6. E Round 2B: PHP wrapper variant 일반화 보강
-7. export + 분석
-8. E Round 3: SQLi/XSS query 재검증
-9. export + 분석
-10. E Round 3B: 정상 search baseline 포함 비교
-11. export + 분석
-12. E Round 4: POST body visibility
-13. export + 분석
-14. E Round 5: directory probing sequence 일반성 확인
-15. E세트 통합 비교 문서 작성
-
-한 export window에 모든 round를 섞지 않는 것이 좋다. OpenCart는 route, PHP wrapper, probing, POST body visibility의 평가 축이 다르기 때문이다.
-
----
-
-## 11. 평가 기준
+## 6. 평가 기준
 
 | 평가 축 | 성공 기준 | 보수적 해석 |
 |---|---|---|
 | Route parameter visibility | `route=`가 query_string에 보존됨 | route 처리 성공은 단정하지 않음 |
-| PHP wrapper intent | `php://filter` decoded view가 확인됨 | source disclosure 성공은 body 없이는 미확정 |
-| Config exposure intent | `/config.php`, `/admin/config.php` 접근 확인 | 파일 내용 노출 단정 금지 |
-| SQLi query | `search=` 등 query parameter에 SQLi payload 보존 | DB 결과 변경/유출 단정 금지 |
+| PHP wrapper intent | `php://filter`, `resource=`, `convert.base64-encode` 의미 복원 | source/config disclosure 성공은 body 없이는 미확정 |
+| Config path probe | `/config.php`, `/admin/config.php` 접근 확인 | 파일 내용 노출 단정 금지 |
+| SQLi query | `search=` 등에 SQLi payload 보존 | DB 결과 변경/유출 단정 금지 |
 | XSS query | query parameter에 XSS payload 보존 | 브라우저 실행/DOM 반영 단정 금지 |
+| Normal baseline | 정상 search/route가 candidate로 과승격되지 않음 | 정상/공격 비교는 보조 지표로만 사용 |
 | POST body | content-type/length 확인 | body payload는 직접 보이지 않음 |
 | Probing sequence | `probing_sequence_summaries` 생성 | context-only, incident 과승격 금지 |
-| Normal baseline | 정상 search/route가 candidate로 과승격되지 않음 | 정상/공격 비교는 보조 지표로만 사용 |
 
 ---
 
-## 12. Provider 비교 포인트
-
-| 비교 항목 | 확인 내용 |
-|---|---|
-| OpenCart route 이해 | `route=product/search`, `route=product/category`를 일반 query parameter로만 볼지, route abuse로 볼지 |
-| PHP wrapper 보수성 | `php://filter`를 file disclosure intent로 보되 성공 단정은 피하는지 |
-| Config file intent | config.php 접근을 sensitive file probe로 설명하는지 |
-| POST body 한계 | raw body가 없을 때 SQLi/login 성공을 단정하지 않는지 |
-| probing sequence | D세트 R3 개선 구조를 활용해 burst를 context-only로 설명하는지 |
-| known asset 고려 | 내부 테스트/실험 가능성을 병기하는지 |
-| 정상 baseline 활용 | 정상 search와 공격 search를 비교하되 성공/침해를 단정하지 않는지 |
-
----
-
-## 13. 산출물 관리
+## 7. 산출물 관리
 
 public repo 공개 권장:
 
-- E세트 비교 Markdown
+- 비교 Markdown
 - 최종 Stage2 Markdown
 - 통합 요약 문서
 
@@ -604,39 +138,7 @@ OpenCart에서는 admin path, config path, route query, host/vhost 정보가 포
 
 ---
 
-## 14. 후속 코드 개선 후보
-
-E세트 결과에 따라 다음을 검토한다.
-
-1. PHP wrapper hint 세분화
-   - `file_disclosure:php_filter_wrapper`
-   - `file_disclosure:base64_source_intent`
-   - `file_disclosure:resource_parameter`
-
-2. file disclosure verdict 정식화
-   - 현재 Stage1에서 `php://filter`가 `suspicious_path_traversal`로 흡수되는 경향이 있음
-   - `suspicious_file_disclosure` 또는 `suspicious_source_disclosure` 정식화를 검토
-
-3. config file probing hint
-   - `file_probe:config_php`
-   - `file_probe:admin_config_php`
-   - `file_probe:config_php_200_empty_body` 같은 context-only hint 검토
-
-4. SQLi xclose hint
-   - `sqli:xclose_pattern`
-   - `sqli:quote_termination`
-   - `sqli:parenthesis_termination`
-
-5. POST body visibility 정책 유지/확장
-   - raw POST body를 넣지 않는 현재 정책 유지가 기본
-   - 실험 전용 body capture는 별도 보안 정책 필요
-
-6. probing sequence generality
-   - D세트 R3 개선 로직이 OpenCart에서도 불필요하게 과탐하지 않는지 확인
-
----
-
-## 15. 최종 주의
+## 8. 코드 개선 원칙
 
 E세트는 OpenCart/PHP라는 특정 앱을 대상으로 하지만, 코드 개선은 실험환경 특화가 되면 안 된다.
 
@@ -654,9 +156,29 @@ E세트는 OpenCart/PHP라는 특정 앱을 대상으로 하지만, 코드 개�
 - 일반적인 config/admin/backup path probing 인식
 - route/query parameter에 남은 공격 payload 인식
 - same src_ip/time window 기반 probing sequence context 보존
+- 정상 검색을 `reference_baseline`으로 보존
 
 ---
 
-## 16. 발표용 한 줄 정리
+## 9. 후속 후보
 
-E세트는 OpenCart/PHP 환경에서 route parameter, PHP wrapper, config/admin path probing, SQLi/XSS query, 정상 search baseline, POST body visibility를 검증하는 실험이다. 핵심은 PHP/OpenCart 특성을 활용하되, 실제 파일 노출·로그인 성공·SQLi 성공·XSS 실행은 Apache 로그만으로 단정하지 않는 것이다.
+E세트 기준 후속 후보는 다음이다.
+
+1. R4 — POST body visibility 재확인
+   - OpenCart admin login POST에서 method/content-type/content-length만 보이는 한계 확인
+   - raw POST body 없이 로그인 성공/SQLi 성공 단정 금지
+
+2. R5 — Directory probing sequence 일반성 확인
+   - `/admin/`, `/config.php`, `/backup.sql`, `/phpmyadmin`, `/vendor/` 등
+   - 개별 candidate 과승격 없이 `probing_sequence_summaries`로 보존하는지 확인
+
+3. 코드 후속 개선
+   - `suspicious_file_disclosure` verdict 정식화
+   - benign normal search row의 `dir_probe:*` hint 정리
+   - 회귀 fixture 정리
+
+---
+
+## 10. 발표용 한 줄 정리
+
+E세트는 OpenCart/PHP 환경에서 route parameter, PHP wrapper, config/admin path probing, SQLi/XSS query, 정상 search baseline을 검증하는 실험이다. 핵심은 PHP/OpenCart 특성을 활용하되, 실제 파일 노출·SQLi 성공·XSS 실행은 Apache 로그만으로 단정하지 않는 것이다.
