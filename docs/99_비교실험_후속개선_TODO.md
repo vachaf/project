@@ -12,7 +12,7 @@
 |---|---|---|
 | P1 | 회귀 fixture 정리 | B/C/D/E 개선이 누적되어 다음 수정 때 기존 기능이 깨질 가능성이 커짐 |
 | Done | `ip_behavior_aggregates` context-only 도입 | 동일 `src_ip`의 300초 window에서 다중 path, 높은 4xx 비율, 혼합 공격 category, 민감 경로 접근, 5xx cluster를 Stage2 문맥용으로 보존 |
-| P2 | SQLi xclose/quote termination hint 추가 | B/E SQLi payload 설명력 강화 |
+| Done | SQLi xclose/quote termination hint 추가 | quote/paren 단독이 아니라 boolean/comment 구조와 결합될 때만 구조 hint를 부여하도록 반영 |
 | Done | Stage2 PHP wrapper 설명 보강 | `php://filter/convert.base64-encode/resource=...` 를 PHP wrapper 기반 source/config disclosure attempt 로 설명하고 성공 단정 금지 반영 |
 | Done | Stage2 `ip_behavior_aggregates` 설명 보강 | Stage2가 `ip_behavior_aggregates`를 context-only reconnaissance/scanning 문맥으로 읽고, candidate 승격 근거로 사용하지 않도록 반영 |
 | P2 | L3 패턴 소량 확장 | Log4Shell, SSRF, SSTI, webshell 등 Apache 로그 표면에 남는 고신호 패턴만 제한적으로 추가 |
@@ -233,13 +233,13 @@ E세트 R3B에서 정상 `search=apple`은 `benign_normal_search`와 `reference_
 
 ---
 
-## 6. P2 — SQLi xclose/quote termination hint 추가
+## 6. 완료 — SQLi xclose/quote termination hint 추가
 
 ### 배경
 
 B세트 R2A/R2B와 E세트 R3/R3B에서 `x')) OR 1=1 --` 계열 payload가 사용되었다. 현재는 `sqli:or_true`, `sqli:sql_comment` 중심으로 탐지된다.
 
-### 개선 방향
+### 반영 방향
 
 다음 hint를 추가 검토한다.
 
@@ -248,12 +248,16 @@ sqli:xclose_pattern
 sqli:quote_termination
 sqli:parenthesis_termination
 sqli:boolean_true_condition
+sqli:comment_sequence
 ```
 
-### 주의
+### 반영 조건
 
-- 탐지 자체는 이미 성공하므로 필수 수정은 아니다.
-- false positive를 늘리지 않도록 quote/parenthesis 단독이 아니라 boolean/comment/SQL keyword와 결합될 때만 사용한다.
+- 탐지 자체를 무리하게 넓히지 않고, 이미 SQLi로 포착된 payload의 구조 설명력을 보강하는 방향으로 반영했다.
+- false positive를 늘리지 않도록 quote/parenthesis 단독에는 hint를 부여하지 않는다.
+- boolean/comment 구조와 결합될 때만 `quote_termination`, `parenthesis_termination`, `xclose_pattern`, `comment_sequence`를 부여한다.
+- decoded depth 1/2 view까지 포함해 구조를 본다.
+- educational SQL false positive 완화는 유지한다.
 
 ---
 

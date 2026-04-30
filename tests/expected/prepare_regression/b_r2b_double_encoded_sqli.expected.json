@@ -28,6 +28,16 @@
       "field": "reason_hints",
       "contains": "sqli:",
       "message": "SQLi structure hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "sqli:boolean_true_condition",
+      "message": "boolean true condition hint found"
     }
   ],
   "SHOULD": [
@@ -40,6 +50,36 @@
       "field": "reason_hints",
       "contains": "encoding:double_decoded_sqli",
       "message": "double-decoded SQLi hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "sqli:comment_sequence",
+      "message": "comment sequence hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "sqli:quote_termination",
+      "message": "quote termination hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "sqli:parenthesis_termination",
+      "message": "parenthesis termination hint found"
     }
   ],
   "MUST_NOT": [

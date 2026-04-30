@@ -130,6 +130,7 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - 2026-04-30 기준 normal search baseline row의 `dir_probe:*` hint 잔존 문제는 해결되었다.
 - `e_r3_search_attack_and_baseline` fixture에서는 해당 조건을 `MUST_NOT`으로 회귀 검증한다.
 - 2026-04-30 기준 `ip_behavior_aggregates`는 prepare top-level context-only 출력과 Stage2 report input/prompt 반영까지 완료되었다.
+- 2026-04-30 기준 `b_r2b_double_encoded_sqli` expected 는 `encoding:decoded_depth_2` 외에 `sqli:boolean_true_condition` 및 일부 구조 hint(`quote_termination`, `parenthesis_termination`, `comment_sequence`, `xclose_pattern`)를 함께 확인한다.
 
 ## `ip_behavior_multi_signal_context` expected 기준
 

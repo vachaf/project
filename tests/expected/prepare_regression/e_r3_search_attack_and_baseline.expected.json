@@ -99,6 +99,26 @@
       "field": "noise_category",
       "contains": "benign_normal_search",
       "message": "normal search filtered as benign normal search"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r3-search-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "sqli:quote_termination",
+      "message": "SQLi search preserves quote termination hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r3-search-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "sqli:boolean_true_condition",
+      "message": "SQLi search preserves boolean true condition hint"
     }
   ]
 }

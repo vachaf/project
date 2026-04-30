@@ -286,7 +286,27 @@ ATTACK_ENCODED_PAYLOAD_RE = re.compile(
     r"(?i)(%27|%2527|%22|%2522|%3c|%253c|%3e|%253e|%28|%2528|%29|%2529|%2e%2e|%252e%252e|%00|%2500|%3a%2f%2f|%253a%252f%252f|%3b|%253b)"
 )
 SQLI_BOOLEAN_CONDITION_PATTERN = re.compile(r"(?i)\b(?:or|and)\b\s+(?:\d+|[\w\"']+)\s*=\s*(?:\d+|[\w\"']+)")
-SQLI_XCLOSE_PATTERN = re.compile(r"(?i)x\s*'\s*\)\s*\)")
+SQLI_BOOLEAN_TRUE_CONDITION_PATTERN = re.compile(
+    r"(?ix)"
+    r"\b(?:or|and)\b\s+"
+    r"(?:"
+    r"(?P<num>\d{1,8})\s*=\s*(?P=num)"
+    r"|(?P<sq>'[^']{0,32}')\s*=\s*(?P=sq)"
+    r"|(?P<dq>\"[^\"]{0,32}\")\s*=\s*(?P=dq)"
+    r"|(?P<word>[a-z_][a-z0-9_]*)\s*=\s*(?P=word)"
+    r"|true\s*=\s*true"
+    r"|false\s*=\s*false"
+    r")"
+)
+SQLI_QUOTE_TERMINATION_STRUCTURE_PATTERN = re.compile(
+    r"(?ix)"
+    r"(?:'|%27)\s*(?:\)\s*){0,4}(?:or|and|union|;|--|\#|/\*)"
+)
+SQLI_PAREN_TERMINATION_PATTERN = re.compile(
+    r"(?ix)"
+    r"(?:'|%27|\"|%22)?\s*(?:\)\s*){1,4}(?:or|and|union|--|\#|/\*)"
+)
+SQLI_XCLOSE_PATTERN = re.compile(r"(?i)\b[a-z0-9_]{1,16}\s*'\s*\)\s*\)")
 SQLI_UNION_COLUMN_ENUM_PATTERN = re.compile(r"(?i)\bunion\b\s+\bselect\b\s+[^\n]{0,160},\s*[^\n]{0,160}")
 SQLI_SCHEMA_ACCESS_PATTERN = re.compile(r"(?i)\b(?:information_schema|sqlite_master|mysql\.user)\b")
 SQLI_FROM_USERS_PATTERN = re.compile(r"(?i)\bfrom\b\s+users\b")
@@ -740,16 +760,34 @@ def detect_educational_xss_search_context(text: str) -> bool:
     return natural_language_term and any(keyword in lowered for keyword in EDUCATIONAL_XSS_KEYWORDS)
 
 
-def get_sqli_structure_flags(text: str) -> Dict[str, bool]:
+def get_sqli_structure_flags(
+    text: str,
+    query_variants: Optional[List[Dict[str, Any]]] = None,
+    raw_request_target_variants: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, bool]:
     raw = raw_text(text)
     normalized = normalize_text(text)
-    samples = unique_non_empty_texts([raw, normalized])
+    samples = unique_non_empty_texts(
+        [raw, normalized]
+        + [raw_text(item.get("text")) for item in (query_variants or [])]
+        + [raw_text(item.get("text")) for item in (raw_request_target_variants or [])]
+    )
     comment_samples = [strip_html_entities_for_sql_comment_scan(sample) for sample in samples]
+    quote_termination = any(SQLI_QUOTE_TERMINATION_STRUCTURE_PATTERN.search(sample) for sample in samples)
+    boolean_condition = any(SQLI_BOOLEAN_CONDITION_PATTERN.search(sample) for sample in samples)
+    boolean_true_condition = any(SQLI_BOOLEAN_TRUE_CONDITION_PATTERN.search(sample) for sample in samples)
+    sql_comment = any(SQLI_COMMENT_PATTERN.search(sample) for sample in comment_samples)
+    xclose = any(SQLI_XCLOSE_PATTERN.search(sample) for sample in samples)
+    parenthesis_termination = any(SQLI_PAREN_TERMINATION_PATTERN.search(sample) for sample in samples)
     return {
-        "quote_termination": any(SQLI_PATTERNS[-1][1].search(sample) for sample in samples),
-        "sql_comment": any(SQLI_COMMENT_PATTERN.search(sample) for sample in comment_samples),
-        "xclose": any(SQLI_XCLOSE_PATTERN.search(sample) for sample in samples),
-        "boolean_condition": any(SQLI_BOOLEAN_CONDITION_PATTERN.search(sample) for sample in samples),
+        "quote_termination": quote_termination,
+        "parenthesis_termination": parenthesis_termination,
+        "sql_comment": sql_comment,
+        "comment_sequence": sql_comment and (quote_termination or boolean_condition or parenthesis_termination or xclose),
+        "xclose": xclose,
+        "xclose_pattern": xclose and (boolean_condition or sql_comment),
+        "boolean_condition": boolean_condition,
+        "boolean_true_condition": boolean_true_condition,
         "union_column_list": any(SQLI_UNION_COLUMN_ENUM_PATTERN.search(sample) for sample in samples),
         "schema_access": any(SQLI_SCHEMA_ACCESS_PATTERN.search(sample) for sample in samples),
         "from_users": any(SQLI_FROM_USERS_PATTERN.search(sample) for sample in samples),
@@ -2516,7 +2554,31 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
 
     educational_sql_context = detect_educational_sql_search_context(qs)
     educational_xss_context = detect_educational_xss_search_context(" ".join(unique_non_empty_texts([qs, raw_request_target])))
-    structure_flags = get_sqli_structure_flags(combined_target)
+    structure_flags = get_sqli_structure_flags(
+        combined_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    if sqli_hits > 0:
+        if structure_flags.get("quote_termination") and (
+            structure_flags.get("boolean_true_condition")
+            or structure_flags.get("comment_sequence")
+            or structure_flags.get("xclose_pattern")
+        ):
+            append_unique_hint(reason_hints, "sqli:quote_termination")
+        if structure_flags.get("parenthesis_termination") and (
+            structure_flags.get("quote_termination")
+            or structure_flags.get("boolean_true_condition")
+            or structure_flags.get("comment_sequence")
+            or structure_flags.get("xclose_pattern")
+        ):
+            append_unique_hint(reason_hints, "sqli:parenthesis_termination")
+        if structure_flags.get("boolean_true_condition"):
+            append_unique_hint(reason_hints, "sqli:boolean_true_condition")
+        if structure_flags.get("comment_sequence"):
+            append_unique_hint(reason_hints, "sqli:comment_sequence")
+        if structure_flags.get("xclose_pattern"):
+            append_unique_hint(reason_hints, "sqli:xclose_pattern")
     xss_structure_flags = get_xss_structure_flags(
         combined_target=combined_target,
         query_variants=query_variants,
@@ -2524,7 +2586,18 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     )
     strong_sqli_structure = any(
         structure_flags.get(name, False)
-        for name in ("quote_termination", "sql_comment", "xclose", "boolean_condition", "union_column_list", "schema_access")
+        for name in (
+            "quote_termination",
+            "parenthesis_termination",
+            "sql_comment",
+            "comment_sequence",
+            "xclose",
+            "xclose_pattern",
+            "boolean_condition",
+            "boolean_true_condition",
+            "union_column_list",
+            "schema_access",
+        )
     )
     strong_xss_structure = any(
         xss_structure_flags.get(name, False)
@@ -2546,7 +2619,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
             reason_hints.append("no_quote_termination")
         if not structure_flags.get("sql_comment"):
             reason_hints.append("no_sql_comment")
-        if not structure_flags.get("boolean_condition"):
+        if not structure_flags.get("boolean_true_condition"):
             reason_hints.append("no_boolean_condition")
         if not strong_sqli_structure:
             reason_hints.append("fp_hint:sql_keyword_without_attack_structure")
