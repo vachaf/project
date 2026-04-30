@@ -1,0 +1,75 @@
+{
+  "description": "Direct config path access should stay low-signal and must not inherit php-wrapper disclosure hints.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "e-r2-direct-config-1"
+      },
+      "message": "direct /config.php request kept in filtered context"
+    },
+    {
+      "op": "exists",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "e-r2-direct-config-2"
+      },
+      "message": "direct /admin/config.php request kept in filtered context"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "analysis_candidates"
+      ],
+      "where": {
+        "request_id": "e-r2-direct-config-1"
+      },
+      "message": "direct /config.php must not be promoted to a candidate"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "analysis_candidates"
+      ],
+      "where": {
+        "request_id": "e-r2-direct-config-2"
+      },
+      "message": "direct /admin/config.php must not be promoted to a candidate"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r2-direct-config-1"
+      },
+      "field": "reason_hints",
+      "contains": "file_disclosure:php_filter_wrapper",
+      "message": "direct config path must not inherit php filter wrapper hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r2-direct-config-2"
+      },
+      "field": "reason_hints",
+      "contains": "file_disclosure:base64_source_intent",
+      "message": "direct config path must not inherit base64 source hint"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "e-r2-direct-config-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "direct config access remains low-signal directory/file probing"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "database": "web_logs",
+    "exported_at": "2026-04-30T10:04:00.000+09:00",
+    "query_timezone": "Asia/Seoul",
+    "db_timezone": "UTC",
+    "range_mode": "fixture",
+    "start": "2026-04-30T10:04:00.000+09:00",
+    "end_exclusive": "2026-04-30T10:05:00.000+09:00",
+    "start_db_query": "2026-04-30T01:04:00.000+00:00",
+    "end_exclusive_db_query": "2026-04-30T01:05:00.000+00:00",
+    "table_option": "security",
+    "limit_per_table": null,
+    "total_count": 1,
+    "analysis_recommendation": "prepare-regression-fixture"
+  },
+  "counts": {
+    "access": 0,
+    "security": 1,
+    "error": 0
+  },
+  "data": {
+    "security": [
+      {
+        "id": 1003,
+        "request_id": "c-html-entity-xss-1",
+        "error_link_id": null,
+        "log_time": "2026-04-30T10:04:20.000+09:00",
+        "created_at": "2026-04-30T10:04:20.100+09:00",
+        "src_ip": "198.51.100.12",
+        "peer_ip": "198.51.100.12",
+        "method": "GET",
+        "uri": "/search",
+        "query_string": "?q=%26%23x3C%3Bscript%26%23x3E%3Balert%281%29%26%23x3C%3B%2Fscript%26%23x3E%3B",
+        "raw_request": "GET /search?q=%26%23x3C%3Bscript%26%23x3E%3Balert%281%29%26%23x3C%3B%2Fscript%26%23x3E%3B HTTP/1.1",
+        "raw_log": "fixture c_html_entity_xss",
+        "status_code": 200,
+        "response_body_bytes": 1496,
+        "resp_content_type": "text/html",
+        "duration_us": 48000,
+        "ttfb_us": 21000,
+        "referer": "",
+        "user_agent": "Mozilla/5.0 regression-fixture",
+        "host": "app.example.test",
+        "vhost": "app.example.test",
+        "protocol": "HTTP/1.1",
+        "req_content_type": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "description": "Educational onerror search should be review-only or low-signal, not a high-confidence XSS candidate.",
+  "MUST": [
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "false_positive_review_candidates",
+        "filtered_out"
+      ],
+      "where": {
+        "request_id": "c-xss-fp-review-1"
+      },
+      "message": "educational XSS search retained as review-only or filtered"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "c-xss-fp-review-1"
+      },
+      "message": "educational onerror search must not be an analysis candidate"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "c-xss-fp-review-1"
+      },
+      "field": "reason_hints",
+      "contains": "xss:event_handler",
+      "message": "onerror keyword alone must not be treated as event-handler assignment"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "field_contains",
+      "collection": "false_positive_review_candidates",
+      "where": {
+        "request_id": "c-xss-fp-review-1"
+      },
+      "field": "review_reason",
+      "contains": "educational_xss_keyword_search",
+      "message": "false-positive review reason recorded"
+    }
+  ]
+}

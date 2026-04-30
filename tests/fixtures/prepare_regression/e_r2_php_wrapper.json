@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "database": "web_logs",
+    "exported_at": "2026-04-30T10:10:00.000+09:00",
+    "query_timezone": "Asia/Seoul",
+    "db_timezone": "UTC",
+    "range_mode": "fixture",
+    "start": "2026-04-30T10:10:00.000+09:00",
+    "end_exclusive": "2026-04-30T10:11:00.000+09:00",
+    "start_db_query": "2026-04-30T01:10:00.000+00:00",
+    "end_exclusive_db_query": "2026-04-30T01:11:00.000+00:00",
+    "table_option": "security",
+    "limit_per_table": null,
+    "total_count": 1,
+    "analysis_recommendation": "prepare-regression-fixture"
+  },
+  "counts": {
+    "access": 0,
+    "security": 1,
+    "error": 0
+  },
+  "data": {
+    "security": [
+      {
+        "id": 1008,
+        "request_id": "e-r2-php-wrapper-1",
+        "error_link_id": null,
+        "log_time": "2026-04-30T10:10:22.000+09:00",
+        "created_at": "2026-04-30T10:10:22.100+09:00",
+        "src_ip": "198.51.100.30",
+        "peer_ip": "198.51.100.30",
+        "method": "GET",
+        "uri": "/file",
+        "query_string": "?target=php%3A%2F%2Ffilter%2Fconvert.base64-encode%2Fresource%3Dconfig.php",
+        "raw_request": "GET /file?target=php%3A%2F%2Ffilter%2Fconvert.base64-encode%2Fresource%3Dconfig.php HTTP/1.1",
+        "raw_log": "fixture e_r2_php_wrapper",
+        "status_code": 200,
+        "response_body_bytes": 1604,
+        "resp_content_type": "text/html",
+        "duration_us": 51000,
+        "ttfb_us": 24000,
+        "referer": "",
+        "user_agent": "Mozilla/5.0 regression-fixture",
+        "host": "files.example.test",
+        "vhost": "files.example.test",
+        "protocol": "HTTP/1.1",
+        "req_content_type": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "database": "web_logs",
+    "exported_at": "2026-04-30T10:06:00.000+09:00",
+    "query_timezone": "Asia/Seoul",
+    "db_timezone": "UTC",
+    "range_mode": "fixture",
+    "start": "2026-04-30T10:06:00.000+09:00",
+    "end_exclusive": "2026-04-30T10:07:00.000+09:00",
+    "start_db_query": "2026-04-30T01:06:00.000+00:00",
+    "end_exclusive_db_query": "2026-04-30T01:07:00.000+00:00",
+    "table_option": "security",
+    "limit_per_table": null,
+    "total_count": 1,
+    "analysis_recommendation": "prepare-regression-fixture"
+  },
+  "counts": {
+    "access": 0,
+    "security": 1,
+    "error": 0
+  },
+  "data": {
+    "security": [
+      {
+        "id": 1004,
+        "request_id": "c-xss-fp-review-1",
+        "error_link_id": null,
+        "log_time": "2026-04-30T10:06:25.000+09:00",
+        "created_at": "2026-04-30T10:06:25.100+09:00",
+        "src_ip": "198.51.100.13",
+        "peer_ip": "198.51.100.13",
+        "method": "GET",
+        "uri": "/search",
+        "query_string": "?q=tutorial%20for%20onerror%20event%20handler%20in%20javascript",
+        "raw_request": "GET /search?q=tutorial%20for%20onerror%20event%20handler%20in%20javascript HTTP/1.1",
+        "raw_log": "fixture c_xss_fp_review",
+        "status_code": 200,
+        "response_body_bytes": 1464,
+        "resp_content_type": "text/html",
+        "duration_us": 36000,
+        "ttfb_us": 17500,
+        "referer": "https://app.example.test/docs",
+        "user_agent": "Mozilla/5.0 regression-fixture",
+        "host": "app.example.test",
+        "vhost": "app.example.test",
+        "protocol": "HTTP/1.1",
+        "req_content_type": null
+      }
+    ]
+  }
+}

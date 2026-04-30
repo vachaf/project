@@ -1,0 +1,76 @@
+{
+  "meta": {
+    "database": "web_logs",
+    "exported_at": "2026-04-30T10:12:00.000+09:00",
+    "query_timezone": "Asia/Seoul",
+    "db_timezone": "UTC",
+    "range_mode": "fixture",
+    "start": "2026-04-30T10:12:00.000+09:00",
+    "end_exclusive": "2026-04-30T10:13:00.000+09:00",
+    "start_db_query": "2026-04-30T01:12:00.000+00:00",
+    "end_exclusive_db_query": "2026-04-30T01:13:00.000+00:00",
+    "table_option": "security",
+    "limit_per_table": null,
+    "total_count": 2,
+    "analysis_recommendation": "prepare-regression-fixture"
+  },
+  "counts": {
+    "access": 0,
+    "security": 2,
+    "error": 0
+  },
+  "data": {
+    "security": [
+      {
+        "id": 1009,
+        "request_id": "e-r2-direct-config-1",
+        "error_link_id": null,
+        "log_time": "2026-04-30T10:12:08.000+09:00",
+        "created_at": "2026-04-30T10:12:08.100+09:00",
+        "src_ip": "198.51.100.31",
+        "peer_ip": "198.51.100.31",
+        "method": "GET",
+        "uri": "/config.php",
+        "query_string": "",
+        "raw_request": "GET /config.php HTTP/1.1",
+        "raw_log": "fixture e_r2_direct_config_path config",
+        "status_code": 404,
+        "response_body_bytes": 744,
+        "resp_content_type": "text/html",
+        "duration_us": 20500,
+        "ttfb_us": 9800,
+        "referer": "",
+        "user_agent": "Mozilla/5.0 regression-fixture",
+        "host": "files.example.test",
+        "vhost": "files.example.test",
+        "protocol": "HTTP/1.1",
+        "req_content_type": null
+      },
+      {
+        "id": 1010,
+        "request_id": "e-r2-direct-config-2",
+        "error_link_id": null,
+        "log_time": "2026-04-30T10:12:29.000+09:00",
+        "created_at": "2026-04-30T10:12:29.100+09:00",
+        "src_ip": "198.51.100.31",
+        "peer_ip": "198.51.100.31",
+        "method": "GET",
+        "uri": "/admin/config.php",
+        "query_string": "",
+        "raw_request": "GET /admin/config.php HTTP/1.1",
+        "raw_log": "fixture e_r2_direct_config_path admin config",
+        "status_code": 404,
+        "response_body_bytes": 752,
+        "resp_content_type": "text/html",
+        "duration_us": 21400,
+        "ttfb_us": 10300,
+        "referer": "",
+        "user_agent": "Mozilla/5.0 regression-fixture",
+        "host": "files.example.test",
+        "vhost": "files.example.test",
+        "protocol": "HTTP/1.1",
+        "req_content_type": null
+      }
+    ]
+  }
+}

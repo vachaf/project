@@ -1,0 +1,129 @@
+# Prepare Regression Fixture 설계
+
+## 목적
+
+- `src/prepare_llm_input.py`의 prepare 단계만 빠르게 회귀 검증한다.
+- Stage1/Stage2 LLM 호출 없이 synthetic export JSON을 넣고 `analysis_candidates`, `supporting_events`, `false_positive_review_candidates`, `probing_sequence_summaries`, `filtered_out_rows`의 분류 결과를 확인한다.
+- Apache 로그 표면 지표만 사용한 현재 규칙 기반 prepare 동작이 의도와 크게 벗어나지 않는지 smoke 수준으로 확인한다.
+
+## 비목표
+
+- Stage1/Stage2 모델 품질 검증
+- response body 원문, DB 조회 결과, 브라우저 실행 여부 기반 성공 판정
+- 대규모 탐지 규칙 개편
+- 특정 실험 환경 이름이나 라우트 재현에 기대는 fixture 검증
+
+## Synthetic Fixture 우선 이유
+
+- lab 데이터에 포함된 실험 전용 User-Agent, IP, 경로 이름에 회귀 검증이 종속되지 않게 하기 위함이다.
+- fixture를 최소 입력으로 통제하면 prepare 단계의 일반화 가능한 신호만 검증하기 쉽다.
+- 회귀 실패 시 원인을 규칙 로직과 기대조건 수준에서 바로 파악할 수 있다.
+
+## Fixture 목록
+
+- `b_r2b_double_encoded_sqli`
+- `b_r2b_educational_sql_fp`
+- `c_html_entity_xss`
+- `c_xss_fp_review`
+- `d_r3_directory_probing`
+- `e_r2_php_wrapper`
+- `e_r2_direct_config_path`
+- `e_r3_search_attack_and_baseline`
+
+## 최소 Row 필드
+
+fixture row는 현재 `prepare_llm_input.py`가 실제로 읽는 필드명에 맞춘다.
+
+- `id`
+- `request_id`
+- `timestamp` 대신 현재 코드가 읽는 `log_time`, `created_at`
+- `src_ip`
+- `method`
+- `host`, `vhost`
+- `uri`
+- `query_string`
+- `status_code`
+- `response_body_bytes`
+- `resp_content_type`
+- `duration_us`
+- `ttfb_us`
+- `referer`
+- `user_agent`
+- `raw_request`
+- `raw_log`
+
+## Assert 정책
+
+- 전체 출력 snapshot 비교는 하지 않는다.
+- expected JSON은 조건 기반 규칙으로 유지한다.
+- 레벨은 `MUST`, `SHOULD`, `MUST_NOT`, `KNOWN_LIMITATION`을 사용한다.
+- `MUST` / `MUST_NOT`는 실패를 만든다.
+- `SHOULD`와 `KNOWN_LIMITATION`은 경고를 만든다.
+- 규칙은 다음 종류를 지원한다.
+  - 특정 `request_id`가 특정 컬렉션에 존재하는지
+  - 특정 `request_id`가 특정 컬렉션에 존재하지 않는지
+  - 특정 항목의 `reason_hints`, `review_reason`, `supporting_role` 등에 일반화된 hint/category substring이 있는지
+  - 복수 컬렉션 중 하나에 존재하는지
+
+## 실험환경 특화 금지 원칙
+
+- `lab-*` User-Agent 기반 탐지 금지
+- 실제 실험 IP 기반 탐지 금지
+- 특정 response size 값 하드코딩 금지
+- OpenCart/Juice Shop 이름 기반 하드코딩 금지
+- `route=product/search` 같은 전체 endpoint 문자열 기반 assert 금지
+
+fixture는 다음 값을 사용한다.
+
+- 문서용 IP: `198.51.100.x`, `203.0.113.x`
+- 일반 UA: `Mozilla/5.0 regression-fixture`
+- example.test 계열 host/vhost
+
+## Hint / Category 중심 Assert 원칙
+
+- endpoint 전체 문자열보다 `reason_hints`, `review_reason`, `supporting_role`, `noise_category`, `probing_sequence_summaries` 중심으로 검증한다.
+- 예시:
+  - `encoding:decoded_depth_2`
+  - `encoding:double_decoded_sqli`
+  - `encoding:html_entity_decoded_xss`
+  - `sqli:*`
+  - `xss:*`
+  - `file_disclosure:php_filter_wrapper`
+  - `file_disclosure:base64_source_intent`
+  - `file_disclosure:resource_parameter`
+  - `benign_normal_search`
+  - `supporting_role=reference_baseline`
+  - `dir_probe:*`
+
+## 일반화된 Path / Query 구조 사용 원칙
+
+- OpenCart/Juice Shop route를 재현하지 않는다.
+- `/search?q=...`, `/file?target=...`, `/config.php`, `/admin/`, `/backup/` 같은 일반화된 path/query 구조를 사용한다.
+- 검색형 시나리오는 `search`, `q`, `query` 계열 파라미터를 사용한다.
+- PHP wrapper 시나리오는 `file`, `resource`, `target` 계열 파라미터를 사용한다.
+
+## Prepare CLI 확인 원칙
+
+check 스크립트는 `src/prepare_llm_input.py`의 실제 CLI를 기준으로 작성한다.
+
+- 확인한 옵션:
+  - `--input`
+  - `--out-dir`
+  - `--base-name`
+  - `--min-score`
+  - `--min-repeat-aggregate`
+  - `--include-source-tables`
+  - `--write-filtered-out`
+  - `--pretty`
+- 확인한 출력 파일명 규칙:
+  - `<base>_llm_input.json`
+  - `<base>_analysis_candidates.json`
+  - `<base>_noise_summary.json`
+  - `<base>_filtered_out_rows.json`
+
+check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는다. 임의의 파일명을 가정하지 않는다.
+
+## Known Limitation
+
+- normal search row에 `dir_probe:*` hint가 남는 문제는 초기에는 warning으로만 관리한다.
+- 해당 조건은 `KNOWN_LIMITATION`으로 정의하고 strict 모드가 아닐 때는 FAIL로 올리지 않는다.

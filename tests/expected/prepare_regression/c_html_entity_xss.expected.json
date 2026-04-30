@@ -1,0 +1,33 @@
+{
+  "description": "HTML-entity encoded XSS should remain a candidate with decoded-XSS hints.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "c-html-entity-xss-1"
+      },
+      "message": "candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "c-html-entity-xss-1"
+      },
+      "field": "reason_hints",
+      "contains": "encoding:html_entity_decoded_xss",
+      "message": "decoded HTML-entity XSS hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "c-html-entity-xss-1"
+      },
+      "field": "reason_hints",
+      "contains": "xss:",
+      "message": "XSS structure hint found"
+    }
+  ]
+}

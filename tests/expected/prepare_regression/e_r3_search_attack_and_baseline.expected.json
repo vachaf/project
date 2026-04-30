@@ -1,0 +1,106 @@
+{
+  "description": "Normal search stays baseline/context while SQLi and XSS search payloads remain candidates.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r3-search-sqli-1"
+      },
+      "message": "SQLi search candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r3-search-xss-1"
+      },
+      "message": "XSS search candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r3-search-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "sqli:",
+      "message": "SQLi hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r3-search-xss-1"
+      },
+      "field": "reason_hints",
+      "contains": "xss:",
+      "message": "XSS hint found"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "supporting_events",
+        "filtered_out"
+      ],
+      "where": {
+        "request_id": "e-r3-search-baseline-1"
+      },
+      "message": "normal search retained as baseline or filtered context"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r3-search-baseline-1"
+      },
+      "message": "normal search must not be promoted to an attack candidate"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "field_contains",
+      "collection": "supporting_events",
+      "where": {
+        "request_id": "e-r3-search-baseline-1"
+      },
+      "field": "supporting_role",
+      "contains": "reference_baseline",
+      "message": "normal search preserved as reference baseline"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "e-r3-search-baseline-1"
+      },
+      "field": "noise_category",
+      "contains": "benign_normal_search",
+      "message": "normal search filtered as benign normal search"
+    }
+  ],
+  "KNOWN_LIMITATION": [
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "e-r3-search-baseline-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "normal search has dir_probe:* hint; tracked as known limitation"
+    },
+    {
+      "op": "field_contains",
+      "collection": "supporting_events",
+      "where": {
+        "request_id": "e-r3-search-baseline-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "normal search has dir_probe:* hint; tracked as known limitation"
+    }
+  ]
+}

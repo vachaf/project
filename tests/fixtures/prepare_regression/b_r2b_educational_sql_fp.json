@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "database": "web_logs",
+    "exported_at": "2026-04-30T10:02:00.000+09:00",
+    "query_timezone": "Asia/Seoul",
+    "db_timezone": "UTC",
+    "range_mode": "fixture",
+    "start": "2026-04-30T10:02:00.000+09:00",
+    "end_exclusive": "2026-04-30T10:03:00.000+09:00",
+    "start_db_query": "2026-04-30T01:02:00.000+00:00",
+    "end_exclusive_db_query": "2026-04-30T01:03:00.000+00:00",
+    "table_option": "security",
+    "limit_per_table": null,
+    "total_count": 1,
+    "analysis_recommendation": "prepare-regression-fixture"
+  },
+  "counts": {
+    "access": 0,
+    "security": 1,
+    "error": 0
+  },
+  "data": {
+    "security": [
+      {
+        "id": 1002,
+        "request_id": "b-r2b-educational-sql-1",
+        "error_link_id": null,
+        "log_time": "2026-04-30T10:02:15.000+09:00",
+        "created_at": "2026-04-30T10:02:15.100+09:00",
+        "src_ip": "198.51.100.11",
+        "peer_ip": "198.51.100.11",
+        "method": "GET",
+        "uri": "/search",
+        "query_string": "?q=how%20to%20use%20select%20and%20union%20in%20sql%20tutorial",
+        "raw_request": "GET /search?q=how%20to%20use%20select%20and%20union%20in%20sql%20tutorial HTTP/1.1",
+        "raw_log": "fixture b_r2b_educational_sql_fp",
+        "status_code": 200,
+        "response_body_bytes": 1412,
+        "resp_content_type": "text/html",
+        "duration_us": 35000,
+        "ttfb_us": 17000,
+        "referer": "https://app.example.test/",
+        "user_agent": "Mozilla/5.0 regression-fixture",
+        "host": "app.example.test",
+        "vhost": "app.example.test",
+        "protocol": "HTTP/1.1",
+        "req_content_type": null
+      }
+    ]
+  }
+}

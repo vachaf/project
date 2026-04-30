@@ -1,0 +1,55 @@
+{
+  "description": "Double-encoded SQLi remains an analysis candidate with decode-focused hints.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "message": "candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "encoding:decoded_depth_2",
+      "message": "decoded_depth_2 hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "sqli:",
+      "message": "SQLi structure hint found"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "encoding:double_decoded_sqli",
+      "message": "double-decoded SQLi hint found"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "message": "request must not be filtered out only"
+    }
+  ]
+}

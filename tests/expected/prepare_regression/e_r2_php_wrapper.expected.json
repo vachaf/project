@@ -1,0 +1,43 @@
+{
+  "description": "PHP wrapper request should remain a file-disclosure candidate based on generalized wrapper hints.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r2-php-wrapper-1"
+      },
+      "message": "candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r2-php-wrapper-1"
+      },
+      "field": "reason_hints",
+      "contains": "file_disclosure:php_filter_wrapper",
+      "message": "php filter wrapper hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r2-php-wrapper-1"
+      },
+      "field": "reason_hints",
+      "contains": "file_disclosure:base64_source_intent",
+      "message": "base64 source intent hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "e-r2-php-wrapper-1"
+      },
+      "field": "reason_hints",
+      "contains": "file_disclosure:resource_parameter",
+      "message": "resource parameter hint found"
+    }
+  ]
+}

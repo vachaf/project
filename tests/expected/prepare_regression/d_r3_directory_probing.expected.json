@@ -1,0 +1,55 @@
+{
+  "description": "Low-signal directory burst should be summarized as probing context, not promoted to a high-confidence candidate.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "probing_sequence_summaries",
+      "where": {
+        "src_ip": "198.51.100.20"
+      },
+      "message": "probing sequence summary created"
+    },
+    {
+      "op": "field_contains",
+      "collection": "probing_sequence_summaries",
+      "where": {
+        "src_ip": "198.51.100.20"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:burst",
+      "message": "burst hint found"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "analysis_candidates"
+      ],
+      "where": {
+        "request_id": "d-r3-dir-probe-1"
+      },
+      "message": "individual /admin/ probe must not be a candidate"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "analysis_candidates"
+      ],
+      "where": {
+        "request_id": "d-r3-dir-probe-2"
+      },
+      "message": "individual /backup/ probe must not be a candidate"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "analysis_candidates"
+      ],
+      "where": {
+        "request_id": "d-r3-dir-probe-3"
+      },
+      "message": "individual /config/ probe must not be a candidate"
+    }
+  ]
+}

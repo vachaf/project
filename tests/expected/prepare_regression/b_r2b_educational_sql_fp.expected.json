@@ -1,0 +1,48 @@
+{
+  "description": "Educational SQL keyword search should not be promoted to a strong SQLi candidate.",
+  "MUST": [
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "b-r2b-educational-sql-1"
+      },
+      "message": "educational SQL search retained as low-signal or context"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "b-r2b-educational-sql-1"
+      },
+      "message": "educational SQL search must not be an analysis candidate"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "b-r2b-educational-sql-1"
+      },
+      "field": "reason_hints",
+      "contains": "sqli:",
+      "message": "strong SQLi hint must not be attached to educational query"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "b-r2b-educational-sql-1"
+      },
+      "field": "noise_category",
+      "contains": "benign_normal_search",
+      "message": "benign normal search classification retained"
+    }
+  ]
+}

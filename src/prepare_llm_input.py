@@ -904,8 +904,11 @@ def build_false_positive_review_candidate(row: Dict[str, Any]) -> Optional[Dict[
     return {
         "review_reason": "educational_xss_keyword_search",
         "source_table": normalize_text(row.get("_source_table")),
+        "log_id": safe_int(row.get("id"), 0) or None,
         "log_time": choose_best_time(row),
         "src_ip": get_src_ip(row),
+        "request_id": normalize_text(row.get("request_id")),
+        "method": get_method(row),
         "uri": get_uri(row),
         "query_string": qs,
         "user_agent": get_user_agent(row),

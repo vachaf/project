@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "database": "web_logs",
+    "exported_at": "2026-04-30T10:00:00.000+09:00",
+    "query_timezone": "Asia/Seoul",
+    "db_timezone": "UTC",
+    "range_mode": "fixture",
+    "start": "2026-04-30T10:00:00.000+09:00",
+    "end_exclusive": "2026-04-30T10:01:00.000+09:00",
+    "start_db_query": "2026-04-30T01:00:00.000+00:00",
+    "end_exclusive_db_query": "2026-04-30T01:01:00.000+00:00",
+    "table_option": "security",
+    "limit_per_table": null,
+    "total_count": 1,
+    "analysis_recommendation": "prepare-regression-fixture"
+  },
+  "counts": {
+    "access": 0,
+    "security": 1,
+    "error": 0
+  },
+  "data": {
+    "security": [
+      {
+        "id": 1001,
+        "request_id": "b-r2b-double-sqli-1",
+        "error_link_id": null,
+        "log_time": "2026-04-30T10:00:10.000+09:00",
+        "created_at": "2026-04-30T10:00:10.100+09:00",
+        "src_ip": "198.51.100.10",
+        "peer_ip": "198.51.100.10",
+        "method": "GET",
+        "uri": "/search",
+        "query_string": "?q=%2527%2529%2529%2520OR%25201%253D1--",
+        "raw_request": "GET /search?q=%2527%2529%2529%2520OR%25201%253D1-- HTTP/1.1",
+        "raw_log": "fixture b_r2b_double_encoded_sqli",
+        "status_code": 200,
+        "response_body_bytes": 1536,
+        "resp_content_type": "text/html",
+        "duration_us": 42000,
+        "ttfb_us": 18000,
+        "referer": "",
+        "user_agent": "Mozilla/5.0 regression-fixture",
+        "host": "app.example.test",
+        "vhost": "app.example.test",
+        "protocol": "HTTP/1.1",
+        "req_content_type": null
+      }
+    ]
+  }
+}
