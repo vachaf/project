@@ -36,6 +36,7 @@ SEVERITY_ORDER = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}
 CONFIDENCE_ORDER = {"high": 3, "medium": 2, "low": 1}
 TABLE_PRIORITY = {"security": 3, "error": 2, "access": 1}
 RECON_FILTERED_CATEGORIES = ("low_signal_fuzzing", "low_signal_dir_probe")
+REFERENCE_BASELINE_FILTERED_CATEGORIES = ("benign_normal_search", "normal_search_baseline")
 ENV_FILE_NAMES = ("config/llm.env", "llm.env", ".env")
 
 
@@ -837,8 +838,13 @@ def build_report_input(
             "dedupe_rule": "request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 incident 병합",
             "out_of_candidate_recon_policy": {
                 "default_action": "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않음",
-                "reporting_rule": "stage2 에서는 후보 밖 탐색성 요청 섹션으로 고정 표기",
+                "reporting_rule": "stage2 에서는 low_signal_fuzzing 과 low_signal_dir_probe 만 후보 밖 탐색성 요청으로 표기",
                 "promotion_review_rule": "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토",
+            },
+            "reference_baseline_policy": {
+                "default_action": "benign_normal_search 또는 normal_search_baseline 카테고리와 supporting_role=reference_baseline 은 정상 비교군으로 해석",
+                "reporting_rule": "후보 밖 탐색성 요청이나 low signal fuzzing 으로 표현하지 않고 같은 endpoint 의 정상 baseline 또는 reference baseline 으로 설명",
+                "comparison_rule": "정상 baseline 이 근접해 있어도 공격 candidate 의 의도나 심각도를 낮추지 않고 정상/공격 비교 문맥으로만 사용",
             },
             "probing_sequence_policy": {
                 "default_action": "probing_sequence_summaries 는 context-only 이며 개별 incident 로 승격하지 않음",
@@ -856,6 +862,7 @@ def build_report_input(
             "supporting_events_policy": {
                 "default_action": "supporting_events 는 개별 incident 가 아니라 문맥 정보로만 해석",
                 "temporal_rule": "같은 src_ip 와 같은 uri 또는 endpoint family 의 근접 시계열로 해석",
+                "reference_baseline_rule": "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 이면 같은 endpoint 의 정상 요청 예시로만 설명",
                 "decoded_hint_rule": "encoding:* reason_hints 는 우회성 인코딩 시도 보조 근거로만 사용",
                 "educational_sql_rule": "교육/문서 검색 문맥 hint 가 있으면 SQLi 단정을 낮추고 자연어 질의 가능성을 함께 검토",
             },
@@ -986,6 +993,9 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "hpp_detected 가 true 이고 embedded_attack_hint 가 있으면, 사건 분류는 기존 SQLi/XSS 체계를 유지하되 보고서 설명에는 '중복 파라미터(HPP)를 이용한 시도' 문맥을 포함하라. "
         "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 요청의 세부 분포는 실제로 존재하는 것으로 해석하라. "
         "supporting_events 가 있으면 이는 개별 incident 가 아니라 같은 src_ip, uri 또는 endpoint family, 인접 시간대의 보조 문맥으로 해석하라. "
+        "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 인 supporting_events 는 후보 밖 탐색성 요청이 아니라 같은 endpoint 의 정상 baseline 예시로 설명하라. "
+        "benign_normal_search 또는 normal_search_baseline filtered_out category 는 low_signal_fuzzing 과 분리해서 정상 비교군 또는 reference baseline 으로 표현하라. "
+        "정상 baseline 이 근접해 있어도 공격 candidate 의 의도나 심각도를 낮추는 근거로 사용하지 말고, 정상/공격 비교 문맥으로만 사용하라. "
         "supporting_events 의 encoding:* hint 는 우회성 인코딩 시도 보조 근거이며, educational_sql_search 계열 hint 는 자연어 검색 가능성을 함께 검토하라는 뜻이다. "
         "false_positive_review_candidates 가 있으면 prepare 단계에서 제외된 자연어형 보안 검색 질의 검토 정보로만 사용하라. "
         "probing_sequence_summaries 가 있으면 이는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 에서 짧은 시간 안에 여러 민감/관리/백업 경로에 접근한 reconnaissance 또는 directory probing 흐름으로만 설명하라. "
@@ -993,7 +1003,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "probing_sequence_summaries 안의 403, 401 같은 차단 응답은 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 남길 수 있다. "
         "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, stage2 에서는 '후보 밖 탐색성 요청'으로 고정 표기하라. "
         "단, 동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라. "
-        "filtered_out_breakdown, top_filtered_categories, top_out_of_candidate_recon 은 prepare 단계에서 보존된 사실 정보이므로 후보 밖 탐색성 요청 섹션과 recommended_actions 에 반영하라. "
+        "filtered_out_breakdown, top_filtered_categories, top_out_of_candidate_recon 은 prepare 단계에서 보존된 사실 정보이므로 후보 밖 문맥 섹션과 recommended_actions 에 반영하라. "
         "반드시 schema-valid JSON 객체만 반환하라. "
         "자유서술 필드는 모두 한국어로 작성하라."
     )
@@ -1028,6 +1038,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "known_asset_ips 와 일치하는 IP 는 내부 테스트/자체 호출 가능성을 반드시 함께 언급하라.",
             "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 세부 분포가 존재하는 것으로 서술하라.",
             "supporting_events 는 개별 incident 로 승격하지 말고, 같은 src_ip 와 같은 uri 또는 endpoint family 의 temporal chain 보조 문맥으로만 사용하라.",
+            "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 인 supporting_events 는 후보 밖 탐색성 요청으로 쓰지 말고, 같은 endpoint 의 정상 baseline 또는 reference baseline 으로 설명하라.",
             "supporting_events 에 educational_sql_search 또는 sql_keyword_without_attack_structure 계열 hint 가 있으면 SQL 키워드 검색을 공격으로 단정하지 마라.",
             "supporting_events 나 incident reason_hints 에 encoding:double_decoded_sqli, encoding:decoded_depth_2 같은 hint 가 있으면 인코딩 기반 evasion 시도 가능성을 보조적으로 언급하라.",
             "false_positive_review_candidates 는 prepare 단계에서 제외된 자연어형 보안 검색 질의 검토용 정보로만 사용하고 incident 로 승격하지 마라.",
@@ -1038,6 +1049,8 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "known_asset 이거나 known asset IP 와 겹치는 probing_sequence_summaries 는 내부 테스트/운영 점검 가능성을 함께 병기하라.",
             "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, 별도 '후보 밖 탐색성 요청' 섹션에서 설명하라.",
             "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라.",
+            "benign_normal_search 또는 normal_search_baseline filtered_out category 는 low_signal_fuzzing 과 분리해서 정상 비교군 또는 reference baseline 으로 설명하라.",
+            "정상 baseline 이 근접해 있어도 공격 candidate 의 의도나 심각도를 낮추는 근거로 사용하지 마라.",
             "low_signal_fuzzing, low_signal_dir_probe, benign_normal_search, benign_fallback_html 같은 filtered_out_breakdown 카테고리가 있으면 noise_interpretation 에 구체적으로 반영하라.",
             "executive_summary 는 짧고 발표용으로 읽기 쉽게 작성하라.",
             "recommended_actions 는 구체적이고 운영 가능한 형태로 제시하라.",
@@ -1159,12 +1172,13 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
         lines.append("참고: 위 출발지 IP 중 일부는 known asset 목록과 일치하므로, 실제 공격자 IP 로 단정하지 말고 내부 테스트/자체 호출 여부를 먼저 확인해야 합니다.")
     lines.append("")
 
-    lines.append("## 7. 후보 밖 탐색성 요청")
+    lines.append("## 7. 후보 밖 문맥 요청")
     lines.append(normalize_str(report_json.get("noise_interpretation")))
     lines.append("")
     lines.append("정책:")
     lines.append("- low_signal_fuzzing / low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않습니다.")
-    lines.append("- stage2 에서는 후보 밖 탐색성 요청으로 고정 표기합니다.")
+    lines.append("- low_signal_fuzzing / low_signal_dir_probe 만 후보 밖 탐색성 요청으로 고정 표기합니다.")
+    lines.append("- benign_normal_search / normal_search_baseline 과 supporting_role=reference_baseline 은 정상 baseline 또는 reference baseline 으로 설명합니다.")
     lines.append("- 동일 IP·동일 시간대·후속 고신호 incident 와 결합될 때만 승격 검토합니다.")
     if top_out_of_candidate_recon:
         lines.append("")
@@ -1255,6 +1269,8 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
             )
     if recon_rows:
         lines.append("- 후보 밖 탐색성 요청 승격 정책: low_signal_fuzzing / low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않고, 동일 IP·동일 시간대·후속 고신호 incident 와 결합될 때만 승격 검토")
+    if any(normalize_str(row.get("category")) in REFERENCE_BASELINE_FILTERED_CATEGORIES for row in filtered_rows):
+        lines.append("- 정상 baseline 정책: benign_normal_search / normal_search_baseline 은 후보 밖 탐색성 요청이 아니라 정상 비교군 또는 reference baseline 으로 해석")
     if probing_sequence_summaries:
         lines.append("- context-only probing sequence:")
         for item in probing_sequence_summaries[:5]:

@@ -272,7 +272,16 @@ SUPPORTING_SQL_KEYWORDS = (
     "sqlite_master",
     "information_schema",
 )
-ENCODED_PAYLOAD_MARKERS = ("%27", "%2527", "%2f", "%252f", "%20", "%2520", "%2e", "%252e")
+SEARCH_PARAM_NAMES = {"q", "query", "search", "keyword", "term", "s"}
+NORMAL_SEARCH_VALUE_RE = re.compile(r"(?i)^[a-z0-9][a-z0-9 _-]{0,63}$")
+STRONG_ATTACK_HINT_PREFIXES = ("sqli:", "xss:", "traversal:", "file_disclosure:", "cmdi:", "hpp:")
+STRONG_ATTACK_HINTS = {
+    "encoding:double_decoded_sqli",
+    "encoding:html_entity_decoded_xss",
+}
+ATTACK_ENCODED_PAYLOAD_RE = re.compile(
+    r"(?i)(%27|%2527|%22|%2522|%3c|%253c|%3e|%253e|%28|%2528|%29|%2529|%2e%2e|%252e%252e|%00|%2500|%3a%2f%2f|%253a%252f%252f|%3b|%253b)"
+)
 SQLI_BOOLEAN_CONDITION_PATTERN = re.compile(r"(?i)\b(?:or|and)\b\s+(?:\d+|[\w\"']+)\s*=\s*(?:\d+|[\w\"']+)")
 SQLI_XCLOSE_PATTERN = re.compile(r"(?i)x\s*'\s*\)\s*\)")
 SQLI_UNION_COLUMN_ENUM_PATTERN = re.compile(r"(?i)\bunion\b\s+\bselect\b\s+[^\n]{0,160},\s*[^\n]{0,160}")
@@ -281,6 +290,9 @@ SQLI_FROM_USERS_PATTERN = re.compile(r"(?i)\bfrom\b\s+users\b")
 SQLI_COMMENT_PATTERN = re.compile(r"(?i)(--|#|/\*)")
 REPEATED_QUOTE_PATTERN = re.compile(r"(?i)(?:'|%27|%2527|\"|%22){2,}")
 HTML_ENTITY_RE = re.compile(r"&#x?[0-9a-fA-F]+;", re.IGNORECASE)
+NORMAL_SEARCH_ATTACK_TEXT_RE = re.compile(
+    r"(?i)(<\s*script\b|javascript\s*:|alert\s*\(|document\.cookie|localstorage|sessionstorage|php\s*://\s*filter|(?:\.\./|\.\.\\\\)|%3c|%253c|%3e|%253e|%27|%2527|%22|%2522|%28|%2528|%29|%2529|%2e%2e|%252e%252e|%00|%2500|%3a%2f%2f|%253a%252f%252f|%3b|%253b)"
+)
 SCRIPT_TAG_PATTERN = re.compile(r"(?i)<\s*script\b")
 SCRIPT_TAG_CAPTURE_RE = re.compile(r"<\s*([a-z]+)\b", re.IGNORECASE)
 EVENT_HANDLER_ASSIGNMENT_RE = re.compile(r"(?i)\b(on[a-z0-9_]+)\s*=")
@@ -742,8 +754,7 @@ def get_sqli_structure_flags(text: str) -> Dict[str, bool]:
 
 
 def has_encoded_payload_marker(text: str) -> bool:
-    lowered = raw_text(text).lower()
-    return any(marker in lowered for marker in ENCODED_PAYLOAD_MARKERS)
+    return bool(ATTACK_ENCODED_PAYLOAD_RE.search(raw_text(text)))
 
 
 def has_mixed_case_script_tag(text: str) -> bool:
@@ -948,14 +959,17 @@ def response_size_differs_significantly(a: int, b: int) -> bool:
     return delta >= max(256, int(max(a, b) * 0.3))
 
 
-def is_high_signal_sqli_candidate(candidate: Candidate, min_score: int) -> bool:
-    if candidate.verdict_hint != "sqli":
+def is_high_signal_attack_candidate(candidate: Candidate, min_score: int) -> bool:
+    if candidate.verdict_hint in {
+        "possible_false_positive_sql_keyword_search",
+        "possible_false_positive_xss_keyword_search",
+    }:
         return False
     return candidate.score >= max(min_score, 7)
 
 
 def build_supporting_events(filtered_rows: List[Dict[str, Any]], candidates: List[Candidate], min_score: int) -> List[Dict[str, Any]]:
-    high_signal_candidates = [candidate for candidate in candidates if is_high_signal_sqli_candidate(candidate, min_score=min_score)]
+    high_signal_candidates = [candidate for candidate in candidates if is_high_signal_attack_candidate(candidate, min_score=min_score)]
     if not high_signal_candidates:
         return []
 
@@ -1004,20 +1018,30 @@ def build_supporting_events(filtered_rows: List[Dict[str, Any]], candidates: Lis
         raw_qs = raw_text(row.get("query_string"))
         status_code = get_status_code(row)
         response_body_bytes = get_response_body_bytes(row)
+        analysis_texts = unique_non_empty_texts([raw_qs, qs, raw_request_target])
+        reference_baseline = is_likely_normal_search_baseline(
+            row,
+            analysis_texts=analysis_texts,
+            reason_hints=(),
+        )
         additional_hints: List[str] = []
 
-        if has_supporting_sql_keyword(qs):
-            additional_hints.append("supporting:sql_keyword_fragment")
-        if has_high_special_ratio_or_repeated_quotes(raw_qs):
-            additional_hints.append("supporting:special_chars_or_quote_repetition")
-        if has_encoded_payload_marker(raw_qs) or has_encoded_payload_marker(raw_request_target):
-            additional_hints.append("supporting:encoded_payload_trace")
-        if any(candidate.status_code != status_code for candidate in nearby):
-            additional_hints.append("supporting:status_delta_from_nearby_candidate")
-        if any(response_size_differs_significantly(response_body_bytes, candidate.response_body_bytes) for candidate in nearby):
-            additional_hints.append("supporting:response_size_delta_from_nearby_candidate")
-        if any(normalize_text(candidate.uri) == normalize_text(uri) for candidate in nearby):
-            additional_hints.append("supporting:same_uri_nearby_high_signal_sqli")
+        if reference_baseline:
+            additional_hints.append("supporting:normal_search_baseline")
+            additional_hints.append("supporting:same_endpoint_reference_baseline")
+        else:
+            if has_supporting_sql_keyword(qs):
+                additional_hints.append("supporting:sql_keyword_fragment")
+            if has_high_special_ratio_or_repeated_quotes(raw_qs):
+                additional_hints.append("supporting:special_chars_or_quote_repetition")
+            if has_encoded_payload_marker(raw_qs) or has_encoded_payload_marker(raw_request_target):
+                additional_hints.append("supporting:encoded_payload_trace")
+            if any(candidate.status_code != status_code for candidate in nearby):
+                additional_hints.append("supporting:status_delta_from_nearby_candidate")
+            if any(response_size_differs_significantly(response_body_bytes, candidate.response_body_bytes) for candidate in nearby):
+                additional_hints.append("supporting:response_size_delta_from_nearby_candidate")
+            if any(normalize_text(candidate.uri) == normalize_text(uri) for candidate in nearby):
+                additional_hints.append("supporting:same_uri_nearby_high_signal_candidate")
 
         if not additional_hints:
             continue
@@ -1032,8 +1056,8 @@ def build_supporting_events(filtered_rows: List[Dict[str, Any]], candidates: Lis
 
         supporting_events.append(
             {
-                "supporting_reason": "nearby_high_signal_sqli_context",
-                "supporting_role": "temporal_context",
+                "supporting_reason": "nearby_normal_search_baseline" if reference_baseline else "nearby_high_signal_attack_context",
+                "supporting_role": "reference_baseline" if reference_baseline else "temporal_context",
                 "source_table": source_table,
                 "log_time": log_time,
                 "src_ip": src_ip,
@@ -1051,7 +1075,7 @@ def build_supporting_events(filtered_rows: List[Dict[str, Any]], candidates: Lis
                 "request_id": request_id,
                 "reason_hints": additional_hints,
                 "temporal_context_key": build_temporal_context_key(src_ip, uri, log_time),
-                "temporal_context_role": "temporal_context",
+                "temporal_context_role": "reference_baseline" if reference_baseline else "temporal_context",
                 "nearby_candidate_count": len(nearby),
             }
         )
@@ -1580,6 +1604,111 @@ def analyze_query_parameters(query_string: str) -> Tuple[bool, List[str]]:
     return bool(duplicate_names), duplicate_names
 
 
+def extract_query_pairs(query_string: str, raw_request_target: str = "") -> List[Tuple[str, str]]:
+    raw_candidates = [raw_text(query_string)]
+    raw_target = raw_text(raw_request_target)
+    if "?" in raw_target:
+        raw_candidates.append(raw_target.split("?", 1)[1])
+
+    pairs: List[Tuple[str, str]] = []
+    seen = set()
+    for raw in raw_candidates:
+        text = raw[1:] if raw.startswith("?") else raw
+        if not text:
+            continue
+        try:
+            parsed_pairs = parse_qsl(text, keep_blank_values=True)
+        except Exception:
+            continue
+        for key, value in parsed_pairs:
+            key_norm = normalize_text(key).lower()
+            value_norm = normalize_text(value)
+            if not key_norm:
+                continue
+            dedup_key = (key_norm, value_norm)
+            if dedup_key in seen:
+                continue
+            seen.add(dedup_key)
+            pairs.append((key_norm, value_norm))
+    return pairs
+
+
+def get_search_param_values(query_string: str, raw_request_target: str = "") -> List[str]:
+    return [
+        value
+        for key, value in extract_query_pairs(query_string, raw_request_target=raw_request_target)
+        if key in SEARCH_PARAM_NAMES and value
+    ]
+
+
+def is_plain_search_value(value: str) -> bool:
+    text = raw_text(value)
+    if not text:
+        return False
+    if len(text) > 64:
+        return False
+    if not NORMAL_SEARCH_VALUE_RE.fullmatch(text):
+        return False
+    return bool(re.search(r"[A-Za-z0-9]", text))
+
+
+def has_strong_attack_hints(reason_hints: Iterable[str], analysis_texts: Iterable[str]) -> bool:
+    normalized_hints = [raw_text(hint) for hint in reason_hints if raw_text(hint)]
+    if any(hint.startswith(STRONG_ATTACK_HINT_PREFIXES) for hint in normalized_hints):
+        return True
+    if any(hint in STRONG_ATTACK_HINTS for hint in normalized_hints):
+        return True
+
+    samples = unique_non_empty_texts(analysis_texts)
+    if not samples:
+        return False
+    if has_xss_attack_structure(samples):
+        return True
+
+    for sample in samples:
+        if get_matching_pattern_names(SQLI_PATTERNS, sample):
+            return True
+        if get_matching_pattern_names(TRAVERSAL_PATTERNS, sample):
+            return True
+        if get_matching_pattern_names(CMDI_PATTERNS, sample):
+            return True
+        if NORMAL_SEARCH_ATTACK_TEXT_RE.search(sample):
+            return True
+    return False
+
+
+def is_likely_normal_search_baseline(
+    row: Dict[str, Any],
+    analysis_texts: Iterable[str],
+    reason_hints: Iterable[str],
+) -> bool:
+    method = get_method(row)
+    if method not in {"GET", "HEAD"}:
+        return False
+    if normalize_text(row.get("error_link_id")):
+        return False
+
+    status_code = get_status_code(row)
+    if status_code not in {200, 204, 304, 404}:
+        return False
+
+    raw_request_target = raw_text(row.get("raw_request_target"))
+    if not raw_request_target:
+        raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+
+    search_values = get_search_param_values(
+        raw_text(row.get("query_string")),
+        raw_request_target=raw_request_target,
+    )
+    if not search_values:
+        return False
+    if not all(is_plain_search_value(value) for value in search_values):
+        return False
+    if has_strong_attack_hints(reason_hints, analysis_texts):
+        return False
+    return True
+
+
 def get_method(row: Dict[str, Any]) -> str:
     return normalize_text(row.get("method")) or "-"
 
@@ -1727,6 +1856,7 @@ def is_low_signal_fuzzing(
 
 
 def classify_filtered_noise_category(
+    row: Dict[str, Any],
     uri: str,
     query_string: str,
     method: str,
@@ -1742,6 +1872,8 @@ def classify_filtered_noise_category(
     traversal_hits: int,
     cmdi_hits: int,
     hpp_detected: bool,
+    analysis_texts: Iterable[str],
+    reason_hints: Iterable[str],
 ) -> str:
     if is_benign_fallback_html(
         traversal_hits=traversal_hits,
@@ -1752,6 +1884,13 @@ def classify_filtered_noise_category(
         error_link_id=error_link_id,
     ):
         return "benign_fallback_html"
+
+    if is_likely_normal_search_baseline(
+        row,
+        analysis_texts=analysis_texts,
+        reason_hints=reason_hints,
+    ):
+        return "benign_normal_search"
 
     if is_likely_dir_probe(
         uri=uri,
@@ -1854,6 +1993,8 @@ def build_filtered_row_payload(row: Dict[str, Any]) -> Dict[str, Any]:
         "status_code": status_code,
         "request_id": normalize_text(row.get("request_id")),
         "error_link_id": normalize_text(row.get("error_link_id")),
+        "user_agent": get_user_agent(row),
+        "raw_request": normalize_text(row.get("raw_request")),
         "response_body_bytes": response_body_bytes,
         "resp_content_type": resp_content_type,
         "raw_request_target": raw_request_target,
@@ -1899,6 +2040,10 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         query_string=raw_qs,
         raw_request_target=raw_request_target,
         raw_log=raw_text(row.get("raw_log")),
+    )
+    analysis_texts = unique_non_empty_texts(
+        [raw_qs, qs, raw_request_target, base_combined_target, combined_target]
+        + [raw_text(item.get("text")) for item in query_variants + raw_request_target_variants]
     )
 
     # 1) 정상 잡음 완전 제외 / 집계 대상 판별
@@ -2144,6 +2289,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
             reason_hints.append("traversal:file_like_response_type")
 
     filtered_noise_category = classify_filtered_noise_category(
+        row=row,
         uri=uri,
         query_string=qs,
         method=method,
@@ -2159,6 +2305,8 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         traversal_hits=traversal_hits,
         cmdi_hits=cmdi_hits,
         hpp_detected=hpp_detected,
+        analysis_texts=analysis_texts,
+        reason_hints=reason_hints,
     )
     direct_sensitive_config_probe = probe_path in {"/config.php", "/admin/config.php"}
     php_filter_wrapper_detected = "file_disclosure:php_filter_wrapper" in reason_hints

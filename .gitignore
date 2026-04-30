@@ -9,6 +9,7 @@
 /reports/
 /logs/
 /tmp/
+pipeline_manifest.json
 
 # lab private / intermediate artifacts
 /lab/**/raw/

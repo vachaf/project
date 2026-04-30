@@ -1,0 +1,120 @@
+{
+  "meta": {
+    "generated_at": "2026-04-29T00:10:20.073+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.109",
+      "192.168.56.110",
+      "192.168.56.111"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_05355903729923b50169f0cdcbe8288194958832c30dac0168",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/op-security_2026-04-29_00-04-00_to_2026-04-29_00-05-00_kst_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/op-security_2026-04-29_00-04-00_to_2026-04-29_00-05-00_kst_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 웹 로그 사건형 분석 요약 (2026-04-29 00:04~00:05 KST)",
+    "overall_assessment": "짧은 분석 구간 내에 동일 출발지 IP(192.168.56.109)에서 검색 기능을 대상으로 한 SQL 인젝션 1건과 XSS 시도 2건이 연속 관찰되었습니다. 모두 known_asset IP와 일치하므로 내부 테스트, 자체 호출, 운영 점검 가능성도 함께 고려해야 합니다. 현재 로그만으로 실제 침해 성공이나 브라우저 실행 성공은 확인되지 않았고, 후보 밖 탐색성 요청 1건이 추가로 필터링되었습니다.",
+    "executive_summary": [
+      "분석 구간은 2026-04-29 00:04:00~00:05:00 KST이며, 같은 IP에서 /index.php 검색 파라미터를 대상으로 한 공격성 요청이 집중되었습니다.",
+      "고신호 3건은 SQL 인젝션 1건과 반사형 XSS 시도 2건으로, 모두 요청 패턴상 의도는 분명하지만 성공 여부는 Apache 로그만으로 확정할 수 없습니다.",
+      "출발지 IP 192.168.56.109는 known_asset에 해당하므로 외부 공격 단정은 피해야 하며, 내부 점검 또는 테스트 트래픽일 가능성도 있습니다."
+    ],
+    "key_findings": [
+      {
+        "title": "검색 파라미터를 노린 SQL 인젝션 시도",
+        "detail": "`search=x')) OR 1=1 --` 형태로 전형적인 SQL 조건 우회와 주석 처리가 포함되어 있어 공격 의도는 강합니다. 다만 응답은 200 text/html이었고, DB 오류나 데이터 노출 성공 여부는 이 로그만으로 확인되지 않습니다.",
+        "severity": "high"
+      },
+      {
+        "title": "동일 엔드포인트에 대한 반사형 XSS 시도 2건",
+        "detail": "`<script>alert(1)</script>`가 URL 인코딩 및 HTML entity 인코딩 형태로 각각 관찰되었습니다. 이는 XSS 시도 또는 우회 표현으로 해석할 수 있으나, 실제 브라우저 실행 성공은 로그만으로 확정할 수 없습니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "known_asset IP에서의 연속 요청",
+        "detail": "모든 주요 요청이 192.168.56.109에서 발생했습니다. 내부 테스트, 자체 호출, 운영 점검 가능성이 있으므로 공격자 단정은 보류하고 추가 상관분석이 필요합니다.",
+        "severity": "info"
+      },
+      {
+        "title": "후보 밖 탐색성 요청 존재",
+        "detail": "filtered_out_breakdown에 low_signal_fuzzing 1건이 남아 있어, 단순 후보 외에도 낮은 신호의 탐색성 요청이 함께 관찰되었습니다. 현재는 incident로 승격하지 않는 것이 적절합니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:afDMf6MXtcVwDuh1vX3CbQAAAAM|table:security|log_id:1587|candidate:2",
+        "request_id": "afDMf6MXtcVwDuh1vX3CbQAAAAM",
+        "src_ip": "192.168.56.109",
+        "verdict": "suspicious_sqli",
+        "severity": "high",
+        "why_it_matters": "검색 파라미터에 `OR 1=1`과 SQL 주석 `--`가 결합된 전형적인 인젝션 시도로 보입니다. 다만 200 응답만으로 성공 여부나 데이터 접근 성공을 단정할 수는 없습니다."
+      },
+      {
+        "incident_ref": "request_id:afDMiEgRzqzQm4rYaTxh1wAAAAE|table:security|log_id:1589|candidate:0",
+        "request_id": "afDMiEgRzqzQm4rYaTxh1wAAAAE",
+        "src_ip": "192.168.56.109",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "`<script>alert(1)</script>`가 HTML entity로 인코딩된 형태로 포함되어 있어 반사형 XSS 시도 또는 우회 표현으로 해석됩니다. 그러나 text/html 200 응답만으로 스크립트 실행 성공을 확정할 수는 없습니다."
+      },
+      {
+        "incident_ref": "request_id:afDMhEuHmHcIKLg-is77XgAAAAQ|table:security|log_id:1588|candidate:1",
+        "request_id": "afDMhEuHmHcIKLg-is77XgAAAAQ",
+        "src_ip": "192.168.56.109",
+        "verdict": "suspicious_xss",
+        "severity": "medium",
+        "why_it_matters": "같은 검색 기능에 대해 URL 인코딩된 `<script>alert(1)</script>` 페이로드가 관찰되었습니다. 이는 XSS 시도 정황이지만, Apache 로그만으로 브라우저 실행 성공은 확인되지 않습니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.109",
+        "reason": "3건의 고신호 incident가 모두 이 IP에서 발생했습니다. known_asset IP와 일치하므로 내부 테스트, 자체 호출, 운영 점검 가능성을 함께 고려해야 하며, 외부 공격자 단정은 부적절합니다."
+      }
+    ],
+    "noise_interpretation": "후보 밖 탐색성 요청으로 low_signal_fuzzing 1건이 필터링되었습니다. 이는 현재 incident로 승격할 수준은 아니지만, 동일 IP·동일 시간대의 고신호 요청과 함께 보면 검색/입력 필드에 대한 가벼운 탐색이 병행되었을 가능성을 시사합니다. noise_summary가 비어 있더라도 filtered_out_breakdown이 보존되어 있으므로, 낮은 신호의 탐색성 요청이 실제로 존재했다고 해석하는 것이 맞습니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "request_id afDMf6MXtcVwDuh1vX3CbQAAAAM 및 동일 시각대 요청의 원본 로그를 재검토하고, 애플리케이션 측 쿼리 처리 여부와 에러 로그를 대조하라.",
+        "why": "SQL 인젝션 시도는 가장 위험도가 높고, 실제 DB 오류나 쿼리 변형이 있었는지 확인해야 성공/실패를 구분할 수 있습니다."
+      },
+      {
+        "priority": "P1",
+        "action": "192.168.56.109의 요청 목적을 내부 테스트/운영 점검 여부와 함께 확인하고, known_asset 범위 내 합법적 활동인지 상관분석하라.",
+        "why": "known_asset IP이므로 공격 단정 대신 내부 활동 가능성을 먼저 확인해야 오판을 줄일 수 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "검색 파라미터에 대해 서버측 입력 검증, 파라미터화 쿼리, 출력 인코딩이 적용되는지 점검하라.",
+        "why": "동일 엔드포인트에서 SQLi와 XSS가 모두 관찰되어 입력 검증 미흡 가능성을 점검할 필요가 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "XSS 관련 요청에 대해 실제 응답 HTML에 페이로드가 반사되었는지, 그리고 브라우저 실행 가능 맥락이 있는지 애플리케이션 레벨에서 확인하라.",
+        "why": "Apache 로그만으로는 실행 성공을 확정할 수 없으므로, 반사 여부와 템플릿 처리 로직을 별도 확인해야 합니다."
+      },
+      {
+        "priority": "P3",
+        "action": "filtered_out_breakdown에 포함된 low_signal_fuzzing 요청의 원본을 보존하고, 동일 IP에서 재발하는지 단기 모니터링하라.",
+        "why": "현재는 저신호이지만, 후속 고신호 사건과 결합되면 탐색에서 공격 준비 단계로 이어질 수 있습니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "근거가 강한 부분은 요청 문자열 자체의 공격 패턴입니다. 그러나 Apache 로그만으로 DB 접근 성공, XSS 브라우저 실행 성공, 데이터 유출 성공은 확정할 수 없습니다.",
+      "192.168.56.109는 known_asset IP와 일치하므로 내부 테스트/자체 호출 가능성을 배제할 수 없습니다.",
+      "지원 이벤트는 개별 incident가 아니라 같은 IP와 같은 URI의 인접 시계열 맥락으로만 해석했습니다. 정상 검색 요청 1건이 근접해 있어, 일부 행위는 테스트 세션의 일부일 가능성도 있습니다.",
+      "이 보고서는 전처리 및 1차 분류 요약 데이터 기반이며, 원본 DB 로그나 응답 본문 원문이 없어 세부 영향 범위 판단에는 한계가 있습니다."
+    ],
+    "presentation_takeaway": "이번 구간은 동일 IP에서 검색 기능을 대상으로 한 SQLi 1건과 XSS 2건이 연속 관찰된 짧은 집중 구간입니다. 다만 known_asset IP라는 점 때문에 내부 테스트 가능성을 함께 고려해야 하며, 현재 단계에서는 성공한 침해보다 시도 정황 중심으로 보는 것이 적절합니다."
+  }
+}
