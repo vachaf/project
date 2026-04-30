@@ -129,7 +129,7 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 
 - 2026-04-30 기준 normal search baseline row의 `dir_probe:*` hint 잔존 문제는 해결되었다.
 - `e_r3_search_attack_and_baseline` fixture에서는 해당 조건을 `MUST_NOT`으로 회귀 검증한다.
-- 2026-04-30 기준 `ip_behavior_aggregates`는 prepare top-level context-only 출력까지 반영되었고, Stage2 보고서 설명 강화는 후속 작업이다.
+- 2026-04-30 기준 `ip_behavior_aggregates`는 prepare top-level context-only 출력과 Stage2 report input/prompt 반영까지 완료되었다.
 
 ## `ip_behavior_multi_signal_context` expected 기준
 

@@ -14,6 +14,7 @@
 | Done | `ip_behavior_aggregates` context-only 도입 | 동일 `src_ip`의 300초 window에서 다중 path, 높은 4xx 비율, 혼합 공격 category, 민감 경로 접근, 5xx cluster를 Stage2 문맥용으로 보존 |
 | P2 | SQLi xclose/quote termination hint 추가 | B/E SQLi payload 설명력 강화 |
 | P2 | Stage2 PHP wrapper 설명 보강 | `php://filter/convert.base64-encode` source disclosure 의미를 더 안정적으로 설명 |
+| Done | Stage2 `ip_behavior_aggregates` 설명 보강 | Stage2가 `ip_behavior_aggregates`를 context-only reconnaissance/scanning 문맥으로 읽고, candidate 승격 근거로 사용하지 않도록 반영 |
 | P2 | L3 패턴 소량 확장 | Log4Shell, SSRF, SSTI, webshell 등 Apache 로그 표면에 남는 고신호 패턴만 제한적으로 추가 |
 | P3 | F세트 Auth/Login abuse 설계 | 새 공격 유형 확장 후보. POST body visibility 한계 주의 필요 |
 | P3 | G세트 HTTP method / protocol anomaly 설계 | 앱 의존도가 낮은 reconnaissance/anomaly 후보 |
@@ -181,9 +182,18 @@ ip_behavior:server_error_cluster
 
 ### 후속 TODO
 
-1. `llm_stage2_reporter.py`가 `ip_behavior_aggregates`를 직접 읽지 않으므로, Stage2 보고서 입력/설명 보강을 별도 후속 작업으로 반영
-2. known asset IP 와 결합된 IP aggregate 해석 문구 보강
-3. 실데이터 D/E 세트 raw에서 aggregate 과다 생성 여부 점검
+1. known asset IP 와 결합된 IP aggregate 해석 문구 보강
+2. 실데이터 D/E 세트 raw에서 aggregate 과다 생성 여부 점검
+3. 필요 시 report_input 기반 Stage2 smoke fixture 추가 검토
+
+### Stage2 반영 상태
+
+- `llm_stage2_reporter.py`가 `llm_input.json` top-level의 `ip_behavior_aggregates`를 읽어 `stage2_report_input.json`에 포함한다.
+- Stage2 prompt/system/user guidance 에 `ip_behavior_aggregates` 해석 원칙을 추가했다.
+- `ip_behavior_aggregates`는 context-only 이며 `analysis_candidates`와 섞지 않는다.
+- `should_promote_to_candidate=false` 인 aggregate 는 어떤 개별 row도 candidate 로 승격시키는 근거로 사용하지 않는다.
+- `attack_categories_attempted`는 attempted category 요약일 뿐 성공한 공격 목록이 아니다.
+- `sensitive_path_hits`는 민감 경로 접근 시도 문맥일 뿐 실제 노출 또는 침해 성공 근거가 아니다.
 
 ---
 
@@ -381,4 +391,4 @@ HEAD
 
 ## 13. 현재 결론
 
-즉시 수정이 필요한 치명적 문제는 없다. 다음 개발 작업은 payload 추가보다 **회귀 fixture 유지**와 **Stage2 `ip_behavior_aggregates` 설명 보강**이 우선이다.
+즉시 수정이 필요한 치명적 문제는 없다. 다음 개발 작업은 payload 추가보다 **회귀 fixture 유지**와 **Stage2 smoke 검증 정리**가 우선이다.

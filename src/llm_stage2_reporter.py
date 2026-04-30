@@ -38,6 +38,8 @@ TABLE_PRIORITY = {"security": 3, "error": 2, "access": 1}
 RECON_FILTERED_CATEGORIES = ("low_signal_fuzzing", "low_signal_dir_probe")
 REFERENCE_BASELINE_FILTERED_CATEGORIES = ("benign_normal_search", "normal_search_baseline")
 ENV_FILE_NAMES = ("config/llm.env", "llm.env", ".env")
+IP_BEHAVIOR_CONTEXT_LIMIT = 10
+IP_BEHAVIOR_LIST_LIMIT = 10
 
 
 @dataclass
@@ -300,6 +302,13 @@ def normalize_str(value: Any) -> str:
 def safe_int(value: Any, default: int = 0) -> int:
     try:
         return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
     except (TypeError, ValueError):
         return default
 
@@ -706,6 +715,67 @@ def build_out_of_candidate_recon_rows(filtered_out_breakdown: Dict[str, int], to
     )
 
 
+def truncate_unique_strings(values: Any, max_items: int = IP_BEHAVIOR_LIST_LIMIT) -> List[str]:
+    if not isinstance(values, list):
+        return []
+    items: List[str] = []
+    for value in values:
+        text = normalize_str(value)
+        if not text or text in items:
+            continue
+        items.append(text)
+        if len(items) >= max_items:
+            break
+    return items
+
+
+def build_ip_behavior_context_rows(
+    aggregates: List[Dict[str, Any]],
+    known_asset_ips: Sequence[str],
+    top_n: int = IP_BEHAVIOR_CONTEXT_LIMIT,
+) -> List[Dict[str, Any]]:
+    known_asset_set = set(known_asset_ips)
+    rows: List[Dict[str, Any]] = []
+    for item in aggregates:
+        src_ip = normalize_str(item.get("src_ip")) or "-"
+        rows.append(
+            {
+                "context_role": normalize_str(item.get("context_role")) or "ip_behavior_context",
+                "aggregate_scope": normalize_str(item.get("aggregate_scope")) or "same_src_ip_time_window",
+                "should_promote_to_candidate": bool(item.get("should_promote_to_candidate")),
+                "src_ip": src_ip,
+                "window_start": normalize_str(item.get("window_start")),
+                "window_end": normalize_str(item.get("window_end")),
+                "burst_window_sec": safe_int(item.get("burst_window_sec"), 0),
+                "request_count": safe_int(item.get("request_count"), 0),
+                "distinct_paths": safe_int(item.get("distinct_paths"), 0),
+                "distinct_methods": safe_int(item.get("distinct_methods"), 0),
+                "status_4xx_count": safe_int(item.get("status_4xx_count"), 0),
+                "status_4xx_ratio": round(safe_float(item.get("status_4xx_ratio"), 0.0), 4),
+                "status_5xx_count": safe_int(item.get("status_5xx_count"), 0),
+                "distinct_user_agents": safe_int(item.get("distinct_user_agents"), 0),
+                "attack_categories_attempted": truncate_unique_strings(item.get("attack_categories_attempted")),
+                "sensitive_path_hits": truncate_unique_strings(item.get("sensitive_path_hits")),
+                "sample_request_ids": truncate_unique_strings(item.get("sample_request_ids")),
+                "reason_hints": truncate_unique_strings(item.get("reason_hints")),
+                "interpretation_limit": normalize_str(item.get("interpretation_limit")) or "context_only_no_success_inference",
+                "known_asset": src_ip in known_asset_set,
+            }
+        )
+
+    rows.sort(
+        key=lambda x: (
+            safe_int(x.get("request_count"), 0),
+            len(x.get("attack_categories_attempted") or []),
+            safe_int(x.get("distinct_paths"), 0),
+            safe_float(x.get("status_4xx_ratio"), 0.0),
+            normalize_str(x.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return rows[:top_n]
+
+
 def build_report_input(
     stage1_payload: Dict[str, Any],
     llm_input_payload: Optional[Dict[str, Any]],
@@ -723,6 +793,7 @@ def build_report_input(
     supporting_events = (llm_input_payload or {}).get("supporting_events") or []
     false_positive_review_candidates = (llm_input_payload or {}).get("false_positive_review_candidates") or []
     probing_sequence_summaries = (llm_input_payload or {}).get("probing_sequence_summaries") or []
+    ip_behavior_aggregates = (llm_input_payload or {}).get("ip_behavior_aggregates") or []
     stage1_errors = (stage1_errors_payload or {}).get("errors") or []
     filtered_out_breakdown = normalize_counter_dict(llm_meta.get("filtered_out_breakdown"))
     total_filtered_out_rows = safe_int(counts.get("filtered_out_rows"), 0)
@@ -765,6 +836,11 @@ def build_report_input(
         total_filtered_out_rows=total_filtered_out_rows,
         top_n=top_noise_groups,
     )
+    top_ip_behavior_aggregates = build_ip_behavior_context_rows(
+        ip_behavior_aggregates,
+        known_asset_ips=known_asset_ips,
+        top_n=IP_BEHAVIOR_CONTEXT_LIMIT,
+    )
 
     matched_known_assets = sorted(
         {
@@ -800,6 +876,10 @@ def build_report_input(
                 counts.get("probing_sequence_summaries"),
                 len(probing_sequence_summaries),
             ),
+            "ip_behavior_aggregate_count": safe_int(
+                counts.get("ip_behavior_aggregates"),
+                len(ip_behavior_aggregates),
+            ),
             "stage1_success_count": safe_int(meta.get("success_count"), len(results)),
             "stage1_error_count": safe_int(meta.get("error_count"), len(stage1_errors)),
         },
@@ -819,7 +899,12 @@ def build_report_input(
             counts.get("probing_sequence_summaries"),
             len(probing_sequence_summaries),
         ),
+        "ip_behavior_aggregate_count": safe_int(
+            counts.get("ip_behavior_aggregates"),
+            len(ip_behavior_aggregates),
+        ),
         "probing_sequence_summaries": probing_sequence_summaries[:10],
+        "ip_behavior_aggregates": top_ip_behavior_aggregates,
         "supporting_events": supporting_events[:20],
         "false_positive_review_candidates": false_positive_review_candidates[:20],
         "stage1_errors_excerpt": stage1_errors[:5],
@@ -851,6 +936,15 @@ def build_report_input(
                 "interpretation_rule": "같은 src_ip, 짧은 시간 window, 여러 민감/관리/백업 경로 접근은 reconnaissance 또는 directory probing 정황으로만 설명",
                 "fallback_rule": "반복되는 200 text/html 동일 응답 크기는 fallback HTML 가능성으로만 설명하고 민감 리소스 노출 성공으로 단정하지 않음",
                 "blocked_rule": "예: /server-status 403 같은 차단 응답은 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급 가능",
+            },
+            "ip_behavior_aggregate_policy": {
+                "default_action": "ip_behavior_aggregates 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+                "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 incident 후보로 승격된 것으로 해석하지 않음",
+                "interpretation_rule": "같은 src_ip, 짧은 시간 window, 높은 4xx 비율, 다중 attempted category, 민감 경로 접근은 reconnaissance/scanning-like context 로만 설명",
+                "category_rule": "attack_categories_attempted 는 시도 유형 요약이지 성공한 공격 목록이 아님",
+                "sensitive_path_rule": "sensitive_path_hits 는 민감 경로 접근 시도 문맥일 뿐 실제 파일 노출 또는 침해 성공 근거가 아님",
+                "success_rule": "status_code=200, text/html, response_body_bytes, status_5xx_count 만으로 공격 성공, 침해 성공, 파일 노출, XSS 실행, DB 유출을 단정하지 않음",
+                "identity_rule": "동일 src_ip 는 scanning-like behavior 가 관찰된 출발지로만 표현하고 공격자나 침해 주체로 단정하지 않음",
             },
             "file_disclosure_policy": {
                 "php_wrapper_rule": "php://filter, convert.base64-encode, resource= 는 PHP wrapper 를 이용한 file disclosure 또는 source disclosure intent 로 설명 가능",
@@ -1001,6 +1095,11 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "probing_sequence_summaries 가 있으면 이는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 에서 짧은 시간 안에 여러 민감/관리/백업 경로에 접근한 reconnaissance 또는 directory probing 흐름으로만 설명하라. "
         "probing_sequence_summaries 의 200 text/html 반복 응답과 동일 response_body_bytes 반복은 fallback HTML 가능성으로만 설명하고, .env/.git/config/admin page/backup file 노출 성공으로 단정하지 마라. "
         "probing_sequence_summaries 안의 403, 401 같은 차단 응답은 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 남길 수 있다. "
+        "ip_behavior_aggregates 가 있으면 이는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 에서 짧은 시간 안에 여러 경로 접근, 높은 4xx 비율, 다중 attempted category, 민감 경로 접근이 함께 관찰된 reconnaissance 또는 scanning-like context 로만 설명하라. "
+        "ip_behavior_aggregates 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 analysis_candidate 로 승격된 것으로 해석하지 마라. "
+        "ip_behavior_aggregates 의 attack_categories_attempted 는 시도 유형 요약이지 성공한 공격 유형 목록이 아니며, sensitive_path_hits 는 민감 경로 접근 문맥일 뿐 실제 파일 노출 근거가 아니다. "
+        "ip_behavior_aggregates 의 status_code=200, text/html, response_body_bytes, status_5xx_count 만으로 공격 성공, 침해 성공, 파일 노출, XSS 실행, DB 유출을 단정하지 마라. "
+        "ip_behavior_aggregates 가 있어도 동일 src_ip 를 공격자라고 단정하지 말고, same src_ip observed with scanning-like behavior 정도의 보수적 표현만 사용하라. "
         "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, stage2 에서는 '후보 밖 탐색성 요청'으로 고정 표기하라. "
         "단, 동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라. "
         "filtered_out_breakdown, top_filtered_categories, top_out_of_candidate_recon 은 prepare 단계에서 보존된 사실 정보이므로 후보 밖 문맥 섹션과 recommended_actions 에 반영하라. "
@@ -1047,6 +1146,12 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "probing_sequence_summaries 안의 direct config path 접근은 context_only 이며 개별 incident 나 config 노출 성공으로 과승격하지 마라.",
             "probing_sequence_summaries 에 403 또는 401 응답이 있으면 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급하라.",
             "known_asset 이거나 known asset IP 와 겹치는 probing_sequence_summaries 는 내부 테스트/운영 점검 가능성을 함께 병기하라.",
+            "ip_behavior_aggregates 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip, 짧은 시간 window, 여러 path 접근, 높은 4xx 비율, attempted category 혼합이 관찰된 reconnaissance/scanning-like context 로만 설명하라.",
+            "ip_behavior_aggregates 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 candidate 로 승격된 것으로 해석하지 마라.",
+            "ip_behavior_aggregates 의 attack_categories_attempted 는 시도 유형 요약일 뿐 성공한 공격 유형 목록이 아니다.",
+            "ip_behavior_aggregates 의 sensitive_path_hits 는 민감 경로 접근 시도 문맥일 뿐 실제 파일 노출 근거가 아니다.",
+            "ip_behavior_aggregates 에 200 응답, text/html, response_body_bytes, 5xx count 가 있어도 공격 성공이나 침해 성공 근거로 사용하지 마라.",
+            "ip_behavior_aggregates 가 있어도 동일 src_ip 를 공격자라고 단정하지 말고, same src_ip observed with scanning-like behavior 정도로만 표현하라.",
             "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, 별도 '후보 밖 탐색성 요청' 섹션에서 설명하라.",
             "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라.",
             "benign_normal_search 또는 normal_search_baseline filtered_out category 는 low_signal_fuzzing 과 분리해서 정상 비교군 또는 reference baseline 으로 설명하라.",
@@ -1074,6 +1179,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     top_filtered_categories = report_input.get("top_filtered_categories") or []
     top_out_of_candidate_recon = report_input.get("top_out_of_candidate_recon") or []
     probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
+    ip_behavior_aggregates = report_input.get("ip_behavior_aggregates") or []
     verdicts = distributions.get("verdicts") or {}
     severities = distributions.get("severities") or {}
     source_tables = distributions.get("source_tables") or {}
@@ -1109,6 +1215,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     lines.append(f"- filtered out row 수: {safe_int(counts.get('filtered_out_rows'), 0)}")
     lines.append(f"- filtered out 비집계 row 수: {safe_int(counts.get('filtered_out_non_aggregated_rows'), 0)}")
     lines.append(f"- noise 집계 그룹 수: {safe_int(counts.get('noise_group_count'), 0)}")
+    lines.append(f"- ip behavior aggregate 수: {safe_int(counts.get('ip_behavior_aggregate_count'), len(ip_behavior_aggregates))}")
     lines.append(f"- stage1 성공/오류: {safe_int(counts.get('stage1_success_count'), 0)} / {safe_int(counts.get('stage1_error_count'), 0)}")
     if verdicts:
         lines.append(f"- verdict 분포: {json.dumps(verdicts, ensure_ascii=False)}")
@@ -1217,18 +1324,46 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
                 lines.append(f"  - 해석: {interpretation_hint}")
     lines.append("")
 
-    lines.append("## 8. 권고 조치")
+    lines.append("## 8. IP behavior context")
+    if ip_behavior_aggregates:
+        lines.append("- 아래 항목은 context-only 이며 개별 incident 승격이나 severity 상향 근거가 아닙니다.")
+        for item in ip_behavior_aggregates[:5]:
+            attack_categories = ", ".join(item.get("attack_categories_attempted") or []) or "-"
+            sensitive_paths = ", ".join(item.get("sensitive_path_hits") or []) or "-"
+            reason_hints = ", ".join(item.get("reason_hints") or []) or "-"
+            lines.append(
+                f"- src_ip={normalize_str(item.get('src_ip')) or '-'} | "
+                f"window={normalize_str(item.get('window_start')) or '-'} ~ {normalize_str(item.get('window_end')) or '-'} | "
+                f"requests={safe_int(item.get('request_count'), 0)} | "
+                f"distinct_paths={safe_int(item.get('distinct_paths'), 0)} | "
+                f"4xx_ratio={safe_float(item.get('status_4xx_ratio'), 0.0):.2f} | "
+                f"5xx_count={safe_int(item.get('status_5xx_count'), 0)}"
+            )
+            lines.append(f"  - attempted_categories={attack_categories}")
+            lines.append(f"  - sensitive_path_hits={sensitive_paths}")
+            lines.append(f"  - reason_hints={reason_hints}")
+            lines.append("  - 해석: 같은 src_ip 에서 scanning-like 또는 reconnaissance-like behavior 가 관찰된 문맥으로만 본다.")
+            interpretation_limit = normalize_str(item.get("interpretation_limit"))
+            if interpretation_limit:
+                lines.append(f"  - 제한: {interpretation_limit}")
+            if bool(item.get("known_asset")):
+                lines.append("  - 주의: known asset IP 와 일치하므로 내부 테스트/운영 점검 가능성을 함께 고려해야 합니다.")
+    else:
+        lines.append("- 관찰된 ip_behavior_aggregates 없음")
+    lines.append("")
+
+    lines.append("## 9. 권고 조치")
     for item in report_json.get("recommended_actions") or []:
         lines.append(f"- **{normalize_str(item.get('priority'))}** {normalize_str(item.get('action'))}")
         lines.append(f"  - 근거: {normalize_str(item.get('why'))}")
     lines.append("")
 
-    lines.append("## 9. 신뢰도와 한계")
+    lines.append("## 10. 신뢰도와 한계")
     for item in report_json.get("confidence_and_limitations") or []:
         lines.append(f"- {normalize_str(item)}")
     lines.append("")
 
-    lines.append("## 10. 발표용 한 줄 정리")
+    lines.append("## 11. 발표용 한 줄 정리")
     lines.append(normalize_str(report_json.get("presentation_takeaway")))
     lines.append("")
 
@@ -1242,6 +1377,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     filtered_rows = report_input.get("top_filtered_categories") or []
     recon_rows = report_input.get("top_out_of_candidate_recon") or []
     probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
+    ip_behavior_aggregates = report_input.get("ip_behavior_aggregates") or []
     asset_context = report_input.get("asset_context") or {}
     lines: List[str] = []
     lines.append("# 드라이런 보안 분석 보고서")
@@ -1260,6 +1396,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append(f"- distinct incident 수: {safe_int(counts.get('distinct_incident_count'), 0)}")
     lines.append(f"- filtered out row 수: {safe_int(counts.get('filtered_out_rows'), 0)}")
     lines.append(f"- probing sequence summary 수: {safe_int(counts.get('probing_sequence_summary_count'), len(probing_sequence_summaries))}")
+    lines.append(f"- ip behavior aggregate 수: {safe_int(counts.get('ip_behavior_aggregate_count'), len(ip_behavior_aggregates))}")
     lines.append(f"- stage1 성공/오류: {safe_int(counts.get('stage1_success_count'), 0)} / {safe_int(counts.get('stage1_error_count'), 0)}")
     if filtered_rows:
         lines.append("- 후보 밖 주요 카테고리:")
@@ -1281,6 +1418,17 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
                 f"distinct_paths={safe_int(item.get('distinct_path_count'), 0)} | "
                 f"sample_paths={sample_paths}"
             )
+    if ip_behavior_aggregates:
+        lines.append("- context-only IP behavior aggregates:")
+        for item in ip_behavior_aggregates[:5]:
+            categories = ", ".join(item.get("attack_categories_attempted") or []) or "-"
+            lines.append(
+                f"  - src_ip={normalize_str(item.get('src_ip')) or '-'} | "
+                f"requests={safe_int(item.get('request_count'), 0)} | "
+                f"distinct_paths={safe_int(item.get('distinct_paths'), 0)} | "
+                f"4xx_ratio={safe_float(item.get('status_4xx_ratio'), 0.0):.2f} | "
+                f"attempted_categories={categories}"
+            )
     lines.append("")
     lines.append("## 상위 incident 미리보기")
     for item in incidents[:5]:
@@ -1299,6 +1447,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append("- dry-run 이므로 실제 LLM API 호출 없이 요약 입력만 검증했다.")
     lines.append("- incident 는 request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 병합했다.")
     lines.append("- filtered_out_breakdown 은 noise_summary 와 별도로 보존되며, 보고서 초안에도 함께 노출된다.")
+    lines.append("- ip_behavior_aggregates 는 context-only 이며 개별 incident 승격이나 severity 상향 근거로 사용하지 않는다.")
     return "\n".join(lines).strip() + "\n"
 
 
