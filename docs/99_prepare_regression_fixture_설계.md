@@ -125,5 +125,5 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 
 ## Known Limitation
 
-- normal search row에 `dir_probe:*` hint가 남는 문제는 초기에는 warning으로만 관리한다.
-- 해당 조건은 `KNOWN_LIMITATION`으로 정의하고 strict 모드가 아닐 때는 FAIL로 올리지 않는다.
+- 2026-04-30 기준 normal search baseline row의 `dir_probe:*` hint 잔존 문제는 해결되었다.
+- `e_r3_search_attack_and_baseline` fixture에서는 해당 조건을 `MUST_NOT`으로 회귀 검증한다.

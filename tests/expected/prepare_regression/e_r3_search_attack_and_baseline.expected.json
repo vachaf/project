@@ -57,6 +57,26 @@
         "request_id": "e-r3-search-baseline-1"
       },
       "message": "normal search must not be promoted to an attack candidate"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "e-r3-search-baseline-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "normal search filtered row must not keep dir_probe:* hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "supporting_events",
+      "where": {
+        "request_id": "e-r3-search-baseline-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "reference baseline supporting event must not keep dir_probe:* hint"
     }
   ],
   "SHOULD": [
@@ -79,28 +99,6 @@
       "field": "noise_category",
       "contains": "benign_normal_search",
       "message": "normal search filtered as benign normal search"
-    }
-  ],
-  "KNOWN_LIMITATION": [
-    {
-      "op": "field_contains",
-      "collection": "filtered_out",
-      "where": {
-        "request_id": "e-r3-search-baseline-1"
-      },
-      "field": "reason_hints",
-      "contains": "dir_probe:",
-      "message": "normal search has dir_probe:* hint; tracked as known limitation"
-    },
-    {
-      "op": "field_contains",
-      "collection": "supporting_events",
-      "where": {
-        "request_id": "e-r3-search-baseline-1"
-      },
-      "field": "reason_hints",
-      "contains": "dir_probe:",
-      "message": "normal search has dir_probe:* hint; tracked as known limitation"
     }
   ]
 }

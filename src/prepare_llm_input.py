@@ -1712,6 +1712,28 @@ def is_likely_normal_search_baseline(
     return True
 
 
+def sanitize_filtered_reason_hints(
+    row: Dict[str, Any],
+    reason_hints: Iterable[str],
+    analysis_texts: Iterable[str],
+) -> List[str]:
+    sanitized = [raw_text(hint) for hint in reason_hints if raw_text(hint)]
+    if not sanitized:
+        return sanitized
+
+    if normalize_text(row.get("_noise_category")) != "benign_normal_search":
+        return sanitized
+
+    if not is_likely_normal_search_baseline(
+        row,
+        analysis_texts=analysis_texts,
+        reason_hints=sanitized,
+    ):
+        return sanitized
+
+    return [hint for hint in sanitized if not hint.startswith("dir_probe:")]
+
+
 def get_method(row: Dict[str, Any]) -> str:
     return normalize_text(row.get("method")) or "-"
 
@@ -1983,7 +2005,12 @@ def build_filtered_row_payload(row: Dict[str, Any]) -> Dict[str, Any]:
         if status_code == 200 and resp_ct_lower.startswith("text/html") and response_body_bytes >= 10000:
             likely_html_fallback_response = True
 
-    reason_hints = get_probe_sequence_reason_hints(probe_path)
+    analysis_texts = unique_non_empty_texts([raw_text(row.get("query_string")), raw_request_target])
+    reason_hints = sanitize_filtered_reason_hints(
+        row,
+        get_probe_sequence_reason_hints(probe_path),
+        analysis_texts=analysis_texts,
+    )
 
     return {
         "source_table": normalize_text(row.get("_source_table")),

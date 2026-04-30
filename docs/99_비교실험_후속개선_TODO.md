@@ -12,7 +12,7 @@
 |---|---|---|
 | P1 | 회귀 fixture 정리 | B/C/D/E 개선이 누적되어 다음 수정 때 기존 기능이 깨질 가능성이 커짐 |
 | P1 | `suspicious_file_disclosure` verdict 정식화 | E세트 R2/R2B에서 `php://filter`가 아직 `suspicious_path_traversal`로 흡수됨 |
-| P2 | benign normal search hint 정리 | E세트 R3B에서 `benign_normal_search` row에 `dir_probe:burst`가 남을 수 있음 |
+| Done | benign normal search hint 정리 | `benign_normal_search` baseline row의 `dir_probe:*` hint 제거 및 회귀 `MUST_NOT` 반영 완료 |
 | P2 | SQLi xclose/quote termination hint 추가 | B/E SQLi payload 설명력 강화 |
 | P2 | Stage2 PHP wrapper 설명 보강 | `php://filter/convert.base64-encode` source disclosure 의미를 더 안정적으로 설명 |
 | P3 | F세트 Auth/Login abuse 설계 | 새 공격 유형 확장 후보. POST body visibility 한계 주의 필요 |
@@ -102,36 +102,28 @@ suspicious_file_disclosure
 
 ---
 
-## 4. P2 — benign normal search hint 정리
+## 4. 완료 — benign normal search hint 정리
 
-### 배경
+### 반영 내용
 
-E세트 R3B에서 정상 `search=apple`은 `benign_normal_search`와 `reference_baseline`으로 잘 분리되었다. 다만 filtered out row의 `reason_hints`에 `dir_probe:burst`가 남는 경우가 확인되었다.
+E세트 R3B에서 정상 `search=apple`은 `benign_normal_search`와 `reference_baseline`으로 잘 분리되었고, 이후 prepare 단계 보정으로 filtered out row의 `dir_probe:*` hint도 제거되었다.
 
-### 문제
+### 원래 문제
 
 `benign_normal_search`와 `dir_probe:burst`가 함께 있으면 데이터 구조상 어색하다. Stage2가 현재는 정상 baseline으로 잘 해석했지만, 후속 provider나 prompt 변경에서 불필요한 혼동을 만들 수 있다.
 
-### 개선 방향
+### 반영 방식
 
-- `benign_normal_search` row에는 `dir_probe:*` 계열 hint를 제거
-- 또는 `normal_search_baseline` 계열 hint로 교체
+- `benign_normal_search`로 분류된 row 중 plain search baseline 조건을 만족하는 경우에만 `dir_probe:*` 계열 hint를 제거
+- endpoint 이름 예외가 아니라 query-bearing baseline 판정 결과를 사용
+- `supporting_events`의 `reference_baseline` 분류와 공격 candidate 판정은 유지
 
-권장 hint:
-
-```text
-normal_search:plain_query
-normal_search:search_parameter
-supporting:normal_search_baseline
-supporting:same_endpoint_reference_baseline
-```
-
-### 검증 기준
+### 검증 결과
 
 - E세트 R3B에서 정상 search는 candidate가 아님
 - `filtered_out_breakdown={"benign_normal_search": 1}` 유지
 - supporting event는 `reference_baseline` 유지
-- SQLi/XSS candidate 3건은 유지
+- SQLi/XSS candidate는 유지
 
 ---
 
