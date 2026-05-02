@@ -1,0 +1,230 @@
+{
+  "meta": {
+    "generated_at": "2026-05-02T19:28:21.432+09:00",
+    "input_file": "/opt/web_log_analysis/lab/05-02_F세트R2B_산출물/data/processed/openai-f_r2b_response_delta_llm_input.json",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.openai.com/v1",
+    "source_window": {
+      "start": "2026-05-02T19:08:09.000+09:00",
+      "end_exclusive": "2026-05-02T19:08:37.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-05-02T19:15:06.511+09:00",
+    "source_prepared_at": "2026-05-02T19:28:10.683+09:00",
+    "source_counts": {
+      "total_exported_rows": 11,
+      "selected_source_rows": 11,
+      "filtered_out_rows": 0,
+      "filtered_out_non_aggregated_rows": 0,
+      "noise_group_count": 0,
+      "candidate_rows_before_auth_behavior_reduction": 11,
+      "auth_behavior_demoted_candidate_rows": 8,
+      "candidate_rows_before_dedup": 3,
+      "candidate_rows": 3,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 3,
+      "supporting_events": 8,
+      "false_positive_review_candidates": 0,
+      "probing_sequence_summaries": 0,
+      "ip_behavior_aggregates": 1,
+      "auth_behavior_summaries": 1
+    },
+    "candidate_group_summary_count": 3,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id",
+      "response_body_bytes",
+      "resp_content_type",
+      "raw_request_target",
+      "path_normalized_from_raw_request",
+      "likely_html_fallback_response"
+    ],
+    "processed_candidate_count": 3,
+    "success_count": 3,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "incident_group_key": "rid:afXNH-mLfH8izKVCAXGL1QAAAEg",
+      "request_id": "afXNH-mLfH8izKVCAXGL1QAAAEg",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        31674
+      ],
+      "log_id": 31674,
+      "src_ip": "192.168.56.1",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "log_time": "2026-05-02T19:08:31.965 09:00",
+      "status_code": 401,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:401(+2)",
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 26,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_auth_abuse",
+      "severity": "low",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "로그인 엔드포인트에 대한 POST 요청이고 401 응답이어서 인증 실패/반복 시도 정황은 있으나, 제공된 정보만으로는 실제 brute force 반복 여부를 확인할 수 없습니다. user_agent가 프로브 성격으로 보이지만 단일 요청 1건만으로는 공격을 강하게 단정하기 어려워 인증 오용 수준으로 보수적으로 분류합니다.",
+      "evidence_fields": [
+        "POST /rest/user/login",
+        "status_code 401",
+        "login endpoint",
+        "req_content_type application/json",
+        "user_agent lab-f-set-r2-lockout-probe-5",
+        "referer 비어 있음"
+      ],
+      "recommended_actions": [
+        "watch",
+        "correlate_src_ip",
+        "review_raw_log"
+      ],
+      "response_id": "resp_0445086f705e19bd0169f5d1be7c5081949eabc88d34b71cb9",
+      "raw_output_text": "{\"verdict\":\"suspicious_auth_abuse\",\"severity\":\"low\",\"confidence\":\"medium\",\"false_positive_possible\":true,\"reasoning_summary\":\"로그인 엔드포인트에 대한 POST 요청이고 401 응답이어서 인증 실패/반복 시도 정황은 있으나, 제공된 정보만으로는 실제 brute force 반복 여부를 확인할 수 없습니다. user_agent가 프로브 성격으로 보이지만 단일 요청 1건만으로는 공격을 강하게 단정하기 어려워 인증 오용 수준으로 보수적으로 분류합니다.\",\"evidence_fields\":[\"POST /rest/user/login\",\"status_code 401\",\"login endpoint\",\"req_content_type application/json\",\"user_agent lab-f-set-r2-lockout-probe-5\",\"referer 비어 있음\"],\"recommended_actions\":[\"watch\",\"correlate_src_ip\",\"review_raw_log\"]}"
+    },
+    {
+      "candidate_index": 1,
+      "incident_group_key": "rid:afXNEEfyxNiLza2eCu6elQAAABc",
+      "request_id": "afXNEEfyxNiLza2eCu6elQAAABc",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        31667
+      ],
+      "log_id": 31667,
+      "src_ip": "192.168.56.1",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "log_time": "2026-05-02T19:08:16.367 09:00",
+      "status_code": 401,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:401(+2)",
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 26,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "suspicious_auth_abuse",
+      "severity": "low",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "로그인 엔드포인트(/rest/user/login)에 대해 JSON 인증 요청이 들어왔고 401 응답이 반환되어 인증 실패 정황은 있습니다. 다만 단일 요청 1건만 보이며 반복 시도나 자격 증명 추측을 직접 입증할 근거는 부족하므로, 명확한 브루트포스로 단정하기보다는 가벼운 인증 오용 신호로 분류합니다.",
+      "evidence_fields": [
+        "로그인 엔드포인트 접근",
+        "HTTP 401 인증 실패",
+        "요청 본문 유형: application/json",
+        "단일 요청 관측",
+        "의심스러운 UA: lab-f-set-r2-enum-notexist-1"
+      ],
+      "recommended_actions": [
+        "watch",
+        "correlate_src_ip",
+        "review_raw_log"
+      ],
+      "response_id": "resp_0b1eca4a48aa89470169f5d1c18a4c819083f05d28eefb2a26",
+      "raw_output_text": "{\"verdict\":\"suspicious_auth_abuse\",\"severity\":\"low\",\"confidence\":\"medium\",\"false_positive_possible\":true,\"reasoning_summary\":\"로그인 엔드포인트(/rest/user/login)에 대해 JSON 인증 요청이 들어왔고 401 응답이 반환되어 인증 실패 정황은 있습니다. 다만 단일 요청 1건만 보이며 반복 시도나 자격 증명 추측을 직접 입증할 근거는 부족하므로, 명확한 브루트포스로 단정하기보다는 가벼운 인증 오용 신호로 분류합니다.\",\"evidence_fields\":[\"로그인 엔드포인트 접근\",\"HTTP 401 인증 실패\",\"요청 본문 유형: application/json\",\"단일 요청 관측\",\"의심스러운 UA: lab-f-set-r2-enum-notexist-1\"],\"recommended_actions\":[\"watch\",\"correlate_src_ip\",\"review_raw_log\"]}"
+    },
+    {
+      "candidate_index": 2,
+      "incident_group_key": "rid:afXNDumLfH8izKVCAXGL0AAAAEI",
+      "request_id": "afXNDumLfH8izKVCAXGL0AAAAEI",
+      "error_link_id": "",
+      "model": "gpt-5.4-mini",
+      "source_table": "security",
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_row_count": 1,
+      "merged_log_ids": [
+        31664
+      ],
+      "log_id": 31664,
+      "src_ip": "192.168.56.1",
+      "method": "POST",
+      "uri": "/rest/user/login",
+      "query_string": "",
+      "log_time": "2026-05-02T19:08:14.126 09:00",
+      "status_code": 401,
+      "score": 5,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:401(+2)",
+        "login_endpoint(+1)",
+        "auth_payload_content_type(+1)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "response_body_bytes": 26,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/rest/user/login",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "verdict": "likely_false_positive",
+      "severity": "low",
+      "confidence": "medium",
+      "false_positive_possible": true,
+      "reasoning_summary": "로그상 /rest/user/login POST 요청에 대해 401 응답이 반환되었고, user_agent도 실험/도구성 문자열로 보여 인증 실패나 단일 로그인 시도 정도로 해석하는 것이 타당합니다. 제공된 필드만으로 반복 시도나 자격 증명 추측의 증거는 부족하며, 탐지 규칙이 로그인 엔드포인트와 401 상태에 반응했을 가능성이 있습니다.",
+      "evidence_fields": [
+        "로그인 엔드포인트",
+        "401 인증 실패",
+        "JSON 요청 콘텐츠 타입",
+        "단일 요청",
+        "도구성 user-agent"
+      ],
+      "recommended_actions": [
+        "watch",
+        "correlate_src_ip"
+      ],
+      "response_id": "resp_0b3ff75582ab0ee30169f5d1c39cfc81968487cfe0ede3d821",
+      "raw_output_text": "{\"verdict\":\"likely_false_positive\",\"severity\":\"low\",\"confidence\":\"medium\",\"false_positive_possible\":true,\"reasoning_summary\":\"로그상 /rest/user/login POST 요청에 대해 401 응답이 반환되었고, user_agent도 실험/도구성 문자열로 보여 인증 실패나 단일 로그인 시도 정도로 해석하는 것이 타당합니다. 제공된 필드만으로 반복 시도나 자격 증명 추측의 증거는 부족하며, 탐지 규칙이 로그인 엔드포인트와 401 상태에 반응했을 가능성이 있습니다.\",\"evidence_fields\":[\"로그인 엔드포인트\",\"401 인증 실패\",\"JSON 요청 콘텐츠 타입\",\"단일 요청\",\"도구성 user-agent\"],\"recommended_actions\":[\"watch\",\"correlate_src_ip\"]}"
+    }
+  ]
+}
