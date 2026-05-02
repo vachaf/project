@@ -63,97 +63,113 @@ f_r2a_auth_slow_mixed_baseline_stage2_report.md
 
 R2A는 가장 먼저 실행할 Round 2다. 목적은 R1에서 검증한 `auth_behavior_summaries`가 rapid가 아닌 저속/혼합 상황에서도 동작하는지 확인하는 것이다.
 
-### F-R2A-01 저속 brute-force-like 401 ×6
+R2A는 긴 `curl` 나열보다 Python runner 사용을 권장한다.
+
+권장 실행:
 
 ```bash
-for i in $(seq 1 6); do
-  curl -i \
-    -A "${UA_PREFIX}-slow-brute-${i}" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
-    "$JUICE_URL/rest/user/login"
-  sleep 10
-done
+python3 lab/f_set/run_f_r2a_auth_scenarios.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_F세트R2A_산출물/runner_logs
 ```
 
-기대 관찰:
+dry-run 또는 plan 확인:
 
-- 같은 `src_ip`, 같은 auth endpoint, 약 1분 안의 401 반복
-- rapid burst는 아니지만 repeated auth endpoint interaction
+```bash
+python3 lab/f_set/run_f_r2a_auth_scenarios.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_F세트R2A_산출물/runner_logs \
+  --dry-run
+```
 
-기대 해석:
+```bash
+python3 lab/f_set/run_f_r2a_auth_scenarios.py \
+  --base-url http://192.168.56.105 \
+  --scenario slow_brute \
+  --out lab/05-xx_F세트R2A_산출물/runner_logs \
+  --print-plan
+```
 
-- low-and-slow auth abuse 가능성
-- 개별 401을 high-risk로 과승격하지 않음
-- POST body 미확인으로 실제 계정/비밀번호/성공 여부 단정 금지
+주의:
+
+- runner는 승인된 로컬 실험 환경에서만 사용한다.
+- 외부 public target에는 실행하지 않는다.
+- runner는 공격 성공, 로그인 성공, 계정 탈취를 검증하지 않는다.
+- POST body는 실행용 값일 뿐 Apache 로그 기반 분석 pipeline에는 보이지 않는다.
+
+### F-R2A-01 저속 brute-force-like 401 ×6
+
+| 항목 | 내용 |
+|---|---|
+| scenario_id | `F-R2A-01` |
+| runner label | `slow_brute_401_x6` |
+| runner CLI | `--scenario slow_brute` |
+| 요청 구성 | `POST /rest/user/login` 6회, 10초 간격, `lab-f-set-r2-slow-brute-{i}` |
+| 기대 응답 | `401` |
+| 기대 관찰 | 같은 `src_ip`, 같은 auth endpoint, 300초 window 내 repeated 401, rapid burst는 아님 |
+| 기대 해석 | low-and-slow auth abuse possibility, no brute force success inference |
+| 해석 제한 | `post_body_not_visible_no_auth_success_inference` |
+
+참고용 최소 `curl` 예:
+
+```bash
+curl -i \
+  -A "${UA_PREFIX}-slow-brute-1" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
+  "$JUICE_URL/rest/user/login"
+```
 
 ### F-R2A-02 정상 browse 사이 auth 실패 삽입
 
+| 항목 | 내용 |
+|---|---|
+| scenario_id | `F-R2A-02` |
+| runner label | `interleaved_browse_auth_failures` |
+| runner CLI | `--scenario interleaved_browse` |
+| 요청 구성 | `GET /rest/products/search?q=apple` -> sleep 8 -> `POST /rest/user/login` -> sleep 12 -> `GET /rest/products` -> sleep 8 -> `POST /rest/user/login` -> sleep 10 -> `GET /rest/products/search?q=phone` -> sleep 8 -> `POST /rest/user/login` |
+| 기대 응답 | browse는 주로 `200`, auth 요청은 `401` 기대 |
+| 기대 관찰 | normal browse/search와 auth failure가 혼재하고, auth request만 auth behavior summary로 묶이는지 확인 |
+| 기대 해석 | browse requests should not be promoted as auth abuse, auth failures may form repeated auth endpoint context |
+| 해석 제한 | `normal_browse_context_must_not_be_auth_abuse` |
+
+참고용 최소 `curl` 예:
+
 ```bash
 curl -i -A "${UA_PREFIX}-slow-hidden-browse-1" "$JUICE_URL/rest/products/search?q=apple"
-sleep 8
 curl -i -A "${UA_PREFIX}-slow-hidden-fail-1" \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
   "$JUICE_URL/rest/user/login"
-sleep 12
-curl -i -A "${UA_PREFIX}-slow-hidden-browse-2" "$JUICE_URL/rest/products"
-sleep 8
-curl -i -A "${UA_PREFIX}-slow-hidden-fail-2" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
-  "$JUICE_URL/rest/user/login"
-sleep 10
-curl -i -A "${UA_PREFIX}-slow-hidden-browse-3" "$JUICE_URL/rest/products/search?q=phone"
-sleep 8
-curl -i -A "${UA_PREFIX}-slow-hidden-fail-3" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
-  "$JUICE_URL/rest/user/login"
 ```
-
-기대 관찰:
-
-- 정상 browse/search 요청과 auth 실패 요청이 같은 window 안에 혼재
-- auth request만 별도 behavior summary로 묶이는지 확인
-
-기대 해석:
-
-- normal browse는 auth abuse candidate로 과승격하지 않음
-- auth 실패만 repeated auth endpoint context로 설명
-- `ip_behavior_aggregates`와 `auth_behavior_summaries`의 scope를 분리해서 설명
 
 ### F-R2A-03 정상 Chrome 단독 200
 
-```bash
-curl -i \
-  -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"admin123"}' \
-  "$JUICE_URL/rest/user/login"
-```
-
-기대 해석:
-
-- 단독 200은 정상 로그인 가능성 또는 baseline
-- 로그인 성공 확인은 단정하지 않음
-- incident 과승격 금지
+| 항목 | 내용 |
+|---|---|
+| scenario_id | `F-R2A-03` |
+| runner label | `chrome_single_200_baseline` |
+| runner CLI | `--scenario chrome_200` |
+| 요청 구성 | `POST /rest/user/login` 1회, Chrome 계열 UA 사용 |
+| 기대 응답 | `200` |
+| 기대 관찰 | standalone 200 auth response |
+| 기대 해석 | normal login baseline possibility, should not be promoted as attack |
+| 해석 제한 | `no_auth_success_confirmation_from_apache_logs` |
 
 ### F-R2A-04 CI/CD 또는 서비스 계정 단독 200
 
-```bash
-curl -i \
-  -A "CI-Pipeline/1.0 (internal-health-check)" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"admin123"}' \
-  "$JUICE_URL/rest/user/login"
-```
-
-기대 해석:
-
-- 비브라우저성 UA라도 단독 200이면 자동 공격으로 단정하지 않음
-- internal/CI/service account 가능성 병기
-- `auth_baseline_context` 또는 equivalent context 유지
+| 항목 | 내용 |
+|---|---|
+| scenario_id | `F-R2A-04` |
+| runner label | `ci_single_200_baseline` |
+| runner CLI | `--scenario ci_200` |
+| 요청 구성 | `POST /rest/user/login` 1회, `CI-Pipeline/1.0 (internal-health-check)` UA 사용 |
+| 기대 응답 | `200` |
+| 기대 관찰 | standalone 200 auth response with non-browser UA |
+| 기대 해석 | internal service / CI login possibility, non-browser UA alone is not attack evidence |
+| 해석 제한 | `no_auth_success_confirmation_from_apache_logs` |
 
 ### R2A 체크포인트
 
