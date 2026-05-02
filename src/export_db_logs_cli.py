@@ -15,9 +15,9 @@ MariaDB(web_logs)에서 시간 범위 기준으로 로그를 조회해 JSON 파�
 - apache_error_logs
 
 예시:
-  python3 export_db_logs_cli_kst.py --help
+  python3 src/export_db_logs_cli.py --help
 
-  python3 export_db_logs_cli_kst.py \
+  python3 src/export_db_logs_cli.py \
     --host "$LOG_DB_HOST" \
     --user log_writer \
     --password "$LOG_DB_PASSWORD" \
@@ -25,14 +25,14 @@ MariaDB(web_logs)에서 시간 범위 기준으로 로그를 조회해 JSON 파�
     --table security \
     --pretty
 
-  python3 export_db_logs_cli_kst.py \
+  python3 src/export_db_logs_cli.py \
     --host "$LOG_DB_HOST" \
     --user log_writer \
     --password "$LOG_DB_PASSWORD" \
     --date 2026-04-02 \
     --table security
 
-  python3 export_db_logs_cli_kst.py \
+  python3 src/export_db_logs_cli.py \
     --host "$LOG_DB_HOST" \
     --user log_writer \
     --password "$LOG_DB_PASSWORD" \
@@ -40,6 +40,20 @@ MariaDB(web_logs)에서 시간 범위 기준으로 로그를 조회해 JSON 파�
     --end   '2026-04-02 12:00:00' \
     --table security \
     --pretty
+
+  python3 src/export_db_logs_cli.py \
+    --start '2026-05-02 17:14:00' \
+    --end '2026-05-02 17:18:00' \
+    --table security \
+    --pretty \
+    --out-dir lab/05-02_F세트R2A_산출물/data/raw
+
+  python3 src/export_db_logs_cli.py \
+    --start '2026-05-02 17:14:00' \
+    --end '2026-05-02 17:18:00' \
+    --table security \
+    --pretty \
+    --out lab/05-02_F세트R2A_산출물/data/raw/security_2026-05-02_F_R2A_kst.json
 """
 
 from __future__ import annotations
@@ -295,7 +309,7 @@ def ensure_parent_dir(file_path: str) -> None:
         os.makedirs(parent, exist_ok=True)
 
 
-def auto_output_filename(table_option: str, range_cfg: RangeConfig) -> str:
+def auto_output_filename(table_option: str, range_cfg: RangeConfig, output_dir: Optional[str] = None) -> str:
     if range_cfg.mode in {"today", "date"}:
         date_text = range_cfg.start_query_tz.strftime("%Y-%m-%d")
         filename = f"{table_option}_{date_text}_kst.json"
@@ -303,7 +317,16 @@ def auto_output_filename(table_option: str, range_cfg: RangeConfig) -> str:
         stamp_start = range_cfg.start_query_tz.strftime("%Y-%m-%d_%H-%M-%S")
         stamp_end = range_cfg.end_exclusive_query_tz.strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{table_option}_{stamp_start}_to_{stamp_end}_kst.json"
-    return os.path.abspath(os.path.join(DEFAULT_OUTPUT_DIR, filename))
+    base_dir = output_dir or DEFAULT_OUTPUT_DIR
+    return os.path.abspath(os.path.join(base_dir, filename))
+
+
+def resolve_output_path(args: argparse.Namespace, range_cfg: RangeConfig) -> str:
+    if args.out and args.out_dir:
+        raise ValueError("--out and --out-dir cannot be used together.")
+    if args.out:
+        return os.path.abspath(args.out)
+    return auto_output_filename(args.table, range_cfg, output_dir=args.out_dir)
 
 
 # -------------------------
@@ -375,10 +398,12 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=(
             "예시:\n"
-            "  python3 export_db_logs_cli_kst.py --host \"$LOG_DB_HOST\" --user log_writer --today --table security\n"
-            "  python3 export_db_logs_cli_kst.py --date 2026-04-02 --table security --pretty\n"
-            "  python3 export_db_logs_cli_kst.py --start '2026-04-02 09:00:00' --end '2026-04-02 12:00:00' --table security\n"
-            "  python3 export_db_logs_cli_kst.py --interactive"
+            "  python3 src/export_db_logs_cli.py --host \"$LOG_DB_HOST\" --user log_writer --today --table security\n"
+            "  python3 src/export_db_logs_cli.py --date 2026-04-02 --table security --pretty\n"
+            "  python3 src/export_db_logs_cli.py --start '2026-04-02 09:00:00' --end '2026-04-02 12:00:00' --table security\n"
+            "  python3 src/export_db_logs_cli.py --start '2026-05-02 17:14:00' --end '2026-05-02 17:18:00' --table security --pretty --out-dir lab/05-02_F세트R2A_산출물/data/raw\n"
+            "  python3 src/export_db_logs_cli.py --start '2026-05-02 17:14:00' --end '2026-05-02 17:18:00' --table security --pretty --out lab/05-02_F세트R2A_산출물/data/raw/security_2026-05-02_F_R2A_kst.json\n"
+            "  python3 src/export_db_logs_cli.py --interactive"
         ),
     )
 
@@ -397,6 +422,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--limit", type=int, default=None, help="테이블별 최대 조회 건수")
     parser.add_argument("--pretty", action="store_true", help="JSON pretty 출력")
+    parser.add_argument("--out", help="완전한 출력 파일 경로")
+    parser.add_argument("--out-dir", help="자동 파일명은 유지하고 저장 디렉터리만 변경")
     parser.add_argument("--interactive", action="store_true", help="터미널 프롬프트 기반 interactive 모드")
     parser.add_argument("--test-connection", action="store_true", help="DB 연결만 확인하고 종료")
 
@@ -449,6 +476,8 @@ def build_export_payload(
 
 
 def run_export(args: argparse.Namespace) -> str:
+    if args.out and args.out_dir:
+        raise ValueError("--out and --out-dir cannot be used together.")
     if not args.host:
         raise ValueError("DB host가 없습니다. --host 또는 LOG_DB_HOST를 지정하세요.")
     if not args.password:
@@ -457,7 +486,7 @@ def run_export(args: argparse.Namespace) -> str:
         raise ValueError("DB password가 없습니다. --password 또는 LOG_DB_PASSWORD를 지정하세요.")
 
     range_cfg = resolve_time_range(args)
-    out_path = auto_output_filename(args.table, range_cfg)
+    out_path = resolve_output_path(args, range_cfg)
     ensure_parent_dir(out_path)
 
     db_config = DBConfig(
