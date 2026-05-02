@@ -29,7 +29,6 @@ LLM 분석용 정제 산출물을 생성하는 전처리 스크립트.
 from __future__ import annotations
 
 import argparse
-import html
 import ipaddress
 import json
 import os
@@ -40,6 +39,21 @@ from datetime import datetime
 import hashlib
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote_plus, urlparse
+
+try:
+    from src.prepare.decoders import (
+        append_html_entity_variants as _append_html_entity_variants,
+        build_decoded_variants as _build_decoded_variants,
+        build_html_entity_decoded_variant as _build_html_entity_decoded_variant,
+        build_html_entity_variants as _build_html_entity_variants,
+    )
+except ImportError:
+    from prepare.decoders import (
+        append_html_entity_variants as _append_html_entity_variants,
+        build_decoded_variants as _build_decoded_variants,
+        build_html_entity_decoded_variant as _build_html_entity_decoded_variant,
+        build_html_entity_variants as _build_html_entity_variants,
+    )
 
 # ----------------------------
 # 패턴 정의
@@ -505,72 +519,19 @@ def extend_unique_hints(hints: List[str], extra_hints: Iterable[str]) -> None:
 
 
 def build_decoded_variants(value: str, max_depth: int = 2) -> List[Dict[str, Any]]:
-    current = raw_text(value)
-    if not current:
-        return []
-
-    if len(current) > DECODE_VARIANT_MAX_CHARS:
-        current = current[:DECODE_VARIANT_MAX_CHARS]
-
-    variants: List[Dict[str, Any]] = [{"depth": 0, "text": current}]
-    for depth in range(1, max(0, max_depth) + 1):
-        try:
-            decoded = unquote_plus(current)
-        except Exception:
-            break
-        if len(decoded) > DECODE_VARIANT_MAX_CHARS:
-            decoded = decoded[:DECODE_VARIANT_MAX_CHARS]
-        if decoded == current:
-            break
-        variants.append({"depth": depth, "text": decoded})
-        current = decoded
-    return variants
+    return _build_decoded_variants(value, max_depth=max_depth)
 
 
 def build_html_entity_decoded_variant(value: str) -> str:
-    current = raw_text(value)
-    if not current:
-        return ""
-    if len(current) > DECODE_VARIANT_MAX_CHARS:
-        current = current[:DECODE_VARIANT_MAX_CHARS]
-    try:
-        decoded = html.unescape(current)
-    except Exception:
-        return current
-    if len(decoded) > DECODE_VARIANT_MAX_CHARS:
-        decoded = decoded[:DECODE_VARIANT_MAX_CHARS]
-    return decoded
+    return _build_html_entity_decoded_variant(value)
 
 
 def build_html_entity_variants(value: str, source: str) -> List[Dict[str, Any]]:
-    raw_value = raw_text(value)
-    if not raw_value or not HTML_ENTITY_RE.search(raw_value):
-        return []
-    decoded = build_html_entity_decoded_variant(raw_value)
-    if not decoded or decoded == raw_value:
-        return []
-    return [{
-        "depth": 0,
-        "text": decoded,
-        "variant_type": "html_entity",
-        "source": source,
-        "source_text": raw_value,
-    }]
+    return _build_html_entity_variants(value, source=source)
 
 
 def append_html_entity_variants(variants: List[Dict[str, Any]], source: str) -> List[Dict[str, Any]]:
-    html_variants: List[Dict[str, Any]] = []
-    seen_texts = {raw_text(item.get("text")) for item in variants if raw_text(item.get("text"))}
-    for item in list(variants):
-        for extra_variant in build_html_entity_variants(raw_text(item.get("text")), source=source):
-            text = raw_text(extra_variant.get("text"))
-            if not text or text in seen_texts:
-                continue
-            extra_variant["source_variant_depth"] = safe_int(item.get("depth"), 0)
-            html_variants.append(extra_variant)
-            seen_texts.add(text)
-    variants.extend(html_variants)
-    return variants
+    return _append_html_entity_variants(variants, source=source)
 
 
 def unique_non_empty_texts(values: Iterable[str]) -> List[str]:
