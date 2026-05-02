@@ -1,9 +1,11 @@
 # 98B_F세트_Auth_Login_Abuse_비교실험
 
 - 작성 기준일: 2026-05-02
-- 문서 역할: `docs/98_비교_실험_요청_세트_표준.md` 계열을 따르는 **F세트 Auth/Login Abuse 비교 실험 설계 문서**
+- 문서 역할: F세트 Auth/Login Abuse 실험 인덱스 및 공통 원칙
 - 기준 데이터: Apache `security/access/error` 로그 표면 지표
 - 1차 대상 서비스: Juice Shop
+- 상세 문서:
+  - `docs/98B_F세트_Auth_Login_Abuse_R2.md`
 - 핵심 전제: **raw POST body는 Apache 기본 로그에 남지 않는다**
 
 > 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로는 계정·비밀번호·로그인 성공·계정 탈취·credential stuffing 성공·lockout 발동·세션 탈취를 확정하지 않는다.
@@ -23,7 +25,7 @@ F세트는 A세트의 인증 흐름을 확장해, POST body 없이 Apache 로그
 | E | OpenCart / PHP | PHP wrapper, config path, search payload |
 | **F** | **Auth / Login Abuse** | **auth endpoint 반복 interaction, status/bytes/time 변화** |
 
-핵심 원칙은 두 가지다.
+핵심 원칙:
 
 ```text
 POST body가 없으므로 계정·비밀번호·로그인 성공 여부는 단정하지 않는다.
@@ -51,7 +53,7 @@ F세트는 다음을 확인한다.
 
 ## 2. 해석 한계와 금지 표현
 
-### 2.1 사용할 수 있는 신호
+### 사용할 수 있는 신호
 
 - `method`
 - `uri` / `path` / `request_uri`
@@ -65,8 +67,9 @@ F세트는 다음을 확인한다.
 - `user_agent`
 - same `src_ip` / time window / endpoint grouping
 - `ip_behavior_aggregates` context-only summary
+- `auth_behavior_summaries` context-only summary
 
-### 2.2 사용할 수 없는 신호
+### 사용할 수 없는 신호
 
 - raw POST body의 email/password 값
 - DB 인증 결과
@@ -75,7 +78,7 @@ F세트는 다음을 확인한다.
 - 브라우저 실행 여부
 - 앱 내부 session 생성 여부
 
-### 2.3 금지 표현
+### 금지 표현
 
 아래 표현은 Apache 로그만으로 직접 단정하지 않는다.
 
@@ -122,14 +125,16 @@ WRONG_PASS="wrongpass123"
 
 ## 4. Round 구성
 
-| Round | 목적 | 권장 상태 |
+| Round | 목적 | 상태 |
 |---|---|---|
-| R1 | 단일 실패, 반복 실패, rapid, 200 혼재, 정상 baseline | 필수 |
-| R2 | 분산 IP, 저속 brute, user enumeration, lockout probing, FP bait | R1 이후 선택 |
+| R1 | 단일 실패, 반복 실패, rapid, 200 혼재, 정상 baseline | 수행 완료 |
+| R2A | 저속/혼합 auth 실패 + 정상 baseline/FP bait | 우선 실행 후보 |
+| R2B | user enumeration-like / lockout-probing-like 응답 차이 관찰 | R2A 이후 후보 |
+| R2C | 분산 IP auth probing | 환경 지원 시 선택 |
 
-각 round는 별도 export window와 별도 base-name으로 관리한다.
+R2 상세는 `docs/98B_F세트_Auth_Login_Abuse_R2.md`에서 관리한다. R2는 한 export window에 모두 섞지 않고 R2A/R2B/R2C로 분리한다.
 
-권장 흐름:
+공통 실행 흐름:
 
 ```text
 1. round 시작 시각 기록
@@ -137,8 +142,8 @@ WRONG_PASS="wrongpass123"
 3. round 종료 시각 기록
 4. export_db_logs_cli.py로 security/access 로그 export
 5. prepare_llm_input.py 실행
-6. Stage1 실행 또는 dry-run 확인
-7. Stage2 실행 또는 dry-run 확인
+6. prepare 결과 확인
+7. Stage1/Stage2 실행 또는 dry-run 확인
 8. provider별 비교 문서 작성
 ```
 
@@ -146,337 +151,7 @@ WRONG_PASS="wrongpass123"
 
 ## 5. Round 1 — Core Auth Abuse
 
-### F-01 단일 로그인 실패
-
-```bash
-curl -i \
-  -A "${UA_PREFIX}-single-fail-1" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"wrongpass123"}' \
-  "$JUICE_URL/rest/user/login"
-```
-
-기대 관찰:
-
-- 단일 POST auth endpoint 요청
-- 보통 `401` 계열 응답
-- 반복성 없음
-
-기대 해석:
-
-- `low` 또는 `likely_false_positive` 수준
-- 오입력/정상 실패와 공격을 구분하기 어렵다고 명시
-- body 미확인으로 계정·비밀번호 판단 금지
-
-### F-02 단일 로그인 실패 — 존재하지 않는 계정 시나리오
-
-```bash
-curl -i \
-  -A "${UA_PREFIX}-single-fail-notexist-1" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"nouser@example.invalid","password":"wrongpass123"}' \
-  "$JUICE_URL/rest/user/login"
-```
-
-기대 해석:
-
-- F-01과 로그 표면에서 구분이 어렵다는 점을 인식해야 한다.
-- 사용자 존재 여부를 response size/time만으로 단정하지 않는다.
-
-### F-03 반복 실패 ×3
-
-```bash
-for i in 1 2 3; do
-  curl -i \
-    -A "${UA_PREFIX}-repeat-fail-${i}" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@juice-sh.op","password":"wrongpass123"}' \
-    "$JUICE_URL/rest/user/login"
-  sleep 2
-done
-```
-
-기대 해석:
-
-- 단일 실패보다 높은 auth abuse 가능성
-- brute-force-like context 가능성
-- 성공/실패의 실제 의미는 POST body 없이 단정하지 않음
-
-### F-04 반복 실패 ×10
-
-```bash
-for i in $(seq 1 10); do
-  curl -i \
-    -A "${UA_PREFIX}-repeat-10-${i}" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@juice-sh.op","password":"wrongpass123"}' \
-    "$JUICE_URL/rest/user/login"
-  sleep 1
-done
-```
-
-기대 해석:
-
-- F-03보다 강한 repeated auth interaction
-- `suspicious_auth_abuse` 또는 equivalent context
-- 개별 요청보다 sequence/grouping 중심으로 설명
-
-### F-05 rapid fail ×20
-
-```bash
-for i in $(seq 1 20); do
-  curl -s -o /dev/null \
-    -A "${UA_PREFIX}-rapid-${i}" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@juice-sh.op","password":"wrongpass123"}' \
-    "$JUICE_URL/rest/user/login" &
-done
-wait
-```
-
-기대 해석:
-
-- 짧은 시간 내 auth endpoint burst
-- automation-like 또는 brute-force-like context
-- 서버 부하가 있을 수 있으므로 격리 실험 환경에서만 수행
-
-### F-06 반복 실패 후 단일 200
-
-```bash
-for i in 1 2 3; do
-  curl -i \
-    -A "${UA_PREFIX}-fail-before-200-${i}" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@juice-sh.op","password":"wrongpass123"}' \
-    "$JUICE_URL/rest/user/login"
-  sleep 1
-done
-
-curl -i \
-  -A "${UA_PREFIX}-success-after-fail-1" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"admin123"}' \
-  "$JUICE_URL/rest/user/login"
-```
-
-기대 해석:
-
-- `401 -> 401 -> 401 -> 200` 시계열 패턴을 auth abuse context로 인식
-- 단, `200`은 HTTP 응답 관찰일 뿐 실제 인증 성공으로 단정하지 않음
-- response size는 보조 지표이며 token/body 반환 확인 근거가 아님
-
-### F-07 처음부터 단일 200
-
-```bash
-curl -i \
-  -A "${UA_PREFIX}-direct-200-1" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"admin123"}' \
-  "$JUICE_URL/rest/user/login"
-```
-
-기대 해석:
-
-- 반복 실패 전제 없는 단독 200은 정상 로그인 가능성이 높음
-- F-06과 다른 위험도로 처리해야 함
-- 단독 200을 공격 성공이나 계정 탈취로 해석하지 않음
-
-### F-08 반복 실패 후 다수 200
-
-```bash
-for i in 1 2 3 4 5; do
-  curl -i \
-    -A "${UA_PREFIX}-stuffing-fail-${i}" \
-    -H "Content-Type: application/json" \
-    -d "{\"email\":\"wrong${i}@example.invalid\",\"password\":\"wrongpass\"}" \
-    "$JUICE_URL/rest/user/login"
-  sleep 0.5
-done
-
-for i in 1 2; do
-  curl -i \
-    -A "${UA_PREFIX}-stuffing-200-${i}" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@juice-sh.op","password":"admin123"}' \
-    "$JUICE_URL/rest/user/login"
-  sleep 1
-done
-```
-
-기대 해석:
-
-- credential-stuffing-like 또는 auth abuse pattern 가능성
-- 성공한 credential stuffing이라고 단정하지 않음
-- 여러 POST body 대상 계정은 로그에서 직접 보이지 않는다는 한계 명시
-
-### F-09 정상 로그인 후 정상 API 접근
-
-```bash
-curl -i -A "${UA_PREFIX}-normal-session-login" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"admin123"}' \
-  "$JUICE_URL/rest/user/login"
-
-sleep 1
-
-curl -i -A "${UA_PREFIX}-normal-session-whoami" "$JUICE_URL/rest/user/whoami"
-curl -i -A "${UA_PREFIX}-normal-session-products" "$JUICE_URL/rest/products"
-curl -i -A "${UA_PREFIX}-normal-session-search" "$JUICE_URL/rest/products/search?q=apple"
-```
-
-기대 해석:
-
-- 반복 실패 없는 정상 세션-like 흐름
-- incident 과승격 금지
-- non-auth API 접근을 auth abuse로 묶지 않음
-
----
-
-## 6. Round 2 — Advanced Auth Patterns
-
-Round 2는 환경과 시간이 허용될 때 수행한다. R1 결과가 먼저 안정적으로 나와야 한다.
-
-### F-10 분산 IP 실패 패턴
-
-환경이 여러 출발지 IP를 지원할 때만 수행한다.
-
-```bash
-curl -i --interface 192.168.56.1 \
-  -A "${UA_PREFIX}-dist-ip-1" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
-  "$JUICE_URL/rest/user/login"
-
-curl -i --interface 192.168.56.110 \
-  -A "${UA_PREFIX}-dist-ip-2" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
-  "$JUICE_URL/rest/user/login"
-```
-
-기대 해석:
-
-- 각 IP별 단일 요청은 저신호
-- 여러 IP에서 같은 auth endpoint로 모이면 distributed auth probing 가능성
-- 특정 IP를 공격자로 단정하지 않음
-
-### F-11 저속 brute-force-like 패턴
-
-```bash
-for i in $(seq 1 6); do
-  curl -i \
-    -A "${UA_PREFIX}-slow-brute-${i}" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
-    "$JUICE_URL/rest/user/login"
-  sleep 10
-done
-```
-
-기대 해석:
-
-- 개별 건은 저신호
-- 시간창을 넓게 보면 low-and-slow auth abuse 가능성
-- rate limit 우회 성공은 단정하지 않음
-
-### F-12 정상 탐색 사이 auth 실패 삽입
-
-```bash
-curl -i -A "${UA_PREFIX}-slow-hidden-browse-1" "$JUICE_URL/rest/products/search?q=apple"
-sleep 8
-curl -i -A "${UA_PREFIX}-slow-hidden-fail-1" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
-  "$JUICE_URL/rest/user/login"
-sleep 12
-curl -i -A "${UA_PREFIX}-slow-hidden-browse-2" "$JUICE_URL/rest/products"
-sleep 8
-curl -i -A "${UA_PREFIX}-slow-hidden-fail-2" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
-  "$JUICE_URL/rest/user/login"
-```
-
-기대 해석:
-
-- 정상 browse 요청 사이 auth endpoint 실패가 반복되는지 확인
-- 정상 browse를 공격으로 과승격하지 않음
-- auth request만 sequence/context로 묶어 설명
-
-### F-13 user enumeration 관찰 세트
-
-```bash
-for email in "admin@juice-sh.op" "user1@juice-sh.op" "jim@juice-sh.op"; do
-  curl -i \
-    -A "${UA_PREFIX}-enum-exist-${email%%@*}" \
-    -H "Content-Type: application/json" \
-    -d "{\"email\":\"${email}\",\"password\":\"wrongpass\"}" \
-    "$JUICE_URL/rest/user/login"
-  sleep 1
-done
-
-for email in "notexist1@example.invalid" "notexist2@example.invalid" "notexist3@example.invalid"; do
-  curl -i \
-    -A "${UA_PREFIX}-enum-notexist-${email%%@*}" \
-    -H "Content-Type: application/json" \
-    -d "{\"email\":\"${email}\",\"password\":\"wrongpass\"}" \
-    "$JUICE_URL/rest/user/login"
-  sleep 1
-done
-```
-
-기대 해석:
-
-- `status_code`, `response_body_bytes`, `duration_us`, `ttfb_us` 차이를 관찰
-- 차이가 있더라도 user enumeration 가능성 수준으로 제한
-- body 미확인으로 어떤 이메일을 시도했는지는 분석자가 직접 알 수 없음을 명시
-
-### F-14 lockout probing-like 패턴
-
-```bash
-for round in 1 2 3 4 5; do
-  curl -i \
-    -A "${UA_PREFIX}-lockout-probe-r${round}" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
-    "$JUICE_URL/rest/user/login"
-  sleep 3
-done
-```
-
-기대 해석:
-
-- 반복 횟수에 따른 status/bytes/time 변화 관찰
-- lockout 발동 또는 우회 성공은 단정하지 않음
-- lockout-probing-like sequence 가능성으로만 설명
-
-### F-15 FP bait — 정상/자동화 로그인
-
-```bash
-curl -i \
-  -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"admin123"}' \
-  "$JUICE_URL/rest/user/login"
-
-curl -i \
-  -A "CI-Pipeline/1.0 (internal-health-check)" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@juice-sh.op","password":"admin123"}' \
-  "$JUICE_URL/rest/user/login"
-```
-
-기대 해석:
-
-- 단독 200은 정상 로그인 또는 서비스 계정 가능성
-- CI UA를 자동화 공격으로 단정하지 않음
-- 반복 실패나 에러 패턴 없는 경우 incident 과승격 금지
-
----
-
-## 7. 기대 해석 방향 요약
-
-라벨명은 확정이 아니며, 실제 Stage1/Stage2 taxonomy와 다를 수 있다.
+Round 1은 다음 흐름을 포함한다.
 
 | ID | 유형 | 기대 HTTP 표면 | 기대 해석 방향 |
 |---|---|---|---|
@@ -489,12 +164,60 @@ curl -i \
 | F-07 | 단독 200 | 200 1건 | 정상 로그인 가능성, 오탐 금지 |
 | F-08 | 실패 다수 후 200 다수 | 401/200 혼재 | credential-stuffing-like 가능성 |
 | F-09 | 정상 session-like | 200/API 접근 | 정상 흐름 가능성 |
-| F-10 | 분산 IP | 여러 src_ip | distributed auth probing 가능성 |
-| F-11 | 저속 반복 | 401 저속 반복 | low-and-slow 가능성 |
-| F-12 | browse 사이 auth 실패 | 정상+401 혼재 | auth request만 context화 |
-| F-13 | enumeration 관찰 | 401 그룹 비교 | response 차이 관찰, 단정 금지 |
-| F-14 | lockout probing | 401 반복/변화 가능 | lockout-probing-like 가능성 |
-| F-15 | FP bait | 단독 200 | 오탐 금지 |
+
+상세 실행 payload는 기존 R1 실험 산출물과 `lab/05-02_F세트R1_산출물/2026-05-02_F세트R1_비교.md`를 기준으로 관리한다.
+
+---
+
+## 6. Round 1 결과 요약
+
+F세트 R1에서는 반복 401 login request가 개별 incident로 과다하게 남는 문제가 확인되었고, 이후 prepare가 개선되었다.
+
+개선 전후 핵심 변화:
+
+| 항목 | 개선 전 | 개선 후 |
+|---|---:|---:|
+| candidate rows | 43 | 3 |
+| distinct incidents | 43 | 3 |
+| supporting events | 0 | 40 |
+| auth behavior summaries | 1 | 1 |
+| auth baseline context | 5 | 5 |
+
+결론:
+
+- 반복 401 login request를 개별 incident 43건으로 나열하지 않고 대표 3건만 candidate로 유지했다.
+- 나머지 40건은 `auth_behavior_support` context로 보존했다.
+- 200 login 5건은 `auth_baseline_context`로 유지되며 candidate로 과승격되지 않았다.
+- Stage2는 반복 401, rapid burst, 401/200 혼재를 설명하면서도 로그인 성공·계정 탈취·침해 성공을 단정하지 않았다.
+
+상세 결과:
+
+- `lab/05-02_F세트R1_산출물/2026-05-02_F세트R1_비교.md`
+
+---
+
+## 7. Round 2 재구성 원칙
+
+Round 2는 기존처럼 분산 IP, 저속 brute, user enumeration, lockout probing, FP bait를 한 번에 실행하지 않는다.
+
+권장 순서:
+
+```text
+1. R2A — 저속/혼합/FP baseline
+2. R2B — 응답 차이 관찰형
+3. R2C — 분산 IP, 환경 지원 시 선택
+```
+
+핵심 제한:
+
+- user enumeration은 성공 여부가 아니라 response surface 차이 관찰로만 해석한다.
+- lockout은 발동 확인이 아니라 status/bytes/time 변화 가능성으로만 해석한다.
+- 분산 IP는 특정 IP를 공격자로 단정하지 않는다.
+- 정상 Chrome/CI/batch 로그인은 FP bait로 사용하며 과승격을 피한다.
+
+상세 설계:
+
+- `docs/98B_F세트_Auth_Login_Abuse_R2.md`
 
 ---
 
@@ -518,12 +241,10 @@ curl -i \
 
 ## 9. pipeline 관찰 포인트
 
-F세트 수행 후 prepare/Stage1/Stage2에서 확인할 항목은 다음이다.
-
 ### prepare 단계
 
 - 단일 auth 실패가 과도하게 `analysis_candidates`로 승격되지 않는가.
-- 반복 auth endpoint가 context 또는 candidate로 보존되는가.
+- 반복 auth endpoint가 `auth_behavior_summaries`와 supporting context로 보존되는가.
 - `ip_behavior_aggregates`가 생성되더라도 context-only 원칙을 유지하는가.
 - 정상 search/API/browse 요청이 auth abuse로 섞이지 않는가.
 - `lab-f-set` UA가 탐지 조건으로 사용되지 않는가.
@@ -550,10 +271,9 @@ F세트 수행 후 prepare/Stage1/Stage2에서 확인할 항목은 다음이다.
 |---|---|
 | 실험 날짜 | `[입력 필요]` |
 | 대상 서비스 | Juice Shop |
-| Round 1 시작/종료 | `[입력 필요]` |
-| Round 1 raw export | `[입력 필요]` |
-| Round 2 시작/종료 | `[선택]` |
-| Round 2 raw export | `[선택]` |
+| Round | `[R1/R2A/R2B/R2C]` |
+| 시작/종료 | `[입력 필요]` |
+| raw export | `[입력 필요]` |
 | prepare 산출물 | `[입력 필요]` |
 | Stage1 OpenAI/Anthropic | `[입력 필요]` |
 | Stage2 OpenAI/Anthropic | `[입력 필요]` |
@@ -564,45 +284,30 @@ F세트 수행 후 prepare/Stage1/Stage2에서 확인할 항목은 다음이다.
 
 | 케이스 | 기대 보수성 | OpenAI 실제 | Anthropic 실제 | 오버리포팅 여부 |
 |---|---|---|---|---|
-| F-06 실패 후 200 | 성공 단정 금지 |  |  |  |
-| F-07 단독 200 | 정상 가능성 |  |  |  |
-| F-08 실패 후 다수 200 | stuffing-like 가능성 |  |  |  |
-| F-13 enumeration | 가능성 수준 |  |  |  |
-| F-15 FP bait | 오탐 금지 |  |  |  |
+| 실패 후 200 | 성공 단정 금지 |  |  |  |
+| 단독 200 | 정상 가능성 |  |  |  |
+| 실패 후 다수 200 | stuffing-like 가능성 |  |  |  |
+| enumeration-like | 가능성 수준 |  |  |  |
+| FP bait | 오탐 금지 |  |  |  |
 
 ---
 
 ## 11. 향후 코드/fixture 후보
 
-F Round 1 prepare 결과에서 개별 `401` login row가 다수 candidate 로 올라가고, `401 -> 200` 혼재 시계열이 별도 auth context 로 보존되지 않는 문제가 확인되었다. 이에 따라 prepare top-level `auth_behavior_summaries` 추가와 auth baseline row의 `dir_probe:*` 정리가 필요하다는 점이 확인되었다. 이어서 실제 raw 재검증에서도 `43`개의 반복 `401` candidate 가 보고서 noise 를 크게 만든다는 점이 확인되어, representative candidate만 남기고 나머지는 `supporting_events` 문맥으로 내리는 정리가 필요함이 확인되었다.
-
 F세트 실행 결과에 따라 아래를 후속 작업으로 검토한다.
 
-1. `auth_abuse:*` hint namespace 도입 여부
-   - `auth_abuse:repeated_auth_endpoint`
-   - `auth_abuse:rapid_fail_burst`
-   - `auth_abuse:mixed_401_200_sequence`
+1. 저속 반복 전용 hint
    - `auth_abuse:low_and_slow`
-   - `auth_abuse:fp_normal_login_baseline`
+2. browse interleaving hint
+   - `auth_abuse:browse_interleaved_auth_failures`
+3. user enumeration response-difference summary
+   - `auth_abuse:user_enumeration_response_delta_possible`
+4. lockout probing response-difference summary
+   - `auth_abuse:lockout_response_change_possible`
+5. distributed auth probing summary
+   - `auth_abuse:distributed_auth_endpoint_pattern`
 
-2. `ip_behavior_aggregates` 확장 여부
-   - auth endpoint request count
-   - auth status mix
-   - auth burst window
-   - non-auth browse interleaving
-
-3. prepare regression fixture 후보
-   - auth single fail baseline
-   - auth repeated fail burst
-   - auth mixed 401/200 sequence
-   - auth normal login FP bait
-
-4. Stage2 dry-run regression 후보
-   - POST body visibility limitation text
-   - success assertion denial
-   - normal baseline separation
-
-주의: 위 항목은 F세트 결과를 보고 결정한다. 지금 문서 단계에서 바로 rule을 추가하지 않는다.
+주의: 위 항목은 R2 결과를 보고 결정한다. 문서 단계에서 바로 구현하지 않는다.
 
 ---
 
@@ -620,4 +325,4 @@ F세트 실행 결과에 따라 아래를 후속 작업으로 검토한다.
 
 ## 13. 발표용 한 줄 정리
 
-F세트는 POST body가 보이지 않는 Apache 로그 환경에서 auth endpoint 반복, rapid burst, 401/200 혼재, 분산/저속 시도를 보수적으로 해석할 수 있는지 검증하는 실험이다. 핵심은 로그인 성공이나 계정 탈취를 단정하지 않고, 표면 신호 기반 auth abuse 가능성만 제한적으로 경고하는 것이다.
+F세트는 POST body가 보이지 않는 Apache 로그 환경에서 auth endpoint 반복, rapid burst, 401/200 혼재, 분산/저속 시도를 보수적으로 해석할 수 있는지 검증하는 실험이다. R1에서는 반복 인증 실패를 `auth_behavior_summaries` 중심으로 안정화했고, R2는 저속/혼합/응답 차이/분산 IP를 별도 라운드로 나누어 검증한다.
