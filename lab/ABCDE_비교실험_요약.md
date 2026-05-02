@@ -38,6 +38,7 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 | D세트 | Traversal / HPP / Directory probing | Traversal/HPP 탐지, probing sequence context 보존 | 완료, 개선 반영 |
 | E세트 | OpenCart / PHP wrapper / search baseline | PHP wrapper file disclosure, direct config path 과승격 방지, search SQLi/XSS와 정상 baseline 분리 | 완료, 개선 반영 |
 | F세트 R1 | Auth/Login abuse | 반복 401, rapid burst, 401/200 혼재를 `auth_behavior_summaries`로 보존. candidate 43 → 3, supporting_events 0 → 40 | Round 1 완료 |
+| F세트 R2A | 저속/혼합/FP baseline | Python runner 기반 실행. 저속 반복 401, browse 혼재, Chrome/CI 200 baseline을 보수적으로 분리 | Round 2A 완료 |
 
 ---
 
@@ -54,18 +55,19 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 | suspicious_file_disclosure | PHP wrapper/source disclosure를 traversal과 구분 | E |
 | normal search baseline 분리 | 정상 검색을 reference baseline으로 보존 | E |
 | ip_behavior_aggregates | same src_ip/time window 행동 문맥 보존 | D, E, F |
-| auth_behavior_summaries | 반복 auth endpoint, 401/200 혼재, rapid burst 문맥 보존 | F |
+| auth_behavior_summaries | 반복 auth endpoint, 401/200 혼재, rapid/저속 반복 문맥 보존 | F |
 | L3 high-signal hints | Log4Shell, SSRF, SSTI, webshell-like access 보존 | L3 fixture |
 | Stage dry-run regression | LLM 호출 없이 schema/prompt/report-input 골격 검증 | 전체 |
 | prepare 모듈 분리 1단계 | decoders/l3_hints를 동작 변경 없이 분리 | 전체 |
+| F세트 runner 도입 | curl 나열 대신 Python runner로 실험 재현성 개선 | F |
 
 ---
 
-## 4. F세트 R1 요약
+## 4. F세트 요약
 
-F세트 R1은 POST body가 보이지 않는 Apache 로그 환경에서 auth endpoint 반복 패턴을 보수적으로 해석할 수 있는지 확인했다.
+F세트는 POST body가 보이지 않는 Apache 로그 환경에서 auth endpoint 반복 패턴을 보수적으로 해석할 수 있는지 확인한다.
 
-개선 전후 핵심 변화:
+### F세트 R1
 
 | 항목 | 개선 전 | 개선 후 |
 |---|---:|---:|
@@ -82,10 +84,32 @@ F세트 R1은 POST body가 보이지 않는 Apache 로그 환경에서 auth endp
 - 200 login 5건은 `auth_baseline_context`로 유지되며 candidate로 과승격되지 않았다.
 - Stage2는 반복 401, rapid burst, 401/200 혼재를 설명하면서도 로그인 성공·계정 탈취·침해 성공을 단정하지 않았다.
 
+### F세트 R2A
+
+R2A는 `lab/f_set/run_f_r2a_auth_scenarios.py` Python runner 기반으로 실행했다.
+
+| 항목 | 값 |
+|---|---:|
+| 전체 export rows | 14 |
+| candidate rows | 3 |
+| supporting events | 6 |
+| filtered out rows | 5 |
+| ip behavior aggregates | 1 |
+| auth behavior summaries | 1 |
+
+결론:
+
+- 저속 반복 auth 실패는 보존하되 rapid burst로 오판하지 않았다.
+- 정상 browse/search는 auth abuse candidate로 과승격되지 않았다.
+- Chrome/CI 단독 200 login은 `auth_baseline_context`로 분리되었다.
+- Stage2는 known asset/IP 내부 테스트 가능성과 POST body 미확인 한계를 유지했다.
+
 상세 문서:
 
 - `docs/98B_F세트_Auth_Login_Abuse_비교실험.md`
+- `docs/98B_F세트_Auth_Login_Abuse_R2.md`
 - `lab/05-02_F세트R1_산출물/2026-05-02_F세트R1_비교.md`
+- `lab/05-02_F세트R2A_산출물/2026-05-02_F세트R2A_비교.md`
 
 ---
 
@@ -131,14 +155,10 @@ py_compile 주요 스크립트 통과
 
 ## 7. 다음 우선순위
 
-1. Stage2 auth behavior wording 소폭 개선
-   - auth behavior count와 ip behavior count를 분리해서 표현
-   - 실험용 UA prefix를 비브라우저성/반복적 UA 패턴으로 일반화
-2. F세트 R2 진행 여부 결정
-   - 저속 brute-force-like
-   - user enumeration-like 관찰
-   - lockout probing-like sequence
-   - 정상 브라우저/CI/batch 로그인 FP bait
+1. F세트 R2B 실행 여부 결정
+   - user enumeration-like 응답 차이 관찰
+   - lockout probing-like response change 관찰
+2. R2B도 Python runner 방식으로 작성할지 검토
 3. G세트 HTTP method / protocol anomaly 설계
 4. 실제 LLM 샘플 검증 체계는 dry-run regression 유지 이후 후순위로 검토
 
