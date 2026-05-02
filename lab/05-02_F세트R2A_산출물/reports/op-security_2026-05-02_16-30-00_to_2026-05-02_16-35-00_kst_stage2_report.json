@@ -1,0 +1,115 @@
+{
+  "meta": {
+    "generated_at": "2026-05-02T17:57:05.420+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.105",
+      "192.168.56.108",
+      "192.168.56.109",
+      "192.168.56.110"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_017c1f2753d8a8030169f5bc573e0c8196a6a0d3cef81c8f66",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/op-security_2026-05-02_16-30-00_to_2026-05-02_16-35-00_kst_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/op-security_2026-05-02_16-30-00_to_2026-05-02_16-35-00_kst_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 웹 로그 사건형 분석 요약 (2026-05-02 16:30~16:35 KST)",
+    "overall_assessment": "해당 시간대에는 192.168.56.110에서 `/rest/user/login` 중심의 인증 실패 패턴이 관찰되었고, 3건이 후보 사건으로 분류되었습니다. 다만 이 IP는 known asset 이므로 내부 테스트, 자체 호출, 운영 점검 가능성을 반드시 함께 고려해야 하며, Apache 로그만으로 실제 계정 탈취나 로그인 성공은 확인되지 않습니다.",
+    "executive_summary": [
+      "분석 구간: 2026-05-02 16:30:00~16:35:00(KST). 총 14개 로그 중 3개가 후보 사건, 5개는 필터링된 후보 밖 요청이었습니다.",
+      "핵심 패턴은 같은 출발지 IP(192.168.56.110)에서 `/rest/user/login`으로 반복된 401 응답입니다. 일부는 brute force 유사 정황, 나머지는 인증 오용 수준으로 보수적으로 해석됩니다.",
+      "known asset IP와 비브라우저성 User-Agent가 함께 보여 내부 테스트/자동화 점검 가능성도 있습니다. 현재 자료만으로 침해 성공은 단정할 수 없습니다."
+    ],
+    "key_findings": [
+      {
+        "title": "로그인 엔드포인트에 대한 반복 401 응답",
+        "detail": "`/rest/user/login`에 대한 POST 요청이 짧은 시간대에 여러 차례 관찰되었고, 401 응답이 반복되었습니다. 이는 인증 실패 또는 자격 증명 추측 시도로 볼 수 있으나, Apache 로그만으로 성공 여부는 확인되지 않습니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "known asset IP에서 발생한 동일 패턴",
+        "detail": "발신지 `192.168.56.110`은 known asset 목록과 일치합니다. 따라서 공격자 단정은 부적절하며, 내부 테스트·자체 호출·운영 점검 트래픽일 가능성을 함께 검토해야 합니다.",
+        "severity": "low"
+      },
+      {
+        "title": "후보 밖 요청에는 낮은 신호의 탐색성/정상 비교군이 포함됨",
+        "detail": "필터링된 항목에는 `auth_baseline_context`, `benign_normal_search`, `low_signal_fuzzing`이 포함되어 있어, 일부는 정상 baseline 또는 낮은 신호의 탐색성 요청으로 해석됩니다. 이는 후보 사건과 별도로 참고해야 합니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:afWoCUFpZccBTtVsRovkkQAAAFI|table:security|log_id:11126|candidate:2",
+        "request_id": "afWoCUFpZccBTtVsRovkkQAAAFI",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_bruteforce",
+        "severity": "medium",
+        "why_it_matters": "로그인 API에 대한 401 응답과 비브라우저성 User-Agent가 확인되어 인증 반복 시도 가능성이 있습니다. 다만 단일 로그만으로 실제 brute force 성공이나 계정 침해는 확인되지 않으며, known asset 이므로 내부 테스트 가능성도 함께 봐야 합니다."
+      },
+      {
+        "incident_ref": "request_id:afWojEFpZccBTtVsRovkmQAAAFM|table:security|log_id:11137|candidate:0",
+        "request_id": "afWojEFpZccBTtVsRovkmQAAAFM",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_auth_abuse",
+        "severity": "low",
+        "why_it_matters": "`/rest/user/login`에서 401 응답이 발생한 인증 오용 정황입니다. 반복성은 보이지만 Apache 로그만으로 로그인 성공, 계정 탈취, 또는 credential stuffing 성공은 확정할 수 없습니다."
+      },
+      {
+        "incident_ref": "request_id:afWoekFpZccBTtVsRovkmAAAAEk|table:security|log_id:11135|candidate:1",
+        "request_id": "afWoekFpZccBTtVsRovkmAAAAEk",
+        "src_ip": "192.168.56.110",
+        "verdict": "suspicious_auth_abuse",
+        "severity": "low",
+        "why_it_matters": "동일 로그인 엔드포인트에서 또 다른 401 실패가 확인됩니다. 단건 관찰만으로는 공격성 판단이 제한적이며, known asset 맥락상 정상 테스트/운영 점검과의 구분을 위해 추가 상관분석이 필요합니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.110",
+        "reason": "3개 후보 사건과 1개의 IP 행동 집계, 1개의 인증 행동 집계가 모두 이 IP에 집중되어 있습니다. 다만 known asset 이므로 내부 테스트 또는 운영 점검 가능성을 함께 고려해야 하며, 동일 IP를 공격자로 단정하면 안 됩니다."
+      }
+    ],
+    "noise_interpretation": "필터링된 요청은 5건이며, `auth_baseline_context` 2건, `benign_normal_search` 2건, `low_signal_fuzzing` 1건으로 구성됩니다. 즉, 단순 노이즈가 아니라 정상 비교군/기준선과 낮은 신호의 탐색성 요청이 모두 존재합니다. `low_signal_fuzzing`은 후보 밖 탐색성 요청으로 유지하고, `benign_normal_search`는 같은 엔드포인트의 정상 검색 비교군으로 해석하는 것이 적절합니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "192.168.56.110의 `/rest/user/login` 요청을 원시 로그와 함께 재검토하고, 동일 시간대의 인증 결과(애플리케이션/IDP 로그)를 상관분석하세요.",
+        "why": "Apache 로그만으로는 401 이후의 실제 인증 성공 여부를 확인할 수 없습니다. 로그인 성공, 실패 반복, 내부 점검 트래픽을 구분하려면 애플리케이션 측 인증 로그가 필요합니다."
+      },
+      {
+        "priority": "P1",
+        "action": "known asset IP 목록과 운영 점검 일정, 자동화 테스트 계정을 대조하세요.",
+        "why": "해당 IP가 내부 테스트나 운영 점검에 쓰였을 가능성이 있어 공격으로 오인하지 않기 위해 반드시 확인이 필요합니다."
+      },
+      {
+        "priority": "P2",
+        "action": "해당 IP에서 짧은 시간 내 반복된 `/rest/user/login` 접근이 정상 업무 자동화인지 확인하세요.",
+        "why": "반복 401 패턴은 brute force 유사 정황이지만, known asset 환경에서는 테스트 스크립트나 점검 작업일 수 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "필터링된 `benign_normal_search`와 `auth_baseline_context`를 기준선으로 남겨두고, 이후 동일 엔드포인트의 이상 패턴 비교에 활용하세요.",
+        "why": "정상 비교군이 있어야 후속 이벤트에서 진짜 이상 징후를 더 정확히 판별할 수 있습니다."
+      },
+      {
+        "priority": "P3",
+        "action": "비브라우저성 User-Agent가 반복되는지 추가로 확인하세요.",
+        "why": "자동화 또는 테스트성 트래픽 가능성을 뒷받침할 수 있지만, 단독으로 공격 근거가 되지는 않습니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "분석은 전처리/1차 분류된 요약 데이터에 기반하며, raw POST body 원문과 애플리케이션 인증 결과는 보이지 않을 수 있습니다.",
+      "known asset IP와 일치하므로 외부 공격으로 단정하기 어렵고, 내부 테스트·자체 호출·운영 점검 가능성을 함께 고려해야 합니다.",
+      "401 응답 반복은 인증 실패 정황이지만, 로그인 성공이나 계정 침해를 확정하는 근거는 아닙니다.",
+      "필터링된 항목은 일부 정상 baseline과 낮은 신호의 탐색성 요청을 포함하므로, 후보 사건과 분리해 해석해야 합니다."
+    ],
+    "presentation_takeaway": "이 구간의 핵심은 `192.168.56.110`에서 로그인 엔드포인트에 대한 반복 401 실패가 관찰되었다는 점입니다. 다만 known asset 이므로 공격 단정은 금물이며, 원시 로그와 애플리케이션 인증 로그를 붙여 내부 테스트인지 실제 인증 오용인지 먼저 구분하는 것이 우선입니다."
+  }
+}
