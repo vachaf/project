@@ -1,0 +1,157 @@
+{
+  "description": "PHP wrapper dry-run should preserve suspicious_file_disclosure guidance and conservative file disclosure language.",
+  "MUST": [
+    {
+      "op": "json_path_contains",
+      "file": "stage1_schema",
+      "path": "properties.verdict.enum",
+      "contains": "suspicious_file_disclosure",
+      "message": "stage1 schema includes suspicious_file_disclosure verdict"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage1_schema",
+      "path": "properties.verdict.enum",
+      "contains": "suspicious_sqli",
+      "message": "stage1 schema includes suspicious_sqli verdict"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage1_schema",
+      "path": "properties.verdict.enum",
+      "contains": "suspicious_xss",
+      "message": "stage1 schema includes suspicious_xss verdict"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage1_schema",
+      "path": "properties.verdict.enum",
+      "contains": "suspicious_path_traversal",
+      "message": "stage1 schema includes suspicious_path_traversal verdict"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage1_schema",
+      "path": "properties.verdict.enum",
+      "contains": "likely_false_positive",
+      "message": "stage1 schema includes likely_false_positive verdict"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage1_schema",
+      "path": "properties.verdict.enum",
+      "contains": "inconclusive",
+      "message": "stage1 schema includes inconclusive verdict"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "e-r2-php-wrapper-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "file_disclosure:php_filter_wrapper",
+      "message": "stage1 request payload preserves php_filter_wrapper hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "e-r2-php-wrapper-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "file_disclosure:base64_source_intent",
+      "message": "stage1 request payload preserves base64 source intent hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "e-r2-php-wrapper-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "file_disclosure:resource_parameter",
+      "message": "stage1 request payload preserves resource_parameter hint"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage1_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "php://filter, convert.base64-encode, resource=",
+      "message": "stage1 system prompt mentions php wrapper markers"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage1_prompt_bundle",
+      "path": "user_payload.label_guidance.suspicious_file_disclosure",
+      "contains": "Apache 로그만으로 실제 파일 내용 반환 성공은 단정하지 않는다",
+      "message": "stage1 label guidance keeps no-success-inference rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage1_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "raw POST body",
+      "message": "stage1 system prompt keeps raw POST body visibility limit"
+    },
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.file_disclosure_policy",
+      "message": "stage2 report input includes file disclosure policy notes"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.file_disclosure_policy.php_wrapper_rule",
+      "contains": "php://filter/convert.base64-encode/resource=...",
+      "message": "stage2 report input preserves php wrapper disclosure rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "raw POST body",
+      "message": "stage2 system prompt keeps raw POST body visibility limit"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "PHP wrapper 문맥",
+      "message": "dry-run markdown includes PHP wrapper section"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "Apache 로그만으로 실제 파일 내용 반환 여부는 확인할 수 없으므로",
+      "message": "dry-run markdown keeps conservative file disclosure explanation"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "config.php 내용이 노출되었다",
+      "message": "markdown must not assert config.php content disclosure"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "DB credential이 유출되었다",
+      "message": "markdown must not assert DB credential disclosure"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "공격 성공",
+      "allowed_context_contains": [
+        "단정",
+        "근거로 사용하지"
+      ],
+      "message": "markdown must not assert successful attack"
+    }
+  ]
+}

@@ -10,6 +10,7 @@
 
 | 우선순위 | 과제 | 이유 |
 |---|---|---|
+| Done | Stage1/Stage2 dry-run regression 추가 | 실제 LLM 품질 검증이 아니라 schema/prompt/report-input/Markdown 골격 회귀를 API 호출 없이 점검 |
 | P1 | 회귀 fixture 정리 | B/C/D/E 개선이 누적되어 다음 수정 때 기존 기능이 깨질 가능성이 커짐 |
 | Done | `ip_behavior_aggregates` context-only 도입 | 동일 `src_ip`의 300초 window에서 다중 path, 높은 4xx 비율, 혼합 공격 category, 민감 경로 접근, 5xx cluster를 Stage2 문맥용으로 보존 |
 | Done | SQLi xclose/quote termination hint 추가 | quote/paren 단독이 아니라 boolean/comment 구조와 결합될 때만 구조 hint를 부여하도록 반영 |
@@ -63,8 +64,22 @@
 - 실제 IP, 실제 UA, 실제 response size, OpenCart/Juice Shop 고유 endpoint hard-code 금지
 - document IP(`198.51.100.x`, `203.0.113.x`)와 `example.test` 계열 host 사용
 - `prepare_llm_input.py` 기준 smoke test부터 시작
-- Stage1/Stage2 LLM 호출은 회귀 fixture 1차 범위에서 제외
+- Stage1/Stage2 dry-run smoke regression은 추가 완료. 실제 LLM 호출 품질 검증은 계속 범위 밖으로 둔다.
 - 전체 snapshot 비교가 아니라 MUST / SHOULD / MUST_NOT / WARN 조건 기반 assert 사용
+
+### Stage1/Stage2 dry-run regression 반영 상태
+
+- `scripts/check_stage_dryrun_regression.py` 추가
+- `run_analysis_pipeline.py --dry-run` 재사용
+- 검증 대상:
+  - Stage1 schema / prompt guidance / candidate request payload
+  - Stage2 report input / prompt guidance / dry-run Markdown 초안
+- 검증 방식:
+  - fixture별 expected JSON 조건식
+  - 성공/침해/노출 단정 표현은 allow-context 기반 금지 검사
+- 비목표:
+  - 실제 LLM 출력 품질 평가
+  - provider별 성향 비교
 
 ---
 

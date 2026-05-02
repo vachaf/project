@@ -1,0 +1,98 @@
+{
+  "description": "Stage2 dry-run should preserve context-only IP behavior aggregates and promotion limits.",
+  "MUST": [
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.ip_behavior_aggregate_count",
+      "message": "ip behavior aggregate count exists"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.ip_behavior_aggregate_count",
+      "equals": 1,
+      "message": "ip behavior aggregate count is preserved"
+    },
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.ip_behavior_aggregate_policy",
+      "message": "ip behavior aggregate policy exists"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "ip_behavior_aggregates.0.context_role",
+      "equals": "ip_behavior_context",
+      "message": "ip behavior aggregate keeps context role"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "ip_behavior_aggregates.0.should_promote_to_candidate",
+      "equals": false,
+      "message": "ip behavior aggregate stays non-promoting"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "ip_behavior_aggregates.0.interpretation_limit",
+      "equals": "context_only_no_success_inference",
+      "message": "ip behavior aggregate keeps interpretation limit"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.ip_behavior_aggregate_policy.success_rule",
+      "contains": "공격 성공, 침해 성공, 파일 노출, XSS 실행, DB 유출을 단정하지 않음",
+      "message": "ip behavior policy keeps no-success-inference rule"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "context-only IP behavior aggregates:",
+      "message": "markdown includes IP behavior context section"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "개별 incident 승격",
+      "message": "markdown states context-only promotion limit"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "ip-behavior-sqli-1"
+      },
+      "field": "request_id",
+      "equals": "ip-behavior-sqli-1",
+      "message": "SQLi candidate remains in stage2 report input"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "ip-behavior-xss-1"
+      },
+      "field": "request_id",
+      "equals": "ip-behavior-xss-1",
+      "message": "XSS candidate remains in stage2 report input"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "공격 성공",
+      "allowed_context_contains": [
+        "단정",
+        "근거로 사용하지"
+      ],
+      "message": "markdown must not assert successful attack from IP aggregate context"
+    }
+  ]
+}

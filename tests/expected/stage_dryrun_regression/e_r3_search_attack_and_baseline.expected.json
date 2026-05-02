@@ -1,0 +1,97 @@
+{
+  "description": "Search baseline dry-run should keep benign baseline context separate from attack candidates.",
+  "MUST": [
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.reference_baseline_policy",
+      "message": "reference baseline policy exists"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_filtered_categories",
+      "where": {
+        "category": "benign_normal_search"
+      },
+      "field": "category",
+      "equals": "benign_normal_search",
+      "message": "benign_normal_search remains a filtered baseline category"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "supporting_events",
+      "where": {
+        "request_id": "e-r3-search-baseline-1"
+      },
+      "field": "supporting_role",
+      "equals": "reference_baseline",
+      "message": "baseline request is preserved as reference_baseline supporting event"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "e-r3-search-sqli-1"
+      },
+      "field": "request_id",
+      "equals": "e-r3-search-sqli-1",
+      "message": "SQLi candidate remains in report input"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "e-r3-search-xss-1"
+      },
+      "field": "request_id",
+      "equals": "e-r3-search-xss-1",
+      "message": "XSS candidate remains in report input"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "benign_normal_search 또는 normal_search_baseline filtered_out category 는 low_signal_fuzzing 과 분리해서 정상 비교군 또는 reference baseline 으로 표현하라.",
+      "message": "stage2 prompt distinguishes baseline from low-signal fuzzing"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "정상 baseline 정책",
+      "message": "markdown includes baseline policy note"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "benign_normal_search",
+      "message": "markdown exposes benign_normal_search as baseline context"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_out_of_candidate_recon",
+      "where": {
+        "category": "benign_normal_search"
+      },
+      "field": "category",
+      "equals": "benign_normal_search",
+      "message": "baseline must not be reclassified as out-of-candidate recon"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "공격 성공",
+      "allowed_context_contains": [
+        "단정",
+        "근거로 사용하지"
+      ],
+      "message": "markdown must not assert successful attack"
+    }
+  ]
+}

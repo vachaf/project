@@ -1086,6 +1086,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "심각도 표현은 필요한 최소 수준으로 사용하라. "
         "오탐 가능성이나 추가 상관분석 필요성이 있으면 분명히 언급하라. "
         "known_asset_ips 와 일치하는 출발지 IP 는 내부 테스트, 자체 호출, 운영 점검일 수 있으므로 공격자 단정 표현을 피하라. "
+        "Apache 로그에는 raw POST body 원문이 없을 수 있으므로, raw POST body 기반 payload 성공/실패를 본 것처럼 단정하지 마라. "
         "path traversal 의 경우 200 응답만으로 실제 파일 노출을 단정하지 마라. "
         "resp_content_type 이 text/html 이거나 HTML fallback 정황이 있으면 시도 탐지와 실제 노출 가능성을 분리해서 서술하라. "
         "Apache 로그만으로 XSS payload 의 브라우저 실행 성공을 확정하지 마라. "
@@ -1137,6 +1138,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "수상한 패턴, 주목할 IP, 즉시 필요한 조치에 집중하라.",
             "likely_false_positive 와 inconclusive 는 특히 조심해서 해석하라.",
             "제공된 근거가 강하지 않으면 성공적인 침해나 악용 성공을 단정하지 마라.",
+            "Apache 로그에는 raw POST body 원문이 없을 수 있으므로 body 내부 payload 성공/실패를 본 것처럼 단정하지 마라.",
             "path traversal 은 raw_request_target, uri, resp_content_type, response_body_bytes, likely_html_fallback_response 를 함께 보고 시도와 실제 노출 가능성을 구분하라.",
             "php://filter/convert.base64-encode/resource=... 구조는 PHP stream wrapper 를 통해 대상 파일을 base64 인코딩된 형태로 읽도록 유도하는 source/config disclosure attempt 또는 LFI-like file disclosure attempt 로 설명하라.",
             "이는 단순 ../ path traversal 과 구분되는 PHP wrapper 기반 file disclosure 시도다.",

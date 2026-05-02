@@ -246,6 +246,7 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
         "제공된 필드만 근거로 사용하고 확신을 과장하지 마라. "
         "증거가 약하면 likely_false_positive 또는 inconclusive를 우선 고려하라. "
         "규칙 기반 힌트는 단서일 뿐 확정 증거가 아니다. "
+        "Apache 로그에는 raw POST body 원문이 없을 수 있으므로, raw POST body 를 본 것처럼 body 내부 payload 성공/실패를 단정하지 마라. "
         "반드시 schema-valid JSON 객체만 반환하라. "
         "verdict, severity, recommended_actions 같은 enum 값은 스키마에 정의된 영어 값을 그대로 사용하라. "
         "reasoning_summary 와 evidence_fields 의 자유서술 내용은 반드시 한국어로 작성하라. "
@@ -285,7 +286,7 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
             "status_code": candidate.get("status_code"),
             "score": candidate.get("score"),
             "verdict_hint": candidate.get("verdict_hint"),
-            "reason_hints": (candidate.get("reason_hints") or [])[:max_evidence_items],
+            "reason_hints": candidate.get("reason_hints") or [],
             "request_id": candidate.get("request_id"),
             "error_link_id": candidate.get("error_link_id"),
             "raw_request": candidate.get("raw_request"),
@@ -339,6 +340,7 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
             "심각도는 필요한 최소 수준만 부여하라.",
             "query_string 이 비어 있고 근거가 status code 나 user agent 위주이면 과도하게 단정하지 마라.",
             "request_id 와 error_link_id 는 상관분석 단서일 뿐 공격의 확정 증거는 아니다.",
+            "Apache 로그에는 raw POST body 원문이 없을 수 있으므로 body 내부 payload를 직접 본 것처럼 단정하지 마라.",
             "path traversal 은 raw_request 의 시도 정황과 실제 파일 노출 성공 여부를 분리해서 판단하라.",
             "php://filter, convert.base64-encode, resource=... 구조는 단순 path traversal 보다 suspicious_file_disclosure 쪽이 더 적절한지 우선 검토하라.",
             "file_disclosure:php_filter_wrapper, file_disclosure:base64_source_intent, file_disclosure:resource_parameter 힌트가 명확하면 suspicious_path_traversal 보다 suspicious_file_disclosure 를 우선 고려하라.",

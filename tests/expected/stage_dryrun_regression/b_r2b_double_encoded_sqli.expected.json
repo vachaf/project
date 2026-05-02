@@ -1,0 +1,90 @@
+{
+  "description": "Double-encoded SQLi dry-run should preserve decoding and SQLi structure hints in the Stage1 request payload.",
+  "MUST": [
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "encoding:decoded_depth_2",
+      "message": "stage1 request payload preserves decoded depth 2 hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "encoding:double_decoded_payload",
+      "message": "stage1 request payload preserves double decoded payload hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "sqli:boolean_true_condition",
+      "message": "stage1 request payload preserves boolean true condition hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "sqli:parenthesis_termination",
+      "message": "stage1 request payload preserves parenthesis termination hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "message_preview.user_payload.candidate.raw_request_target",
+      "contains": "%2527%2529%2529%2520OR%25201%253D1--",
+      "message": "stage1 request payload preserves raw encoded request target"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "b-r2b-double-sqli-1"
+      },
+      "field": "reason_hints",
+      "contains": "encoding:decoded_depth_2",
+      "message": "stage2 report input keeps decoded depth 2 hint"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "user_payload.instructions",
+      "contains": "encoding:html_entity_payload, encoding:html_entity_decoded_xss, encoding:url_encoded_payload, encoding:double_decoded_payload 는 우회 또는 복원 관점에서만 언급하라.",
+      "message": "stage2 prompt keeps encoded payload interpretation guidance"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "공격 성공",
+      "allowed_context_contains": [
+        "단정",
+        "근거로 사용하지"
+      ],
+      "message": "markdown must not assert successful attack"
+    }
+  ]
+}
