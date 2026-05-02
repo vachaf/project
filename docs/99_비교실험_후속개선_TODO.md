@@ -11,6 +11,7 @@
 - `suspicious_file_disclosure` verdict 정식화
 - `ip_behavior_aggregates` context-only 도입 및 Stage2 설명 반영
 - `auth_behavior_summaries` context-only 도입
+- 반복 auth `401` candidate demotion 및 `auth_behavior_support` supporting context 정리
 - PHP wrapper 보수 설명 반영
 - SQLi 구조 hint 보강
 - Log4Shell / SSRF / SSTI / webshell 제한적 L3 hint 추가
@@ -52,6 +53,7 @@
 - 현재 상태:
   - prepare `auth_behavior_summaries` 추가 완료
   - repeated `401`, mixed `401/200`, single `200` baseline context 보존 완료
+  - representative `401` candidate만 남기고 나머지 반복 `401`은 `supporting_events.auth_behavior_support`로 정리 완료
   - Stage2의 auth behavior 서술 보강은 추가 fixture와 실제 샘플 기준으로 계속 다듬을 여지 있음
 
 ## P4. G세트 HTTP method / protocol anomaly 설계

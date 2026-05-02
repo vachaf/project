@@ -184,6 +184,14 @@ def evaluate_rule(payloads: Dict[str, List[Dict[str, Any]]], rule: Dict[str, Any
     if op == "field_contains":
         entries = select_entries(payloads, rule["collection"], where)
         return field_contains(entries, rule["field"], stringify(rule["contains"]))
+    if op == "collection_count_at_most":
+        return len(payloads.get(rule["collection"], []) or []) <= int(rule["value"])
+    if op == "collection_count_at_least":
+        return len(payloads.get(rule["collection"], []) or []) >= int(rule["value"])
+    if op == "collection_count_by_where_at_most":
+        return len(select_entries(payloads, rule["collection"], where)) <= int(rule["value"])
+    if op == "collection_count_by_where_at_least":
+        return len(select_entries(payloads, rule["collection"], where)) >= int(rule["value"])
     raise ValueError(f"Unsupported rule op: {op}")
 
 

@@ -151,6 +151,9 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - summary 는 `context_role=auth_behavior_context`, `aggregate_scope=same_src_ip_auth_endpoint_time_window`, `should_promote_to_candidate=false`를 유지해야 한다.
 - `reason_hints`에는 `auth_abuse:repeated_auth_endpoint`, `auth_abuse:repeated_401`, `auth_abuse:mixed_401_200_sequence`, `auth_abuse:post_body_not_visible`, `auth_abuse:no_auth_success_inference` 같은 보수적 힌트가 포함되어야 한다.
 - `interpretation_limit`은 `post_body_not_visible_no_auth_success_inference`를 유지해야 한다.
+- 반복 `401` auth row 전체를 개별 incident 로 유지하지 않고 representative candidate 수를 줄여야 한다.
+- representative candidate 는 최소 1개 이상 남아야 하며, 나머지 반복 `401` row 중 일부는 `supporting_role=auth_behavior_support`, `supporting_reason=covered_by_auth_behavior_summary` 형태의 context-only `supporting_events`로 내려가야 한다.
+- 해당 supporting event 는 `auth_abuse:covered_by_auth_behavior_summary` hint 를 포함해야 한다.
 - `200` auth filtered row 는 candidate 로 과승격되면 안 되고 `dir_probe:*` hint 를 유지하면 안 된다.
 - 일반 browse `GET` row 는 auth abuse candidate 로 과승격되면 안 된다.
 

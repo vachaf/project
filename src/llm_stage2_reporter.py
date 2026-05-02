@@ -1046,6 +1046,7 @@ def build_report_input(
                 "default_action": "supporting_events 는 개별 incident 가 아니라 문맥 정보로만 해석",
                 "temporal_rule": "같은 src_ip 와 같은 uri 또는 endpoint family 의 근접 시계열로 해석",
                 "reference_baseline_rule": "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 이면 같은 endpoint 의 정상 요청 예시로만 설명",
+                "auth_behavior_rule": "supporting_role=auth_behavior_support 또는 supporting_reason=covered_by_auth_behavior_summary 이면 반복 auth 실패 row 가 top-level auth_behavior_summaries 에 의해 대표 사건 밖 문맥으로 정리된 것이라고 해석",
                 "decoded_hint_rule": "encoding:* reason_hints 는 우회성 인코딩 시도 보조 근거로만 사용",
                 "educational_sql_rule": "교육/문서 검색 문맥 hint 가 있으면 SQLi 단정을 낮추고 자연어 질의 가능성을 함께 검토",
             },
@@ -1181,6 +1182,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 요청의 세부 분포는 실제로 존재하는 것으로 해석하라. "
         "supporting_events 가 있으면 이는 개별 incident 가 아니라 같은 src_ip, uri 또는 endpoint family, 인접 시간대의 보조 문맥으로 해석하라. "
         "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 인 supporting_events 는 후보 밖 탐색성 요청이 아니라 같은 endpoint 의 정상 baseline 예시로 설명하라. "
+        "supporting_role=auth_behavior_support 또는 supporting_reason=covered_by_auth_behavior_summary 인 supporting_events 는 반복 auth 실패 row 가 top-level auth_behavior_summaries 에 의해 대표 사건 밖 문맥으로 정리된 것으로 설명하고, 각 row 를 별도 incident 로 재승격하지 마라. "
         "benign_normal_search 또는 normal_search_baseline filtered_out category 는 low_signal_fuzzing 과 분리해서 정상 비교군 또는 reference baseline 으로 표현하라. "
         "정상 baseline 이 근접해 있어도 공격 candidate 의 의도나 심각도를 낮추는 근거로 사용하지 말고, 정상/공격 비교 문맥으로만 사용하라. "
         "supporting_events 의 encoding:* hint 는 우회성 인코딩 시도 보조 근거이며, educational_sql_search 계열 hint 는 자연어 검색 가능성을 함께 검토하라는 뜻이다. "
@@ -1239,6 +1241,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 세부 분포가 존재하는 것으로 서술하라.",
             "supporting_events 는 개별 incident 로 승격하지 말고, 같은 src_ip 와 같은 uri 또는 endpoint family 의 temporal chain 보조 문맥으로만 사용하라.",
             "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 인 supporting_events 는 후보 밖 탐색성 요청으로 쓰지 말고, 같은 endpoint 의 정상 baseline 또는 reference baseline 으로 설명하라.",
+            "supporting_role=auth_behavior_support 또는 supporting_reason=covered_by_auth_behavior_summary 인 supporting_events 는 반복 auth 실패 row 가 auth_behavior_summaries 에 의해 대표 사건 밖 문맥으로 정리된 것으로 설명하고 각 row 를 별도 incident 로 재승격하지 마라.",
             "supporting_events 에 educational_sql_search 또는 sql_keyword_without_attack_structure 계열 hint 가 있으면 SQL 키워드 검색을 공격으로 단정하지 마라.",
             "supporting_events 나 incident reason_hints 에 encoding:double_decoded_sqli, encoding:decoded_depth_2 같은 hint 가 있으면 인코딩 기반 evasion 시도 가능성을 보조적으로 언급하라.",
             "false_positive_review_candidates 는 prepare 단계에서 제외된 자연어형 보안 검색 질의 검토용 정보로만 사용하고 incident 로 승격하지 마라.",

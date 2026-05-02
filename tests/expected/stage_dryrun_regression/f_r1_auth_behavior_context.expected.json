@@ -21,6 +21,12 @@
       "message": "auth behavior summary policy exists"
     },
     {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.supporting_events_policy.auth_behavior_rule",
+      "message": "supporting events policy includes auth behavior support rule"
+    },
+    {
       "op": "json_path_equals",
       "file": "stage2_report_input",
       "path": "auth_behavior_summaries.0.context_role",
@@ -40,6 +46,20 @@
       "path": "auth_behavior_summaries.0.interpretation_limit",
       "equals": "post_body_not_visible_no_auth_success_inference",
       "message": "auth behavior summary keeps interpretation limit"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.candidate_rows",
+      "equals": 3,
+      "message": "candidate rows are reduced to representative auth incidents"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.supporting_event_count",
+      "equals": 1,
+      "message": "supporting event count captures demoted auth row"
     },
     {
       "op": "json_path_contains",
@@ -77,6 +97,17 @@
       "field": "request_id",
       "equals": "f-r1-auth-fail-1",
       "message": "401 auth request remains in stage2 report input"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "supporting_events",
+      "where": {
+        "supporting_role": "auth_behavior_support"
+      },
+      "field": "supporting_reason",
+      "equals": "covered_by_auth_behavior_summary",
+      "message": "stage2 report input keeps auth behavior support event"
     }
   ],
   "MUST_NOT": [

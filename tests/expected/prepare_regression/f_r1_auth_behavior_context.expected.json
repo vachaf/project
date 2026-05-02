@@ -18,7 +18,7 @@
       "where": {
         "src_ip": "198.51.100.70",
         "endpoint_family": "auth_login",
-        "request_count": 5
+        "request_count": 6
       },
       "message": "auth behavior summary captures the full login window"
     },
@@ -81,6 +81,47 @@
       "field": "interpretation_limit",
       "contains": "post_body_not_visible_no_auth_success_inference",
       "message": "auth summary keeps no-success-inference interpretation limit"
+    },
+    {
+      "op": "collection_count_by_where_at_most",
+      "collection": "analysis_candidates",
+      "where": {
+        "uri": "/api/login",
+        "status_code": 401
+      },
+      "value": 3,
+      "message": "repeated auth 401 candidates are reduced to representative rows"
+    },
+    {
+      "op": "collection_count_by_where_at_least",
+      "collection": "analysis_candidates",
+      "where": {
+        "uri": "/api/login",
+        "status_code": 401
+      },
+      "value": 1,
+      "message": "at least one representative auth 401 candidate remains"
+    },
+    {
+      "op": "exists",
+      "collection": "supporting_events",
+      "where": {
+        "supporting_role": "auth_behavior_support",
+        "supporting_reason": "covered_by_auth_behavior_summary",
+        "context_role": "auth_behavior_context",
+        "should_promote_to_candidate": false
+      },
+      "message": "repeated auth 401 rows are preserved as auth behavior supporting context"
+    },
+    {
+      "op": "field_contains",
+      "collection": "supporting_events",
+      "where": {
+        "supporting_role": "auth_behavior_support"
+      },
+      "field": "reason_hints",
+      "contains": "auth_abuse:covered_by_auth_behavior_summary",
+      "message": "auth behavior supporting event keeps covered-by-summary hint"
     }
   ],
   "MUST_NOT": [

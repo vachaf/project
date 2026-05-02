@@ -23,3 +23,6 @@ pipeline_manifest.json
 __pycache__/
 *.pyc
 .pytest_cache/
+
+#tmp_codex
+/file

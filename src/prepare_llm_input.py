@@ -292,6 +292,7 @@ IP_BEHAVIOR_SENSITIVE_PATH_LIMIT = 10
 AUTH_BEHAVIOR_WINDOW_SEC = 300
 AUTH_BEHAVIOR_RAPID_WINDOW_SEC = 60
 AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
+AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT = 3
 EDUCATIONAL_SQL_SEARCH_TERMS = (
     "how to",
     "tutorial",
@@ -1824,6 +1825,222 @@ def build_auth_behavior_summaries(
     return summaries
 
 
+def build_auth_behavior_summary_contexts(
+    auth_behavior_summaries: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    contexts: List[Dict[str, Any]] = []
+    for summary in auth_behavior_summaries:
+        if not bool(summary.get("has_repeated_401")):
+            continue
+        src_ip = normalize_text(summary.get("src_ip"))
+        endpoint_family = normalize_text(summary.get("endpoint_family"))
+        window_start = normalize_text(summary.get("window_start"))
+        window_end = normalize_text(summary.get("window_end"))
+        start_dt = parse_flexible_iso_dt(window_start)
+        end_dt = parse_flexible_iso_dt(window_end)
+        if not src_ip or not endpoint_family or start_dt is None or end_dt is None:
+            continue
+        contexts.append(
+            {
+                "summary": summary,
+                "src_ip": src_ip,
+                "endpoint_family": endpoint_family,
+                "window_start": window_start,
+                "window_end": window_end,
+                "start_dt": start_dt,
+                "end_dt": end_dt,
+                "summary_key": "|".join([src_ip, endpoint_family, window_start, window_end]),
+            }
+        )
+    return contexts
+
+
+def build_auth_behavior_support_reason_hints(summary: Dict[str, Any]) -> List[str]:
+    hints: List[str] = []
+    if bool(summary.get("has_repeated_401")):
+        append_unique_hint(hints, "auth_abuse:repeated_401")
+    if bool(summary.get("has_rapid_burst")):
+        append_unique_hint(hints, "auth_abuse:rapid_fail_burst")
+    if bool(summary.get("has_mixed_401_200")):
+        append_unique_hint(hints, "auth_abuse:mixed_401_200_sequence")
+    append_unique_hint(hints, "auth_abuse:repeated_auth_endpoint")
+    append_unique_hint(hints, "auth_abuse:covered_by_auth_behavior_summary")
+    append_unique_hint(hints, "auth_abuse:post_body_not_visible")
+    append_unique_hint(hints, "auth_abuse:no_auth_success_inference")
+    return hints
+
+
+def choose_auth_behavior_representative_candidates(
+    items: List[Candidate],
+    summary: Dict[str, Any],
+    representative_limit: int,
+) -> List[Candidate]:
+    if len(items) <= representative_limit:
+        return list(items)
+
+    sorted_items = sorted(items, key=lambda item: normalize_text(item.log_time))
+    selected_indexes: List[int] = []
+
+    def add_index(idx: int) -> None:
+        if idx not in selected_indexes:
+            selected_indexes.append(idx)
+
+    add_index(0)
+    peak_idx = max(
+        range(len(sorted_items)),
+        key=lambda idx: (
+            sorted_items[idx].score,
+            sorted_items[idx].duration_us,
+            sorted_items[idx].ttfb_us,
+            normalize_text(sorted_items[idx].log_time),
+        ),
+    )
+    add_index(peak_idx)
+    if bool(summary.get("has_rapid_burst")) or bool(summary.get("has_mixed_401_200")):
+        add_index(len(sorted_items) - 1)
+
+    if len(selected_indexes) < min(representative_limit, len(sorted_items)):
+        ranked_remaining = sorted(
+            range(len(sorted_items)),
+            key=lambda idx: (
+                sorted_items[idx].score,
+                sorted_items[idx].duration_us,
+                sorted_items[idx].ttfb_us,
+                normalize_text(sorted_items[idx].log_time),
+            ),
+            reverse=True,
+        )
+        for idx in ranked_remaining:
+            add_index(idx)
+            if len(selected_indexes) >= representative_limit:
+                break
+
+    selected_candidates = [sorted_items[idx] for idx in selected_indexes[:representative_limit]]
+    selected_candidates.sort(key=lambda item: normalize_text(item.log_time))
+    return selected_candidates
+
+
+def build_auth_behavior_supporting_event(
+    candidate: Candidate,
+    summary: Dict[str, Any],
+    covered_candidate_count: int,
+) -> Dict[str, Any]:
+    return {
+        "supporting_reason": "covered_by_auth_behavior_summary",
+        "supporting_role": "auth_behavior_support",
+        "context_role": "auth_behavior_context",
+        "should_promote_to_candidate": False,
+        "source_table": candidate.source_table,
+        "log_id": candidate.log_id,
+        "log_time": candidate.log_time,
+        "src_ip": candidate.src_ip,
+        "method": candidate.method,
+        "uri": candidate.uri,
+        "query_string": candidate.query_string,
+        "status_code": candidate.status_code,
+        "response_body_bytes": candidate.response_body_bytes,
+        "duration_us": candidate.duration_us,
+        "ttfb_us": candidate.ttfb_us,
+        "resp_content_type": candidate.resp_content_type,
+        "user_agent": candidate.user_agent,
+        "raw_request": candidate.raw_request,
+        "raw_request_target": candidate.raw_request_target,
+        "request_id": candidate.request_id,
+        "incident_group_key": candidate.incident_group_key or build_incident_group_key(candidate),
+        "reason_hints": build_auth_behavior_support_reason_hints(summary),
+        "temporal_context_key": build_temporal_context_key(candidate.src_ip, candidate.uri, candidate.log_time),
+        "temporal_context_role": "auth_behavior_context",
+        "nearby_candidate_count": covered_candidate_count,
+        "endpoint_family": normalize_text(summary.get("endpoint_family")) or "auth_endpoint",
+        "auth_summary_window_start": normalize_text(summary.get("window_start")),
+        "auth_summary_window_end": normalize_text(summary.get("window_end")),
+        "interpretation_limit": "post_body_not_visible_no_auth_success_inference",
+    }
+
+
+def reduce_repeated_auth_candidates(
+    candidates: List[Candidate],
+    auth_behavior_summaries: List[Dict[str, Any]],
+    representative_limit: int = AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT,
+) -> Tuple[List[Candidate], List[Dict[str, Any]]]:
+    contexts = build_auth_behavior_summary_contexts(auth_behavior_summaries)
+    if not contexts:
+        return candidates, []
+
+    grouped_candidates: Dict[str, List[Candidate]] = defaultdict(list)
+    matched_summary_by_group: Dict[str, Dict[str, Any]] = {}
+    passthrough_candidates: List[Candidate] = []
+
+    for candidate in candidates:
+        if candidate.status_code != 401:
+            passthrough_candidates.append(candidate)
+            continue
+
+        candidate_dt = parse_flexible_iso_dt(candidate.log_time or "")
+        if candidate_dt is None:
+            passthrough_candidates.append(candidate)
+            continue
+
+        endpoint_family = get_auth_endpoint_family(candidate.method, candidate.uri, raw_request_target=candidate.raw_request_target)
+        if not endpoint_family:
+            passthrough_candidates.append(candidate)
+            continue
+
+        matched_context: Optional[Dict[str, Any]] = None
+        for context in contexts:
+            if context["src_ip"] != normalize_text(candidate.src_ip):
+                continue
+            if context["endpoint_family"] != endpoint_family:
+                continue
+            if context["start_dt"] <= candidate_dt <= context["end_dt"]:
+                matched_context = context
+                break
+
+        if matched_context is None:
+            passthrough_candidates.append(candidate)
+            continue
+
+        summary_key = matched_context["summary_key"]
+        grouped_candidates[summary_key].append(candidate)
+        matched_summary_by_group[summary_key] = matched_context["summary"]
+
+    reduced_candidates: List[Candidate] = list(passthrough_candidates)
+    supporting_events: List[Dict[str, Any]] = []
+    for summary_key, items in grouped_candidates.items():
+        summary = matched_summary_by_group[summary_key]
+        if len(items) <= representative_limit:
+            reduced_candidates.extend(items)
+            continue
+
+        representative_candidates = choose_auth_behavior_representative_candidates(
+            items,
+            summary=summary,
+            representative_limit=representative_limit,
+        )
+        representative_keys = {id(item) for item in representative_candidates}
+        reduced_candidates.extend(representative_candidates)
+        for candidate in items:
+            if id(candidate) in representative_keys:
+                continue
+            supporting_events.append(
+                build_auth_behavior_supporting_event(
+                    candidate,
+                    summary=summary,
+                    covered_candidate_count=len(items),
+                )
+            )
+
+    reduced_candidates.sort(key=lambda item: (item.score, normalize_text(item.log_time)), reverse=True)
+    supporting_events.sort(
+        key=lambda item: (
+            safe_int(item.get("nearby_candidate_count"), 0),
+            normalize_text(item.get("log_time")),
+        ),
+        reverse=True,
+    )
+    return reduced_candidates, supporting_events
+
+
 def safe_int(value: Optional[Any], default: int = 0) -> int:
     if value is None:
         return default
@@ -3247,12 +3464,25 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
 
     noise_counter = Counter(normalize_text(r.get("_noise_category")) or "unclassified" for r in filtered_out_rows)
 
-    raw_candidate_count = len(candidates)
-    deduped_candidates, candidate_group_summaries = deduplicate_candidates(candidates)
+    auth_behavior_summaries = build_auth_behavior_summaries(all_rows)
+    original_candidate_count = len(candidates)
+    reduced_candidates, auth_behavior_supporting_events = reduce_repeated_auth_candidates(
+        candidates,
+        auth_behavior_summaries=auth_behavior_summaries,
+    )
+    raw_candidate_count = len(reduced_candidates)
+    deduped_candidates, candidate_group_summaries = deduplicate_candidates(reduced_candidates)
     supporting_events = build_supporting_events(filtered_out_rows, deduped_candidates, min_score=min_score)
+    supporting_events.extend(auth_behavior_supporting_events)
+    supporting_events.sort(
+        key=lambda item: (
+            safe_int(item.get("nearby_candidate_count"), 0),
+            normalize_text(item.get("log_time")),
+        ),
+        reverse=True,
+    )
     probing_sequence_summaries = build_probing_sequence_summaries(all_rows)
     ip_behavior_aggregates = build_ip_behavior_aggregates(all_rows)
-    auth_behavior_summaries = build_auth_behavior_summaries(all_rows)
     false_positive_review_candidates = [
         item
         for item in (
@@ -3311,6 +3541,8 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "filtered_out_rows": len(filtered_out_rows),
                 "filtered_out_non_aggregated_rows": len(non_aggregated_filtered),
                 "noise_group_count": len(noise_payload),
+                "candidate_rows_before_auth_behavior_reduction": original_candidate_count,
+                "auth_behavior_demoted_candidate_rows": len(auth_behavior_supporting_events),
                 "candidate_rows_before_dedup": raw_candidate_count,
                 "candidate_rows": len(candidate_payload),
                 "candidate_duplicate_rows_removed": raw_candidate_count - len(candidate_payload),
