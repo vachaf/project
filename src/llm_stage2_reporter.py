@@ -40,6 +40,7 @@ REFERENCE_BASELINE_FILTERED_CATEGORIES = ("benign_normal_search", "normal_search
 ENV_FILE_NAMES = ("config/llm.env", "llm.env", ".env")
 IP_BEHAVIOR_CONTEXT_LIMIT = 10
 IP_BEHAVIOR_LIST_LIMIT = 10
+AUTH_BEHAVIOR_CONTEXT_LIMIT = 10
 
 
 @dataclass
@@ -776,6 +777,55 @@ def build_ip_behavior_context_rows(
     return rows[:top_n]
 
 
+def build_auth_behavior_context_rows(
+    summaries: List[Dict[str, Any]],
+    known_asset_ips: Sequence[str],
+    top_n: int = AUTH_BEHAVIOR_CONTEXT_LIMIT,
+) -> List[Dict[str, Any]]:
+    known_asset_set = set(known_asset_ips)
+    rows: List[Dict[str, Any]] = []
+    for item in summaries:
+        src_ip = normalize_str(item.get("src_ip")) or "-"
+        rows.append(
+            {
+                "context_role": normalize_str(item.get("context_role")) or "auth_behavior_context",
+                "aggregate_scope": normalize_str(item.get("aggregate_scope")) or "same_src_ip_auth_endpoint_time_window",
+                "should_promote_to_candidate": bool(item.get("should_promote_to_candidate")),
+                "src_ip": src_ip,
+                "window_start": normalize_str(item.get("window_start")),
+                "window_end": normalize_str(item.get("window_end")),
+                "burst_window_sec": safe_int(item.get("burst_window_sec"), 0),
+                "endpoint_family": normalize_str(item.get("endpoint_family")) or "auth_endpoint",
+                "request_count": safe_int(item.get("request_count"), 0),
+                "auth_request_count": safe_int(item.get("auth_request_count"), 0),
+                "status_counts": normalize_counter_dict(item.get("status_counts")),
+                "status_4xx_count": safe_int(item.get("status_4xx_count"), 0),
+                "status_2xx_count": safe_int(item.get("status_2xx_count"), 0),
+                "has_repeated_401": bool(item.get("has_repeated_401")),
+                "has_rapid_burst": bool(item.get("has_rapid_burst")),
+                "has_mixed_401_200": bool(item.get("has_mixed_401_200")),
+                "has_single_200_only": bool(item.get("has_single_200_only")),
+                "distinct_user_agents": safe_int(item.get("distinct_user_agents"), 0),
+                "sample_request_ids": truncate_unique_strings(item.get("sample_request_ids")),
+                "reason_hints": truncate_unique_strings(item.get("reason_hints")),
+                "interpretation_limit": normalize_str(item.get("interpretation_limit"))
+                or "post_body_not_visible_no_auth_success_inference",
+                "known_asset": src_ip in known_asset_set,
+            }
+        )
+
+    rows.sort(
+        key=lambda x: (
+            safe_int(x.get("request_count"), 0),
+            safe_int(x.get("status_4xx_count"), 0),
+            safe_int(x.get("status_2xx_count"), 0),
+            normalize_str(x.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return rows[:top_n]
+
+
 def has_php_wrapper_file_disclosure_context(item: Dict[str, Any]) -> bool:
     verdict = normalize_str(item.get("verdict"))
     if verdict == "suspicious_file_disclosure":
@@ -807,6 +857,7 @@ def build_report_input(
     false_positive_review_candidates = (llm_input_payload or {}).get("false_positive_review_candidates") or []
     probing_sequence_summaries = (llm_input_payload or {}).get("probing_sequence_summaries") or []
     ip_behavior_aggregates = (llm_input_payload or {}).get("ip_behavior_aggregates") or []
+    auth_behavior_summaries = (llm_input_payload or {}).get("auth_behavior_summaries") or []
     stage1_errors = (stage1_errors_payload or {}).get("errors") or []
     filtered_out_breakdown = normalize_counter_dict(llm_meta.get("filtered_out_breakdown"))
     total_filtered_out_rows = safe_int(counts.get("filtered_out_rows"), 0)
@@ -854,6 +905,11 @@ def build_report_input(
         known_asset_ips=known_asset_ips,
         top_n=IP_BEHAVIOR_CONTEXT_LIMIT,
     )
+    top_auth_behavior_summaries = build_auth_behavior_context_rows(
+        auth_behavior_summaries,
+        known_asset_ips=known_asset_ips,
+        top_n=AUTH_BEHAVIOR_CONTEXT_LIMIT,
+    )
 
     matched_known_assets = sorted(
         {
@@ -893,6 +949,10 @@ def build_report_input(
                 counts.get("ip_behavior_aggregates"),
                 len(ip_behavior_aggregates),
             ),
+            "auth_behavior_summary_count": safe_int(
+                counts.get("auth_behavior_summaries"),
+                len(auth_behavior_summaries),
+            ),
             "stage1_success_count": safe_int(meta.get("success_count"), len(results)),
             "stage1_error_count": safe_int(meta.get("error_count"), len(stage1_errors)),
         },
@@ -916,8 +976,13 @@ def build_report_input(
             counts.get("ip_behavior_aggregates"),
             len(ip_behavior_aggregates),
         ),
+        "auth_behavior_summary_count": safe_int(
+            counts.get("auth_behavior_summaries"),
+            len(auth_behavior_summaries),
+        ),
         "probing_sequence_summaries": probing_sequence_summaries[:10],
         "ip_behavior_aggregates": top_ip_behavior_aggregates,
+        "auth_behavior_summaries": top_auth_behavior_summaries,
         "supporting_events": supporting_events[:20],
         "false_positive_review_candidates": false_positive_review_candidates[:20],
         "stage1_errors_excerpt": stage1_errors[:5],
@@ -958,6 +1023,15 @@ def build_report_input(
                 "sensitive_path_rule": "sensitive_path_hits 는 민감 경로 접근 시도 문맥일 뿐 실제 파일 노출 또는 침해 성공 근거가 아님",
                 "success_rule": "status_code=200, text/html, response_body_bytes, status_5xx_count 만으로 공격 성공, 침해 성공, 파일 노출, XSS 실행, DB 유출을 단정하지 않음",
                 "identity_rule": "동일 src_ip 는 scanning-like behavior 가 관찰된 출발지로만 표현하고 공격자나 침해 주체로 단정하지 않음",
+            },
+            "auth_behavior_summary_policy": {
+                "default_action": "auth_behavior_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+                "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 auth row 도 이 summary 때문에 incident 후보로 승격된 것으로 해석하지 않음",
+                "interpretation_rule": "같은 src_ip, auth endpoint family, 짧은 시간 window 안의 반복 401, rapid burst, 401/200 혼재, 단독 200 baseline 을 auth behavior context 로만 설명",
+                "visibility_rule": "Apache 로그 표면에서는 raw POST body 와 인증 결과 원문이 보이지 않을 수 있으므로 POST body 미확인 상태로 해석",
+                "mixed_status_rule": "401 과 200 이 함께 있어도 HTTP 200 observed after repeated 401 정도로만 설명하고 로그인 성공, 계정 탈취, credential stuffing 성공으로 단정하지 않음",
+                "success_rule": "status_code=200, response_body_bytes, resp_content_type 만으로 인증 성공이나 침해 성공 근거로 사용하지 않음",
+                "identity_rule": "동일 src_ip 는 auth behavior sequence 가 관찰된 출발지로만 표현하고 공격자나 계정 탈취 주체로 단정하지 않음",
             },
             "file_disclosure_policy": {
                 "php_wrapper_rule": "php://filter/convert.base64-encode/resource=... 구조는 PHP stream wrapper 를 통해 대상 파일을 base64 인코딩된 형태로 읽도록 유도하는 source/config disclosure attempt 또는 LFI-like file disclosure attempt 로 설명 가능",
@@ -1119,6 +1193,10 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "ip_behavior_aggregates 의 attack_categories_attempted 는 시도 유형 요약이지 성공한 공격 유형 목록이 아니며, sensitive_path_hits 는 민감 경로 접근 문맥일 뿐 실제 파일 노출 근거가 아니다. "
         "ip_behavior_aggregates 의 status_code=200, text/html, response_body_bytes, status_5xx_count 만으로 공격 성공, 침해 성공, 파일 노출, XSS 실행, DB 유출을 단정하지 마라. "
         "ip_behavior_aggregates 가 있어도 동일 src_ip 를 공격자라고 단정하지 말고, same src_ip observed with scanning-like behavior 정도의 보수적 표현만 사용하라. "
+        "auth_behavior_summaries 가 있으면 이는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 와 auth endpoint family 에서 짧은 시간 안에 반복 401, rapid burst, 401/200 혼재, 단독 200 baseline 이 관찰된 auth behavior context 로만 설명하라. "
+        "auth_behavior_summaries 의 401 과 200 혼재는 HTTP 200 observed after repeated 401 정도로만 설명하고, 로그인 성공 confirmed, 계정 탈취 confirmed, credential stuffing 성공으로 단정하지 마라. "
+        "Apache 로그 표면에서는 raw POST body, DB 인증 결과, response body 원문이 보이지 않을 수 있으므로 auth_behavior_summaries 는 POST body 미확인 상태로 해석하라. "
+        "auth_behavior_summaries 의 status_code=200, response_body_bytes, resp_content_type 만으로 인증 성공이나 침해 성공 근거로 사용하지 마라. "
         "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, stage2 에서는 '후보 밖 탐색성 요청'으로 고정 표기하라. "
         "단, 동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라. "
         "filtered_out_breakdown, top_filtered_categories, top_out_of_candidate_recon 은 prepare 단계에서 보존된 사실 정보이므로 후보 밖 문맥 섹션과 recommended_actions 에 반영하라. "
@@ -1175,6 +1253,11 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "ip_behavior_aggregates 의 sensitive_path_hits 는 민감 경로 접근 시도 문맥일 뿐 실제 파일 노출 근거가 아니다.",
             "ip_behavior_aggregates 에 200 응답, text/html, response_body_bytes, 5xx count 가 있어도 공격 성공이나 침해 성공 근거로 사용하지 마라.",
             "ip_behavior_aggregates 가 있어도 동일 src_ip 를 공격자라고 단정하지 말고, same src_ip observed with scanning-like behavior 정도로만 표현하라.",
+            "auth_behavior_summaries 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 와 auth endpoint family, 짧은 시간 window 안의 반복 401, rapid burst, 401/200 혼재, 단독 200 baseline 을 auth behavior context 로만 설명하라.",
+            "auth_behavior_summaries 의 should_promote_to_candidate=false 이면 어떤 개별 auth row 도 이 summary 때문에 candidate 로 승격된 것으로 해석하지 마라.",
+            "auth_behavior_summaries 의 401 과 200 혼재는 HTTP 200 observed after repeated 401 정도로만 설명하고 로그인 성공 confirmed, 계정 탈취, credential stuffing 성공으로 단정하지 마라.",
+            "Apache 로그 표면에서는 raw POST body 와 인증 결과 원문이 보이지 않을 수 있으므로 auth_behavior_summaries 는 POST body 미확인 상태로 해석하라.",
+            "auth_behavior_summaries 에 200 응답, response_body_bytes, application/json 같은 값이 있어도 인증 성공이나 침해 성공 근거로 사용하지 마라.",
             "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, 별도 '후보 밖 탐색성 요청' 섹션에서 설명하라.",
             "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라.",
             "benign_normal_search 또는 normal_search_baseline filtered_out category 는 low_signal_fuzzing 과 분리해서 정상 비교군 또는 reference baseline 으로 설명하라.",
@@ -1203,6 +1286,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     top_out_of_candidate_recon = report_input.get("top_out_of_candidate_recon") or []
     probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
     ip_behavior_aggregates = report_input.get("ip_behavior_aggregates") or []
+    auth_behavior_summaries = report_input.get("auth_behavior_summaries") or []
     verdicts = distributions.get("verdicts") or {}
     severities = distributions.get("severities") or {}
     source_tables = distributions.get("source_tables") or {}
@@ -1239,6 +1323,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     lines.append(f"- filtered out 비집계 row 수: {safe_int(counts.get('filtered_out_non_aggregated_rows'), 0)}")
     lines.append(f"- noise 집계 그룹 수: {safe_int(counts.get('noise_group_count'), 0)}")
     lines.append(f"- ip behavior aggregate 수: {safe_int(counts.get('ip_behavior_aggregate_count'), len(ip_behavior_aggregates))}")
+    lines.append(f"- auth behavior summary 수: {safe_int(counts.get('auth_behavior_summary_count'), len(auth_behavior_summaries))}")
     lines.append(f"- stage1 성공/오류: {safe_int(counts.get('stage1_success_count'), 0)} / {safe_int(counts.get('stage1_error_count'), 0)}")
     if verdicts:
         lines.append(f"- verdict 분포: {json.dumps(verdicts, ensure_ascii=False)}")
@@ -1382,18 +1467,40 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
         lines.append("- 관찰된 ip_behavior_aggregates 없음")
     lines.append("")
 
-    lines.append("## 9. 권고 조치")
+    lines.append("## 9. Auth behavior context")
+    if auth_behavior_summaries:
+        lines.append("- 아래 항목은 context-only 이며 개별 incident 승격이나 auth success 확정 근거가 아닙니다.")
+        for item in auth_behavior_summaries[:5]:
+            status_counts = json.dumps(item.get("status_counts") or {}, ensure_ascii=False)
+            reason_hints = ", ".join(item.get("reason_hints") or []) or "-"
+            lines.append(
+                f"- src_ip={normalize_str(item.get('src_ip')) or '-'} | "
+                f"endpoint_family={normalize_str(item.get('endpoint_family')) or '-'} | "
+                f"window={normalize_str(item.get('window_start')) or '-'} ~ {normalize_str(item.get('window_end')) or '-'} | "
+                f"requests={safe_int(item.get('request_count'), 0)} | "
+                f"status_counts={status_counts}"
+            )
+            lines.append(f"  - reason_hints={reason_hints}")
+            lines.append("  - 해석: raw POST body 미확인 상태에서 반복 auth interaction 문맥으로만 본다.")
+            lines.append("  - 제한: HTTP 200 observed after repeated 401 이어도 로그인 성공 confirmed 로 단정하지 않는다.")
+            if bool(item.get("known_asset")):
+                lines.append("  - 주의: known asset IP 와 일치하므로 내부 테스트/운영 점검 가능성을 함께 고려해야 합니다.")
+    else:
+        lines.append("- 관찰된 auth_behavior_summaries 없음")
+    lines.append("")
+
+    lines.append("## 10. 권고 조치")
     for item in report_json.get("recommended_actions") or []:
         lines.append(f"- **{normalize_str(item.get('priority'))}** {normalize_str(item.get('action'))}")
         lines.append(f"  - 근거: {normalize_str(item.get('why'))}")
     lines.append("")
 
-    lines.append("## 10. 신뢰도와 한계")
+    lines.append("## 11. 신뢰도와 한계")
     for item in report_json.get("confidence_and_limitations") or []:
         lines.append(f"- {normalize_str(item)}")
     lines.append("")
 
-    lines.append("## 11. 발표용 한 줄 정리")
+    lines.append("## 12. 발표용 한 줄 정리")
     lines.append(normalize_str(report_json.get("presentation_takeaway")))
     lines.append("")
 
@@ -1408,6 +1515,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     recon_rows = report_input.get("top_out_of_candidate_recon") or []
     probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
     ip_behavior_aggregates = report_input.get("ip_behavior_aggregates") or []
+    auth_behavior_summaries = report_input.get("auth_behavior_summaries") or []
     asset_context = report_input.get("asset_context") or {}
     lines: List[str] = []
     lines.append("# 드라이런 보안 분석 보고서")
@@ -1427,6 +1535,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append(f"- filtered out row 수: {safe_int(counts.get('filtered_out_rows'), 0)}")
     lines.append(f"- probing sequence summary 수: {safe_int(counts.get('probing_sequence_summary_count'), len(probing_sequence_summaries))}")
     lines.append(f"- ip behavior aggregate 수: {safe_int(counts.get('ip_behavior_aggregate_count'), len(ip_behavior_aggregates))}")
+    lines.append(f"- auth behavior summary 수: {safe_int(counts.get('auth_behavior_summary_count'), len(auth_behavior_summaries))}")
     lines.append(f"- stage1 성공/오류: {safe_int(counts.get('stage1_success_count'), 0)} / {safe_int(counts.get('stage1_error_count'), 0)}")
     if filtered_rows:
         lines.append("- 후보 밖 주요 카테고리:")
@@ -1459,6 +1568,16 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
                 f"4xx_ratio={safe_float(item.get('status_4xx_ratio'), 0.0):.2f} | "
                 f"attempted_categories={categories}"
             )
+    if auth_behavior_summaries:
+        lines.append("- context-only auth behavior summaries:")
+        for item in auth_behavior_summaries[:5]:
+            lines.append(
+                f"  - src_ip={normalize_str(item.get('src_ip')) or '-'} | "
+                f"endpoint_family={normalize_str(item.get('endpoint_family')) or '-'} | "
+                f"requests={safe_int(item.get('request_count'), 0)} | "
+                f"status_counts={json.dumps(item.get('status_counts') or {}, ensure_ascii=False)}"
+            )
+        lines.append("- auth 해석 제한: raw POST body 미확인 상태이며 HTTP 200 observed after repeated 401 이어도 로그인 성공 confirmed 로 단정하지 않는다.")
     lines.append("")
     lines.append("## 상위 incident 미리보기")
     for item in incidents[:5]:
@@ -1485,6 +1604,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append("- incident 는 request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 병합했다.")
     lines.append("- filtered_out_breakdown 은 noise_summary 와 별도로 보존되며, 보고서 초안에도 함께 노출된다.")
     lines.append("- ip_behavior_aggregates 는 context-only 이며 개별 incident 승격이나 severity 상향 근거로 사용하지 않는다.")
+    lines.append("- auth_behavior_summaries 는 context-only 이며 raw POST body 미확인 상태에서 auth sequence 문맥으로만 사용한다.")
     return "\n".join(lines).strip() + "\n"
 
 

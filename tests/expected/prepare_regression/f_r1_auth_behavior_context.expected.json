@@ -1,0 +1,114 @@
+{
+  "description": "Repeated auth POST failures and later 200 responses should be preserved as context-only auth behavior summaries without confirming auth success.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "auth_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.70",
+        "context_role": "auth_behavior_context",
+        "aggregate_scope": "same_src_ip_auth_endpoint_time_window",
+        "should_promote_to_candidate": false
+      },
+      "message": "auth behavior summary created as context-only"
+    },
+    {
+      "op": "exists",
+      "collection": "auth_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.70",
+        "endpoint_family": "auth_login",
+        "request_count": 5
+      },
+      "message": "auth behavior summary captures the full login window"
+    },
+    {
+      "op": "field_contains",
+      "collection": "auth_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.70"
+      },
+      "field": "reason_hints",
+      "contains": "auth_abuse:repeated_auth_endpoint",
+      "message": "repeated auth endpoint hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "auth_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.70"
+      },
+      "field": "reason_hints",
+      "contains": "auth_abuse:repeated_401",
+      "message": "repeated 401 hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "auth_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.70"
+      },
+      "field": "reason_hints",
+      "contains": "auth_abuse:mixed_401_200_sequence",
+      "message": "mixed 401 and 200 hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "auth_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.70"
+      },
+      "field": "reason_hints",
+      "contains": "auth_abuse:post_body_not_visible",
+      "message": "post body visibility limit hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "auth_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.70"
+      },
+      "field": "reason_hints",
+      "contains": "auth_abuse:no_auth_success_inference",
+      "message": "no auth success inference hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "auth_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.70"
+      },
+      "field": "interpretation_limit",
+      "contains": "post_body_not_visible_no_auth_success_inference",
+      "message": "auth summary keeps no-success-inference interpretation limit"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "f-r1-browse-1"
+      },
+      "message": "normal browse GET must not be promoted to an auth abuse candidate"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "f-r1-auth-200-1"
+      },
+      "message": "HTTP 200 auth row must not be auto-promoted to a candidate"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "f-r1-auth-200-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "filtered auth baseline row must not keep dir_probe:* hint"
+    }
+  ]
+}

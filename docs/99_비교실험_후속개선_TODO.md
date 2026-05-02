@@ -6,10 +6,11 @@
 
 ## 최근 완료 요약
 
-- prepare regression 11개 fixture 정리
-- Stage1/Stage2 dry-run regression 5개 fixture 정리
+- prepare regression 12개 fixture 정리
+- Stage1/Stage2 dry-run regression 6개 fixture 정리
 - `suspicious_file_disclosure` verdict 정식화
 - `ip_behavior_aggregates` context-only 도입 및 Stage2 설명 반영
+- `auth_behavior_summaries` context-only 도입
 - PHP wrapper 보수 설명 반영
 - SQLi 구조 hint 보강
 - Log4Shell / SSRF / SSTI / webshell 제한적 L3 hint 추가
@@ -48,6 +49,10 @@
 - 해석 원칙:
   - 성공/실패 단정 금지
   - brute-force-like 또는 auth abuse suspicion 수준으로 제한
+- 현재 상태:
+  - prepare `auth_behavior_summaries` 추가 완료
+  - repeated `401`, mixed `401/200`, single `200` baseline context 보존 완료
+  - Stage2의 auth behavior 서술 보강은 추가 fixture와 실제 샘플 기준으로 계속 다듬을 여지 있음
 
 ## P4. G세트 HTTP method / protocol anomaly 설계
 

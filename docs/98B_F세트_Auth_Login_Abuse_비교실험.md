@@ -573,6 +573,8 @@ F세트 수행 후 prepare/Stage1/Stage2에서 확인할 항목은 다음이다.
 
 ## 11. 향후 코드/fixture 후보
 
+F Round 1 prepare 결과에서 개별 `401` login row가 다수 candidate 로 올라가고, `401 -> 200` 혼재 시계열이 별도 auth context 로 보존되지 않는 문제가 확인되었다. 이에 따라 prepare top-level `auth_behavior_summaries` 추가와 auth baseline row의 `dir_probe:*` 정리가 필요하다는 점이 확인되었다.
+
 F세트 실행 결과에 따라 아래를 후속 작업으로 검토한다.
 
 1. `auth_abuse:*` hint namespace 도입 여부

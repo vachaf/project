@@ -1,0 +1,94 @@
+{
+  "description": "Stage dry-run should preserve auth behavior summaries as context-only auth sequence context without claiming confirmed auth success.",
+  "MUST": [
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.auth_behavior_summary_count",
+      "message": "auth behavior summary count exists"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.auth_behavior_summary_count",
+      "equals": 1,
+      "message": "auth behavior summary count is preserved"
+    },
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.auth_behavior_summary_policy",
+      "message": "auth behavior summary policy exists"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "auth_behavior_summaries.0.context_role",
+      "equals": "auth_behavior_context",
+      "message": "auth behavior summary keeps context role"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "auth_behavior_summaries.0.should_promote_to_candidate",
+      "equals": false,
+      "message": "auth behavior summary stays non-promoting"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "auth_behavior_summaries.0.interpretation_limit",
+      "equals": "post_body_not_visible_no_auth_success_inference",
+      "message": "auth behavior summary keeps interpretation limit"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.auth_behavior_summary_policy.mixed_status_rule",
+      "contains": "HTTP 200 observed after repeated 401",
+      "message": "auth summary policy keeps mixed-status caution"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "HTTP 200 observed after repeated 401",
+      "message": "stage2 prompt keeps mixed 401/200 caution"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "context-only auth behavior summaries:",
+      "message": "markdown includes auth behavior context section"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "raw POST body 미확인",
+      "message": "markdown includes post body visibility limitation"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "f-r1-auth-fail-1"
+      },
+      "field": "request_id",
+      "equals": "f-r1-auth-fail-1",
+      "message": "401 auth request remains in stage2 report input"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "로그인 성공 confirmed",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not claim confirmed login success"
+    }
+  ]
+}

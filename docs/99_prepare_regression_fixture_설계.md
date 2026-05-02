@@ -29,6 +29,7 @@
 - `e_r2_php_wrapper`
 - `e_r2_direct_config_path`
 - `e_r3_search_attack_and_baseline`
+- `f_r1_auth_behavior_context`
 - `ip_behavior_multi_signal_context`
 - `l3_log4shell_ssrf_context`
 - `l3_ssti_webshell_context`
@@ -97,7 +98,8 @@ fixture는 다음 값을 사용한다.
   - `benign_normal_search`
   - `supporting_role=reference_baseline`
   - `dir_probe:*`
-  - `ip_behavior:*`
+- `ip_behavior:*`
+- `auth_abuse:*`
   - `l3:log4shell`
   - `log4shell:*`
   - `l3:ssrf`
@@ -140,7 +142,17 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - 2026-04-30 기준 normal search baseline row의 `dir_probe:*` hint 잔존 문제는 해결되었다.
 - `e_r3_search_attack_and_baseline` fixture에서는 해당 조건을 `MUST_NOT`으로 회귀 검증한다.
 - 2026-04-30 기준 `ip_behavior_aggregates`는 prepare top-level context-only 출력과 Stage2 report input/prompt 반영까지 완료되었다.
+- 2026-05-02 기준 `auth_behavior_summaries`는 prepare top-level context-only 출력과 Stage2 dry-run report input 반영까지 완료되었다.
 - 2026-04-30 기준 `b_r2b_double_encoded_sqli` expected 는 `encoding:decoded_depth_2` 외에 `sqli:boolean_true_condition` 및 일부 구조 hint(`quote_termination`, `parenthesis_termination`, `comment_sequence`, `xclose_pattern`)를 함께 확인한다.
+
+## `f_r1_auth_behavior_context` expected 기준
+
+- 같은 `src_ip`와 auth endpoint family 의 300초 window 안에서 `POST` auth 요청이 3건 이상이거나 `401` 반복, `401/200` 혼재가 있으면 `auth_behavior_summaries`가 생성되어야 한다.
+- summary 는 `context_role=auth_behavior_context`, `aggregate_scope=same_src_ip_auth_endpoint_time_window`, `should_promote_to_candidate=false`를 유지해야 한다.
+- `reason_hints`에는 `auth_abuse:repeated_auth_endpoint`, `auth_abuse:repeated_401`, `auth_abuse:mixed_401_200_sequence`, `auth_abuse:post_body_not_visible`, `auth_abuse:no_auth_success_inference` 같은 보수적 힌트가 포함되어야 한다.
+- `interpretation_limit`은 `post_body_not_visible_no_auth_success_inference`를 유지해야 한다.
+- `200` auth filtered row 는 candidate 로 과승격되면 안 되고 `dir_probe:*` hint 를 유지하면 안 된다.
+- 일반 browse `GET` row 는 auth abuse candidate 로 과승격되면 안 된다.
 
 ## `ip_behavior_multi_signal_context` expected 기준
 

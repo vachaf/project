@@ -149,6 +149,17 @@ LOGIN_URI_HINTS = (
     "/session",
 )
 
+AUTH_ENDPOINT_FAMILY_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
+    ("auth_login", re.compile(r"(?i)(?:^|[^a-z0-9])login(?:[^a-z0-9]|$)")),
+    ("auth_signin", re.compile(r"(?i)(?:^|[^a-z0-9])signin(?:[^a-z0-9]|$)")),
+    ("auth_session", re.compile(r"(?i)(?:^|[^a-z0-9])session(?:[^a-z0-9]|$)")),
+    ("auth_token", re.compile(r"(?i)(?:^|[^a-z0-9])token(?:[^a-z0-9]|$)")),
+    (
+        "auth_endpoint",
+        re.compile(r"(?i)(?:^|[^a-z0-9])(?:auth|authenticate|authentication)(?:[^a-z0-9]|$)"),
+    ),
+]
+
 QUERY_HEAVY_URI_HINTS = (
     "/search",
     "/products/search",
@@ -278,6 +289,9 @@ PROBING_SEQUENCE_SAMPLE_PATH_LIMIT = 10
 IP_BEHAVIOR_WINDOW_SEC = 300
 IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
 IP_BEHAVIOR_SENSITIVE_PATH_LIMIT = 10
+AUTH_BEHAVIOR_WINDOW_SEC = 300
+AUTH_BEHAVIOR_RAPID_WINDOW_SEC = 60
+AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
 EDUCATIONAL_SQL_SEARCH_TERMS = (
     "how to",
     "tutorial",
@@ -1618,6 +1632,198 @@ def build_ip_behavior_aggregates(
     return aggregates
 
 
+def max_bucket_size_within_window(
+    items: List[Dict[str, Any]],
+    window_sec: int,
+    *,
+    status_predicate: Optional[Any] = None,
+) -> int:
+    if not items:
+        return 0
+
+    filtered = items
+    if status_predicate is not None:
+        filtered = [item for item in items if status_predicate(safe_int(item.get("status_code"), 0))]
+        if not filtered:
+            return 0
+
+    max_count = 0
+    left = 0
+    for right, item in enumerate(filtered):
+        current_dt = item["dt"]
+        while left <= right and (current_dt - filtered[left]["dt"]).total_seconds() > window_sec:
+            left += 1
+        max_count = max(max_count, right - left + 1)
+    return max_count
+
+
+def finalize_auth_behavior_bucket(
+    items: List[Dict[str, Any]],
+    window_sec: int,
+    rapid_window_sec: int,
+) -> Optional[Dict[str, Any]]:
+    if not items:
+        return None
+
+    sorted_items = sorted(items, key=lambda item: item["dt"])
+    request_count = len(sorted_items)
+    status_counts = Counter(str(safe_int(item.get("status_code"), 0)) for item in sorted_items)
+    status_401_count = safe_int(status_counts.get("401"), 0)
+    status_4xx_count = sum(count for code, count in status_counts.items() if 400 <= safe_int(code, 0) < 500)
+    status_2xx_count = sum(count for code, count in status_counts.items() if 200 <= safe_int(code, 0) < 300)
+    max_requests_rapid = max_bucket_size_within_window(sorted_items, rapid_window_sec)
+    max_401_rapid = max_bucket_size_within_window(
+        sorted_items,
+        rapid_window_sec,
+        status_predicate=lambda status_code: status_code == 401,
+    )
+
+    has_repeated_401 = status_401_count >= 3
+    has_rapid_burst = max_requests_rapid >= 10
+    has_mixed_401_200 = status_401_count > 0 and status_2xx_count > 0
+    has_single_200_only = request_count == 1 and status_2xx_count == 1 and status_4xx_count == 0
+    has_normal_session_like_baseline = (
+        request_count <= 2 and status_2xx_count >= 1 and status_4xx_count == 0 and not has_mixed_401_200
+    )
+
+    should_emit = any(
+        (
+            request_count >= 3,
+            has_repeated_401,
+            has_mixed_401_200,
+            has_rapid_burst,
+            has_single_200_only,
+        )
+    )
+    if not should_emit:
+        return None
+
+    distinct_user_agents = {
+        normalize_text(item.get("user_agent"))
+        for item in sorted_items
+        if normalize_text(item.get("user_agent"))
+    }
+    sample_request_ids: List[str] = []
+    for item in sorted_items:
+        request_id = normalize_text(item.get("sample_request_id"))
+        if request_id and request_id not in sample_request_ids:
+            sample_request_ids.append(request_id)
+        if len(sample_request_ids) >= AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT:
+            break
+
+    reason_hints: List[str] = []
+    if request_count >= 3:
+        append_unique_hint(reason_hints, "auth_abuse:repeated_auth_endpoint")
+    if has_repeated_401:
+        append_unique_hint(reason_hints, "auth_abuse:repeated_401")
+    if has_rapid_burst and (max_401_rapid >= 3 or status_4xx_count >= status_2xx_count):
+        append_unique_hint(reason_hints, "auth_abuse:rapid_fail_burst")
+    if has_mixed_401_200:
+        append_unique_hint(reason_hints, "auth_abuse:mixed_401_200_sequence")
+    if has_single_200_only:
+        append_unique_hint(reason_hints, "auth_abuse:single_200_baseline")
+    elif has_normal_session_like_baseline:
+        append_unique_hint(reason_hints, "auth_abuse:normal_session_like_baseline")
+    append_unique_hint(reason_hints, "auth_abuse:post_body_not_visible")
+    append_unique_hint(reason_hints, "auth_abuse:no_auth_success_inference")
+
+    return {
+        "context_role": "auth_behavior_context",
+        "aggregate_scope": "same_src_ip_auth_endpoint_time_window",
+        "should_promote_to_candidate": False,
+        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
+        "window_start": normalize_text(sorted_items[0].get("log_time")),
+        "window_end": normalize_text(sorted_items[-1].get("log_time")),
+        "burst_window_sec": window_sec,
+        "endpoint_family": normalize_text(sorted_items[0].get("endpoint_family")) or "auth_endpoint",
+        "request_count": request_count,
+        "auth_request_count": request_count,
+        "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (safe_int(kv[0], 0), kv[0]))),
+        "status_4xx_count": status_4xx_count,
+        "status_2xx_count": status_2xx_count,
+        "has_repeated_401": has_repeated_401,
+        "has_rapid_burst": has_rapid_burst,
+        "has_mixed_401_200": has_mixed_401_200,
+        "has_single_200_only": has_single_200_only,
+        "distinct_user_agents": len(distinct_user_agents),
+        "sample_request_ids": sample_request_ids,
+        "reason_hints": reason_hints,
+        "interpretation_limit": "post_body_not_visible_no_auth_success_inference",
+    }
+
+
+def build_auth_behavior_summaries(
+    rows: List[Dict[str, Any]],
+    window_sec: int = AUTH_BEHAVIOR_WINDOW_SEC,
+    rapid_window_sec: int = AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
+) -> List[Dict[str, Any]]:
+    rows_by_group: Dict[Tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        src_ip = get_src_ip(row)
+        if not src_ip or src_ip == "-":
+            continue
+
+        log_time = choose_best_time(row)
+        dt = parse_flexible_iso_dt(log_time or "")
+        if dt is None:
+            continue
+
+        method = get_method(row)
+        uri = get_uri(row)
+        raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+        endpoint_family = get_auth_endpoint_family(method, uri, raw_request_target=raw_request_target)
+        if not endpoint_family:
+            continue
+
+        rows_by_group[(src_ip, endpoint_family)].append(
+            {
+                "src_ip": src_ip,
+                "log_time": log_time,
+                "dt": dt,
+                "status_code": get_status_code(row),
+                "user_agent": get_user_agent(row),
+                "sample_request_id": get_sample_request_id(row),
+                "endpoint_family": endpoint_family,
+            }
+        )
+
+    summaries: List[Dict[str, Any]] = []
+    for _, items in rows_by_group.items():
+        sorted_items = sorted(items, key=lambda item: item["dt"])
+        bucket: List[Dict[str, Any]] = []
+        bucket_start: Optional[datetime] = None
+        for item in sorted_items:
+            if not bucket:
+                bucket = [item]
+                bucket_start = item["dt"]
+                continue
+
+            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
+                bucket.append(item)
+                continue
+
+            summary = finalize_auth_behavior_bucket(bucket, window_sec=window_sec, rapid_window_sec=rapid_window_sec)
+            if summary:
+                summaries.append(summary)
+            bucket = [item]
+            bucket_start = item["dt"]
+
+        summary = finalize_auth_behavior_bucket(bucket, window_sec=window_sec, rapid_window_sec=rapid_window_sec)
+        if summary:
+            summaries.append(summary)
+
+    summaries.sort(
+        key=lambda item: (
+            safe_int(item.get("request_count"), 0),
+            safe_int(item.get("status_4xx_count"), 0),
+            safe_int(item.get("status_2xx_count"), 0),
+            normalize_text(item.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return summaries
+
+
 def safe_int(value: Optional[Any], default: int = 0) -> int:
     if value is None:
         return default
@@ -1642,6 +1848,24 @@ def looks_like_browser_ua(ua: str) -> bool:
 def contains_login_uri(uri: str) -> bool:
     uri_lower = (uri or "").lower()
     return any(hint in uri_lower for hint in LOGIN_URI_HINTS)
+
+
+def get_auth_endpoint_family(method: str, uri: str, raw_request_target: str = "") -> str:
+    if normalize_text(method).upper() != "POST":
+        return ""
+
+    path = get_effective_request_path(uri, raw_request_target).lower()
+    if not path:
+        return ""
+
+    for family, pattern in AUTH_ENDPOINT_FAMILY_PATTERNS:
+        if pattern.search(path):
+            return family
+    return ""
+
+
+def is_auth_endpoint_request(method: str, uri: str, raw_request_target: str = "") -> bool:
+    return bool(get_auth_endpoint_family(method, uri, raw_request_target=raw_request_target))
 
 
 def contains_query_heavy_uri(uri: str) -> bool:
@@ -2111,17 +2335,26 @@ def sanitize_filtered_reason_hints(
     if not sanitized:
         return sanitized
 
-    if normalize_text(row.get("_noise_category")) != "benign_normal_search":
-        return sanitized
-
-    if not is_likely_normal_search_baseline(
-        row,
-        analysis_texts=analysis_texts,
-        reason_hints=sanitized,
+    noise_category = normalize_text(row.get("_noise_category"))
+    if (
+        noise_category == "benign_normal_search"
+        and is_likely_normal_search_baseline(
+            row,
+            analysis_texts=analysis_texts,
+            reason_hints=sanitized,
+        )
     ):
-        return sanitized
+        return [hint for hint in sanitized if not hint.startswith("dir_probe:")]
 
-    return [hint for hint in sanitized if not hint.startswith("dir_probe:")]
+    raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+    if is_auth_endpoint_request(
+        get_method(row),
+        get_uri(row),
+        raw_request_target=raw_request_target,
+    ):
+        return [hint for hint in sanitized if not hint.startswith("dir_probe:")]
+
+    return sanitized
 
 
 def get_method(row: Dict[str, Any]) -> str:
@@ -2306,6 +2539,19 @@ def classify_filtered_noise_category(
         reason_hints=reason_hints,
     ):
         return "benign_normal_search"
+
+    if (
+        is_auth_endpoint_request(method, uri, raw_request_target=raw_request_target)
+        and sqli_hits == 0
+        and xss_hits == 0
+        and traversal_hits == 0
+        and cmdi_hits == 0
+        and not hpp_detected
+    ):
+        if 200 <= status_code < 300:
+            return "auth_baseline_context"
+        if 400 <= status_code < 500:
+            return "auth_endpoint_context"
 
     if is_likely_dir_probe(
         uri=uri,
@@ -2943,6 +3189,8 @@ def aggregate_noise_rows(rows: List[Dict[str, Any]], min_repeat: int) -> Tuple[L
             "socketio_polling": "정상 웹 UI 세션 유지로 보이는 반복 polling 요청",
             "static_asset": "정적 리소스 요청 반복",
             "benign_normal_search": "브라우저 기반 일반 검색/조회로 보이는 반복 요청",
+            "auth_baseline_context": "인증 endpoint의 정상 또는 보수적 baseline 문맥으로 보이는 반복 요청",
+            "auth_endpoint_context": "인증 endpoint의 실패/관찰 문맥으로 보이는 반복 요청",
             "benign_fallback_html": "경로 변형이 있었지만 기본 HTML fallback 으로 해석되는 반복 요청",
             "low_signal_fuzzing": "퍼징/입력 변형 흔적은 있으나 근거가 약한 저신호 반복 요청",
             "low_signal_dir_probe": "디렉터리/민감 경로 존재 확인 수준의 저신호 probe 반복",
@@ -3004,6 +3252,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
     supporting_events = build_supporting_events(filtered_out_rows, deduped_candidates, min_score=min_score)
     probing_sequence_summaries = build_probing_sequence_summaries(all_rows)
     ip_behavior_aggregates = build_ip_behavior_aggregates(all_rows)
+    auth_behavior_summaries = build_auth_behavior_summaries(all_rows)
     false_positive_review_candidates = [
         item
         for item in (
@@ -3045,6 +3294,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "false_positive_review_candidates_are_context_only": True,
                 "probing_sequence_summaries_are_context_only": True,
                 "ip_behavior_aggregates_are_context_only": True,
+                "auth_behavior_summaries_are_context_only": True,
             },
             "thresholds": {
                 "candidate_min_score": min_score,
@@ -3052,6 +3302,8 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "supporting_event_time_window_sec": SUPPORTING_EVENT_TIME_WINDOW_SEC,
                 "probing_sequence_window_sec": PROBING_SEQUENCE_WINDOW_SEC,
                 "ip_behavior_window_sec": IP_BEHAVIOR_WINDOW_SEC,
+                "auth_behavior_window_sec": AUTH_BEHAVIOR_WINDOW_SEC,
+                "auth_behavior_rapid_window_sec": AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
             },
             "counts": {
                 "total_exported_rows": safe_int(original_meta.get("total_count"), len(all_rows)),
@@ -3067,6 +3319,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "false_positive_review_candidates": len(false_positive_review_candidates),
                 "probing_sequence_summaries": len(probing_sequence_summaries),
                 "ip_behavior_aggregates": len(ip_behavior_aggregates),
+                "auth_behavior_summaries": len(auth_behavior_summaries),
             },
             "filtered_out_breakdown": dict(noise_counter),
         },
@@ -3077,6 +3330,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         "false_positive_review_candidates": false_positive_review_candidates,
         "probing_sequence_summaries": probing_sequence_summaries,
         "ip_behavior_aggregates": ip_behavior_aggregates,
+        "auth_behavior_summaries": auth_behavior_summaries,
     }
 
     filtered_payload = [build_filtered_row_payload(r) for r in non_aggregated_filtered]
