@@ -1,0 +1,91 @@
+{
+  "description": "High-signal Log4Shell and SSRF structures should be preserved as candidates with limited L3 hints.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-1"
+      },
+      "message": "Log4Shell candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-1"
+      },
+      "field": "reason_hints",
+      "contains": "l3:log4shell",
+      "message": "Log4Shell L3 hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-1"
+      },
+      "field": "reason_hints",
+      "contains": "log4shell:jndi_lookup",
+      "message": "JNDI lookup hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-1"
+      },
+      "field": "reason_hints",
+      "contains": "log4shell:ldap_callback",
+      "message": "LDAP callback hint found"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-1"
+      },
+      "message": "SSRF candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-1"
+      },
+      "field": "reason_hints",
+      "contains": "l3:ssrf",
+      "message": "SSRF L3 hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-1"
+      },
+      "field": "reason_hints",
+      "contains": "ssrf:url_parameter",
+      "message": "SSRF URL parameter hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-1"
+      },
+      "field": "reason_hints",
+      "contains": "ssrf:metadata_ip",
+      "message": "SSRF metadata IP hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-1"
+      },
+      "field": "reason_hints",
+      "contains": "ssrf:cloud_metadata_target",
+      "message": "SSRF cloud metadata hint found"
+    }
+  ]
+}

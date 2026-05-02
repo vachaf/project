@@ -1,0 +1,93 @@
+{
+  "description": "High-signal SSTI and webshell access structures should be preserved as candidates with limited L3 hints.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-1"
+      },
+      "message": "SSTI candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-1"
+      },
+      "field": "reason_hints",
+      "contains": "l3:ssti",
+      "message": "SSTI L3 hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-1"
+      },
+      "field": "reason_hints",
+      "contains": "ssti:template_expression",
+      "message": "SSTI template expression hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-1"
+      },
+      "field": "reason_hints",
+      "contains": "ssti:jinja_expression",
+      "message": "SSTI jinja hint found"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-1"
+      },
+      "message": "webshell candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-1"
+      },
+      "field": "reason_hints",
+      "contains": "l3:webshell_probe",
+      "message": "webshell L3 hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-1"
+      },
+      "field": "reason_hints",
+      "contains": "webshell:script_filename",
+      "message": "webshell script filename hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-1"
+      },
+      "field": "reason_hints",
+      "contains": "webshell:cmd_parameter",
+      "message": "webshell cmd parameter hint found"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-1"
+      },
+      "field": "reason_hints",
+      "contains": "webshell:known_shell_name",
+      "message": "webshell known shell name hint found"
+    }
+  ]
+}

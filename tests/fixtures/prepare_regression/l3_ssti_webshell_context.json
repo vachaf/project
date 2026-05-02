@@ -1,0 +1,76 @@
+{
+  "meta": {
+    "database": "web_logs",
+    "exported_at": "2026-05-02T10:40:00.000+09:00",
+    "query_timezone": "Asia/Seoul",
+    "db_timezone": "UTC",
+    "range_mode": "fixture",
+    "start": "2026-05-02T10:40:00.000+09:00",
+    "end_exclusive": "2026-05-02T10:41:00.000+09:00",
+    "start_db_query": "2026-05-02T01:40:00.000+00:00",
+    "end_exclusive_db_query": "2026-05-02T01:41:00.000+00:00",
+    "table_option": "security",
+    "limit_per_table": null,
+    "total_count": 2,
+    "analysis_recommendation": "prepare-regression-fixture"
+  },
+  "counts": {
+    "access": 0,
+    "security": 2,
+    "error": 0
+  },
+  "data": {
+    "security": [
+      {
+        "id": 1211,
+        "request_id": "l3-ssti-1",
+        "error_link_id": null,
+        "log_time": "2026-05-02T10:40:10.000+09:00",
+        "created_at": "2026-05-02T10:40:10.100+09:00",
+        "src_ip": "203.0.113.80",
+        "peer_ip": "203.0.113.80",
+        "method": "GET",
+        "uri": "/search",
+        "query_string": "?q=%7B%7B7%2A7%7D%7D",
+        "raw_request": "GET /search?q=%7B%7B7%2A7%7D%7D HTTP/1.1",
+        "raw_log": "fixture l3_ssti_webshell_context ssti",
+        "status_code": 200,
+        "response_body_bytes": 1040,
+        "resp_content_type": "text/html",
+        "duration_us": 33000,
+        "ttfb_us": 15000,
+        "referer": "",
+        "user_agent": "Mozilla/5.0 regression-fixture",
+        "host": "portal.example.test",
+        "vhost": "portal.example.test",
+        "protocol": "HTTP/1.1",
+        "req_content_type": null
+      },
+      {
+        "id": 1212,
+        "request_id": "l3-webshell-1",
+        "error_link_id": null,
+        "log_time": "2026-05-02T10:40:26.000+09:00",
+        "created_at": "2026-05-02T10:40:26.100+09:00",
+        "src_ip": "203.0.113.81",
+        "peer_ip": "203.0.113.81",
+        "method": "GET",
+        "uri": "/upload/shell.php",
+        "query_string": "?cmd=id",
+        "raw_request": "GET /upload/shell.php?cmd=id HTTP/1.1",
+        "raw_log": "fixture l3_ssti_webshell_context webshell",
+        "status_code": 200,
+        "response_body_bytes": 512,
+        "resp_content_type": "text/html",
+        "duration_us": 29000,
+        "ttfb_us": 12000,
+        "referer": "",
+        "user_agent": "Mozilla/5.0 regression-fixture",
+        "host": "portal.example.test",
+        "vhost": "portal.example.test",
+        "protocol": "HTTP/1.1",
+        "req_content_type": null
+      }
+    ]
+  }
+}

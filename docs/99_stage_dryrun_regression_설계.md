@@ -101,5 +101,6 @@ Stage2 prompt guidance 검증은 `llm_stage2_reporter.build_messages()`를 dry-r
 - `ip_behavior_multi_signal_context`
 - `e_r3_search_attack_and_baseline`
 - `b_r2b_double_encoded_sqli`
+- `l3_log4shell_ssrf_context`
 
-초기 범위는 4개로 유지하고, 이후 필요 시 direct config path, HTML entity XSS, XSS false positive review 등을 확장한다.
+초기 범위는 5개로 유지하고, 이후 필요 시 direct config path, HTML entity XSS, XSS false positive review 등을 확장한다.

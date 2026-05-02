@@ -16,7 +16,7 @@
 | Done | SQLi xclose/quote termination hint 추가 | quote/paren 단독이 아니라 boolean/comment 구조와 결합될 때만 구조 hint를 부여하도록 반영 |
 | Done | Stage2 PHP wrapper 설명 보강 | `php://filter/convert.base64-encode/resource=...` 를 PHP wrapper 기반 source/config disclosure attempt 로 설명하고 성공 단정 금지 반영 |
 | Done | Stage2 `ip_behavior_aggregates` 설명 보강 | Stage2가 `ip_behavior_aggregates`를 context-only reconnaissance/scanning 문맥으로 읽고, candidate 승격 근거로 사용하지 않도록 반영 |
-| P2 | L3 패턴 소량 확장 | Log4Shell, SSRF, SSTI, webshell 등 Apache 로그 표면에 남는 고신호 패턴만 제한적으로 추가 |
+| Done | L3 패턴 소량 확장 | Log4Shell, SSRF, SSTI, webshell 계열의 고신호 구조만 prepare reason_hints에 제한적으로 추가 |
 | P3 | F세트 Auth/Login abuse 설계 | 새 공격 유형 확장 후보. POST body visibility 한계 주의 필요 |
 | P3 | G세트 HTTP method / protocol anomaly 설계 | 앱 의존도가 낮은 reconnaissance/anomaly 후보 |
 | P3 | Threat intelligence 연동 검토 | 외부 의존성이 크므로 운영 적용 단계 후보 |
@@ -80,6 +80,41 @@
 - 비목표:
   - 실제 LLM 출력 품질 평가
   - provider별 성향 비교
+
+## 3. 완료 — L3 패턴 소량 확장
+
+### 범위
+
+- `prepare_llm_input.py`에 아래 L3 hint만 제한적으로 추가했다.
+  - Log4Shell
+  - SSRF
+  - SSTI
+  - webshell access pattern
+
+### 원칙
+
+- Apache 로그 표면 지표만 사용
+- response body 원문, DB 결과, 브라우저 실행 여부, raw POST body 기반 판단 금지
+- 성공, RCE, 침해, 유출 단정 금지
+- 단일 키워드만으로 candidate 승격 금지
+
+### 이번 반영 기준
+
+- Log4Shell:
+  - `${jndi:ldap://...}`, `${jndi:rmi://...}`, `${jndi:dns://...}` 구조
+- SSRF:
+  - `url`/`target`/`callback` 등 URL형 파라미터가 `localhost`, loopback, RFC1918/private IP, `169.254.169.254`, `metadata.google.internal`을 가리키는 경우
+- SSTI:
+  - `{{7*7}}`, `{{ config }}`, `{{ self.__init__ }}`, `${7*7}`, `#{7*7}`, `<%= 7*7 %>`, `${T(java.lang.Runtime)}` 같은 템플릿 평가 구조
+- webshell:
+  - `shell.php`, `cmd.php`, `webshell.php`, `wso.php`, `c99.php`, `r57.php` 같은 filename 또는 upload PHP path 와 `cmd`/`exec`/`command` 계열 파라미터 조합
+
+### false positive 방지
+
+- `jndi`, `ldap`, `url`, `cmd`, `{{` 같은 단일 토큰만으로는 hint를 붙이지 않는다.
+- SSTI는 tutorial/example/docs 문맥이 같이 있으면 점수를 낮춰 자연어 검색 과승격을 피한다.
+- SSRF는 외부 URL 전체를 일괄 탐지하지 않고 internal/metadata target 에만 반응한다.
+- webshell은 command-like 파라미터만으로는 탐지하지 않고 suspicious filename/path 조합이 있어야 한다.
 
 ---
 

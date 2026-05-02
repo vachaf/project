@@ -1,0 +1,73 @@
+{
+  "description": "L3 Log4Shell and SSRF hints should survive stage dry-run payload generation without success assertions.",
+  "MUST": [
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-log4shell-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "l3:log4shell",
+      "message": "stage1 payload preserves Log4Shell hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssrf-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "l3:ssrf",
+      "message": "stage1 payload preserves SSRF hint"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-log4shell-1"
+      },
+      "field": "request_id",
+      "equals": "l3-log4shell-1",
+      "message": "stage2 report input keeps Log4Shell candidate"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-ssrf-1"
+      },
+      "field": "request_id",
+      "equals": "l3-ssrf-1",
+      "message": "stage2 report input keeps SSRF candidate"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "RCE 성공",
+      "message": "markdown must not assert RCE success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "SSRF 성공",
+      "message": "markdown must not assert SSRF success"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "침해 성공",
+      "allowed_context_contains": [
+        "단정",
+        "근거로 사용하지"
+      ],
+      "message": "markdown must not assert compromise success"
+    }
+  ]
+}

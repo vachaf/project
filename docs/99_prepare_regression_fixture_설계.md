@@ -30,6 +30,8 @@
 - `e_r2_direct_config_path`
 - `e_r3_search_attack_and_baseline`
 - `ip_behavior_multi_signal_context`
+- `l3_log4shell_ssrf_context`
+- `l3_ssti_webshell_context`
 
 ## 최소 Row 필드
 
@@ -96,6 +98,14 @@ fixture는 다음 값을 사용한다.
   - `supporting_role=reference_baseline`
   - `dir_probe:*`
   - `ip_behavior:*`
+  - `l3:log4shell`
+  - `log4shell:*`
+  - `l3:ssrf`
+  - `ssrf:*`
+  - `l3:ssti`
+  - `ssti:*`
+  - `l3:webshell_probe`
+  - `webshell:*`
 
 ## 일반화된 Path / Query 구조 사용 원칙
 
@@ -140,3 +150,19 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - `attack_categories_attempted`에는 `sqli`, `xss`, `dir_probe` 같은 요약 category 가 반영되어야 한다.
 - `/admin/`, `/backup/`, `/config.php` 같은 low-signal probe row는 개별 `analysis_candidates`로 과승격되면 안 된다.
 - 같은 fixture 안의 SQLi/XSS payload row는 기존 규칙대로 candidate 로 유지될 수 있다.
+
+## L3 fixture 기준
+
+### `l3_log4shell_ssrf_context`
+
+- `${jndi:ldap://...}` 구조는 `analysis_candidates`에 남아야 한다.
+- `reason_hints`에는 `l3:log4shell`, `log4shell:jndi_lookup`, `log4shell:ldap_callback`이 포함되어야 한다.
+- metadata target URL 파라미터 요청은 `analysis_candidates`에 남아야 한다.
+- `reason_hints`에는 `l3:ssrf`, `ssrf:url_parameter`, `ssrf:metadata_ip`, `ssrf:cloud_metadata_target`이 포함되어야 한다.
+
+### `l3_ssti_webshell_context`
+
+- `{{7*7}}` 구조는 `analysis_candidates`에 남아야 한다.
+- `reason_hints`에는 `l3:ssti`, `ssti:template_expression`, `ssti:jinja_expression`이 포함되어야 한다.
+- `/upload/shell.php?cmd=id` 구조는 `analysis_candidates`에 남아야 한다.
+- `reason_hints`에는 `l3:webshell_probe`, `webshell:script_filename`, `webshell:cmd_parameter`이 포함되어야 한다.

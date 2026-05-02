@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import ipaddress
 import json
 import os
 import re
@@ -38,7 +39,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import hashlib
 from typing import Any, Dict, Iterable, List, Optional, Tuple
-from urllib.parse import parse_qsl, unquote_plus
+from urllib.parse import parse_qsl, unquote_plus, urlparse
 
 # ----------------------------
 # 패턴 정의
@@ -277,7 +278,19 @@ SUPPORTING_SQL_KEYWORDS = (
 )
 SEARCH_PARAM_NAMES = {"q", "query", "search", "keyword", "term", "s"}
 NORMAL_SEARCH_VALUE_RE = re.compile(r"(?i)^[a-z0-9][a-z0-9 _-]{0,63}$")
-STRONG_ATTACK_HINT_PREFIXES = ("sqli:", "xss:", "traversal:", "file_disclosure:", "cmdi:", "hpp:")
+STRONG_ATTACK_HINT_PREFIXES = (
+    "sqli:",
+    "xss:",
+    "traversal:",
+    "file_disclosure:",
+    "cmdi:",
+    "hpp:",
+    "l3:",
+    "log4shell:",
+    "ssrf:",
+    "ssti:",
+    "webshell:",
+)
 STRONG_ATTACK_HINTS = {
     "encoding:double_decoded_sqli",
     "encoding:html_entity_decoded_xss",
@@ -354,6 +367,42 @@ EDUCATIONAL_XSS_KEYWORDS = (
     "localstorage",
     "sessionstorage",
 )
+LOG4SHELL_JNDI_LOOKUP_RE = re.compile(r"(?i)\$\{\s*jndi\s*:\s*(ldap|rmi|dns)\s*://[^\s}]+")
+LOG4SHELL_LDAP_RE = re.compile(r"(?i)\$\{\s*jndi\s*:\s*ldap\s*://[^\s}]+")
+LOG4SHELL_RMI_RE = re.compile(r"(?i)\$\{\s*jndi\s*:\s*rmi\s*://[^\s}]+")
+LOG4SHELL_DNS_RE = re.compile(r"(?i)\$\{\s*jndi\s*:\s*dns\s*://[^\s}]+")
+SSRF_PARAM_NAMES = {"url", "uri", "target", "next", "redirect", "callback", "webhook", "image", "fetch", "resource"}
+SSRF_METADATA_HOSTS = {"169.254.169.254", "metadata.google.internal"}
+SSTI_JINJA_ARITHMETIC_RE = re.compile(r"\{\{\s*\d{1,8}\s*[\*\+\-/]\s*\d{1,8}\s*\}\}")
+SSTI_JINJA_OBJECT_RE = re.compile(r"(?i)\{\{\s*(?:config\b|self(?:\.__init__)?\b|request\b|cycler\b|namespace\b|class\b)[^}]{0,120}\}\}")
+SSTI_FREEMARKER_RE = re.compile(r"(?i)(?:\$\{|#\{)\s*(?:\d{1,8}\s*[\*\+\-/]\s*\d{1,8}|T\s*\(\s*java\.lang\.Runtime\s*\)|config\b|class\b)[^}]{0,120}\}")
+SSTI_JSP_RE = re.compile(r"(?i)<%=\s*(?:\d{1,8}\s*[\*\+\-/]\s*\d{1,8}|T\s*\(\s*java\.lang\.Runtime\s*\)|config\b|class\b)[^%]{0,120}%>")
+EDUCATIONAL_SSTI_SEARCH_TERMS = (
+    "how to",
+    "tutorial",
+    "example",
+    "guide",
+    "docs",
+    "documentation",
+    "learn",
+    "usage",
+    "사용법",
+    "예제",
+    "튜토리얼",
+    "강의",
+    "문서",
+)
+EDUCATIONAL_SSTI_KEYWORDS = (
+    "ssti",
+    "jinja",
+    "template",
+    "freemarker",
+    "mustache",
+    "velocity",
+)
+WEBSHELL_CMD_PARAM_NAMES = {"cmd", "exec", "command", "shell", "powershell"}
+WEBSHELL_KNOWN_FILENAMES = {"shell.php", "cmd.php", "webshell.php", "wso.php", "c99.php", "r57.php"}
+WEBSHELL_UPLOAD_PATH_HINTS = ("/upload/", "/uploads/")
 
 
 @dataclass
@@ -737,6 +786,213 @@ def detect_file_disclosure_hints(
         if not canonical_in_base and not canonical_depth1:
             score_boost += 1
 
+    return score_boost, hints
+
+
+def extract_query_pairs_from_variants(
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> List[Tuple[str, str]]:
+    pairs: List[Tuple[str, str]] = []
+    seen = set()
+    raw_candidates = [raw_text(item.get("text")) for item in query_variants]
+    raw_candidates.extend(
+        raw_text(item.get("text")).split("?", 1)[1]
+        for item in raw_request_target_variants
+        if "?" in raw_text(item.get("text"))
+    )
+    for raw in raw_candidates:
+        text = raw[1:] if raw.startswith("?") else raw
+        if not text:
+            continue
+        try:
+            parsed_pairs = parse_qsl(text, keep_blank_values=True)
+        except Exception:
+            continue
+        for key, value in parsed_pairs:
+            key_norm = normalize_text(key).lower()
+            value_norm = normalize_text(value)
+            if not key_norm:
+                continue
+            dedup_key = (key_norm, value_norm)
+            if dedup_key in seen:
+                continue
+            seen.add(dedup_key)
+            pairs.append((key_norm, value_norm))
+    return pairs
+
+
+def detect_log4shell_hints(
+    combined_target: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    hints: List[str] = []
+    score_boost = 0
+    samples = unique_non_empty_texts(
+        [combined_target] + [raw_text(item.get("text")) for item in query_variants + raw_request_target_variants]
+    )
+    if not samples:
+        return 0, []
+
+    if any(LOG4SHELL_JNDI_LOOKUP_RE.search(sample) for sample in samples):
+        score_boost += 5
+        append_unique_hint(hints, "l3:log4shell")
+        append_unique_hint(hints, "log4shell:jndi_lookup")
+        if any(LOG4SHELL_LDAP_RE.search(sample) for sample in samples):
+            append_unique_hint(hints, "log4shell:ldap_callback")
+        if any(LOG4SHELL_RMI_RE.search(sample) for sample in samples):
+            append_unique_hint(hints, "log4shell:rmi_callback")
+        if any(LOG4SHELL_DNS_RE.search(sample) for sample in samples):
+            append_unique_hint(hints, "log4shell:dns_callback")
+
+    return score_boost, hints
+
+
+def classify_ssrf_target(value: str) -> List[str]:
+    text = normalize_text(value)
+    if not text:
+        return []
+
+    try:
+        parsed = urlparse(text)
+    except Exception:
+        return []
+
+    if parsed.scheme.lower() not in {"http", "https"}:
+        return []
+
+    hostname = raw_text(parsed.hostname).lower()
+    if not hostname:
+        return []
+
+    hints: List[str] = []
+    if hostname == "localhost":
+        append_unique_hint(hints, "ssrf:localhost_target")
+    elif hostname == "metadata.google.internal":
+        append_unique_hint(hints, "ssrf:cloud_metadata_target")
+    else:
+        try:
+            host_ip = ipaddress.ip_address(hostname.strip("[]"))
+        except ValueError:
+            host_ip = None
+        if host_ip is not None:
+            if host_ip == ipaddress.ip_address("169.254.169.254"):
+                append_unique_hint(hints, "ssrf:metadata_ip")
+                append_unique_hint(hints, "ssrf:cloud_metadata_target")
+            elif host_ip.is_loopback:
+                append_unique_hint(hints, "ssrf:localhost_target")
+            elif host_ip.is_private:
+                append_unique_hint(hints, "ssrf:internal_ip_target")
+
+    if hostname in SSRF_METADATA_HOSTS and "ssrf:cloud_metadata_target" not in hints:
+        append_unique_hint(hints, "ssrf:cloud_metadata_target")
+    return hints
+
+
+def detect_ssrf_hints(
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    hints: List[str] = []
+    score_boost = 0
+    pairs = extract_query_pairs_from_variants(query_variants, raw_request_target_variants)
+    matched_target = False
+    for key, value in pairs:
+        if key not in SSRF_PARAM_NAMES:
+            continue
+        target_hints = classify_ssrf_target(value)
+        if not target_hints:
+            continue
+        matched_target = True
+        append_unique_hint(hints, "ssrf:url_parameter")
+        extend_unique_hints(hints, target_hints)
+
+    if matched_target:
+        score_boost += 5
+        append_unique_hint(hints, "l3:ssrf")
+
+    return score_boost, hints
+
+
+def detect_educational_ssti_search_context(text: str) -> bool:
+    lowered = normalize_text(text).lower()
+    if not lowered:
+        return False
+    return any(term in lowered for term in EDUCATIONAL_SSTI_SEARCH_TERMS) and any(
+        keyword in lowered for keyword in EDUCATIONAL_SSTI_KEYWORDS
+    )
+
+
+def detect_ssti_hints(
+    combined_target: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    hints: List[str] = []
+    score_boost = 0
+    samples = unique_non_empty_texts(
+        [combined_target] + [raw_text(item.get("text")) for item in query_variants + raw_request_target_variants]
+    )
+    if not samples:
+        return 0, []
+
+    has_jinja = any(SSTI_JINJA_ARITHMETIC_RE.search(sample) or SSTI_JINJA_OBJECT_RE.search(sample) for sample in samples)
+    has_freemarker = any(SSTI_FREEMARKER_RE.search(sample) for sample in samples)
+    has_template_expression = has_jinja or has_freemarker or any(SSTI_JSP_RE.search(sample) for sample in samples)
+    if not has_template_expression:
+        return 0, []
+
+    score_boost += 4
+    append_unique_hint(hints, "l3:ssti")
+    append_unique_hint(hints, "ssti:template_expression")
+    if has_jinja:
+        append_unique_hint(hints, "ssti:jinja_expression")
+    if has_freemarker:
+        append_unique_hint(hints, "ssti:freemarker_expression")
+    return score_boost, hints
+
+
+def classify_webshell_path(path: str) -> List[str]:
+    normalized_path = normalize_text(path).lower()
+    if not normalized_path:
+        return []
+
+    hints: List[str] = []
+    filename = normalized_path.rsplit("/", 1)[-1]
+    if filename in WEBSHELL_KNOWN_FILENAMES:
+        append_unique_hint(hints, "webshell:script_filename")
+        append_unique_hint(hints, "webshell:known_shell_name")
+        return hints
+
+    if normalized_path.endswith("/shell.php") or normalized_path.endswith("/cmd.php") or normalized_path.endswith("/webshell.php"):
+        append_unique_hint(hints, "webshell:script_filename")
+    if any(segment in normalized_path for segment in WEBSHELL_UPLOAD_PATH_HINTS) and normalized_path.endswith(".php"):
+        append_unique_hint(hints, "webshell:script_filename")
+    return hints
+
+
+def detect_webshell_hints(
+    uri: str,
+    raw_request_target: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    hints: List[str] = []
+    score_boost = 0
+    path_hints = classify_webshell_path(get_effective_request_path(uri, raw_request_target))
+    if not path_hints:
+        return 0, []
+
+    pairs = extract_query_pairs_from_variants(query_variants, raw_request_target_variants)
+    has_cmd_parameter = any(key in WEBSHELL_CMD_PARAM_NAMES and raw_text(value) for key, value in pairs)
+    if not has_cmd_parameter:
+        return 0, []
+
+    score_boost += 4
+    append_unique_hint(hints, "l3:webshell_probe")
+    extend_unique_hints(hints, path_hints)
+    append_unique_hint(hints, "webshell:cmd_parameter")
     return score_boost, hints
 
 
@@ -1314,6 +1570,30 @@ def build_row_context_reason_hints(row: Dict[str, Any]) -> List[str]:
         raw_request_target_variants=raw_request_target_variants,
     )
     extend_unique_hints(reason_hints, file_disclosure_hints)
+    _, log4shell_hints = detect_log4shell_hints(
+        combined_target=combined_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    extend_unique_hints(reason_hints, log4shell_hints)
+    _, ssrf_hints = detect_ssrf_hints(
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    extend_unique_hints(reason_hints, ssrf_hints)
+    _, ssti_hints = detect_ssti_hints(
+        combined_target=combined_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    extend_unique_hints(reason_hints, ssti_hints)
+    _, webshell_hints = detect_webshell_hints(
+        uri=uri,
+        raw_request_target=raw_request_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    extend_unique_hints(reason_hints, webshell_hints)
     extend_unique_hints(
         reason_hints,
         get_xss_context_hints(
@@ -1357,6 +1637,14 @@ def get_attack_categories_from_reason_hints(reason_hints: Iterable[str]) -> List
             append_unique_hint(categories, "hpp")
         elif normalized.startswith("cmdi:"):
             append_unique_hint(categories, "command_injection")
+        elif normalized.startswith("log4shell:") or normalized == "l3:log4shell":
+            append_unique_hint(categories, "log4shell")
+        elif normalized.startswith("ssrf:") or normalized == "l3:ssrf":
+            append_unique_hint(categories, "ssrf")
+        elif normalized.startswith("ssti:") or normalized == "l3:ssti":
+            append_unique_hint(categories, "ssti")
+        elif normalized.startswith("webshell:") or normalized == "l3:webshell_probe":
+            append_unique_hint(categories, "webshell")
     return categories
 
 
@@ -2406,6 +2694,10 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     traversal_hits = 0
     cmdi_hits = 0
     automation_ua_hits = 0
+    log4shell_score_boost = 0
+    ssrf_score_boost = 0
+    ssti_score_boost = 0
+    webshell_score_boost = 0
 
     for name, pattern, points in SQLI_PATTERNS:
         if matches_sqli_pattern(name, pattern, combined_target):
@@ -2453,6 +2745,38 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     if file_disclosure_score_boost > 0:
         score += file_disclosure_score_boost
     extend_unique_hints(reason_hints, file_disclosure_hints)
+    log4shell_score_boost, log4shell_hints = detect_log4shell_hints(
+        combined_target=combined_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    if log4shell_score_boost > 0:
+        score += log4shell_score_boost
+    extend_unique_hints(reason_hints, log4shell_hints)
+    ssrf_score_boost, ssrf_hints = detect_ssrf_hints(
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    if ssrf_score_boost > 0:
+        score += ssrf_score_boost
+    extend_unique_hints(reason_hints, ssrf_hints)
+    ssti_score_boost, ssti_hints = detect_ssti_hints(
+        combined_target=combined_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    if ssti_score_boost > 0:
+        score += ssti_score_boost
+    extend_unique_hints(reason_hints, ssti_hints)
+    webshell_score_boost, webshell_hints = detect_webshell_hints(
+        uri=uri,
+        raw_request_target=raw_request_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    if webshell_score_boost > 0:
+        score += webshell_score_boost
+    extend_unique_hints(reason_hints, webshell_hints)
     extend_unique_hints(
         reason_hints,
         get_xss_context_hints(
@@ -2554,6 +2878,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
 
     educational_sql_context = detect_educational_sql_search_context(qs)
     educational_xss_context = detect_educational_xss_search_context(" ".join(unique_non_empty_texts([qs, raw_request_target])))
+    educational_ssti_context = detect_educational_ssti_search_context(" ".join(unique_non_empty_texts([qs, raw_request_target])))
     structure_flags = get_sqli_structure_flags(
         combined_target,
         query_variants=query_variants,
@@ -2639,6 +2964,11 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         if not strong_xss_structure:
             reason_hints.append("fp_hint:xss_keyword_without_attack_structure")
             score = max(0, score - 4)
+    if educational_ssti_context and ssti_score_boost > 0:
+        reason_hints.append("context:educational_ssti_search")
+        reason_hints.append("context:natural_language_query")
+        reason_hints.append("fp_hint:ssti_keyword_without_runtime_evidence")
+        score = max(0, score - 4)
 
     path_normalized_from_raw_request = False
     likely_html_fallback_response = False
