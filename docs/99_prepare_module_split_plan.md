@@ -299,6 +299,7 @@ git commit -m "Extract L3 prepare hints"
 - `src/prepare/l3_hints.py`
 - `prepare_llm_input.py` import / call site 최소 수정
 - 동작 변경 없음
+- 2026-05-02 기준 Step 1-B 완료
 
 검증:
 
