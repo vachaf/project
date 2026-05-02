@@ -23,6 +23,32 @@
     {
       "op": "json_path_exists",
       "file": "stage2_report_input",
+      "path": "policy_notes.behavior_scope_separation_policy",
+      "message": "behavior scope separation policy exists"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.behavior_scope_separation_policy.non_merge_rule",
+      "contains": "range 표현",
+      "message": "behavior scope separation policy forbids merged range wording"
+    },
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.user_agent_interpretation_policy",
+      "message": "user agent interpretation policy exists"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.user_agent_interpretation_policy.generalization_rule",
+      "contains": "lab-* 같은 실험 prefix",
+      "message": "user agent policy avoids lab prefix as detection rationale"
+    },
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
       "path": "policy_notes.supporting_events_policy.auth_behavior_rule",
       "message": "supporting events policy includes auth behavior support rule"
     },
@@ -76,6 +102,20 @@
       "message": "stage2 prompt keeps mixed 401/200 caution"
     },
     {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "count scope 를 분리하라",
+      "message": "stage2 prompt separates auth and ip behavior count scope"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "lab-* 같은 실험 prefix 자체를 탐지 근거로 삼지 마라",
+      "message": "stage2 prompt avoids lab prefix as attack rationale"
+    },
+    {
       "op": "file_contains",
       "file": "stage2_report_md",
       "contains": "context-only auth behavior summaries:",
@@ -86,6 +126,30 @@
       "file": "stage2_report_md",
       "contains": "raw POST body 미확인",
       "message": "markdown includes post body visibility limitation"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "scope 구분:",
+      "message": "markdown includes explicit auth/ip scope separation note"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "window_requests=",
+      "message": "markdown labels ip behavior request count with window scope"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "auth_requests=",
+      "message": "markdown labels auth behavior request count with auth scope"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "lab-* 같은 실험 prefix 자체를 공격 근거로 사용하지 않고",
+      "message": "markdown generalizes user-agent interpretation instead of relying on lab prefix"
     },
     {
       "op": "list_any_equals",
@@ -112,6 +176,12 @@
   ],
   "MUST_NOT": [
     {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "48~51",
+      "message": "markdown must not merge auth and ip behavior counts into a range"
+    },
+    {
       "op": "file_contains_unless_context",
       "file": "stage2_report_md",
       "contains": "로그인 성공 confirmed",
@@ -120,6 +190,22 @@
         "단정하지 마라"
       ],
       "message": "markdown must not claim confirmed login success"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "credential stuffing 성공",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not claim credential stuffing success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "lab-f-set이므로 공격",
+      "message": "markdown must not use lab-f-set prefix itself as attack rationale"
     }
   ]
 }

@@ -114,6 +114,7 @@ WRONG_PASS="wrongpass123"
 
 - `UA_PREFIX`는 실험 구간 식별을 위한 실행 편의값이다.
 - 탐지 로직은 `lab-f-set` User-Agent에 의존하면 안 된다.
+- Stage2 보고서에서는 `auth_behavior_summaries`와 `ip_behavior_aggregates` count를 scope별로 분리해 설명한다.
 - IP, response size, Juice Shop endpoint 이름을 hard-code하면 안 된다.
 - POST body의 email/password는 실행자가 시나리오를 만들기 위해 쓰는 값일 뿐, 분석 AI가 볼 수 있는 근거가 아니다.
 
