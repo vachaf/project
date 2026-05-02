@@ -6,7 +6,7 @@
 - 1차 대상 서비스: Juice Shop
 - 선행 조건: F세트 R1 완료 및 `auth_behavior_summaries` / `auth_behavior_support` 동작 확인
 
-> 핵심 전제: raw POST body가 없으므로 email/password, 실제 인증 성공, 계정 탈취, credential stuffing 성공, user enumeration 성공, lockout 발동은 단정하지 않는다.
+> 핵심 전제: raw POST body가 없으므로 email/password 기반 단정, auth success inference, unauthorized account access confirmation, account existence inference, lockout confirmation은 허용하지 않는다.
 
 ---
 
@@ -20,7 +20,7 @@
 | R2B | user enumeration-like / lockout-probing-like 응답 차이 관찰 | R2A 이후 |
 | R2C | 분산 IP auth probing | 환경이 지원할 때만 선택 |
 
-R2의 핵심 질문은 “공격 성공 여부”가 아니라, 다음을 Apache 로그 표면에서 보수적으로 분리할 수 있는가이다.
+R2의 핵심 질문은 “outcome confirmation”이 아니라, 다음을 Apache 로그 표면에서 보수적으로 분리할 수 있는가이다.
 
 ```text
 - 저속 반복과 rapid burst를 다르게 설명하는가
@@ -96,7 +96,7 @@ python3 lab/f_set/run_f_r2a_auth_scenarios.py \
 
 - runner는 승인된 로컬 실험 환경에서만 사용한다.
 - 외부 public target에는 실행하지 않는다.
-- runner는 공격 성공, 로그인 성공, 계정 탈취를 검증하지 않는다.
+- runner는 attack outcome confirmation이나 auth success inference를 제공하지 않는다.
 - POST body는 실행용 값일 뿐 Apache 로그 기반 분석 pipeline에는 보이지 않는다.
 
 ### F-R2A-01 저속 brute-force-like 401 ×6
@@ -186,66 +186,90 @@ curl -i -A "${UA_PREFIX}-slow-hidden-fail-1" \
 
 ## 4. R2B — 응답 차이 관찰형
 
-R2B는 존재/비존재 계정군, lockout probing-like 흐름에서 `status_code`, `response_body_bytes`, `duration_us`, `ttfb_us` 차이를 관찰하는 실험이다.
+R2B는 존재/비존재 계정군, lockout-probing-like 흐름에서 `status_code`, `response_body_bytes`, `duration_us`, `ttfb_us` 차이를 관찰하는 실험이다.
+
+R2B도 긴 `curl` 나열보다 Python runner 사용을 권장한다.
+
+권장 실행:
+
+```bash
+python3 lab/f_set/run_f_r2b_response_delta.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_F세트R2B_산출물/runner_logs
+```
+
+dry-run 또는 plan 확인:
+
+```bash
+python3 lab/f_set/run_f_r2b_response_delta.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_F세트R2B_산출물/runner_logs \
+  --dry-run
+```
+
+```bash
+python3 lab/f_set/run_f_r2b_response_delta.py \
+  --base-url http://192.168.56.105 \
+  --scenario existing_accounts \
+  --out lab/05-xx_F세트R2B_산출물/runner_logs \
+  --print-plan
+```
+
+주의:
+
+- runner는 승인된 로컬 실험 환경에서만 사용한다.
+- 실제 실행은 기본적으로 public IP 또는 일반 도메인 target을 거부한다.
+- runner는 response surface comparison과 response delta observation만 기록한다.
+- user-enumeration-like probing possibility, no account existence inference, no lockout confirmation, no auth success inference 원칙을 유지한다.
+- POST body는 실행용 값일 뿐 Apache 로그 기반 분석 pipeline에는 보이지 않는다.
 
 ### F-R2B-01 존재 계정군 실패 ×3
 
-```bash
-for email in "admin@juice-sh.op" "user1@juice-sh.op" "jim@juice-sh.op"; do
-  curl -i \
-    -A "${UA_PREFIX}-enum-exist-${email%%@*}" \
-    -H "Content-Type: application/json" \
-    -d "{\"email\":\"${email}\",\"password\":\"wrongpass\"}" \
-    "$JUICE_URL/rest/user/login"
-  sleep 1
-done
-```
+| 항목 | 내용 |
+|---|---|
+| scenario_id | `F-R2B-01` |
+| runner label | `existing_account_failures_x3` |
+| runner CLI | `--scenario existing_accounts` |
+| 요청 구성 | `POST /rest/user/login` 3회, 1초 간격, `lab-f-set-r2-enum-exist-{name}` |
+| 기대 응답 | `401` |
+| 기대 관찰 | runner가 existing으로 의도한 계정군에 대한 auth failure를 남기고, nonexistent group과 `status_code` / `response_body_bytes` / `duration_us` / `ttfb_us`를 비교 |
+| 기대 해석 | response surface comparison only, user-enumeration-like probing possibility, no account existence inference |
+| 해석 제한 | `post_body_not_visible_no_account_existence_inference` |
 
 ### F-R2B-02 비존재 계정군 실패 ×3
 
-```bash
-for email in "notexist1@example.invalid" "notexist2@example.invalid" "notexist3@example.invalid"; do
-  curl -i \
-    -A "${UA_PREFIX}-enum-notexist-${email%%@*}" \
-    -H "Content-Type: application/json" \
-    -d "{\"email\":\"${email}\",\"password\":\"wrongpass\"}" \
-    "$JUICE_URL/rest/user/login"
-  sleep 1
-done
-```
-
-기대 해석:
-
-- user enumeration 성공 여부를 단정하지 않음
-- 존재/비존재 계정 여부는 POST body가 보이지 않으므로 분석 AI가 직접 알 수 없음
-- 관찰 가능한 것은 status/bytes/time 차이뿐
-- 차이가 있으면 user-enumeration-like probing possibility, 차이가 없으면 표면상 구분 불가로 서술
+| 항목 | 내용 |
+|---|---|
+| scenario_id | `F-R2B-02` |
+| runner label | `nonexistent_account_failures_x3` |
+| runner CLI | `--scenario nonexistent_accounts` |
+| 요청 구성 | `POST /rest/user/login` 3회, 1초 간격, `lab-f-set-r2-enum-notexist-{i}` |
+| 기대 응답 | `401` |
+| 기대 관찰 | runner가 nonexistent로 의도한 계정군에 대한 auth failure를 남기고, existing group과 `status_code` / `response_body_bytes` / `duration_us` / `ttfb_us`를 비교 |
+| 기대 해석 | response surface comparison only, user-enumeration-like probing possibility, no account existence inference |
+| 해석 제한 | `post_body_not_visible_no_account_existence_inference` |
 
 ### F-R2B-03 lockout probing-like 401 ×5
 
-```bash
-for round in 1 2 3 4 5; do
-  curl -i \
-    -A "${UA_PREFIX}-lockout-probe-r${round}" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"admin@juice-sh.op","password":"wrongpass"}' \
-    "$JUICE_URL/rest/user/login"
-  sleep 3
-done
-```
-
-기대 해석:
-
-- 반복 횟수에 따른 status/bytes/time 변화 관찰
-- lockout 발동 확인 또는 우회 성공은 단정하지 않음
-- 변화가 있으면 lockout-probing-like sequence 가능성, 변화가 없으면 Apache 표면에서 확인 불가로 제한
+| 항목 | 내용 |
+|---|---|
+| scenario_id | `F-R2B-03` |
+| runner label | `lockout_probe_like_401_x5` |
+| runner CLI | `--scenario lockout_probe` |
+| 요청 구성 | `POST /rest/user/login` 5회, 3초 간격, 같은 intended account, `lab-f-set-r2-lockout-probe-{i}` |
+| 기대 응답 | `401` |
+| 기대 관찰 | repeated auth failure 흐름에서 시도별 `status_code` / `response_body_bytes` / `duration_us` / `ttfb_us` 변화 가능성을 관찰 |
+| 기대 해석 | lockout-probing-like sequence possibility only, response delta observation, no lockout confirmation |
+| 해석 제한 | `post_body_not_visible_no_lockout_confirmation` |
 
 ### R2B 체크포인트
 
 | 체크포인트 | 기대 |
 |---|---|
-| user enumeration | 성공이 아니라 응답 차이 관찰 |
-| lockout probing | 발동 확인이 아니라 변화 가능성 |
+| user enumeration | 성공 여부가 아니라 응답 표면 차이 관찰 |
+| lockout probing | 발동 확인이 아니라 응답 변화 가능성 관찰 |
 | POST body 한계 | email/password 값 분석 금지 |
 | Stage2 표현 | possibility / observed difference 중심 |
 
@@ -355,7 +379,7 @@ F세트 R2는 한 번에 전체를 실행하지 않는다. R2A를 먼저 수행�
 
 ```text
 POST body 미확인.
-로그인 성공 단정 금지.
+auth success inference 금지.
 계정 존재 단정 금지.
 lockout 발동 단정 금지.
 분산 IP 공격자 단정 금지.
