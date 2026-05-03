@@ -97,18 +97,45 @@ H세트는 아래를 목표로 하지 않는다.
 
 정적 자산, favicon, robots, sitemap, health check, 일반 browse 요청이 공격 candidate로 과승격되지 않는지 확인한다.
 
+H R1은 `lab/h_set/run_h_r1_static_baseline.py` Python runner로 실행하는 것을 권장한다. 이 runner는 static/health/normal browse 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 baseline harness이며, 공격 성공을 검증하지 않는다.
+
+실행 예시:
+
+```bash
+python3 lab/h_set/run_h_r1_static_baseline.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R1_산출물/runner_logs
+```
+
+dry-run / print-plan 예시:
+
+```bash
+python3 lab/h_set/run_h_r1_static_baseline.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R1_산출물/runner_logs \
+  --dry-run
+
+python3 lab/h_set/run_h_r1_static_baseline.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R1_산출물/runner_logs \
+  --print-plan
+```
+
 ### 케이스
 
-| ID | 요청 | 기대 관찰 | 기대 해석 | 금지 |
-|---|---|---|---|---|
-| H-R1-01 | `GET /favicon.ico` | `status_code`, bytes 관찰 | static/favicon baseline 가능성 | probing 단정 |
-| H-R1-02 | `GET /robots.txt` | `status_code`, bytes 관찰 | robots baseline 가능성 | crawler 정책 해석 단정 |
-| H-R1-03 | `GET /sitemap.xml` | `status_code`, bytes 관찰 | sitemap baseline 가능성 | 사이트 구조 노출 성공 단정 |
-| H-R1-04 | `GET /assets/app.js` | static JS path 관찰 | static asset baseline 가능성 | XSS/JS 실행 단정 |
-| H-R1-05 | `GET /assets/style.css` | static CSS path 관찰 | static asset baseline 가능성 | 공격 단정 |
-| H-R1-06 | `GET /images/logo.png` | image path 관찰 | static asset baseline 가능성 | 파일 노출 단정 |
-| H-R1-07 | `GET /api/health` | health-like endpoint 관찰 | health check baseline 가능성 | auth/API abuse 단정 |
-| H-R1-08 | `GET /` | normal browse | normal baseline | 공격 단정 |
+| ID | runner label | 요청 | 기대 관찰 | 기대 해석 | 기대 응답 | 해석 제한 |
+|---|---|---|---|---|---|---|
+| H-R1-01 | `favicon_baseline` | `GET /favicon.ico` | favicon path request, `status_code` 관찰, `response_body_bytes` 관찰 | favicon/static baseline possibility, should not be promoted as probing by single request | `any` | `static_asset_baseline_no_attack_inference` |
+| H-R1-02 | `robots_txt_baseline` | `GET /robots.txt` | `robots.txt` request, `status_code` 관찰 | robots baseline possibility, crawler policy content must not be inferred | `any` | `robots_content_not_visible_no_policy_inference` |
+| H-R1-03 | `sitemap_xml_baseline` | `GET /sitemap.xml` | `sitemap.xml` request, `status_code` 관찰 | sitemap baseline possibility, site structure disclosure must not be inferred | `any` | `sitemap_content_not_visible_no_structure_inference` |
+| H-R1-04 | `js_asset_baseline` | `GET /assets/app.js` | static JS path request, `status_code` 관찰 | static JavaScript asset baseline possibility, JS execution or XSS must not be inferred | `any` | `static_asset_content_not_visible_no_js_execution_inference` |
+| H-R1-05 | `css_asset_baseline` | `GET /assets/style.css` | static CSS path request, `status_code` 관찰 | static CSS asset baseline possibility, content meaning must not be inferred | `any` | `static_asset_content_not_visible_no_attack_inference` |
+| H-R1-06 | `image_asset_baseline` | `GET /images/logo.png` | image path request, `status_code` 관찰 | static image asset baseline possibility, file content or exposure success must not be inferred | `any` | `static_asset_content_not_visible_no_file_exposure_inference` |
+| H-R1-07 | `health_check_baseline` | `GET /api/health` | health-like endpoint request, `status_code` 관찰 | health check baseline possibility, auth/API abuse must not be inferred by endpoint name alone | `any` | `health_check_baseline_no_auth_or_api_abuse_inference` |
+| H-R1-08 | `normal_get_baseline` | `GET /` | normal GET browse-like request | normal browse baseline, should not be promoted as attack | `any` | `baseline_get_no_attack_inference` |
 
 ### 기대 prepare 결과
 
