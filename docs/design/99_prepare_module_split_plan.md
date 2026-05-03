@@ -265,7 +265,7 @@ git commit -m "Add prepare module split plan"
 
 내용:
 
-- `docs/99_prepare_module_split_plan.md`만 추가
+- `docs/design/99_prepare_module_split_plan.md`만 추가
 - 코드 변경 없음
 
 ### Commit 2
@@ -316,7 +316,7 @@ git commit -m "Extract L3 prepare hints"
 - prepare regression strict pass
 - stage dry-run regression strict pass
 - `py_compile` pass
-- `docs/99_prepare_module_split_plan.md` 승인
+- `docs/design/99_prepare_module_split_plan.md` 승인
 - feature branch 사용 권장
 
 ### 각 분리 후
