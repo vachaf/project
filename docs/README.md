@@ -13,13 +13,13 @@
 
 ## 2. 현재 문서 탐색 방법
 
-현재 구조는 주제별 디렉터리로 정리되기 전 단계다. 아래 순서로 찾는 것이 빠르다.
+현재 구조는 주제별 디렉터리로 단계적으로 정리 중이다. 아래 순서로 찾는 것이 빠르다.
 
 1. 현재 상태를 먼저 볼 때는 [진행상황.md](./진행상황.md)를 본다.
-2. 전체 흐름과 실행 순서를 볼 때는 [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)를 본다.
+2. 전체 흐름과 실행 순서를 볼 때는 [00_전체_흐름_요약_가이드.md](./operations/00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./operations/01_운영_기준_실행_가이드.md)를 본다.
 3. 실험 문서는 `98_`, `98A_`, `98B_` 접두어를 우선 찾는다.
 4. 설계, 회귀 검증, 리뷰, 해석 한계 문서는 `99_` 접두어를 우선 찾는다.
-5. 환경 구축, 로그 구조, 운영 메모는 `02_`, `03_`, `04_`, `05_`, `06_` 계열 문서를 확인한다.
+5. 환경 구축, 로그 구조, 운영 메모는 `operations/`와 `02_`, `03_`, `04_`, `05_`, `06_` 계열 문서를 확인한다.
 
 ## 3. 문서 분류 기준
 
@@ -32,7 +32,7 @@
 
 ## 4. 권장 목표 구조
 
-아래는 목표 구조다. 이번 README 추가 시점에는 설명용 구조이며, 실제 디렉터리 이동은 아직 수행하지 않았다.
+아래는 목표 구조다. 현재는 일부 디렉터리 이동이 완료됐고, 남은 문서를 단계적으로 정리 중이다.
 
 ```text
 docs/
@@ -62,7 +62,7 @@ docs/
 
 아래 목록은 현재 `docs/` 루트에서 바로 확인되는 대표 예시다.
 
-- 운영/흐름: [진행상황.md](./진행상황.md), [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)
+- 운영/흐름: [진행상황.md](./진행상황.md), [00_전체_흐름_요약_가이드.md](./operations/00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./operations/01_운영_기준_실행_가이드.md), [02_LLM_환경_구축_및_설치.md](./operations/02_LLM_환경_구축_및_설치.md), [04_로그_적재_및_운영.md](./operations/04_로그_적재_및_운영.md), [05_Export_LLM_분석_전략.md](./operations/05_Export_LLM_분석_전략.md), [06_통합_스크립트_설명_정리본.md](./operations/06_통합_스크립트_설명_정리본.md)
 - 실험 표준: [98_비교_실험_요청_세트_표준.md](./98_비교_실험_요청_세트_표준.md)
 - A 세트: [98A_A세트_비교실험.md](./experiments/A_set/98A_A세트_비교실험.md)
 - B 세트: [98B_B세트_비교실험.md](./experiments/B_set/98B_B세트_비교실험.md), [98B_B세트_비교실험_라운드2.md](./experiments/B_set/98B_B세트_비교실험_라운드2.md), [98B_B세트_SQLi_runner_전환.md](./experiments/B_set/98B_B세트_SQLi_runner_전환.md)
@@ -93,6 +93,7 @@ docs/
 - A~H 실험 문서 이동 완료: `docs/experiments/A_set/` ~ `docs/experiments/H_set/`
 - 이동 완료 설계/회귀 검증 문서: `docs/design/99_prepare_regression_fixture_설계.md`, `docs/design/99_stage_dryrun_regression_설계.md`, `docs/design/99_prepare_module_split_plan.md`
 - 이동 완료 리뷰/품질 문서: `docs/reviews/99_A-H세트_중간정리.md`, `docs/reviews/99_llm_sample_review_plan.md`, `docs/reviews/99_stage2_wording_quality_review.md`
+- 이동 완료 operations 문서: `docs/operations/00_전체_흐름_요약_가이드.md`, `docs/operations/01_운영_기준_실행_가이드.md`, `docs/operations/02_LLM_환경_구축_및_설치.md`, `docs/operations/04_로그_적재_및_운영.md`, `docs/operations/05_Export_LLM_분석_전략.md`, `docs/operations/06_통합_스크립트_설명_정리본.md`
 - 현재 위치 기준 오래된 초안, 길어진 TODO, 직접 참조하지 않는 문서: 이동 후보 `docs/archive/`
 
 ## 7. 문서 이동 원칙
