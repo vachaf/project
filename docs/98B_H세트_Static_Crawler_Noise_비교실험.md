@@ -1,7 +1,7 @@
 # 98B_H세트_Static_Crawler_Noise_비교실험
 
 - 작성 기준일: 2026-05-03
-- 문서 역할: H세트 Static / Crawler / Scanner-like Noise 비교실험 설계
+- 문서 역할: H세트 Static / Crawler / Scanner-like Noise 비교실험 설계 및 진행 상태 요약
 - 적용 범위: static asset baseline, health check, crawler-like access, scanner-like low-signal path
 - 기준 데이터: Apache `security/access/error` 로그 표면 지표
 - 핵심 전제: response body 원문, request body 원문, 브라우저 실행 여부, 서버 내부 파일 존재 여부는 확인하지 않는다
@@ -38,6 +38,7 @@ H세트는 아래를 목표로 하지 않는다.
 - favicon/robots/sitemap 존재 여부를 보안 판단으로 사용
 - static file 내용 검증
 - `.env`, `backup.zip`, `server-status`의 실제 노출 성공 확인
+- WordPress 존재 여부 확인
 - scanner IP 확정
 - 자동 차단 또는 대응
 - request body / response body 원문 분석
@@ -58,6 +59,8 @@ H세트는 아래를 목표로 하지 않는다.
 - same `src_ip` / time window
 - repeated path or path family
 - static asset extension
+- crawler-like UA family
+- sensitive-looking path family
 
 이 신호로는 요청의 표면 형태와 반복 문맥을 볼 수 있다. 실제 파일 내용, 브라우저 실행, crawler 검증, 서버 내부 상태는 확인할 수 없다.
 
@@ -71,23 +74,26 @@ H세트는 아래를 목표로 하지 않는다.
 - robots.txt 정책 내용
 - sitemap 내용
 - `.env`, backup, config 파일의 실제 노출 여부
+- WordPress 존재 여부
+- phpinfo 내용
+- server-status 내용
 - browser rendering 여부
 - 서버 내부 파일 존재 여부
 
-따라서 `200`, `404`, `text/html`, `response_body_bytes`만으로 정상/공격/노출 성공을 단정하면 안 된다.
+따라서 `200`, `403`, `404`, `text/html`, `response_body_bytes`만으로 정상/공격/노출 성공을 단정하면 안 된다.
 
 ---
 
-## 4. Round 구성
+## 4. Round 구성 및 현재 상태
 
-| Round | 목적 | 해석 초점 |
-|---|---|---|
-| H R1 | Static / health baseline | static asset, favicon, health check 과승격 방지 |
-| H R2 | Crawler-like baseline | robots/sitemap/crawler UA 해석 보수성 |
-| H R3 | Scanner-like low-signal path | 흔한 scanner path의 context-only 보존 |
-| H R4 | Mixed benign + scanner-like | 정상 browse와 scanner-like path 분리 |
+| Round | 목적 | 해석 초점 | 상태 |
+|---|---|---|---|
+| H R1 | Static / health baseline | static asset, favicon, health check 과승격 방지 | 완료 |
+| H R2 | Crawler-like baseline | robots/sitemap/crawler UA 해석 보수성 | 완료 |
+| H R3 | Scanner-like low-signal path | 흔한 scanner path의 context-only 보존 | 완료 |
+| H R4 | Mixed benign + scanner-like | 정상 browse와 scanner-like path 분리 | 선택 검토 |
 
-초기 실행 우선순위는 H R1이다. H R2/R3/R4는 R1 결과를 보고 순차 진행한다.
+H R1/R2/R3는 2026-05-03 기준으로 실행과 비교 문서 작성이 완료되었다. H R4는 실제 운영형 혼합 시나리오를 더 강화하고 싶을 때 선택적으로 진행한다.
 
 ---
 
@@ -97,7 +103,7 @@ H세트는 아래를 목표로 하지 않는다.
 
 정적 자산, favicon, robots, sitemap, health check, 일반 browse 요청이 공격 candidate로 과승격되지 않는지 확인한다.
 
-H R1은 `lab/h_set/run_h_r1_static_baseline.py` Python runner로 실행하는 것을 권장한다. 이 runner는 static/health/normal browse 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 baseline harness이며, 공격 성공을 검증하지 않는다.
+H R1은 `lab/h_set/run_h_r1_static_baseline.py` Python runner로 실행한다. 이 runner는 static/health/normal browse 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 baseline harness이며, 공격 성공을 검증하지 않는다.
 
 실행 예시:
 
@@ -106,22 +112,6 @@ python3 lab/h_set/run_h_r1_static_baseline.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_H세트R1_산출물/runner_logs
-```
-
-dry-run / print-plan 예시:
-
-```bash
-python3 lab/h_set/run_h_r1_static_baseline.py \
-  --base-url http://192.168.56.105 \
-  --scenario all \
-  --out lab/05-xx_H세트R1_산출물/runner_logs \
-  --dry-run
-
-python3 lab/h_set/run_h_r1_static_baseline.py \
-  --base-url http://192.168.56.105 \
-  --scenario all \
-  --out lab/05-xx_H세트R1_산출물/runner_logs \
-  --print-plan
 ```
 
 ### 케이스
@@ -137,32 +127,17 @@ python3 lab/h_set/run_h_r1_static_baseline.py \
 | H-R1-07 | `health_check_baseline` | `GET /api/health` | health-like endpoint request, `status_code` 관찰 | health check baseline possibility, auth/API abuse must not be inferred by endpoint name alone | `any` | `health_check_baseline_no_auth_or_api_abuse_inference` |
 | H-R1-08 | `normal_get_baseline` | `GET /` | normal GET browse-like request | normal browse baseline, should not be promoted as attack | `any` | `baseline_get_no_attack_inference` |
 
-### 기대 prepare 결과
+### 실제 결과 요약
+
+- 최초 prepare에서는 candidate 과승격은 억제됐지만, filtered row의 `reason_hints`가 `dir_probe:burst` 중심으로만 남아 baseline 문맥 보존이 약했다.
+- 후속 개선으로 `static_baseline_summaries`와 `baseline:*` hints를 추가했다.
+- 최종 결과는 `candidate_rows=0`, `static_baseline_summaries=1`이다.
+- static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 정상 여부를 단정하지 않았다.
+
+상세 문서:
 
 ```text
-- analysis_candidates=0 또는 매우 낮은 수
-- static asset / health / normal baseline이 filtered_out 또는 noise_summary로 정리
-- ip_behavior_aggregates가 생겨도 context-only
-- response_body_bytes나 status=200만으로 성공/노출 단정 없음
-```
-
-### 실제 H R1 보완 포인트
-
-- 2026-05-03 실제 H R1 prepare 실행에서는 candidate 과승격은 억제됐지만, static/health/normal browse row 의 `reason_hints`가 `dir_probe:burst` 중심으로만 남아 baseline 문맥 보존이 약했다.
-- 따라서 top-level `static_baseline_summaries`와 filtered row `baseline:*` hint 정리가 필요하다는 점이 확인됐다.
-
-### 향후 hint 후보
-
-이번 설계 문서에서는 구현하지 않는다. 실행 결과를 보고 필요하면 검토한다.
-
-```text
-static_asset_baseline
-baseline:static_asset
-baseline:favicon
-baseline:robots_txt
-baseline:sitemap_xml
-baseline:health_check
-baseline:normal_browse
+lab/05-03_H세트R1_산출물/2026-05-03_H세트R1_비교.md
 ```
 
 ---
@@ -173,7 +148,7 @@ baseline:normal_browse
 
 crawler-like User-Agent와 robots/sitemap/category/product browse 요청이 공격 candidate로 과승격되지 않는지 확인한다.
 
-H R2는 `lab/h_set/run_h_r2_crawler_baseline.py` Python runner로 실행하는 것을 권장한다. 이 runner는 crawler-like UA와 robots/sitemap/browse 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 baseline harness이며, 실제 Googlebot/Bingbot 검증이나 공격 성공 검증을 하지 않는다.
+H R2는 `lab/h_set/run_h_r2_crawler_baseline.py` Python runner로 실행한다. 이 runner는 crawler-like UA와 robots/sitemap/browse 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 baseline harness이며, 실제 Googlebot/Bingbot 검증이나 공격 성공 검증을 하지 않는다.
 
 실행 예시:
 
@@ -184,50 +159,28 @@ python3 lab/h_set/run_h_r2_crawler_baseline.py \
   --out lab/05-xx_H세트R2_산출물/runner_logs
 ```
 
-dry-run / print-plan 예시:
-
-```bash
-python3 lab/h_set/run_h_r2_crawler_baseline.py \
-  --base-url http://192.168.56.105 \
-  --scenario all \
-  --out lab/05-xx_H세트R2_산출물/runner_logs \
-  --dry-run
-
-python3 lab/h_set/run_h_r2_crawler_baseline.py \
-  --base-url http://192.168.56.105 \
-  --scenario all \
-  --out lab/05-xx_H세트R2_산출물/runner_logs \
-  --print-plan
-```
-
 ### 케이스
 
 | ID | runner label | 요청 | User-Agent | 기대 관찰 | 기대 해석 | 기대 응답 | 해석 제한 |
 |---|---|---|---|---|---|---|---|
-| H-R2-01 | `robots_googlebot_like` | `GET /robots.txt` | `Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)` | `robots.txt` request, crawler-like `User-Agent`, `status_code` 관찰 | crawler-like robots baseline possibility, Googlebot authenticity must not be inferred, robots policy content must not be inferred | `any` | `crawler_ua_spoofable_no_robot_policy_inference` |
-| H-R2-02 | `sitemap_googlebot_like` | `GET /sitemap.xml` | `Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)` | `sitemap.xml` request, crawler-like `User-Agent`, `status_code` 관찰 | crawler-like sitemap baseline possibility, site structure disclosure must not be inferred | `any` | `crawler_ua_spoofable_no_site_structure_inference` |
-| H-R2-03 | `products_generic_crawler` | `GET /products/` | `GenericCrawler/1.0` | product-like browse path, generic crawler-like `User-Agent` | crawler-like browse context, product page existence must not be inferred | `any` | `crawler_like_browse_no_page_existence_inference` |
-| H-R2-04 | `category_generic_crawler` | `GET /category/` | `GenericCrawler/1.0` | category-like browse path, generic crawler-like `User-Agent` | crawler-like browse context, category/page existence must not be inferred | `any` | `crawler_like_browse_no_page_existence_inference` |
-| H-R2-05 | `normal_browser_get` | `GET /` | `Mozilla/5.0 regression-browser` | normal browser-like GET baseline | normal browse baseline, should not be promoted as crawler/scanner by itself | `any` | `baseline_get_no_attack_inference` |
-| H-R2-06 | `repeated_crawler_browse_x3` | `GET /robots.txt` -> `GET /sitemap.xml` -> `GET /products/` | `GenericCrawler/1.0` | repeated crawler-like browse sequence, same `src_ip`/time window | crawler-like repeated baseline or low-signal crawl context, should not be promoted as attack without sensitive paths or stronger indicators | `any` | `crawler_like_repetition_no_attack_inference` |
+| H-R2-01 | `robots_googlebot_like` | `GET /robots.txt` | Googlebot-like | `robots.txt` request, crawler-like `User-Agent`, `status_code` 관찰 | crawler-like robots baseline possibility, Googlebot authenticity must not be inferred | `any` | `crawler_ua_spoofable_no_robot_policy_inference` |
+| H-R2-02 | `sitemap_googlebot_like` | `GET /sitemap.xml` | Googlebot-like | `sitemap.xml` request, crawler-like `User-Agent`, `status_code` 관찰 | crawler-like sitemap baseline possibility, site structure disclosure must not be inferred | `any` | `crawler_ua_spoofable_no_site_structure_inference` |
+| H-R2-03 | `products_generic_crawler` | `GET /products/` | `GenericCrawler/1.0` | product-like browse path | crawler-like browse context, product page existence must not be inferred | `any` | `crawler_like_browse_no_page_existence_inference` |
+| H-R2-04 | `category_generic_crawler` | `GET /category/` | `GenericCrawler/1.0` | category-like browse path | crawler-like browse context, category/page existence must not be inferred | `any` | `crawler_like_browse_no_page_existence_inference` |
+| H-R2-05 | `normal_browser_get` | `GET /` | browser-like UA | normal browser-like GET baseline | normal browse baseline, should not be promoted as crawler/scanner by itself | `any` | `baseline_get_no_attack_inference` |
+| H-R2-06 | `repeated_crawler_browse_x3` | `GET /robots.txt` -> `GET /sitemap.xml` -> `GET /products/` | `GenericCrawler/1.0` | repeated crawler-like browse sequence | crawler-like repeated baseline or low-signal crawl context | `any` | `crawler_like_repetition_no_attack_inference` |
 
-주의:
+### 실제 결과 요약
 
-- H R2의 목표는 crawler-like UA와 robots/sitemap/browse 요청이 candidate로 과승격되지 않는지 확인하는 것이다.
-- User-Agent가 Googlebot/Bingbot처럼 보여도 실제 crawler라고 단정하지 않는다.
-- User-Agent는 spoof 가능하다.
-- crawler-like 접근이 반복되더라도 성공/침해 단정은 하지 않는다.
-- `robots.txt` / `sitemap.xml` 내용, site structure, product/category page existence는 검증하지 않는다.
-- response body 원문과 request body 원문은 저장하지 않는다.
-- 2026-05-03 실제 prepare 확인에서 candidate 과승격은 없었지만 crawler-like 문맥이 top-level summary 없이 약하게 남는 문제가 확인되었고, 후속 prepare 개선에서는 `crawler_baseline_summaries`와 `crawler_like:*` filtered hint 정리가 필요하다는 점이 확인됐다.
+- 최초 prepare에서는 `GenericCrawler`의 `/products/`, `/category/`가 `dir_probe:burst` 중심으로 남아 crawler-like browse 문맥이 약했다.
+- 후속 개선으로 `crawler_baseline_summaries`와 `crawler_like:*` hints를 추가했다.
+- 최종 결과는 `candidate_rows=0`, `crawler_baseline_summaries=1`이다.
+- Googlebot-like UA를 실제 Googlebot으로 단정하지 않았고, robots/sitemap 내용, site structure, product/category page existence, 공격 성공을 단정하지 않았다.
 
-### 향후 hint 후보
+상세 문서:
 
 ```text
-crawler_like_context
-baseline:robots_txt
-baseline:sitemap_xml
-baseline:crawler_like_browse
+lab/05-03_H세트R2_산출물/2026-05-03_H세트R2_비교.md
 ```
 
 ---
@@ -238,7 +191,7 @@ baseline:crawler_like_browse
 
 운영 로그에서 자주 보이는 scanner-like path가 단발 또는 짧은 burst로 들어왔을 때 과승격되지 않고, context-only로 보존되는지 확인한다.
 
-H R3는 `lab/h_set/run_h_r3_scanner_low_signal.py` Python runner로 실행하는 것을 권장한다. 이 runner는 `/wp-login.php`, `/wp-admin/`, `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip` 같은 scanner-like/sensitive-looking path 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 실험 harness이며, 실제 파일 노출, WordPress 존재, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 검증하지 않는다.
+H R3는 `lab/h_set/run_h_r3_scanner_low_signal.py` Python runner로 실행한다. 이 runner는 `/wp-login.php`, `/wp-admin/`, `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip` 같은 scanner-like/sensitive-looking path 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 실험 harness이며, 실제 파일 노출, WordPress 존재, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 검증하지 않는다.
 
 실행 예시:
 
@@ -249,62 +202,30 @@ python3 lab/h_set/run_h_r3_scanner_low_signal.py \
   --out lab/05-xx_H세트R3_산출물/runner_logs
 ```
 
-dry-run / print-plan 예시:
-
-```bash
-python3 lab/h_set/run_h_r3_scanner_low_signal.py \
-  --base-url http://192.168.56.105 \
-  --scenario all \
-  --out lab/05-xx_H세트R3_산출물/runner_logs \
-  --dry-run
-
-python3 lab/h_set/run_h_r3_scanner_low_signal.py \
-  --base-url http://192.168.56.105 \
-  --scenario all \
-  --out lab/05-xx_H세트R3_산출물/runner_logs \
-  --print-plan
-```
-
 ### 케이스
 
 | ID | runner label | 요청 | 기대 관찰 | 기대 해석 | 기대 응답 | 해석 제한 |
 |---|---|---|---|---|---|---|
-| H-R3-01 | `wp_login_probe` | `GET /wp-login.php` | common WordPress login path request, `status_code` 관찰, `response_body_bytes` 관찰 | common scanner-like path context, WordPress presence or vulnerability must not be inferred | `any` | `scanner_path_context_no_app_presence_inference` |
-| H-R3-02 | `wp_admin_probe` | `GET /wp-admin/` | common WordPress admin path request, `status_code` 관찰 | common scanner-like admin path context, admin access success must not be inferred | `any` | `scanner_path_context_no_admin_access_inference` |
-| H-R3-03 | `env_file_probe` | `GET /.env` | sensitive-looking config path request, `status_code` 관찰 | sensitive config path probing possibility, `.env` exposure must not be inferred | `any` | `sensitive_path_context_no_file_exposure_inference` |
-| H-R3-04 | `phpinfo_probe` | `GET /phpinfo.php` | diagnostic phpinfo-like path request, `status_code` 관찰 | diagnostic path probing possibility, phpinfo exposure must not be inferred | `any` | `sensitive_path_context_no_phpinfo_exposure_inference` |
-| H-R3-05 | `server_status_probe` | `GET /server-status` | Apache server-status-like path request, `status_code` 관찰 | server-status probing possibility, server-status exposure or access control success must not be inferred | `any` | `sensitive_path_context_no_server_status_exposure_inference` |
-| H-R3-06 | `backup_zip_probe` | `GET /backup.zip` | backup artifact-looking path request, `status_code` 관찰 | backup artifact probing possibility, backup file exposure must not be inferred | `any` | `sensitive_path_context_no_backup_exposure_inference` |
-| H-R3-07 | `sensitive_path_burst` | `GET /.env` -> `GET /server-status` -> `GET /backup.zip` | repeated sensitive-looking path sequence, same `src_ip`/time window | scanner-like sensitive path probing context, no file exposure or compromise inference | `any` | `sensitive_path_burst_no_success_inference` |
+| H-R3-01 | `wp_login_probe` | `GET /wp-login.php` | common WordPress login path request | common scanner-like path context, WordPress presence or vulnerability must not be inferred | `any` | `scanner_path_context_no_app_presence_inference` |
+| H-R3-02 | `wp_admin_probe` | `GET /wp-admin/` | common WordPress admin path request | common scanner-like admin path context, admin access success must not be inferred | `any` | `scanner_path_context_no_admin_access_inference` |
+| H-R3-03 | `env_file_probe` | `GET /.env` | sensitive-looking config path request | sensitive config path probing possibility, `.env` exposure must not be inferred | `any` | `sensitive_path_context_no_file_exposure_inference` |
+| H-R3-04 | `phpinfo_probe` | `GET /phpinfo.php` | diagnostic phpinfo-like path request | diagnostic path probing possibility, phpinfo exposure must not be inferred | `any` | `sensitive_path_context_no_phpinfo_exposure_inference` |
+| H-R3-05 | `server_status_probe` | `GET /server-status` | Apache server-status-like path request | server-status probing possibility, server-status exposure or access control success must not be inferred | `any` | `sensitive_path_context_no_server_status_exposure_inference` |
+| H-R3-06 | `backup_zip_probe` | `GET /backup.zip` | backup artifact-looking path request | backup artifact probing possibility, backup file exposure must not be inferred | `any` | `sensitive_path_context_no_backup_exposure_inference` |
+| H-R3-07 | `sensitive_path_burst` | `GET /.env` -> `GET /server-status` -> `GET /backup.zip` | repeated sensitive-looking path sequence | scanner-like sensitive path probing context, no file exposure or compromise inference | `any` | `sensitive_path_burst_no_success_inference` |
 
-주의:
+### 실제 결과 요약
 
-- H R3의 목표는 scanner-like/sensitive-looking path가 성공 단정 없이 context-only로 보존되는지 확인하는 것이다.
-- 단발 요청은 common scanner path 또는 sensitive-looking path context로만 보수적으로 남겨야 한다.
-- 짧은 burst는 same `src_ip`/time window의 probing context로 요약될 수 있지만, 그것만으로 파일 노출, 접근 성공, 차단 성공, 서버 침해를 단정하면 안 된다.
-- `/wp-login.php`, `/wp-admin/` 요청만으로 WordPress 존재나 취약점을 단정하지 않는다.
-- `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip`가 `200/403/404/500`을 반환해도 노출/차단 성공 여부를 단정하지 않는다.
-- response body 원문과 request body 원문은 저장하지 않는다.
+- 초기 prepare에서는 `/server-status` 403 두 건이 개별 candidate로 남고, 다른 sensitive-looking path는 `dir_probe:*` 중심으로 정리됐다.
+- 후속 개선으로 `sensitive_path_probe_summaries`와 `sensitive_path:*` hints를 추가했다.
+- 최종 결과는 `candidate_rows=1`, `supporting_events=1`, `sensitive_path_probe_summaries=1`이다.
+- `/server-status` 대표 1건은 `suspicious_scan / low` candidate로 유지하고, 나머지 1건은 supporting context로 보존했다.
+- WordPress 존재, admin access, `.env`/`phpinfo`/`server-status`/backup 노출, 공격 성공을 단정하지 않았다.
 
-### 기대 prepare 결과
-
-```text
-- 단발 scanner-like path는 high candidate로 과승격하지 않음
-- 여러 sensitive/scanner path가 짧은 window에 있으면 sensitive_path_probe_summaries, probing_sequence_summaries, ip_behavior_aggregates 같은 context-only summary로 보존 가능
-- 200/403/404만으로 노출 성공/차단 성공을 단정하지 않음
-```
-
-### 실제 H R3 보완 포인트
-
-- 2026-05-03 실제 prepare 확인에서 `/.env`, `/backup.zip`, `/wp-login.php` 등은 filtered/context로 남았지만 `/server-status 403` 두 건은 개별 candidate로 상대적으로 더 부각됐고 filtered row hint도 `dir_probe:*` 중심으로 약하게 남았다.
-- 따라서 top-level `sensitive_path_probe_summaries`와 filtered/candidate row의 `sensitive_path:*` hint 정리가 필요하다는 점이 확인됐다.
-
-### 향후 hint 후보
+상세 문서:
 
 ```text
-scanner_path_context
-sensitive_path_probe_context
-baseline:not_applicable
+lab/05-03_H세트R3_산출물/2026-05-03_H세트R3_비교.md
 ```
 
 ---
@@ -333,6 +254,8 @@ GET /robots.txt
 - scanner-like/sensitive path는 low-signal context
 - 두 범주가 같은 src_ip/time window에 있어도 성공/침해 단정 금지
 ```
+
+H R4는 아직 선택 사항이다. H R1/R2/R3가 안정적으로 통과했으므로, 실제 운영형 혼합 시나리오까지 강화하고 싶을 때 별도 runner로 진행한다.
 
 ---
 
@@ -363,21 +286,19 @@ H세트 실행 후 prepare 단계에서 확인할 사항:
 
 ---
 
-## 11. Python runner 계획
+## 11. Python runner 현황
 
-H세트도 Python runner 기반으로 관리한다.
-
-예상 파일:
+H세트는 Python runner 기반으로 관리한다.
 
 ```text
 lab/h_set/README.md
 lab/h_set/run_h_r1_static_baseline.py
 lab/h_set/run_h_r2_crawler_baseline.py
 lab/h_set/run_h_r3_scanner_low_signal.py
-lab/h_set/run_h_r4_mixed_baseline_scanner.py
+lab/h_set/run_h_r4_mixed_baseline_scanner.py  # future, optional
 ```
 
-현재 H R1/H R2/H R3 후속 prepare 보강으로 `static_baseline_summaries`, `crawler_baseline_summaries`, `sensitive_path_probe_summaries`가 반영되었다. 이후 H R4 mixed baseline/scanner round에서는 summary 간 충돌 없이 narrative가 유지되는지 추가 확인이 필요하다.
+현재 H R1/H R2/H R3 후속 prepare 보강으로 `static_baseline_summaries`, `crawler_baseline_summaries`, `sensitive_path_probe_summaries`가 반영되었다. 이후 H R4 mixed baseline/scanner round에서는 summary 간 충돌 없이 narrative가 유지되는지 추가 확인할 수 있다.
 
 ---
 
@@ -412,13 +333,10 @@ lab/h_set/run_h_r4_mixed_baseline_scanner.py
 
 ## 14. 다음 작업
 
-1. H R1 Python runner 설계
-2. H R1 실행
-3. prepare-only 확인
-4. 필요 시 static/health baseline context 보강
-5. Stage1 / Stage2 실행
-6. H R1 비교 문서 작성
-7. H R2/R3 순차 진행
+1. H R4 mixed benign + scanner-like 실험 여부 결정
+2. 필요 시 supporting event reason_hints row-specific 정리 재검토
+3. 필요 시 `sensitive_path_probe_context` category 도입 재검토
+4. 실제 LLM 샘플 검증 체계 또는 발표/보고용 요약 정리
 
 ---
 
