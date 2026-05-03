@@ -12,10 +12,10 @@
 
 - `run_h_r1_static_baseline.py`: R1 static / health / normal browse baseline
 - `run_h_r2_crawler_baseline.py`: R2 crawler-like baseline for robots/sitemap/product/category browse and repeated crawler-like UA sequences
+- `run_h_r3_scanner_low_signal.py`: R3 scanner-like low-signal path runner for `/wp-login.php`, `/wp-admin/`, `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip`, and a short sensitive-path burst sequence
 
 future:
 
-- `run_h_r3_scanner_low_signal.py`
 - `run_h_r4_mixed_baseline_scanner.py`
 
 권장 예시:
@@ -32,6 +32,12 @@ python3 lab/h_set/run_h_r2_crawler_baseline.py \
   --scenario all \
   --out lab/05-xx_H세트R2_산출물/runner_logs \
   --dry-run
+
+python3 lab/h_set/run_h_r3_scanner_low_signal.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R3_산출물/runner_logs \
+  --dry-run
 ```
 
 실행 산출물:
@@ -43,8 +49,11 @@ python3 lab/h_set/run_h_r2_crawler_baseline.py \
 
 - runner는 static file 존재 여부를 증명하지 않는다.
 - R2 runner는 robots/sitemap/product/category browse와 crawler-like UA가 candidate로 과승격되지 않는지 보는 baseline harness다.
+- R3 runner는 scanner-like/sensitive-looking path가 성공 단정 없이 context-only로 보존되는지 보는 harness다.
 - Googlebot/Bingbot-like UA라도 실제 crawler로 단정하지 않는다.
+- `/wp-login.php`, `/wp-admin/`, `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip` 요청은 scanner-like 또는 sensitive-looking path context로만 다룬다.
 - runner는 robots/sitemap 내용, site structure, product/category page existence를 검증하지 않는다.
+- runner는 WordPress 존재, admin access 성공, `.env` 노출, `phpinfo` 노출, `server-status` 노출/차단 성공, `backup.zip` 노출, 공격 성공을 검증하지 않는다.
 - runner는 `robots.txt` / `sitemap.xml` 내용을 저장하거나 정책/구조를 해석하지 않는다.
 - runner는 JS/CSS/image 내용을 저장하거나 실행 의미를 해석하지 않는다.
 - runner는 health endpoint의 정상 여부를 단정하지 않는다.

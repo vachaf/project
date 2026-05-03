@@ -238,16 +238,53 @@ baseline:crawler_like_browse
 
 운영 로그에서 자주 보이는 scanner-like path가 단발 또는 짧은 burst로 들어왔을 때 과승격되지 않고, context-only로 보존되는지 확인한다.
 
+H R3는 `lab/h_set/run_h_r3_scanner_low_signal.py` Python runner로 실행하는 것을 권장한다. 이 runner는 `/wp-login.php`, `/wp-admin/`, `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip` 같은 scanner-like/sensitive-looking path 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 실험 harness이며, 실제 파일 노출, WordPress 존재, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 검증하지 않는다.
+
+실행 예시:
+
+```bash
+python3 lab/h_set/run_h_r3_scanner_low_signal.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R3_산출물/runner_logs
+```
+
+dry-run / print-plan 예시:
+
+```bash
+python3 lab/h_set/run_h_r3_scanner_low_signal.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R3_산출물/runner_logs \
+  --dry-run
+
+python3 lab/h_set/run_h_r3_scanner_low_signal.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R3_산출물/runner_logs \
+  --print-plan
+```
+
 ### 케이스
 
-| ID | 요청 | 기대 관찰 | 기대 해석 | 금지 |
-|---|---|---|---|---|
-| H-R3-01 | `GET /wp-login.php` | status 관찰 | common scanner path context | WordPress 취약 단정 |
-| H-R3-02 | `GET /wp-admin/` | status 관찰 | common scanner path context | 관리자 접근 성공 단정 |
-| H-R3-03 | `GET /.env` | status 관찰 | sensitive config path probing 가능성 | `.env` 노출 성공 단정 |
-| H-R3-04 | `GET /phpinfo.php` | status 관찰 | sensitive diagnostic path probing 가능성 | phpinfo 노출 성공 단정 |
-| H-R3-05 | `GET /server-status` | status 관찰 | server-status probing 가능성 | Apache status 노출 성공 단정 |
-| H-R3-06 | `GET /backup.zip` | status 관찰 | backup artifact probing 가능성 | backup 파일 노출 성공 단정 |
+| ID | runner label | 요청 | 기대 관찰 | 기대 해석 | 기대 응답 | 해석 제한 |
+|---|---|---|---|---|---|---|
+| H-R3-01 | `wp_login_probe` | `GET /wp-login.php` | common WordPress login path request, `status_code` 관찰, `response_body_bytes` 관찰 | common scanner-like path context, WordPress presence or vulnerability must not be inferred | `any` | `scanner_path_context_no_app_presence_inference` |
+| H-R3-02 | `wp_admin_probe` | `GET /wp-admin/` | common WordPress admin path request, `status_code` 관찰 | common scanner-like admin path context, admin access success must not be inferred | `any` | `scanner_path_context_no_admin_access_inference` |
+| H-R3-03 | `env_file_probe` | `GET /.env` | sensitive-looking config path request, `status_code` 관찰 | sensitive config path probing possibility, `.env` exposure must not be inferred | `any` | `sensitive_path_context_no_file_exposure_inference` |
+| H-R3-04 | `phpinfo_probe` | `GET /phpinfo.php` | diagnostic phpinfo-like path request, `status_code` 관찰 | diagnostic path probing possibility, phpinfo exposure must not be inferred | `any` | `sensitive_path_context_no_phpinfo_exposure_inference` |
+| H-R3-05 | `server_status_probe` | `GET /server-status` | Apache server-status-like path request, `status_code` 관찰 | server-status probing possibility, server-status exposure or access control success must not be inferred | `any` | `sensitive_path_context_no_server_status_exposure_inference` |
+| H-R3-06 | `backup_zip_probe` | `GET /backup.zip` | backup artifact-looking path request, `status_code` 관찰 | backup artifact probing possibility, backup file exposure must not be inferred | `any` | `sensitive_path_context_no_backup_exposure_inference` |
+| H-R3-07 | `sensitive_path_burst` | `GET /.env` -> `GET /server-status` -> `GET /backup.zip` | repeated sensitive-looking path sequence, same `src_ip`/time window | scanner-like sensitive path probing context, no file exposure or compromise inference | `any` | `sensitive_path_burst_no_success_inference` |
+
+주의:
+
+- H R3의 목표는 scanner-like/sensitive-looking path가 성공 단정 없이 context-only로 보존되는지 확인하는 것이다.
+- 단발 요청은 common scanner path 또는 sensitive-looking path context로만 보수적으로 남겨야 한다.
+- 짧은 burst는 same `src_ip`/time window의 probing context로 요약될 수 있지만, 그것만으로 파일 노출, 접근 성공, 차단 성공, 서버 침해를 단정하면 안 된다.
+- `/wp-login.php`, `/wp-admin/` 요청만으로 WordPress 존재나 취약점을 단정하지 않는다.
+- `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip`가 `200/403/404/500`을 반환해도 노출/차단 성공 여부를 단정하지 않는다.
+- response body 원문과 request body 원문은 저장하지 않는다.
 
 ### 기대 prepare 결과
 
@@ -335,7 +372,7 @@ lab/h_set/run_h_r3_scanner_low_signal.py
 lab/h_set/run_h_r4_mixed_baseline_scanner.py
 ```
 
-초기 구현 우선순위는 H R1이다.
+현재 우선 구현 대상은 H R3 Python runner다. prepare / Stage1 / Stage2 분석 로직 변경 없이 실행 harness와 문서만 추가한다.
 
 ---
 
