@@ -1,0 +1,511 @@
+{
+  "metadata": {
+    "allow_public_target": false,
+    "base_url": "http://192.168.56.105",
+    "ended_at": null,
+    "files": {
+      "metadata_json": "lab/05-03_H세트R4_산출물/runner_logs/run_metadata.json",
+      "plan_json": "lab/05-03_H세트R4_산출물/runner_logs/execution_plan.json",
+      "plan_md": "lab/05-03_H세트R4_산출물/runner_logs/execution_plan.md",
+      "results_jsonl": "lab/05-03_H세트R4_산출물/runner_logs/request_results.jsonl",
+      "summary_md": "lab/05-03_H세트R4_산출물/runner_logs/run_summary.md"
+    },
+    "mode": "execute",
+    "request_count": 22,
+    "scenario": "all",
+    "sleep_scale": 1.0,
+    "started_at": "2026-05-03T19:59:16+09:00",
+    "stores_request_body_content": false,
+    "stores_response_body_content": false,
+    "supports_https": true,
+    "target_class": "private-ip",
+    "timeout_sec": 10.0,
+    "transport": "urllib.request"
+  },
+  "requests": [
+    {
+      "expected_interpretation": [
+        "baseline requests and scanner-like requests should be separated",
+        "no file exposure or app presence inference"
+      ],
+      "expected_observation": [
+        "normal browse/static baseline and scanner-like sensitive paths in same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/",
+      "interpretation_limit": "mixed_baseline_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/",
+      "request_label": "mixed_basic_root_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-01",
+      "scenario_label": "mixed_benign_scanner_basic",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "baseline requests and scanner-like requests should be separated",
+        "no file exposure or app presence inference"
+      ],
+      "expected_observation": [
+        "normal browse/static baseline and scanner-like sensitive paths in same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/assets/app.js",
+      "interpretation_limit": "mixed_baseline_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/assets/app.js",
+      "request_label": "mixed_basic_app_js_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-01",
+      "scenario_label": "mixed_benign_scanner_basic",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "baseline requests and scanner-like requests should be separated",
+        "no file exposure or app presence inference"
+      ],
+      "expected_observation": [
+        "normal browse/static baseline and scanner-like sensitive paths in same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/favicon.ico",
+      "interpretation_limit": "mixed_baseline_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/favicon.ico",
+      "request_label": "mixed_basic_favicon_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-01",
+      "scenario_label": "mixed_benign_scanner_basic",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "baseline requests and scanner-like requests should be separated",
+        "no file exposure or app presence inference"
+      ],
+      "expected_observation": [
+        "normal browse/static baseline and scanner-like sensitive paths in same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/.env",
+      "interpretation_limit": "mixed_baseline_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/.env",
+      "request_label": "mixed_basic_env_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-01",
+      "scenario_label": "mixed_benign_scanner_basic",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "baseline requests and scanner-like requests should be separated",
+        "no file exposure or app presence inference"
+      ],
+      "expected_observation": [
+        "normal browse/static baseline and scanner-like sensitive paths in same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/wp-login.php",
+      "interpretation_limit": "mixed_baseline_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/wp-login.php",
+      "request_label": "mixed_basic_wp_login_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-01",
+      "scenario_label": "mixed_benign_scanner_basic",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "baseline requests and scanner-like requests should be separated",
+        "no file exposure or app presence inference"
+      ],
+      "expected_observation": [
+        "normal browse/static baseline and scanner-like sensitive paths in same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/backup.zip",
+      "interpretation_limit": "mixed_baseline_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/backup.zip",
+      "request_label": "mixed_basic_backup_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-01",
+      "scenario_label": "mixed_benign_scanner_basic",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "baseline requests and scanner-like requests should be separated",
+        "no file exposure or app presence inference"
+      ],
+      "expected_observation": [
+        "normal browse/static baseline and scanner-like sensitive paths in same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/robots.txt",
+      "interpretation_limit": "mixed_baseline_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/robots.txt",
+      "request_label": "mixed_basic_robots_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-01",
+      "scenario_label": "mixed_benign_scanner_basic",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "should remain baseline/static context",
+        "should not create scanner-like context"
+      ],
+      "expected_observation": [
+        "normal/static baseline only"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/",
+      "interpretation_limit": "static_baseline_no_attack_inference",
+      "method": "GET",
+      "path": "/",
+      "request_label": "benign_static_root_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-02",
+      "scenario_label": "benign_static_only",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "should remain baseline/static context",
+        "should not create scanner-like context"
+      ],
+      "expected_observation": [
+        "normal/static baseline only"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/assets/app.js",
+      "interpretation_limit": "static_baseline_no_attack_inference",
+      "method": "GET",
+      "path": "/assets/app.js",
+      "request_label": "benign_static_app_js_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-02",
+      "scenario_label": "benign_static_only",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "should remain baseline/static context",
+        "should not create scanner-like context"
+      ],
+      "expected_observation": [
+        "normal/static baseline only"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/assets/style.css",
+      "interpretation_limit": "static_baseline_no_attack_inference",
+      "method": "GET",
+      "path": "/assets/style.css",
+      "request_label": "benign_static_style_css_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-02",
+      "scenario_label": "benign_static_only",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "should remain baseline/static context",
+        "should not create scanner-like context"
+      ],
+      "expected_observation": [
+        "normal/static baseline only"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/favicon.ico",
+      "interpretation_limit": "static_baseline_no_attack_inference",
+      "method": "GET",
+      "path": "/favicon.ico",
+      "request_label": "benign_static_favicon_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-02",
+      "scenario_label": "benign_static_only",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "should remain baseline/static context",
+        "should not create scanner-like context"
+      ],
+      "expected_observation": [
+        "normal/static baseline only"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/robots.txt",
+      "interpretation_limit": "static_baseline_no_attack_inference",
+      "method": "GET",
+      "path": "/robots.txt",
+      "request_label": "benign_static_robots_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-02",
+      "scenario_label": "benign_static_only",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "sensitive path probe context",
+        "no file exposure, WordPress presence, server-status exposure inference"
+      ],
+      "expected_observation": [
+        "scanner-like sensitive paths only"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/.env",
+      "interpretation_limit": "sensitive_path_probe_no_file_or_app_exposure_inference",
+      "method": "GET",
+      "path": "/.env",
+      "request_label": "scanner_only_env_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-03",
+      "scenario_label": "scanner_sensitive_only",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "sensitive path probe context",
+        "no file exposure, WordPress presence, server-status exposure inference"
+      ],
+      "expected_observation": [
+        "scanner-like sensitive paths only"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/wp-login.php",
+      "interpretation_limit": "sensitive_path_probe_no_file_or_app_exposure_inference",
+      "method": "GET",
+      "path": "/wp-login.php",
+      "request_label": "scanner_only_wp_login_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-03",
+      "scenario_label": "scanner_sensitive_only",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "sensitive path probe context",
+        "no file exposure, WordPress presence, server-status exposure inference"
+      ],
+      "expected_observation": [
+        "scanner-like sensitive paths only"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/backup.zip",
+      "interpretation_limit": "sensitive_path_probe_no_file_or_app_exposure_inference",
+      "method": "GET",
+      "path": "/backup.zip",
+      "request_label": "scanner_only_backup_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-03",
+      "scenario_label": "scanner_sensitive_only",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "sensitive path probe context",
+        "no file exposure, WordPress presence, server-status exposure inference"
+      ],
+      "expected_observation": [
+        "scanner-like sensitive paths only"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/server-status",
+      "interpretation_limit": "sensitive_path_probe_no_file_or_app_exposure_inference",
+      "method": "GET",
+      "path": "/server-status",
+      "request_label": "scanner_only_server_status_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-03",
+      "scenario_label": "scanner_sensitive_only",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like and scanner-like contexts should be separated",
+        "actual crawler authenticity, page existence, file exposure must not be inferred"
+      ],
+      "expected_observation": [
+        "static/browse, crawler-like, scanner-like paths mixed"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/",
+      "interpretation_limit": "mixed_crawler_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/",
+      "request_label": "mixed_crawler_root_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-04",
+      "scenario_label": "mixed_static_crawler_scanner",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like and scanner-like contexts should be separated",
+        "actual crawler authenticity, page existence, file exposure must not be inferred"
+      ],
+      "expected_observation": [
+        "static/browse, crawler-like, scanner-like paths mixed"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/robots.txt",
+      "interpretation_limit": "mixed_crawler_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/robots.txt",
+      "request_label": "mixed_crawler_robots_googlebot_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-04",
+      "scenario_label": "mixed_static_crawler_scanner",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like and scanner-like contexts should be separated",
+        "actual crawler authenticity, page existence, file exposure must not be inferred"
+      ],
+      "expected_observation": [
+        "static/browse, crawler-like, scanner-like paths mixed"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/sitemap.xml",
+      "interpretation_limit": "mixed_crawler_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/sitemap.xml",
+      "request_label": "mixed_crawler_sitemap_googlebot_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-04",
+      "scenario_label": "mixed_static_crawler_scanner",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like and scanner-like contexts should be separated",
+        "actual crawler authenticity, page existence, file exposure must not be inferred"
+      ],
+      "expected_observation": [
+        "static/browse, crawler-like, scanner-like paths mixed"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/products/",
+      "interpretation_limit": "mixed_crawler_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/products/",
+      "request_label": "mixed_crawler_products_generic_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-04",
+      "scenario_label": "mixed_static_crawler_scanner",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericCrawler/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like and scanner-like contexts should be separated",
+        "actual crawler authenticity, page existence, file exposure must not be inferred"
+      ],
+      "expected_observation": [
+        "static/browse, crawler-like, scanner-like paths mixed"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/.env",
+      "interpretation_limit": "mixed_crawler_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/.env",
+      "request_label": "mixed_crawler_env_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R4-04",
+      "scenario_label": "mixed_static_crawler_scanner",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like and scanner-like contexts should be separated",
+        "actual crawler authenticity, page existence, file exposure must not be inferred"
+      ],
+      "expected_observation": [
+        "static/browse, crawler-like, scanner-like paths mixed"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/backup.zip",
+      "interpretation_limit": "mixed_crawler_scanner_no_success_inference",
+      "method": "GET",
+      "path": "/backup.zip",
+      "request_label": "mixed_crawler_backup_probe_request",
+      "scaled_sleep_after_sec": 0.0,
+      "scenario_id": "H-R4-04",
+      "scenario_label": "mixed_static_crawler_scanner",
+      "sleep_after_sec": 0.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    }
+  ]
+}
