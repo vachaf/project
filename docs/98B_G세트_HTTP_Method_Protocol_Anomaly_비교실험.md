@@ -1,0 +1,243 @@
+# 98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험
+
+- 작성 기준일: 2026-05-03
+- 문서 역할: G세트 HTTP method / protocol anomaly 비교실험 설계
+- 기준 데이터: Apache `security/access/error` 로그 표면 지표
+- 핵심 전제: response body 원문, request body 원문, 서버 내부 설정은 확인하지 않는다
+
+> 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로 method 허용, 업로드/삭제 성공, TRACE echo, CORS 취약점, 서버 설정 취약 여부를 확정하지 않는다.
+
+---
+
+## 0. G세트 위치와 설계 철학
+
+G세트는 F세트 이후의 HTTP surface behavior 실험이다. 단일 payload exploit보다 `method`, `protocol`, `status_code`, 시계열 반복 패턴처럼 Apache 로그에 직접 남는 요청 표면을 본다.
+
+핵심 목표는 다음 수준으로 제한한다.
+
+- method probing 가능성
+- unsupported method 또는 risky method exposure 관찰 가능성
+- protocol anomaly 또는 malformed request-like behavior 관찰 가능성
+- same `src_ip` / time window 기준 반복 probing sequence 보존 가능성
+
+해석 원칙:
+
+```text
+status_code=200만으로 method 허용이나 취약점 성공을 단정하지 않는다.
+PUT/DELETE/TRACE가 보이더라도 실제 업로드/삭제/XST 성공을 단정하지 않는다.
+Apache 로그 표면에서 관찰 가능한 method/protocol behavior만 보수적으로 설명한다.
+```
+
+실험환경 특화 금지:
+
+- `lab-*` User-Agent 기반 탐지 금지
+- 특정 IP 기반 탐지 금지
+- 특정 response size hard-code 금지
+- Juice Shop/OpenCart 이름 기반 hard-code 금지
+- 특정 route 문자열 기반 예외 금지
+
+---
+
+## 1. 비목표
+
+G세트는 아래를 목표로 하지 않는다.
+
+- TRACE 성공 또는 XST 성공 단정
+- PUT 업로드 성공 단정
+- DELETE 삭제 성공 단정
+- CORS 취약점 단정
+- 서버 설정 취약 확정
+- malformed request 침해 성공 단정
+- 자동 차단 또는 대응
+
+---
+
+## 2. Apache 로그에서 볼 수 있는 것
+
+- `method`
+- `uri` / `path`
+- `protocol`
+- `status_code`
+- `response_body_bytes`
+- `duration_us` / `ttfb_us`
+- `user_agent`
+- `referer`
+- same `src_ip` / time window
+- repeated method probing sequence
+
+이 신호들로는 "어떤 요청 표면이 반복되었는가"를 볼 수 있다. 반면 응답 본문이나 서버 내부 상태를 모르면 허용 여부와 실제 영향은 보수적으로만 다뤄야 한다.
+
+---
+
+## 3. Apache 로그만으로 볼 수 없는 것
+
+- 실제 파일 생성 여부
+- 실제 리소스 삭제 여부
+- TRACE 응답 body에 header echo가 있었는지
+- CORS header 상세
+- 브라우저 실행 여부
+- 서버 설정 원문
+- request body 원문
+
+따라서 `200`, `201`, `204` 같은 상태만으로 write/delete/trace 성공을 결론내리면 안 된다.
+
+---
+
+## 4. Round 구성
+
+| Round | 목적 | 해석 초점 |
+|---|---|---|
+| G R1 | 기본 method probing | risky/unsupported method candidate와 정상 baseline 분리 |
+| G R2 | protocol / malformed request 관찰 | invalid method/protocol row가 어떤 로그 표면으로 남는지 확인 |
+| G R3 | baseline / FP bait | 정상 HEAD/OPTIONS/GET가 과승격되지 않는지 확인 |
+
+### G R1 — 기본 method probing
+
+목표:
+
+- `OPTIONS` / `TRACE` / `PUT` / `DELETE` / `HEAD`가 Apache 로그에 어떻게 남는지 확인
+- unsupported/risky method가 candidate 또는 context로 보존되는지 확인
+- 정상 `HEAD`와 위험 method를 구분할 수 있는지 확인
+
+케이스:
+
+| ID | 요청 | 기대 관찰 | 기대 해석 | 금지 |
+|---|---|---|---|---|
+| G-R1-01 | `OPTIONS /` | `method=OPTIONS`, `status_code` 관찰 | method discovery/probing 가능성 | CORS 취약점 단정 |
+| G-R1-02 | `TRACE /` | `method=TRACE`, `status_code` 관찰 | TRACE exposure probing 가능성 | XST 성공 단정 |
+| G-R1-03 | `PUT /upload/g_probe.txt` | `method=PUT`, `status_code` 관찰 | upload/write probing 가능성 | 파일 업로드 성공 단정 |
+| G-R1-04 | `DELETE /api/resource/1` | `method=DELETE`, `status_code` 관찰 | destructive method probing 가능성 | 리소스 삭제 성공 단정 |
+| G-R1-05 | `HEAD /` | `method=HEAD`, `status_code` 관찰 | 정상 baseline 가능성 | 공격 단정 |
+| G-R1-06 | `GET /` | 일반 baseline | 정상 browse baseline | probing 단정 |
+
+### G R2 — protocol / malformed request 관찰
+
+목표:
+
+- 이상 method token, protocol version, malformed request-like row가 어떻게 남는지 확인
+- Apache `security/access/error` 중 어떤 로그 표면에 보존되는지 확인
+- `400` / `408` / `501` 류 상태를 protocol anomaly context로만 해석하는지 확인
+
+케이스 후보:
+
+| ID | 유형 | 기대 관찰 | 해석 제한 |
+|---|---|---|---|
+| G-R2-01 | invalid method token | 비표준 `method` 또는 parse failure 흔적 | unsupported/invalid method 가능성만 설명 |
+| G-R2-02 | HTTP/1.0 odd request | 낮은 protocol version 또는 비정상 조합 관찰 | legacy/odd client 또는 probing 가능성 병기 |
+| G-R2-03 | bad protocol version | 이상 `protocol`, `400/501` 등 관찰 가능 | protocol anomaly context로만 설명 |
+| G-R2-04 | missing/odd Host | request row 또는 error/security 보조 흔적 | Host 이상 요청 가능성만 설명 |
+| G-R2-05 | long method/path | 긴 token/path, parse 이상, 거절 status 가능 | malformed request-like behavior로만 설명 |
+
+주의:
+
+- malformed request 성공 또는 침해 단정 금지
+- 특정 상태코드만으로 exploit/우회 성공 단정 금지
+
+### G R3 — baseline / FP bait
+
+목표:
+
+- 정상 monitoring/health-check-like method가 공격으로 과승격되지 않는지 확인
+- User-Agent, 단일 method, 단일 status만으로 공격 단정하지 않는지 확인
+
+케이스:
+
+| ID | 유형 | 기대 관찰 | 기대 해석 |
+|---|---|---|---|
+| G-R3-01 | normal `HEAD` health check | 반복 가능하나 단순 `HEAD` 중심 | baseline/reference context 우선 |
+| G-R3-02 | browser-like `OPTIONS` preflight | `OPTIONS`와 일반 브라우저성 부가 신호 혼재 가능 | 정상 동작 가능성 병기 |
+| G-R3-03 | normal `GET` browse | 일반 `GET` / `200` / 정적 자산 접근 | baseline 유지 |
+| G-R3-04 | known internal monitoring UA | 규칙적 접근 또는 점검성 패턴 | UA 단독 확정 없이 내부 점검 가능성 병기 |
+
+주의:
+
+- User-Agent만으로 정상/공격 단정 금지
+- baseline/reference context로만 보존하는 방향을 우선 검토
+
+---
+
+## 5. prepare 관찰 포인트
+
+- `method_probe` 또는 `protocol_anomaly` candidate가 필요한지 판단
+- repeated method probing sequence가 `ip_behavior_aggregates`로 충분한지 확인
+- `HEAD` / `GET` baseline이 candidate로 과승격되지 않는지 확인
+- `PUT` / `DELETE` / `TRACE`가 성공 단정 없이 보존되는지 확인
+- method/protocol hint가 필요한지 검토
+
+향후 hint 후보:
+
+- `method_probe:options`
+- `method_probe:trace`
+- `method_probe:put`
+- `method_probe:delete`
+- `method_probe:unsupported_method`
+- `method_probe:destructive_method`
+- `protocol_anomaly:invalid_method`
+- `protocol_anomaly:bad_protocol_version`
+- `protocol_anomaly:malformed_request`
+- `baseline:normal_head`
+- `baseline:normal_get`
+
+이번 문서에서는 hint 구현을 다루지 않는다.
+
+---
+
+## 6. Stage1 / Stage2 체크포인트
+
+- method probing 가능성으로 설명하는가
+- `TRACE` / `PUT` / `DELETE` 성공을 단정하지 않는가
+- `HEAD` / `GET` baseline을 과승격하지 않는가
+- `200` / `201` / `204` 같은 상태만으로 성공 단정하지 않는가
+- same `src_ip` / time window context를 보수적으로 사용하는가
+- known asset 또는 내부 점검 가능성이 있으면 그 가능성을 병기하는가
+- `400` / `408` / `501`을 protocol anomaly context로 제한하는가
+
+---
+
+## 7. Python runner 계획
+
+장기적으로 G세트도 긴 `curl` 나열보다 Python runner 기반으로 관리한다. 이번 문서에서는 위치와 역할만 정의한다.
+
+예상 파일:
+
+- `lab/g_set/README.md`
+- `lab/g_set/run_g_r1_method_probe.py`
+- `lab/g_set/run_g_r2_protocol_anomaly.py`
+- `lab/g_set/run_g_r3_baseline.py`
+
+예상 역할:
+
+- `README.md`: round 범위, 실행 순서, export 연계 위치 정리
+- `run_g_r1_method_probe.py`: `OPTIONS/TRACE/PUT/DELETE/HEAD/GET` 시나리오 실행
+- `run_g_r2_protocol_anomaly.py`: invalid method/protocol/malformed request 후보 실행
+- `run_g_r3_baseline.py`: 정상 `HEAD/OPTIONS/GET` 및 monitoring-like baseline 실행
+
+runner 상세 코드와 구현 방식은 이번 범위가 아니다.
+
+---
+
+## 8. 실행 전 주의
+
+- 승인된 로컬 실험 환경에서만 실행
+- public target 금지
+- 실제 리소스 생성/삭제 위험이 있으므로 `PUT` / `DELETE`는 테스트용 path만 사용
+- 가능하면 target app이 안전한 실험 VM인지 확인
+- `DELETE`는 실제 중요한 리소스를 대상으로 하지 않음
+- `PUT`은 쓰기 성공 여부를 검증하지 않음
+
+---
+
+## 9. 다음 작업
+
+1. G R1 Python runner 설계
+2. G R1 실행
+3. prepare-only 확인
+4. 필요 시 `method_probe` / `protocol_anomaly` hint 설계
+5. Stage1 / Stage2 실행
+6. G R1 비교 문서 작성
+
+---
+
+## 10. 발표용 한 줄 정리
+
+G세트는 Apache 로그 표면에서 `method`, `protocol`, 반복 시퀀스를 근거로 HTTP method probing과 protocol anomaly 가능성을 보수적으로 해석할 수 있는지 확인하는 설계 문서다.
