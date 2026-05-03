@@ -1,0 +1,106 @@
+# docs/ 안내
+
+## 1. docs/ 폴더의 목적
+
+`docs/`는 이 저장소의 문서 허브다. 현재 운영 기준, 파이프라인 설명, 실험 세트 문서, 설계 메모, 리뷰 문서가 함께 들어 있다.
+
+문서를 해석할 때는 아래 원칙을 먼저 본다.
+
+- 현재 파이프라인 기준: `export -> prepare -> stage1 -> stage2`
+- 분석 근거는 Apache 로그 표면에 직접 남는 필드로 제한한다.
+- raw POST body, response body 원문, DB 결과, 브라우저 실행 여부는 분석 근거로 사용하지 않는다.
+- `status_code=200`, `text/html`, `response_body_bytes`만으로 성공, 침해, 유출을 단정하지 않는다.
+
+## 2. 현재 문서 탐색 방법
+
+현재 구조는 주제별 디렉터리로 정리되기 전 단계다. 아래 순서로 찾는 것이 빠르다.
+
+1. 현재 상태를 먼저 볼 때는 [진행상황.md](./진행상황.md)를 본다.
+2. 전체 흐름과 실행 순서를 볼 때는 [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)를 본다.
+3. 실험 문서는 `98_`, `98A_`, `98B_` 접두어를 우선 찾는다.
+4. 설계, 회귀 검증, 리뷰, 해석 한계 문서는 `99_` 접두어를 우선 찾는다.
+5. 환경 구축, 로그 구조, 운영 메모는 `02_`, `03_`, `04_`, `05_`, `06_` 계열 문서를 확인한다.
+
+## 3. 문서 분류 기준
+
+- `standards/`: 실험 문서 작성 표준, 공통 템플릿, naming rule
+- `experiments/`: A~H 세트별 설계 문서, 실행 요청 문서, 라운드별 세부 문서
+- `design/`: 파이프라인 구조 설계, regression 설계, `prepare` module split 계획, context summary 설계
+- `reviews/`: 중간정리, LLM 샘플 검증, Stage2 wording 품질 검토, 완료·평가성 문서
+- `operations/`: 실행 가이드, 운영 기준, 로컬 실험 환경 기준
+- `archive/`: 오래된 초안, 길어진 과거 TODO, 교체된 설계안
+
+## 4. 권장 목표 구조
+
+아래는 목표 구조다. 이번 README 추가 시점에는 설명용 구조이며, 실제 디렉터리 이동은 아직 수행하지 않았다.
+
+```text
+docs/
+├── README.md
+├── standards/
+│   └── 실험 문서 작성 표준, 공통 템플릿, naming rule
+├── experiments/
+│   ├── A_set/
+│   ├── B_set/
+│   ├── C_set/
+│   ├── D_set/
+│   ├── E_set/
+│   ├── F_set/
+│   ├── G_set/
+│   └── H_set/
+├── design/
+│   └── 파이프라인 구조, regression 설계, prepare/module split 계획
+├── reviews/
+│   └── 중간정리, LLM 샘플 검증, Stage2 wording 품질 검토
+├── operations/
+│   └── 실행 가이드, export/prepare/stage1/stage2 사용법, 로컬 실험 환경 기준
+└── archive/
+    └── 오래된 초안, 교체된 설계안, 더 이상 직접 참조하지 않는 문서
+```
+
+## 5. 현재 주요 문서 목록
+
+아래 목록은 현재 `docs/` 루트에서 바로 확인되는 대표 예시다.
+
+- 운영/흐름: [진행상황.md](./진행상황.md), [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)
+- 실험 표준: [98_비교_실험_요청_세트_표준.md](./98_비교_실험_요청_세트_표준.md)
+- F 세트: [98B_F세트_Auth_Login_Abuse_비교실험.md](./98B_F세트_Auth_Login_Abuse_비교실험.md), [98B_F세트_Auth_Login_Abuse_R2.md](./98B_F세트_Auth_Login_Abuse_R2.md)
+- G 세트: [98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md](./98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md)
+- H 세트: [98B_H세트_Static_Crawler_Noise_비교실험.md](./98B_H세트_Static_Crawler_Noise_비교실험.md)
+- 설계/회귀 검증: [99_prepare_regression_fixture_설계.md](./99_prepare_regression_fixture_설계.md), [99_stage_dryrun_regression_설계.md](./99_stage_dryrun_regression_설계.md), [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
+- 리뷰/품질: [99_A-H세트_중간정리.md](./99_A-H세트_중간정리.md), [99_llm_sample_review_plan.md](./99_llm_sample_review_plan.md), [99_stage2_wording_quality_review.md](./99_stage2_wording_quality_review.md)
+- 해석 한계/보류 결정: [99_POST_body_visibility_한계와_해석_기준.md](./99_POST_body_visibility_한계와_해석_기준.md), [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](./99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md)
+
+추가로 A~E 세트 실험 문서, 환경 구축 문서, 운영 메모, 과거 TODO 성격 문서도 현재 `docs/` 루트에 함께 있다.
+
+## 6. 향후 이동 후보
+
+아래는 실제 이동이 아니라 정리 방향이다. 링크가 아니라 현재 위치 기준의 이동 후보로 본다.
+
+- 현재 위치 기준 `98B_F세트_*` 문서: 이동 후보 `docs/experiments/F_set/`
+- 현재 위치 기준 `98B_G세트_*` 문서: 이동 후보 `docs/experiments/G_set/`
+- 현재 위치 기준 `98B_H세트_*` 문서: 이동 후보 `docs/experiments/H_set/`
+- 현재 위치 기준 `99_prepare_*`, `99_stage_*` 설계 문서: 이동 후보 `docs/design/`
+- 현재 위치 기준 `99_A-H세트_중간정리`, `99_llm_sample_review_plan`, `99_stage2_wording_quality_review`: 이동 후보 `docs/reviews/`
+- 현재 위치 기준 오래된 초안, 길어진 TODO, 직접 참조하지 않는 문서: 이동 후보 `docs/archive/`
+
+## 7. 문서 이동 원칙
+
+- 한 커밋에 대량 이동하지 않는다.
+- 문서 이동과 코드 변경을 섞지 않는다.
+- `lab/` 산출물 이동은 이번 정리 범위에서 제외한다.
+- 이동 시 `docs/README.md`와 `docs/진행상황.md`의 링크를 함께 갱신한다.
+- 현재 참조되는 문서는 `archive/`로 보내지 않는다.
+- 절대 경로 링크는 가능하면 후속 작업에서 repo 기준 상대 경로로 바꾼다.
+
+## 8. lab/와 docs/의 역할 차이
+
+- `docs/`: 운영 기준, 설계 의도, 실험 요청, 리뷰 결과처럼 사람이 읽고 판단하는 문서를 둔다.
+- `lab/`: 실험 산출물, 중간 데이터, 실행 결과처럼 작업 과정에서 생성되거나 누적되는 자료를 둔다.
+- 이번 1차 정리에서는 `lab/` 하위 파일을 건드리지 않는다.
+
+## 9. 이번 README의 범위
+
+이번 작업은 README 추가만 수행하며, 실제 이동은 후속 커밋에서 단계적으로 수행한다.
+
+현재 구조와 목표 구조를 먼저 분리해서 문서 탐색 기준을 세우는 것이 이번 1차 정리의 목적이다.
