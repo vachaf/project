@@ -74,6 +74,10 @@
   - mixed `OPTIONS/TRACE/PUT/DELETE/HEAD/GET` window 를 context-only 로 보존하고 `dir_probe:*` 단독 hint 문제 완화 완료
   - Stage2 method behavior 설명 보강은 dry-run 기준 최소 반영 완료
   - 실제 LLM 샘플 기준 narrative 튜닝은 후속 검토 여지 있음
+  - prepare `protocol_anomaly_summaries` 추가 완료
+  - invalid method / bad protocol / missing Host / odd Host / long path row 의 filtered hint 를 `protocol_anomaly:*` 중심으로 정리 완료
+  - Stage2 protocol anomaly 설명은 dry-run 기준 최소 반영 완료
+  - 실제 LLM narrative 에서 protocol anomaly context 표현이 과승격 없이 유지되는지는 후속 실제 샘플로 계속 점검
 
 ## P5. 실제 LLM 샘플 검증 체계
 

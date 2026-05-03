@@ -102,6 +102,7 @@ G세트는 아래를 목표로 하지 않는다.
 - unsupported/risky method가 candidate 또는 context로 보존되는지 확인
 - 정상 `HEAD`와 위험 method를 구분할 수 있는지 확인
 - 2026-05-03 prepare-only 확인에서 mixed method row가 전부 `low_signal_fuzzing` + `dir_probe:burst`로만 남는 문제가 확인되어, 후속 prepare 개선에서는 `method_behavior_summaries`로 method context를 별도 보존한다.
+- 2026-05-03 G R2 prepare-only 확인에서는 invalid method / bad protocol / missing Host / odd Host / long path row가 `baseline:normal_get` 위주로 정리되는 한계가 확인되었고, 후속 prepare 개선에서는 `protocol_anomaly_summaries`로 protocol/malformed context를 별도 보존한다.
 
 실행 방식:
 

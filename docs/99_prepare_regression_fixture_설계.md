@@ -145,6 +145,7 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - 2026-04-30 기준 `ip_behavior_aggregates`는 prepare top-level context-only 출력과 Stage2 report input/prompt 반영까지 완료되었다.
 - 2026-05-02 기준 `auth_behavior_summaries`는 prepare top-level context-only 출력과 Stage2 dry-run report input 반영까지 완료되었다.
 - 2026-05-03 기준 `method_behavior_summaries`는 prepare top-level context-only 출력과 Stage2 dry-run report input 최소 반영까지 완료되었다.
+- 2026-05-03 기준 `protocol_anomaly_summaries`는 prepare top-level context-only 출력과 Stage2 dry-run report input 최소 반영까지 완료되었다.
 - 2026-04-30 기준 `b_r2b_double_encoded_sqli` expected 는 `encoding:decoded_depth_2` 외에 `sqli:boolean_true_condition` 및 일부 구조 hint(`quote_termination`, `parenthesis_termination`, `comment_sequence`, `xclose_pattern`)를 함께 확인한다.
 
 ## `g_r1_method_behavior_context` expected 기준
@@ -157,6 +158,16 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - `risky_methods_observed`에는 `OPTIONS`, `TRACE`, `PUT`, `DELETE`가, `baseline_methods_observed`에는 `HEAD`, `GET`가 포함되어야 한다.
 - fixture 전체를 개별 `analysis_candidates`로 승격하지 않아야 하며, `HEAD`/`GET` baseline row 는 특히 candidate 로 과승격되면 안 된다.
 - method behavior context 로 덮인 filtered row 는 `dir_probe:*` 단독 hint 대신 `method_probe:*` 또는 `baseline:*` hint 를 가져야 한다.
+
+## `g_r2_protocol_anomaly_context` expected 기준
+
+- 같은 `src_ip`의 300초 window 안에서 invalid method, `HTTP/1.0`, bad protocol version, missing Host, odd Host, long path 중 하나 이상이 관찰되면 `protocol_anomaly_summaries`가 생성되어야 한다.
+- summary 는 `context_role=protocol_anomaly_context`, `aggregate_scope=same_src_ip_protocol_anomaly_time_window`, `should_promote_to_candidate=false`를 유지해야 한다.
+- `reason_hints`에는 `protocol_anomaly:unsupported_method`, `protocol_anomaly:http10_request`, `protocol_anomaly:legacy_protocol_observation`, `protocol_anomaly:bad_protocol_version`, `protocol_anomaly:missing_host`, `protocol_anomaly:odd_host`, `protocol_anomaly:long_path`, `protocol_anomaly:no_success_inference` 같은 보수적 힌트가 포함되어야 한다.
+- `interpretation_limit`은 `protocol_anomaly_context_only_no_success_inference`를 유지해야 한다.
+- `anomaly_types_observed`에는 `unsupported_method`, `http10_request`, `bad_protocol_version`, `missing_host`, `odd_host`, `long_path`가 반영되어야 한다.
+- fixture 전체를 개별 `analysis_candidates`로 승격하지 않아야 한다.
+- protocol anomaly context 로 덮인 filtered row 는 `baseline:normal_get` 단독 hint 대신 `protocol_anomaly:*` 또는 `method_probe:unsupported_method` hint 를 가져야 한다.
 
 ## `f_r1_auth_behavior_context` expected 기준
 

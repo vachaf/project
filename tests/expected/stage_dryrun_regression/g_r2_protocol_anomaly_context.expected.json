@@ -1,0 +1,147 @@
+{
+  "description": "Stage dry-run should preserve protocol anomaly summaries as context-only request parsing/protocol context without asserting bypass or exploit success.",
+  "MUST": [
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.protocol_anomaly_summary_count",
+      "message": "protocol anomaly summary count exists"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.protocol_anomaly_summary_count",
+      "equals": 1,
+      "message": "protocol anomaly summary count is preserved"
+    },
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.protocol_anomaly_summary_policy",
+      "message": "protocol anomaly summary policy exists"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.protocol_anomaly_summary_policy.success_rule",
+      "contains": "우회 성공, 침해 성공, 서버 취약점 성공을 단정하지 않음",
+      "message": "protocol anomaly policy keeps no-success-inference rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.behavior_scope_separation_policy.non_merge_rule",
+      "contains": "protocol_anomaly_summaries",
+      "message": "behavior scope separation policy includes protocol anomaly summaries"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "protocol_anomaly_summaries.0.context_role",
+      "equals": "protocol_anomaly_context",
+      "message": "protocol anomaly summary keeps context role"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "protocol_anomaly_summaries.0.should_promote_to_candidate",
+      "equals": false,
+      "message": "protocol anomaly summary stays non-promoting"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "protocol_anomaly_summaries.0.interpretation_limit",
+      "equals": "protocol_anomaly_context_only_no_success_inference",
+      "message": "protocol anomaly summary keeps interpretation limit"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "protocol_anomaly_summaries.0.reason_hints",
+      "contains": "protocol_anomaly:unsupported_method",
+      "message": "protocol anomaly summary keeps unsupported-method hint"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "protocol_anomaly_summaries.0.reason_hints",
+      "contains": "protocol_anomaly:no_success_inference",
+      "message": "protocol anomaly summary keeps no-success-inference hint"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.candidate_rows",
+      "equals": 0,
+      "message": "protocol anomaly fixture does not create candidates"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "protocol_anomaly_summaries 가 있으면 이는 context-only",
+      "message": "stage2 prompt includes protocol anomaly context-only rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "protocol bypass 성공",
+      "message": "stage2 prompt explicitly cautions about protocol bypass success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "context-only protocol anomaly summaries:",
+      "message": "markdown includes protocol anomaly context section"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "protocol anomaly 해석 제한",
+      "message": "markdown includes protocol anomaly interpretation limitation"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "anomaly_types=",
+      "message": "markdown includes protocol anomaly type list"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "우회 성공",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라",
+        "근거로 사용하지 않는다"
+      ],
+      "message": "markdown must not assert bypass success"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "침해 성공",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라",
+        "근거로 사용하지 않는다"
+      ],
+      "message": "markdown must not assert compromise success"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "virtual host bypass 성공",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라",
+        "근거로 사용하지 않는다"
+      ],
+      "message": "markdown must not assert virtual host bypass success"
+    }
+  ]
+}

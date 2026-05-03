@@ -35,6 +35,7 @@ COLLECTION_KEYS = {
     "ip_behavior_aggregates": "ip_behavior_aggregates",
     "auth_behavior_summaries": "auth_behavior_summaries",
     "method_behavior_summaries": "method_behavior_summaries",
+    "protocol_anomaly_summaries": "protocol_anomaly_summaries",
 }
 
 

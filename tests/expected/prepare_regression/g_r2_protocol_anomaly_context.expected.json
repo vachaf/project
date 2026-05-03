@@ -1,0 +1,293 @@
+{
+  "description": "Protocol and malformed request observations should be preserved as context-only protocol anomaly summaries without promoting incidents or inferring success.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90",
+        "context_role": "protocol_anomaly_context",
+        "aggregate_scope": "same_src_ip_protocol_anomaly_time_window",
+        "should_promote_to_candidate": false
+      },
+      "message": "protocol anomaly summary created as context-only"
+    },
+    {
+      "op": "exists",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90",
+        "request_count": 6
+      },
+      "message": "protocol anomaly summary captures the full anomaly window"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "anomaly_types_observed",
+      "contains": "unsupported_method",
+      "message": "unsupported method anomaly type preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "anomaly_types_observed",
+      "contains": "http10_request",
+      "message": "http10 anomaly type preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "anomaly_types_observed",
+      "contains": "bad_protocol_version",
+      "message": "bad protocol version anomaly type preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "anomaly_types_observed",
+      "contains": "missing_host",
+      "message": "missing host anomaly type preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "anomaly_types_observed",
+      "contains": "odd_host",
+      "message": "odd host anomaly type preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "anomaly_types_observed",
+      "contains": "long_path",
+      "message": "long path anomaly type preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:unsupported_method",
+      "message": "unsupported method protocol anomaly hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:bad_protocol_version",
+      "message": "bad protocol version hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:missing_host",
+      "message": "missing host hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:odd_host",
+      "message": "odd host hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:long_path",
+      "message": "long path hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:no_success_inference",
+      "message": "protocol anomaly summary keeps no-success-inference hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "protocol_anomaly_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "interpretation_limit",
+      "contains": "protocol_anomaly_context_only_no_success_inference",
+      "message": "protocol anomaly summary keeps interpretation limit"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-invalid-method-1"
+      },
+      "field": "reason_hints",
+      "contains": "method_probe:unsupported_method",
+      "message": "filtered invalid method row keeps method probe hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-invalid-method-1"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:unsupported_method",
+      "message": "filtered invalid method row keeps protocol anomaly hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-http10-1"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:http10_request",
+      "message": "filtered http10 row keeps http10 hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-http10-1"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:legacy_protocol_observation",
+      "message": "filtered http10 row keeps legacy protocol observation hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-bad-protocol-1"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:bad_protocol_version",
+      "message": "filtered bad protocol row keeps protocol hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-missing-host-1"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:missing_host",
+      "message": "filtered missing-host row keeps missing-host hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-missing-host-1"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:malformed_request",
+      "message": "filtered missing-host row keeps malformed-request hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-odd-host-1"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:odd_host",
+      "message": "filtered odd-host row keeps odd-host hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-long-path-1"
+      },
+      "field": "reason_hints",
+      "contains": "protocol_anomaly:long_path",
+      "message": "filtered long-path row keeps long-path hint"
+    },
+    {
+      "op": "collection_count_at_most",
+      "collection": "analysis_candidates",
+      "value": 0,
+      "message": "protocol anomaly fixture must not promote any candidate"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-bad-protocol-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_get",
+      "message": "bad protocol row must not remain baseline-only"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-missing-host-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_get",
+      "message": "missing-host row must not remain baseline-only"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-odd-host-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_get",
+      "message": "odd-host row must not remain baseline-only"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r2-long-path-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_get",
+      "message": "long-path row must not remain baseline-only"
+    }
+  ]
+}
