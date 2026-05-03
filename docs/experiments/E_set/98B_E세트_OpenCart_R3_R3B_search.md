@@ -5,7 +5,7 @@
 - 범위: OpenCart product/search SQLi/XSS, HTML entity XSS, normal search baseline
 - 기준 데이터: Apache `security` 로그 표면 지표
 - 대상 서비스: OpenCart (`http://192.168.56.111`)
-- 상위 문서: `docs/98B_E세트_OpenCart_비교실험.md`
+- 상위 문서: `98B_E세트_OpenCart_비교실험.md`
 
 > Apache 로그만으로 SQLi 성공, DB 결과 변경, XSS 브라우저 실행, DOM 반영 여부는 확정하지 않는다. 이 문서의 목적은 OpenCart `product/search` 구조에서도 기존 SQLi/XSS 탐지 로직이 일반화되는지 확인하는 것이다.
 

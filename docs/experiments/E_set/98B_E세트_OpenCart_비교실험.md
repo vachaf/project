@@ -3,8 +3,8 @@
 - 작성 기준일: 2026-04-30
 - 문서 역할: E세트(OpenCart/PHP) 비교 실험 인덱스 및 공통 실행 원칙
 - 상세 문서:
-  - `docs/98B_E세트_OpenCart_R2_R2B_php_wrapper.md`
-  - `docs/98B_E세트_OpenCart_R3_R3B_search.md`
+  - `98B_E세트_OpenCart_R2_R2B_php_wrapper.md`
+  - `98B_E세트_OpenCart_R3_R3B_search.md`
 - 기준 데이터: Apache `security` 로그 표면 지표
 - 대상 서비스: OpenCart
 - 기본 URL: `http://192.168.56.111`
@@ -20,9 +20,9 @@ E세트 원문이 길어져, 메인 문서는 인덱스와 공통 기준만 남�
 
 | 문서 | 역할 |
 |---|---|
-| `docs/98B_E세트_OpenCart_비교실험.md` | E세트 전체 인덱스, 공통 원칙, 실행 순서 |
-| `docs/98B_E세트_OpenCart_R2_R2B_php_wrapper.md` | PHP wrapper / config exposure / file disclosure 실험 상세 |
-| `docs/98B_E세트_OpenCart_R3_R3B_search.md` | product/search SQLi/XSS 및 정상 search baseline 상세 |
+| `docs/experiments/E_set/98B_E세트_OpenCart_비교실험.md` | E세트 전체 인덱스, 공통 원칙, 실행 순서 |
+| `docs/experiments/E_set/98B_E세트_OpenCart_R2_R2B_php_wrapper.md` | PHP wrapper / config exposure / file disclosure 실험 상세 |
+| `docs/experiments/E_set/98B_E세트_OpenCart_R3_R3B_search.md` | product/search SQLi/XSS 및 정상 search baseline 상세 |
 | `docs/99_비교실험_후속개선_TODO.md` | 회귀 fixture, verdict taxonomy, hint 품질 개선 등 후속 작업 |
 
 ---
@@ -72,10 +72,10 @@ sudo tail -n 10 /var/log/apache2/app_security.log
 | Round | 주제 | 상태 | 상세 문서/산출물 |
 |---|---|---|---|
 | R1 | route traversal / admin path | 수행 완료, 별도 문서화 선택 | `lab/04-26_E세트R1_산출물` |
-| R2 | PHP wrapper / config exposure | 수행 완료, 코드 개선 반영 | `docs/98B_E세트_OpenCart_R2_R2B_php_wrapper.md`, `lab/04-26_E세트R2_산출물/2026-04-26_E세트R2_비교.md` |
-| R2B | PHP wrapper variant 일반화 | 수행 완료 | `docs/98B_E세트_OpenCart_R2_R2B_php_wrapper.md`, `lab/04-30_E세트R2B_산출물/2026-04-30_E세트R2B_비교.md` |
-| R3 | product/search SQLi/XSS | 수행 완료 | `docs/98B_E세트_OpenCart_R3_R3B_search.md`, `lab/04-26_E세트R3_산출물/2026-04-26_E세트R3_비교.md` |
-| R3B | 정상 search baseline / 공격 search 분리 | 수행 완료 | `docs/98B_E세트_OpenCart_R3_R3B_search.md`, `lab/04-29_E세트R3B_산출물/2026-04-29_E세트R3B_비교.md` |
+| R2 | PHP wrapper / config exposure | 수행 완료, 코드 개선 반영 | `docs/experiments/E_set/98B_E세트_OpenCart_R2_R2B_php_wrapper.md`, `lab/04-26_E세트R2_산출물/2026-04-26_E세트R2_비교.md` |
+| R2B | PHP wrapper variant 일반화 | 수행 완료 | `docs/experiments/E_set/98B_E세트_OpenCart_R2_R2B_php_wrapper.md`, `lab/04-30_E세트R2B_산출물/2026-04-30_E세트R2B_비교.md` |
+| R3 | product/search SQLi/XSS | 수행 완료 | `docs/experiments/E_set/98B_E세트_OpenCart_R3_R3B_search.md`, `lab/04-26_E세트R3_산출물/2026-04-26_E세트R3_비교.md` |
+| R3B | 정상 search baseline / 공격 search 분리 | 수행 완료 | `docs/experiments/E_set/98B_E세트_OpenCart_R3_R3B_search.md`, `lab/04-29_E세트R3B_산출물/2026-04-29_E세트R3B_비교.md` |
 | R4 | POST body visibility 재확인 | 후보 | 이 문서의 후속 후보로 유지 |
 | R5 | OpenCart probing sequence 일반성 | 후보 | D세트 R3 개선의 OpenCart 확장 후보 |
 

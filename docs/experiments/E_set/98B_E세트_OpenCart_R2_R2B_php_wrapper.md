@@ -5,7 +5,7 @@
 - 범위: OpenCart/PHP wrapper, config exposure, file/source disclosure intent
 - 기준 데이터: Apache `security` 로그 표면 지표
 - 대상 서비스: OpenCart (`http://192.168.56.111`)
-- 상위 문서: `docs/98B_E세트_OpenCart_비교실험.md`
+- 상위 문서: `98B_E세트_OpenCart_비교실험.md`
 
 > Apache 로그만으로 실제 PHP source/config 노출 성공은 확정하지 않는다. 이 문서의 목적은 wrapper/file disclosure intent가 로그 표면에서 candidate로 보존되는지 확인하는 것이다.
 
