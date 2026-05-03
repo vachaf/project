@@ -393,7 +393,7 @@ scripts/check_llm_report_safety.py
 검토 계획:
 
 ```text
-docs/99_llm_sample_review_plan.md
+docs/reviews/99_llm_sample_review_plan.md
 ```
 
 실제 검토 결과:
