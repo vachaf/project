@@ -2,8 +2,11 @@
 
 - 작성 기준일: 2026-05-03
 - 문서 역할: G세트 HTTP method / protocol anomaly 비교실험 설계
+- 적용 범위: HTTP method probing / unsupported method / risky method exposure / protocol anomaly / malformed request-like behavior
 - 기준 데이터: Apache `security/access/error` 로그 표면 지표
 - 핵심 전제: response body 원문, request body 원문, 서버 내부 설정은 확인하지 않는다
+- 권장 runner label prefix: `lab-g-set`  
+  단, 이 값은 실험 실행 추적용 label일 뿐이며 탐지/판정 근거로 사용하지 않는다.
 
 > 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로 method 허용, 업로드/삭제 성공, TRACE echo, CORS 취약점, 서버 설정 취약 여부를 확정하지 않는다.
 
@@ -106,9 +109,15 @@ G세트는 아래를 목표로 하지 않는다.
 | G-R1-01 | `OPTIONS /` | `method=OPTIONS`, `status_code` 관찰 | method discovery/probing 가능성 | CORS 취약점 단정 |
 | G-R1-02 | `TRACE /` | `method=TRACE`, `status_code` 관찰 | TRACE exposure probing 가능성 | XST 성공 단정 |
 | G-R1-03 | `PUT /upload/g_probe.txt` | `method=PUT`, `status_code` 관찰 | upload/write probing 가능성 | 파일 업로드 성공 단정 |
-| G-R1-04 | `DELETE /api/resource/1` | `method=DELETE`, `status_code` 관찰 | destructive method probing 가능성 | 리소스 삭제 성공 단정 |
+| G-R1-04 | `DELETE /api/resource/g_probe` | `method=DELETE`, `status_code` 관찰 | destructive method probing 가능성 | 리소스 삭제 성공 단정 |
 | G-R1-05 | `HEAD /` | `method=HEAD`, `status_code` 관찰 | 정상 baseline 가능성 | 공격 단정 |
 | G-R1-06 | `GET /` | 일반 baseline | 정상 browse baseline | probing 단정 |
+
+주의:
+
+- `PUT` / `DELETE`는 실제 중요 리소스를 대상으로 하지 않는다.
+- 테스트 전용 경로만 사용한다.
+- 쓰기/삭제 성공 여부는 runner나 Apache 로그만으로 검증하지 않는다.
 
 ### G R2 — protocol / malformed request 관찰
 
@@ -162,6 +171,7 @@ G세트는 아래를 목표로 하지 않는다.
 - repeated method probing sequence가 `ip_behavior_aggregates`로 충분한지 확인
 - `HEAD` / `GET` baseline이 candidate로 과승격되지 않는지 확인
 - `PUT` / `DELETE` / `TRACE`가 성공 단정 없이 보존되는지 확인
+- malformed request가 `security` 로그에 남는지, `access` / `error` 로그 보조가 필요한지 확인
 - method/protocol hint가 필요한지 검토
 
 향후 hint 후보:
@@ -194,7 +204,22 @@ G세트는 아래를 목표로 하지 않는다.
 
 ---
 
-## 7. Python runner 계획
+## 7. provider 비교 포인트
+
+G세트는 provider별 표현 차이가 생길 수 있으므로, Stage1/Stage2 비교 시 아래 항목을 본다.
+
+| 비교 항목 | 확인 내용 |
+|---|---|
+| method probing 인식 | `PUT` / `DELETE` / `TRACE`를 risky method probe로 설명하는가 |
+| 정상 method 구분 | `HEAD` / `GET` / preflight-like `OPTIONS`를 과승격하지 않는가 |
+| status code 보수성 | `200` / `201`만으로 method 허용 또는 성공을 단정하지 않는가 |
+| protocol anomaly | malformed/invalid method를 anomaly context로만 보존하는가 |
+| probing sequence | same `src_ip` 내 method 다양성을 context-only로 설명하는가 |
+| known asset 고려 | 내부 모니터링/자동화 가능성을 병기하는가 |
+
+---
+
+## 8. Python runner 계획
 
 장기적으로 G세트도 긴 `curl` 나열보다 Python runner 기반으로 관리한다. 이번 문서에서는 위치와 역할만 정의한다.
 
@@ -216,7 +241,7 @@ runner 상세 코드와 구현 방식은 이번 범위가 아니다.
 
 ---
 
-## 8. 실행 전 주의
+## 9. 실행 전 주의
 
 - 승인된 로컬 실험 환경에서만 실행
 - public target 금지
@@ -224,10 +249,34 @@ runner 상세 코드와 구현 방식은 이번 범위가 아니다.
 - 가능하면 target app이 안전한 실험 VM인지 확인
 - `DELETE`는 실제 중요한 리소스를 대상으로 하지 않음
 - `PUT`은 쓰기 성공 여부를 검증하지 않음
+- `TRACE` / `OPTIONS` 응답 body를 수집하거나 분석하지 않음
 
 ---
 
-## 9. 다음 작업
+## 10. 산출물 관리
+
+공개 또는 공유에 적합한 산출물:
+
+- G세트 비교 Markdown
+- 최종 Stage2 Markdown
+- 통합 요약 문서
+
+공개 또는 공유에 부적합한 산출물:
+
+- raw export JSON
+- LLM input JSON
+- stage2_report_input JSON
+- analysis_candidates JSON
+- runner request body가 포함된 실행 로그
+
+주의:
+
+- runner 로그에는 실험용 request body가 들어갈 수 있으므로 공유 범위를 제한한다.
+- 비교 문서에는 raw body나 credential-like 값을 직접 싣지 않는다.
+
+---
+
+## 11. 다음 작업
 
 1. G R1 Python runner 설계
 2. G R1 실행
@@ -238,6 +287,6 @@ runner 상세 코드와 구현 방식은 이번 범위가 아니다.
 
 ---
 
-## 10. 발표용 한 줄 정리
+## 12. 발표용 한 줄 정리
 
 G세트는 Apache 로그 표면에서 `method`, `protocol`, 반복 시퀀스를 근거로 HTTP method probing과 protocol anomaly 가능성을 보수적으로 해석할 수 있는지 확인하는 설계 문서다.
