@@ -34,6 +34,7 @@ COLLECTION_KEYS = {
     "probing_sequence_summaries": "probing_sequence_summaries",
     "ip_behavior_aggregates": "ip_behavior_aggregates",
     "auth_behavior_summaries": "auth_behavior_summaries",
+    "method_behavior_summaries": "method_behavior_summaries",
 }
 
 
@@ -86,6 +87,7 @@ def stringify(value: Any) -> str:
 def flatten_strings(value: Any) -> List[str]:
     values: List[str] = []
     if isinstance(value, dict):
+        values.extend(stringify(key) for key in value.keys() if stringify(key))
         for nested in value.values():
             values.extend(flatten_strings(nested))
         return values

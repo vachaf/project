@@ -41,6 +41,7 @@ ENV_FILE_NAMES = ("config/llm.env", "llm.env", ".env")
 IP_BEHAVIOR_CONTEXT_LIMIT = 10
 IP_BEHAVIOR_LIST_LIMIT = 10
 AUTH_BEHAVIOR_CONTEXT_LIMIT = 10
+METHOD_BEHAVIOR_CONTEXT_LIMIT = 10
 
 
 @dataclass
@@ -826,6 +827,49 @@ def build_auth_behavior_context_rows(
     return rows[:top_n]
 
 
+def build_method_behavior_context_rows(
+    summaries: List[Dict[str, Any]],
+    known_asset_ips: Sequence[str],
+    top_n: int = METHOD_BEHAVIOR_CONTEXT_LIMIT,
+) -> List[Dict[str, Any]]:
+    known_asset_set = set(known_asset_ips)
+    rows: List[Dict[str, Any]] = []
+    for item in summaries:
+        src_ip = normalize_str(item.get("src_ip")) or "-"
+        rows.append(
+            {
+                "context_role": normalize_str(item.get("context_role")) or "method_behavior_context",
+                "aggregate_scope": normalize_str(item.get("aggregate_scope")) or "same_src_ip_method_time_window",
+                "should_promote_to_candidate": bool(item.get("should_promote_to_candidate")),
+                "src_ip": src_ip,
+                "window_start": normalize_str(item.get("window_start")),
+                "window_end": normalize_str(item.get("window_end")),
+                "burst_window_sec": safe_int(item.get("burst_window_sec"), 0),
+                "request_count": safe_int(item.get("request_count"), 0),
+                "method_counts": normalize_counter_dict(item.get("method_counts")),
+                "status_counts": normalize_counter_dict(item.get("status_counts")),
+                "risky_methods_observed": truncate_unique_strings(item.get("risky_methods_observed")),
+                "baseline_methods_observed": truncate_unique_strings(item.get("baseline_methods_observed")),
+                "sample_request_ids": truncate_unique_strings(item.get("sample_request_ids")),
+                "reason_hints": truncate_unique_strings(item.get("reason_hints")),
+                "interpretation_limit": normalize_str(item.get("interpretation_limit"))
+                or "no_method_success_inference_from_apache_logs",
+                "known_asset": src_ip in known_asset_set,
+            }
+        )
+
+    rows.sort(
+        key=lambda x: (
+            safe_int(x.get("request_count"), 0),
+            len(x.get("risky_methods_observed") or []),
+            len(x.get("baseline_methods_observed") or []),
+            normalize_str(x.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return rows[:top_n]
+
+
 def has_php_wrapper_file_disclosure_context(item: Dict[str, Any]) -> bool:
     verdict = normalize_str(item.get("verdict"))
     if verdict == "suspicious_file_disclosure":
@@ -889,6 +933,7 @@ def build_report_input(
     probing_sequence_summaries = (llm_input_payload or {}).get("probing_sequence_summaries") or []
     ip_behavior_aggregates = (llm_input_payload or {}).get("ip_behavior_aggregates") or []
     auth_behavior_summaries = (llm_input_payload or {}).get("auth_behavior_summaries") or []
+    method_behavior_summaries = (llm_input_payload or {}).get("method_behavior_summaries") or []
     stage1_errors = (stage1_errors_payload or {}).get("errors") or []
     filtered_out_breakdown = normalize_counter_dict(llm_meta.get("filtered_out_breakdown"))
     total_filtered_out_rows = safe_int(counts.get("filtered_out_rows"), 0)
@@ -941,6 +986,11 @@ def build_report_input(
         known_asset_ips=known_asset_ips,
         top_n=AUTH_BEHAVIOR_CONTEXT_LIMIT,
     )
+    top_method_behavior_summaries = build_method_behavior_context_rows(
+        method_behavior_summaries,
+        known_asset_ips=known_asset_ips,
+        top_n=METHOD_BEHAVIOR_CONTEXT_LIMIT,
+    )
 
     matched_known_assets = sorted(
         {
@@ -984,6 +1034,10 @@ def build_report_input(
                 counts.get("auth_behavior_summaries"),
                 len(auth_behavior_summaries),
             ),
+            "method_behavior_summary_count": safe_int(
+                counts.get("method_behavior_summaries"),
+                len(method_behavior_summaries),
+            ),
             "stage1_success_count": safe_int(meta.get("success_count"), len(results)),
             "stage1_error_count": safe_int(meta.get("error_count"), len(stage1_errors)),
         },
@@ -1011,9 +1065,14 @@ def build_report_input(
             counts.get("auth_behavior_summaries"),
             len(auth_behavior_summaries),
         ),
+        "method_behavior_summary_count": safe_int(
+            counts.get("method_behavior_summaries"),
+            len(method_behavior_summaries),
+        ),
         "probing_sequence_summaries": probing_sequence_summaries[:10],
         "ip_behavior_aggregates": top_ip_behavior_aggregates,
         "auth_behavior_summaries": top_auth_behavior_summaries,
+        "method_behavior_summaries": top_method_behavior_summaries,
         "supporting_events": supporting_events[:20],
         "false_positive_review_candidates": false_positive_review_candidates[:20],
         "stage1_errors_excerpt": stage1_errors[:5],
@@ -1048,9 +1107,10 @@ def build_report_input(
             },
             "behavior_scope_separation_policy": {
                 "auth_scope_rule": "auth_behavior_summaries 의 request_count/auth_request_count 는 같은 src_ip 와 auth endpoint family 시간창 기준 auth 요청 수를 뜻함",
+                "method_scope_rule": "method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수를 뜻함",
                 "ip_scope_rule": "ip_behavior_aggregates 의 request_count 는 같은 src_ip 와 시간창 기준 전체 또는 관련 요청 문맥 수를 뜻함",
-                "non_merge_rule": "두 집계는 scope 가 다르므로 48~51건 같은 range 표현이나 직접 합산으로 설명하지 않음",
-                "context_only_rule": "auth_behavior_summaries 와 ip_behavior_aggregates 는 모두 context-only 이며 candidate 승격 근거가 아님",
+                "non_merge_rule": "auth_behavior_summaries, method_behavior_summaries, ip_behavior_aggregates 는 scope 가 다르므로 48~51건 같은 range 표현이나 직접 합산으로 설명하지 않음",
+                "context_only_rule": "auth_behavior_summaries, method_behavior_summaries, ip_behavior_aggregates 는 모두 context-only 이며 candidate 승격 근거가 아님",
             },
             "ip_behavior_aggregate_policy": {
                 "default_action": "ip_behavior_aggregates 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
@@ -1069,6 +1129,14 @@ def build_report_input(
                 "mixed_status_rule": "401 과 200 이 함께 있어도 HTTP 200 observed after repeated 401 정도로만 설명하고 로그인 성공, 계정 탈취, credential stuffing 성공으로 단정하지 않음",
                 "success_rule": "status_code=200, response_body_bytes, resp_content_type 만으로 인증 성공이나 침해 성공 근거로 사용하지 않음",
                 "identity_rule": "동일 src_ip 는 auth behavior sequence 가 관찰된 출발지로만 표현하고 공격자나 계정 탈취 주체로 단정하지 않음",
+            },
+            "method_behavior_summary_policy": {
+                "default_action": "method_behavior_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+                "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 method row 도 이 summary 때문에 incident 후보로 승격된 것으로 해석하지 않음",
+                "interpretation_rule": "같은 src_ip, 짧은 시간 window 안에서 risky method 와 baseline method 가 섞여 관찰된 method probing 또는 baseline context 로만 설명",
+                "success_rule": "OPTIONS, TRACE, PUT, DELETE, PATCH 의 status_code=200/201/204, response_body_bytes, status_counts 만으로 method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점을 단정하지 않음",
+                "baseline_rule": "HEAD 와 GET 은 method baseline 또는 reference context 로만 설명하고 candidate 로 재승격하지 않음",
+                "visibility_rule": "Apache 로그 표면에서는 response body 원문, request body 원문, 서버 내부 상태를 확인할 수 없으므로 method outcome 은 시도 문맥으로만 해석",
             },
             "user_agent_interpretation_policy": {
                 "default_action": "User-Agent 는 보조 evidence 로만 사용",
@@ -1233,10 +1301,10 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "probing_sequence_summaries 가 있으면 이는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 에서 짧은 시간 안에 여러 민감/관리/백업 경로에 접근한 reconnaissance 또는 directory probing 흐름으로만 설명하라. "
         "probing_sequence_summaries 의 200 text/html 반복 응답과 동일 response_body_bytes 반복은 fallback HTML 가능성으로만 설명하고, .env/.git/config/admin page/backup file 노출 성공으로 단정하지 마라. "
         "probing_sequence_summaries 안의 403, 401 같은 차단 응답은 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 남길 수 있다. "
-        "auth_behavior_summaries 와 ip_behavior_aggregates 를 함께 언급할 때는 count scope 를 분리하라. "
-        "auth_behavior_summaries 의 request_count/auth_request_count 는 auth endpoint family 기준 auth 요청 수이고, ip_behavior_aggregates 의 request_count 는 같은 src_ip/time window 기준 전체 또는 관련 요청 수다. "
-        "두 count 를 48~51건 규모 같은 range 로 합치거나 같은 사건 수처럼 직접 합산하지 마라. "
-        "둘 다 context-only 이며 candidate 승격 근거가 아니다. "
+        "auth_behavior_summaries, method_behavior_summaries, ip_behavior_aggregates 를 함께 언급할 때는 count scope 를 분리하라. "
+        "auth_behavior_summaries 의 request_count/auth_request_count 는 auth endpoint family 기준 auth 요청 수이고, method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, ip_behavior_aggregates 의 request_count 는 같은 src_ip/time window 기준 전체 또는 관련 요청 수다. "
+        "세 count 를 48~51건 규모 같은 range 로 합치거나 같은 사건 수처럼 직접 합산하지 마라. "
+        "셋 다 context-only 이며 candidate 승격 근거가 아니다. "
         "ip_behavior_aggregates 가 있으면 이는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 에서 짧은 시간 안에 여러 경로 접근, 높은 4xx 비율, 다중 attempted category, 민감 경로 접근이 함께 관찰된 reconnaissance 또는 scanning-like context 로만 설명하라. "
         "ip_behavior_aggregates 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 analysis_candidate 로 승격된 것으로 해석하지 마라. "
         "ip_behavior_aggregates 의 attack_categories_attempted 는 시도 유형 요약이지 성공한 공격 유형 목록이 아니며, sensitive_path_hits 는 민감 경로 접근 문맥일 뿐 실제 파일 노출 근거가 아니다. "
@@ -1246,6 +1314,11 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "auth_behavior_summaries 의 401 과 200 혼재는 HTTP 200 observed after repeated 401 정도로만 설명하고, 로그인 성공 confirmed, 계정 탈취 confirmed, credential stuffing 성공으로 단정하지 마라. "
         "Apache 로그 표면에서는 raw POST body, DB 인증 결과, response body 원문이 보이지 않을 수 있으므로 auth_behavior_summaries 는 POST body 미확인 상태로 해석하라. "
         "auth_behavior_summaries 의 status_code=200, response_body_bytes, resp_content_type 만으로 인증 성공이나 침해 성공 근거로 사용하지 마라. "
+        "method_behavior_summaries 가 있으면 이는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 와 짧은 시간 window 안에서 OPTIONS, TRACE, PUT, DELETE, PATCH 같은 risky method 와 HEAD, GET baseline method 가 함께 관찰된 method probing 또는 baseline context 로만 설명하라. "
+        "method_behavior_summaries 의 should_promote_to_candidate=false 이면 어떤 개별 method row 도 이 summary 때문에 analysis_candidate 로 승격된 것으로 해석하지 마라. "
+        "method_behavior_summaries 의 status_counts, response_body_bytes, status_code=200/201/204 만으로 method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점을 단정하지 마라. "
+        "TRACE 는 TRACE method probing 또는 exposure 확인 시도 정도로만 설명하고 XST 성공을 단정하지 마라. PUT 은 write/upload probing 정도로만 설명하고 업로드 성공을 단정하지 마라. DELETE 는 destructive method probing 정도로만 설명하고 리소스 삭제 성공을 단정하지 마라. OPTIONS 는 method discovery 또는 probing 정도로만 설명하고 CORS 취약점이나 method exposure 성공을 단정하지 마라. "
+        "HEAD 와 GET 은 method baseline 또는 reference context 로만 설명하고 공격 성공 근거로 사용하지 마라. "
         "User-Agent 값은 raw evidence 로 인용할 수 있지만 lab-* 같은 실험 prefix 자체를 탐지 근거로 삼지 마라. "
         "User-Agent 해석은 비브라우저성 UA, 반복적 UA 패턴, 자동화 또는 테스트성 UA 가능성처럼 일반화하고, known_asset IP 와 결합되면 내부 테스트 또는 운영 점검 가능성을 함께 언급하라. "
         "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, stage2 에서는 '후보 밖 탐색성 요청'으로 고정 표기하라. "
@@ -1299,10 +1372,10 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "probing_sequence_summaries 안의 direct config path 접근은 context_only 이며 개별 incident 나 config 노출 성공으로 과승격하지 마라.",
             "probing_sequence_summaries 에 403 또는 401 응답이 있으면 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급하라.",
             "known_asset 이거나 known asset IP 와 겹치는 probing_sequence_summaries 는 내부 테스트/운영 점검 가능성을 함께 병기하라.",
-            "auth_behavior_summaries 와 ip_behavior_aggregates 를 함께 언급할 때는 count scope 를 분리하라.",
-            "auth_behavior_summaries 의 request_count/auth_request_count 는 auth endpoint family 기준 auth 요청 수이고, ip_behavior_aggregates 의 request_count 는 같은 src_ip/time window 기준 전체 또는 관련 요청 수다.",
-            "두 count 를 48~51건 같은 range 로 합치거나 같은 사건 수처럼 직접 합산하지 마라.",
-            "auth_behavior_summaries 와 ip_behavior_aggregates 는 둘 다 context-only 이며 candidate 승격 근거가 아니다.",
+            "auth_behavior_summaries, method_behavior_summaries, ip_behavior_aggregates 를 함께 언급할 때는 count scope 를 분리하라.",
+            "auth_behavior_summaries 의 request_count/auth_request_count 는 auth endpoint family 기준 auth 요청 수이고, method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, ip_behavior_aggregates 의 request_count 는 같은 src_ip/time window 기준 전체 또는 관련 요청 수다.",
+            "세 count 를 48~51건 같은 range 로 합치거나 같은 사건 수처럼 직접 합산하지 마라.",
+            "auth_behavior_summaries, method_behavior_summaries, ip_behavior_aggregates 는 셋 다 context-only 이며 candidate 승격 근거가 아니다.",
             "ip_behavior_aggregates 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip, 짧은 시간 window, 여러 path 접근, 높은 4xx 비율, attempted category 혼합이 관찰된 reconnaissance/scanning-like context 로만 설명하라.",
             "ip_behavior_aggregates 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 candidate 로 승격된 것으로 해석하지 마라.",
             "ip_behavior_aggregates 의 attack_categories_attempted 는 시도 유형 요약일 뿐 성공한 공격 유형 목록이 아니다.",
@@ -1314,6 +1387,11 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "auth_behavior_summaries 의 401 과 200 혼재는 HTTP 200 observed after repeated 401 정도로만 설명하고 로그인 성공 confirmed, 계정 탈취, credential stuffing 성공으로 단정하지 마라.",
             "Apache 로그 표면에서는 raw POST body 와 인증 결과 원문이 보이지 않을 수 있으므로 auth_behavior_summaries 는 POST body 미확인 상태로 해석하라.",
             "auth_behavior_summaries 에 200 응답, response_body_bytes, application/json 같은 값이 있어도 인증 성공이나 침해 성공 근거로 사용하지 마라.",
+            "method_behavior_summaries 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 와 짧은 시간 window 안에서 risky method 와 baseline method 가 함께 관찰된 method probing 또는 baseline context 로만 설명하라.",
+            "method_behavior_summaries 의 should_promote_to_candidate=false 이면 어떤 개별 method row 도 이 summary 때문에 candidate 로 승격된 것으로 해석하지 마라.",
+            "method_behavior_summaries 의 status_counts, response_body_bytes, status_code=200/201/204 만으로 method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점을 단정하지 마라.",
+            "TRACE 는 XST 성공이 아니라 TRACE probing 정도로만, PUT 은 업로드 성공이 아니라 write/upload probing 정도로만, DELETE 는 삭제 성공이 아니라 destructive method probing 정도로만, OPTIONS 는 CORS 취약점이 아니라 method discovery/probing 정도로만 설명하라.",
+            "HEAD 와 GET 은 method baseline 또는 reference context 로만 설명하고 공격 성공 근거로 사용하지 마라.",
             "User-Agent 값은 raw evidence 로 표시할 수 있지만 lab-* 같은 실험 prefix 자체를 공격 근거로 삼지 마라.",
             "User-Agent 해석은 비브라우저성 UA, 반복적 UA 패턴, 자동화 또는 테스트성 UA 가능성처럼 일반화하라.",
             "known_asset IP 와 결합된 비브라우저성 또는 자동화성 UA 는 내부 테스트 또는 운영 점검 가능성을 함께 병기하라.",
@@ -1346,6 +1424,8 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
     ip_behavior_aggregates = report_input.get("ip_behavior_aggregates") or []
     auth_behavior_summaries = report_input.get("auth_behavior_summaries") or []
+    method_behavior_summaries = report_input.get("method_behavior_summaries") or []
+    method_behavior_summaries = report_input.get("method_behavior_summaries") or []
     verdicts = distributions.get("verdicts") or {}
     severities = distributions.get("severities") or {}
     source_tables = distributions.get("source_tables") or {}
@@ -1384,6 +1464,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     lines.append(f"- noise 집계 그룹 수: {safe_int(counts.get('noise_group_count'), 0)}")
     lines.append(f"- ip behavior aggregate 수: {safe_int(counts.get('ip_behavior_aggregate_count'), len(ip_behavior_aggregates))}")
     lines.append(f"- auth behavior summary 수: {safe_int(counts.get('auth_behavior_summary_count'), len(auth_behavior_summaries))}")
+    lines.append(f"- method behavior summary 수: {safe_int(counts.get('method_behavior_summary_count'), len(method_behavior_summaries))}")
     lines.append(f"- stage1 성공/오류: {safe_int(counts.get('stage1_success_count'), 0)} / {safe_int(counts.get('stage1_error_count'), 0)}")
     if verdicts:
         lines.append(f"- verdict 분포: {json.dumps(verdicts, ensure_ascii=False)}")
@@ -1556,18 +1637,45 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
         lines.append("- 관찰된 auth_behavior_summaries 없음")
     lines.append("")
 
-    lines.append("## 10. 권고 조치")
+    lines.append("## 10. Method behavior context")
+    if method_behavior_summaries:
+        lines.append("- 아래 항목은 context-only 이며 개별 incident 승격이나 method success 확정 근거가 아닙니다.")
+        lines.append("- method_behavior_summaries 의 request 수는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, auth/ip behavior count 와 직접 합산하지 않습니다.")
+        for item in method_behavior_summaries[:5]:
+            method_counts = json.dumps(item.get("method_counts") or {}, ensure_ascii=False)
+            status_counts = json.dumps(item.get("status_counts") or {}, ensure_ascii=False)
+            risky_methods = ", ".join(item.get("risky_methods_observed") or []) or "-"
+            baseline_methods = ", ".join(item.get("baseline_methods_observed") or []) or "-"
+            reason_hints = ", ".join(item.get("reason_hints") or []) or "-"
+            lines.append(
+                f"- src_ip={normalize_str(item.get('src_ip')) or '-'} | "
+                f"window={normalize_str(item.get('window_start')) or '-'} ~ {normalize_str(item.get('window_end')) or '-'} | "
+                f"window_requests={safe_int(item.get('request_count'), 0)} | "
+                f"method_counts={method_counts} | status_counts={status_counts}"
+            )
+            lines.append(f"  - risky_methods={risky_methods}")
+            lines.append(f"  - baseline_methods={baseline_methods}")
+            lines.append(f"  - reason_hints={reason_hints}")
+            lines.append("  - 해석: method probing 또는 baseline comparison context 로만 본다.")
+            lines.append("  - 제한: OPTIONS/TRACE/PUT/DELETE/PATCH 의 status 만으로 method 허용, 업로드/삭제, XST, CORS 취약점을 단정하지 않는다.")
+            if bool(item.get("known_asset")):
+                lines.append("  - 주의: known asset IP 와 일치하므로 내부 테스트/운영 점검 가능성을 함께 고려해야 합니다.")
+    else:
+        lines.append("- 관찰된 method_behavior_summaries 없음")
+    lines.append("")
+
+    lines.append("## 11. 권고 조치")
     for item in report_json.get("recommended_actions") or []:
         lines.append(f"- **{normalize_str(item.get('priority'))}** {normalize_str(item.get('action'))}")
         lines.append(f"  - 근거: {normalize_str(item.get('why'))}")
     lines.append("")
 
-    lines.append("## 11. 신뢰도와 한계")
+    lines.append("## 12. 신뢰도와 한계")
     for item in report_json.get("confidence_and_limitations") or []:
         lines.append(f"- {normalize_str(item)}")
     lines.append("")
 
-    lines.append("## 12. 발표용 한 줄 정리")
+    lines.append("## 13. 발표용 한 줄 정리")
     lines.append(normalize_str(report_json.get("presentation_takeaway")))
     lines.append("")
 
@@ -1583,6 +1691,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
     ip_behavior_aggregates = report_input.get("ip_behavior_aggregates") or []
     auth_behavior_summaries = report_input.get("auth_behavior_summaries") or []
+    method_behavior_summaries = report_input.get("method_behavior_summaries") or []
     asset_context = report_input.get("asset_context") or {}
     behavior_scope_note = build_behavior_scope_note(ip_behavior_aggregates, auth_behavior_summaries)
     lines: List[str] = []
@@ -1604,6 +1713,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append(f"- probing sequence summary 수: {safe_int(counts.get('probing_sequence_summary_count'), len(probing_sequence_summaries))}")
     lines.append(f"- ip behavior aggregate 수: {safe_int(counts.get('ip_behavior_aggregate_count'), len(ip_behavior_aggregates))}")
     lines.append(f"- auth behavior summary 수: {safe_int(counts.get('auth_behavior_summary_count'), len(auth_behavior_summaries))}")
+    lines.append(f"- method behavior summary 수: {safe_int(counts.get('method_behavior_summary_count'), len(method_behavior_summaries))}")
     lines.append(f"- stage1 성공/오류: {safe_int(counts.get('stage1_success_count'), 0)} / {safe_int(counts.get('stage1_error_count'), 0)}")
     if filtered_rows:
         lines.append("- 후보 밖 주요 카테고리:")
@@ -1653,6 +1763,18 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
                 f"status_counts={json.dumps(item.get('status_counts') or {}, ensure_ascii=False)}"
             )
         lines.append("- auth 해석 제한: raw POST body 미확인 상태이며 HTTP 200 observed after repeated 401 이어도 로그인 성공 confirmed 로 단정하지 않는다.")
+    if method_behavior_summaries:
+        lines.append("- context-only method behavior summaries:")
+        lines.append("- method_behavior_summaries 의 request 수는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, auth/ip behavior count 와 직접 합산하지 않는다.")
+        for item in method_behavior_summaries[:5]:
+            lines.append(
+                f"  - src_ip={normalize_str(item.get('src_ip')) or '-'} | "
+                f"window_requests={safe_int(item.get('request_count'), 0)} | "
+                f"risky_methods={','.join(item.get('risky_methods_observed') or []) or '-'} | "
+                f"baseline_methods={','.join(item.get('baseline_methods_observed') or []) or '-'} | "
+                f"method_counts={json.dumps(item.get('method_counts') or {}, ensure_ascii=False)}"
+            )
+        lines.append("- method 해석 제한: OPTIONS/TRACE/PUT/DELETE/PATCH 의 status_code=200/201/204 만으로 method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점을 단정하지 않는다.")
     lines.append("")
     lines.append("## 상위 incident 미리보기")
     for item in incidents[:5]:
@@ -1678,9 +1800,10 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append("- dry-run 이므로 실제 LLM API 호출 없이 요약 입력만 검증했다.")
     lines.append("- incident 는 request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 병합했다.")
     lines.append("- filtered_out_breakdown 은 noise_summary 와 별도로 보존되며, 보고서 초안에도 함께 노출된다.")
-    lines.append("- auth_behavior_summaries 와 ip_behavior_aggregates 는 scope 가 다르므로 count 를 range 로 합치거나 같은 사건 수처럼 직접 합산하지 않는다.")
+    lines.append("- auth_behavior_summaries, method_behavior_summaries, ip_behavior_aggregates 는 scope 가 다르므로 count 를 range 로 합치거나 같은 사건 수처럼 직접 합산하지 않는다.")
     lines.append("- ip_behavior_aggregates 는 context-only 이며 개별 incident 승격이나 severity 상향 근거로 사용하지 않는다.")
     lines.append("- auth_behavior_summaries 는 context-only 이며 raw POST body 미확인 상태에서 auth sequence 문맥으로만 사용한다.")
+    lines.append("- method_behavior_summaries 는 context-only 이며 method probing / baseline 문맥으로만 사용하고 method 허용이나 성공 근거로 사용하지 않는다.")
     lines.append("- User-Agent 값은 evidence 로 참조할 수 있지만 lab-* 같은 실험 prefix 자체를 공격 근거로 사용하지 않는다.")
     return "\n".join(lines).strip() + "\n"
 

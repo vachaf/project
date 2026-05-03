@@ -293,6 +293,22 @@ AUTH_BEHAVIOR_WINDOW_SEC = 300
 AUTH_BEHAVIOR_RAPID_WINDOW_SEC = 60
 AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
 AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT = 3
+METHOD_BEHAVIOR_WINDOW_SEC = 300
+METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
+METHOD_RISKY_FAMILIES = ("OPTIONS", "TRACE", "PUT", "DELETE", "PATCH")
+METHOD_BASELINE_FAMILIES = ("GET", "HEAD")
+METHOD_DESTRUCTIVE_FAMILIES = {"PUT", "DELETE", "PATCH"}
+STANDARD_HTTP_METHODS = {
+    "GET",
+    "HEAD",
+    "POST",
+    "PUT",
+    "DELETE",
+    "CONNECT",
+    "OPTIONS",
+    "TRACE",
+    "PATCH",
+}
 EDUCATIONAL_SQL_SEARCH_TERMS = (
     "how to",
     "tutorial",
@@ -1825,6 +1841,260 @@ def build_auth_behavior_summaries(
     return summaries
 
 
+def classify_method_behavior_family(method: str) -> str:
+    normalized = normalize_text(method).upper()
+    if not normalized or normalized == "-":
+        return "unknown"
+    if normalized in METHOD_RISKY_FAMILIES:
+        return "risky"
+    if normalized in METHOD_BASELINE_FAMILIES:
+        return "baseline"
+    if normalized not in STANDARD_HTTP_METHODS:
+        return "unknown"
+    return "other"
+
+
+def has_method_protocol_anomaly(row: Dict[str, Any], method: str) -> bool:
+    normalized_method = normalize_text(method).upper()
+    if not normalized_method or normalized_method == "-":
+        return True
+    if not re.fullmatch(r"[A-Z!#$%&'*+.^_`|~-]{1,32}", normalized_method):
+        return True
+
+    protocol = normalize_text(row.get("protocol"))
+    if protocol and not re.fullmatch(r"HTTP/\d(?:\.\d)?", protocol, re.IGNORECASE):
+        return True
+    return False
+
+
+def build_method_behavior_reason_hints_for_row(
+    row: Dict[str, Any],
+    *,
+    include_inference_limit: bool = False,
+) -> List[str]:
+    method = get_method(row)
+    family = classify_method_behavior_family(method)
+    hints: List[str] = []
+    normalized_method = normalize_text(method).upper()
+
+    if family == "risky":
+        method_hint = {
+            "OPTIONS": "method_probe:options",
+            "TRACE": "method_probe:trace",
+            "PUT": "method_probe:put",
+            "DELETE": "method_probe:delete",
+            "PATCH": "method_probe:patch",
+        }.get(normalized_method)
+        if method_hint:
+            append_unique_hint(hints, method_hint)
+        if normalized_method in METHOD_DESTRUCTIVE_FAMILIES:
+            append_unique_hint(hints, "method_probe:destructive_method")
+    elif family == "baseline":
+        baseline_hint = {
+            "HEAD": "baseline:normal_head",
+            "GET": "baseline:normal_get",
+        }.get(normalized_method)
+        if baseline_hint:
+            append_unique_hint(hints, baseline_hint)
+    elif family == "unknown" or has_method_protocol_anomaly(row, normalized_method):
+        append_unique_hint(hints, "method_probe:unsupported_method")
+
+    if include_inference_limit and hints:
+        append_unique_hint(hints, "method_probe:no_method_success_inference")
+    return hints
+
+
+def finalize_method_behavior_bucket(
+    items: List[Dict[str, Any]],
+    window_sec: int,
+) -> Optional[Dict[str, Any]]:
+    if not items:
+        return None
+
+    sorted_items = sorted(items, key=lambda item: item["dt"])
+    method_counts = Counter(normalize_text(item.get("method")).upper() or "-" for item in sorted_items)
+    status_counts = Counter(str(safe_int(item.get("status_code"), 0)) for item in sorted_items)
+
+    risky_methods_observed: List[str] = []
+    baseline_methods_observed: List[str] = []
+    sample_request_ids: List[str] = []
+    unsupported_method_observed = False
+    protocol_anomaly_observed = False
+
+    for item in sorted_items:
+        method = normalize_text(item.get("method")).upper() or "-"
+        family = raw_text(item.get("method_family"))
+        if family == "risky":
+            append_unique_hint(risky_methods_observed, method)
+        elif family == "baseline":
+            append_unique_hint(baseline_methods_observed, method)
+        elif family == "unknown":
+            unsupported_method_observed = True
+
+        if bool(item.get("protocol_anomaly")):
+            protocol_anomaly_observed = True
+
+        sample_request_id = normalize_text(item.get("sample_request_id"))
+        if sample_request_id and len(sample_request_ids) < METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT:
+            append_unique_hint(sample_request_ids, sample_request_id)
+
+    should_emit = any(
+        (
+            len(risky_methods_observed) >= 2,
+            bool(risky_methods_observed) and bool(baseline_methods_observed),
+            unsupported_method_observed,
+            protocol_anomaly_observed,
+        )
+    )
+    if not should_emit:
+        return None
+
+    reason_hints: List[str] = []
+    for item in sorted_items:
+        extend_unique_hints(
+            reason_hints,
+            build_method_behavior_reason_hints_for_row(item, include_inference_limit=False),
+        )
+    if len(method_counts) >= 2:
+        append_unique_hint(reason_hints, "method_probe:mixed_method_sequence")
+    append_unique_hint(reason_hints, "method_probe:no_method_success_inference")
+
+    return {
+        "context_role": "method_behavior_context",
+        "aggregate_scope": "same_src_ip_method_time_window",
+        "should_promote_to_candidate": False,
+        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
+        "window_start": normalize_text(sorted_items[0].get("log_time")),
+        "window_end": normalize_text(sorted_items[-1].get("log_time")),
+        "burst_window_sec": window_sec,
+        "request_count": len(sorted_items),
+        "method_counts": dict(sorted(method_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
+        "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
+        "risky_methods_observed": risky_methods_observed,
+        "baseline_methods_observed": baseline_methods_observed,
+        "sample_request_ids": sample_request_ids,
+        "reason_hints": reason_hints,
+        "interpretation_limit": "no_method_success_inference_from_apache_logs",
+    }
+
+
+def build_method_behavior_summaries(
+    rows: List[Dict[str, Any]],
+    window_sec: int = METHOD_BEHAVIOR_WINDOW_SEC,
+) -> List[Dict[str, Any]]:
+    rows_by_ip: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        src_ip = get_src_ip(row)
+        if not src_ip or src_ip == "-":
+            continue
+
+        log_time = choose_best_time(row)
+        dt = parse_flexible_iso_dt(log_time or "")
+        if dt is None:
+            continue
+
+        method = get_method(row)
+        method_family = classify_method_behavior_family(method)
+        protocol_anomaly = has_method_protocol_anomaly(row, method)
+        if method_family == "other" and not protocol_anomaly:
+            continue
+
+        rows_by_ip[src_ip].append(
+            {
+                "src_ip": src_ip,
+                "log_time": log_time,
+                "dt": dt,
+                "method": method,
+                "method_family": method_family,
+                "status_code": get_status_code(row),
+                "sample_request_id": get_sample_request_id(row),
+                "protocol_anomaly": protocol_anomaly,
+            }
+        )
+
+    summaries: List[Dict[str, Any]] = []
+    for items in rows_by_ip.values():
+        sorted_items = sorted(items, key=lambda item: item["dt"])
+        bucket: List[Dict[str, Any]] = []
+        bucket_start: Optional[datetime] = None
+        for item in sorted_items:
+            if not bucket:
+                bucket = [item]
+                bucket_start = item["dt"]
+                continue
+
+            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
+                bucket.append(item)
+                continue
+
+            summary = finalize_method_behavior_bucket(bucket, window_sec=window_sec)
+            if summary:
+                summaries.append(summary)
+            bucket = [item]
+            bucket_start = item["dt"]
+
+        summary = finalize_method_behavior_bucket(bucket, window_sec=window_sec)
+        if summary:
+            summaries.append(summary)
+
+    summaries.sort(
+        key=lambda item: (
+            safe_int(item.get("request_count"), 0),
+            len(item.get("risky_methods_observed") or []),
+            len(item.get("baseline_methods_observed") or []),
+            normalize_text(item.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return summaries
+
+
+def build_method_behavior_summary_contexts(
+    method_behavior_summaries: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    contexts: List[Dict[str, Any]] = []
+    for summary in method_behavior_summaries:
+        src_ip = normalize_text(summary.get("src_ip"))
+        window_start = normalize_text(summary.get("window_start"))
+        window_end = normalize_text(summary.get("window_end"))
+        start_dt = parse_flexible_iso_dt(window_start)
+        end_dt = parse_flexible_iso_dt(window_end)
+        if not src_ip or start_dt is None or end_dt is None:
+            continue
+        contexts.append(
+            {
+                "src_ip": src_ip,
+                "start_dt": start_dt,
+                "end_dt": end_dt,
+            }
+        )
+    return contexts
+
+
+def row_is_covered_by_method_behavior_context(
+    row: Dict[str, Any],
+    method_behavior_contexts: List[Dict[str, Any]],
+) -> bool:
+    if not method_behavior_contexts:
+        return False
+
+    method_hints = build_method_behavior_reason_hints_for_row(row, include_inference_limit=False)
+    if not method_hints:
+        return False
+
+    src_ip = get_src_ip(row)
+    row_dt = parse_flexible_iso_dt(choose_best_time(row) or "")
+    if not src_ip or row_dt is None:
+        return False
+
+    for context in method_behavior_contexts:
+        if context["src_ip"] != src_ip:
+            continue
+        if context["start_dt"] <= row_dt <= context["end_dt"]:
+            return True
+    return False
+
+
 def build_auth_behavior_summary_contexts(
     auth_behavior_summaries: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
@@ -2547,6 +2817,7 @@ def sanitize_filtered_reason_hints(
     row: Dict[str, Any],
     reason_hints: Iterable[str],
     analysis_texts: Iterable[str],
+    method_behavior_contexts: Optional[List[Dict[str, Any]]] = None,
 ) -> List[str]:
     sanitized = [raw_text(hint) for hint in reason_hints if raw_text(hint)]
     if not sanitized:
@@ -2570,6 +2841,12 @@ def sanitize_filtered_reason_hints(
         raw_request_target=raw_request_target,
     ):
         return [hint for hint in sanitized if not hint.startswith("dir_probe:")]
+
+    if row_is_covered_by_method_behavior_context(row, method_behavior_contexts or []):
+        method_hints = build_method_behavior_reason_hints_for_row(row, include_inference_limit=False)
+        if method_hints:
+            preserved_hints = [hint for hint in sanitized if not hint.startswith("dir_probe:")]
+            return unique_non_empty_texts(method_hints + preserved_hints)
 
     return sanitized
 
@@ -2823,7 +3100,10 @@ def classify_filtered_noise_category(
     return "low_signal_fuzzing"
 
 
-def build_filtered_row_payload(row: Dict[str, Any]) -> Dict[str, Any]:
+def build_filtered_row_payload(
+    row: Dict[str, Any],
+    method_behavior_contexts: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     raw_req_original = "" if row.get("raw_request") is None else str(row.get("raw_request")).strip()
     uri = get_uri(row)
     qs = normalize_text(row.get("query_string"))
@@ -2863,6 +3143,7 @@ def build_filtered_row_payload(row: Dict[str, Any]) -> Dict[str, Any]:
         row,
         get_probe_sequence_reason_hints(probe_path),
         analysis_texts=analysis_texts,
+        method_behavior_contexts=method_behavior_contexts,
     )
 
     return {
@@ -3483,6 +3764,8 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
     )
     probing_sequence_summaries = build_probing_sequence_summaries(all_rows)
     ip_behavior_aggregates = build_ip_behavior_aggregates(all_rows)
+    method_behavior_summaries = build_method_behavior_summaries(all_rows)
+    method_behavior_contexts = build_method_behavior_summary_contexts(method_behavior_summaries)
     false_positive_review_candidates = [
         item
         for item in (
@@ -3525,6 +3808,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "probing_sequence_summaries_are_context_only": True,
                 "ip_behavior_aggregates_are_context_only": True,
                 "auth_behavior_summaries_are_context_only": True,
+                "method_behavior_summaries_are_context_only": True,
             },
             "thresholds": {
                 "candidate_min_score": min_score,
@@ -3534,6 +3818,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "ip_behavior_window_sec": IP_BEHAVIOR_WINDOW_SEC,
                 "auth_behavior_window_sec": AUTH_BEHAVIOR_WINDOW_SEC,
                 "auth_behavior_rapid_window_sec": AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
+                "method_behavior_window_sec": METHOD_BEHAVIOR_WINDOW_SEC,
             },
             "counts": {
                 "total_exported_rows": safe_int(original_meta.get("total_count"), len(all_rows)),
@@ -3552,6 +3837,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "probing_sequence_summaries": len(probing_sequence_summaries),
                 "ip_behavior_aggregates": len(ip_behavior_aggregates),
                 "auth_behavior_summaries": len(auth_behavior_summaries),
+                "method_behavior_summaries": len(method_behavior_summaries),
             },
             "filtered_out_breakdown": dict(noise_counter),
         },
@@ -3563,9 +3849,13 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         "probing_sequence_summaries": probing_sequence_summaries,
         "ip_behavior_aggregates": ip_behavior_aggregates,
         "auth_behavior_summaries": auth_behavior_summaries,
+        "method_behavior_summaries": method_behavior_summaries,
     }
 
-    filtered_payload = [build_filtered_row_payload(r) for r in non_aggregated_filtered]
+    filtered_payload = [
+        build_filtered_row_payload(r, method_behavior_contexts=method_behavior_contexts)
+        for r in non_aggregated_filtered
+    ]
 
     return llm_input, candidate_payload, noise_payload, filtered_payload
 

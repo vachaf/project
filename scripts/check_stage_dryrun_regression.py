@@ -85,6 +85,7 @@ def flatten_strings(value: Any) -> List[str]:
         return []
     if isinstance(value, dict):
         values: List[str] = []
+        values.extend(stringify(key) for key in value.keys() if stringify(key))
         for nested in value.values():
             values.extend(flatten_strings(nested))
         return values

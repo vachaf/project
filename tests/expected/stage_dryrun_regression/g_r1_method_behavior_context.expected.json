@@ -1,0 +1,146 @@
+{
+  "description": "Stage dry-run should preserve method behavior summaries as context-only method probing context without asserting method success.",
+  "MUST": [
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.method_behavior_summary_count",
+      "message": "method behavior summary count exists"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.method_behavior_summary_count",
+      "equals": 1,
+      "message": "method behavior summary count is preserved"
+    },
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.method_behavior_summary_policy",
+      "message": "method behavior summary policy exists"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.method_behavior_summary_policy.success_rule",
+      "contains": "method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점을 단정하지 않음",
+      "message": "method behavior policy keeps no-success-inference rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.behavior_scope_separation_policy.non_merge_rule",
+      "contains": "method_behavior_summaries",
+      "message": "behavior scope separation policy includes method behavior summaries"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "method_behavior_summaries.0.context_role",
+      "equals": "method_behavior_context",
+      "message": "method behavior summary keeps context role"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "method_behavior_summaries.0.should_promote_to_candidate",
+      "equals": false,
+      "message": "method behavior summary stays non-promoting"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "method_behavior_summaries.0.interpretation_limit",
+      "equals": "no_method_success_inference_from_apache_logs",
+      "message": "method behavior summary keeps interpretation limit"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.candidate_rows",
+      "equals": 0,
+      "message": "method behavior fixture does not create candidates"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "method_behavior_summaries 가 있으면 이는 context-only",
+      "message": "stage2 prompt includes method behavior context-only rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "XST 성공",
+      "message": "stage2 prompt explicitly cautions about XST success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "context-only method behavior summaries:",
+      "message": "markdown includes method behavior context section"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "method 해석 제한",
+      "message": "markdown includes method interpretation limitation"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "risky_methods=",
+      "message": "markdown includes risky method list"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "baseline_methods=",
+      "message": "markdown includes baseline method list"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "업로드 성공",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert upload success"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "삭제 성공",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert delete success"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "XST 성공",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert XST success"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "CORS 취약점",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert CORS vulnerability success"
+    }
+  ]
+}

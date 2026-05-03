@@ -1,0 +1,170 @@
+{
+  "metadata": {
+    "allow_public_target": false,
+    "base_url": "http://192.168.56.105",
+    "ended_at": null,
+    "files": {
+      "metadata_json": "lab/05-03_G세트R1_산출물/runner_logs/run_metadata.json",
+      "plan_json": "lab/05-03_G세트R1_산출물/runner_logs/execution_plan.json",
+      "plan_md": "lab/05-03_G세트R1_산출물/runner_logs/execution_plan.md",
+      "results_jsonl": "lab/05-03_G세트R1_산출물/runner_logs/request_results.jsonl",
+      "summary_md": "lab/05-03_G세트R1_산출물/runner_logs/run_summary.md"
+    },
+    "mode": "execute",
+    "request_count": 6,
+    "scenario": "all",
+    "sleep_scale": 1.0,
+    "started_at": "2026-05-03T10:00:11+09:00",
+    "stores_request_body_content": false,
+    "stores_response_body_content": false,
+    "target_class": "private-ip",
+    "timeout_sec": 10.0
+  },
+  "requests": [
+    {
+      "expected_interpretation": [
+        "method discovery/probing possibility",
+        "CORS/method exposure success must not be inferred"
+      ],
+      "expected_observation": [
+        "method=OPTIONS",
+        "status_code 관찰",
+        "response_body_bytes 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/",
+      "interpretation_limit": "no_cors_or_method_exposure_success_inference",
+      "method": "OPTIONS",
+      "path": "/",
+      "request_body_bytes": 0,
+      "request_label": "options_root_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "G-R1-01",
+      "scenario_label": "options_root",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "lab-g-set-r1-options"
+    },
+    {
+      "expected_interpretation": [
+        "TRACE method exposure probing possibility",
+        "XST success must not be inferred"
+      ],
+      "expected_observation": [
+        "method=TRACE",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/",
+      "interpretation_limit": "no_xst_success_inference_without_response_body",
+      "method": "TRACE",
+      "path": "/",
+      "request_body_bytes": 0,
+      "request_label": "trace_root_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "G-R1-02",
+      "scenario_label": "trace_root",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "lab-g-set-r1-trace"
+    },
+    {
+      "expected_interpretation": [
+        "upload/write method probing possibility",
+        "file upload/write success must not be inferred"
+      ],
+      "expected_observation": [
+        "method=PUT",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/upload/g_probe.txt",
+      "interpretation_limit": "no_file_write_success_inference",
+      "method": "PUT",
+      "path": "/upload/g_probe.txt",
+      "request_body_bytes": 7,
+      "request_label": "put_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "G-R1-03",
+      "scenario_label": "put_probe",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "lab-g-set-r1-put"
+    },
+    {
+      "expected_interpretation": [
+        "destructive method probing possibility",
+        "resource deletion success must not be inferred"
+      ],
+      "expected_observation": [
+        "method=DELETE",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/api/resource/g_probe",
+      "interpretation_limit": "no_resource_delete_success_inference",
+      "method": "DELETE",
+      "path": "/api/resource/g_probe",
+      "request_body_bytes": 0,
+      "request_label": "delete_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "G-R1-04",
+      "scenario_label": "delete_probe",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "lab-g-set-r1-delete"
+    },
+    {
+      "expected_interpretation": [
+        "normal baseline possibility",
+        "should not be promoted as attack by method alone"
+      ],
+      "expected_observation": [
+        "method=HEAD",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/",
+      "interpretation_limit": "baseline_head_no_attack_inference",
+      "method": "HEAD",
+      "path": "/",
+      "request_body_bytes": 0,
+      "request_label": "head_root_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "G-R1-05",
+      "scenario_label": "head_root",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "lab-g-set-r1-head"
+    },
+    {
+      "expected_interpretation": [
+        "normal baseline",
+        "should not be promoted as method probing"
+      ],
+      "expected_observation": [
+        "method=GET",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/",
+      "interpretation_limit": "baseline_get_no_attack_inference",
+      "method": "GET",
+      "path": "/",
+      "request_body_bytes": 0,
+      "request_label": "get_root_request",
+      "scaled_sleep_after_sec": 0.0,
+      "scenario_id": "G-R1-06",
+      "scenario_label": "get_root",
+      "sleep_after_sec": 0.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "lab-g-set-r1-get"
+    }
+  ]
+}

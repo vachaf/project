@@ -101,6 +101,7 @@ G세트는 아래를 목표로 하지 않는다.
 - `OPTIONS` / `TRACE` / `PUT` / `DELETE` / `HEAD`가 Apache 로그에 어떻게 남는지 확인
 - unsupported/risky method가 candidate 또는 context로 보존되는지 확인
 - 정상 `HEAD`와 위험 method를 구분할 수 있는지 확인
+- 2026-05-03 prepare-only 확인에서 mixed method row가 전부 `low_signal_fuzzing` + `dir_probe:burst`로만 남는 문제가 확인되어, 후속 prepare 개선에서는 `method_behavior_summaries`로 method context를 별도 보존한다.
 
 실행 방식:
 

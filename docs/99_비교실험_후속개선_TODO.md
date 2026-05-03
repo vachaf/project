@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-02
+- 기준 시점: 2026-05-03
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 원칙: 완료된 항목은 이 문서에 길게 유지하지 않는다.
 
@@ -69,6 +69,11 @@
   - reconnaissance
   - misconfiguration 가능성
 - 성공/침해 단정 금지
+- 현재 상태:
+  - prepare `method_behavior_summaries` 추가 완료
+  - mixed `OPTIONS/TRACE/PUT/DELETE/HEAD/GET` window 를 context-only 로 보존하고 `dir_probe:*` 단독 hint 문제 완화 완료
+  - Stage2 method behavior 설명 보강은 dry-run 기준 최소 반영 완료
+  - 실제 LLM 샘플 기준 narrative 튜닝은 후속 검토 여지 있음
 
 ## P5. 실제 LLM 샘플 검증 체계
 

@@ -1,0 +1,349 @@
+{
+  "description": "Mixed risky and baseline HTTP methods should be preserved as context-only method behavior summaries without inferring method success from Apache logs.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80",
+        "context_role": "method_behavior_context",
+        "aggregate_scope": "same_src_ip_method_time_window",
+        "should_promote_to_candidate": false
+      },
+      "message": "method behavior summary created as context-only"
+    },
+    {
+      "op": "exists",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80",
+        "request_count": 6
+      },
+      "message": "method behavior summary captures the full mixed-method window"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "reason_hints",
+      "contains": "method_probe:options",
+      "message": "options method probe hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "reason_hints",
+      "contains": "method_probe:trace",
+      "message": "trace method probe hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "reason_hints",
+      "contains": "method_probe:put",
+      "message": "put method probe hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "reason_hints",
+      "contains": "method_probe:delete",
+      "message": "delete method probe hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_head",
+      "message": "head baseline hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_get",
+      "message": "get baseline hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "reason_hints",
+      "contains": "method_probe:no_method_success_inference",
+      "message": "method no-success-inference hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "interpretation_limit",
+      "contains": "no_method_success_inference_from_apache_logs",
+      "message": "method behavior summary keeps no-success-inference interpretation limit"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "method_counts",
+      "contains": "OPTIONS",
+      "message": "method counts preserve OPTIONS"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "method_counts",
+      "contains": "TRACE",
+      "message": "method counts preserve TRACE"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "method_counts",
+      "contains": "PUT",
+      "message": "method counts preserve PUT"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "method_counts",
+      "contains": "DELETE",
+      "message": "method counts preserve DELETE"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "method_counts",
+      "contains": "HEAD",
+      "message": "method counts preserve HEAD"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "method_counts",
+      "contains": "GET",
+      "message": "method counts preserve GET"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "risky_methods_observed",
+      "contains": "OPTIONS",
+      "message": "risky methods preserve OPTIONS"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "risky_methods_observed",
+      "contains": "TRACE",
+      "message": "risky methods preserve TRACE"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "risky_methods_observed",
+      "contains": "PUT",
+      "message": "risky methods preserve PUT"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "risky_methods_observed",
+      "contains": "DELETE",
+      "message": "risky methods preserve DELETE"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "baseline_methods_observed",
+      "contains": "HEAD",
+      "message": "baseline methods preserve HEAD"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "baseline_methods_observed",
+      "contains": "GET",
+      "message": "baseline methods preserve GET"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r1-options-1"
+      },
+      "field": "reason_hints",
+      "contains": "method_probe:options",
+      "message": "filtered OPTIONS row keeps method probe hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r1-head-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_head",
+      "message": "filtered HEAD row keeps baseline hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r1-get-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_get",
+      "message": "filtered GET row keeps baseline hint"
+    },
+    {
+      "op": "collection_count_at_most",
+      "collection": "analysis_candidates",
+      "value": 0,
+      "message": "mixed method fixture must not promote any candidate"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "g-r1-head-1"
+      },
+      "message": "HEAD baseline row must not be promoted to a candidate"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "g-r1-get-1"
+      },
+      "message": "GET baseline row must not be promoted to a candidate"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r1-options-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "filtered OPTIONS row must not keep dir_probe:* hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r1-trace-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "filtered TRACE row must not keep dir_probe:* hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r1-put-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "filtered PUT row must not keep dir_probe:* hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r1-delete-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "filtered DELETE row must not keep dir_probe:* hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r1-head-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "filtered HEAD row must not keep dir_probe:* hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "g-r1-get-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "filtered GET row must not keep dir_probe:* hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "method_behavior_summaries",
+      "where": {
+        "src_ip": "198.51.100.80"
+      },
+      "field": "reason_hints",
+      "contains": "upload_success",
+      "message": "method behavior summary must not assert upload success"
+    }
+  ]
+}
