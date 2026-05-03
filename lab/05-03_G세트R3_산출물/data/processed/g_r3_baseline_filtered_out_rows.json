@@ -1,0 +1,98 @@
+[
+  {
+    "source_table": "security",
+    "noise_category": "low_signal_fuzzing",
+    "log_time": "2026-05-03T12:16:00.730 09:00",
+    "src_ip": "192.168.56.1",
+    "method": "HEAD",
+    "uri": "/health",
+    "query_string": "",
+    "status_code": 200,
+    "request_id": "afa98G9UCohTklHv-MPOGQAAAJc",
+    "error_link_id": "",
+    "user_agent": "HealthCheck/1.0",
+    "raw_request": "HEAD /health HTTP/1.1",
+    "response_body_bytes": 0,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/health",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "reason_hints": [
+      "baseline:normal_head"
+    ]
+  },
+  {
+    "source_table": "security",
+    "noise_category": "benign_normal_search",
+    "log_time": "2026-05-03T12:16:01.754 09:00",
+    "src_ip": "192.168.56.1",
+    "method": "OPTIONS",
+    "uri": "/",
+    "query_string": "",
+    "status_code": 204,
+    "request_id": "afa98W9UCohTklHv-MPOGgAAAJg",
+    "error_link_id": "",
+    "user_agent": "Mozilla/5.0 regression-browser",
+    "raw_request": "OPTIONS / HTTP/1.1",
+    "response_body_bytes": 0,
+    "resp_content_type": "",
+    "raw_request_target": "/",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "reason_hints": [
+      "method_probe:options"
+    ]
+  },
+  {
+    "source_table": "security",
+    "noise_category": "benign_normal_search",
+    "log_time": "2026-05-03T12:16:02.760 09:00",
+    "src_ip": "192.168.56.1",
+    "method": "GET",
+    "uri": "/",
+    "query_string": "",
+    "status_code": 200,
+    "request_id": "afa98l9TYrFq3zXDH9-VkQAAANQ",
+    "error_link_id": "",
+    "user_agent": "Mozilla/5.0 regression-browser",
+    "raw_request": "GET / HTTP/1.1",
+    "response_body_bytes": 75002,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "reason_hints": [
+      "baseline:normal_get"
+    ]
+  },
+  {
+    "source_table": "security",
+    "noise_category": "low_signal_fuzzing",
+    "log_time": "2026-05-03T12:16:03.774 09:00",
+    "src_ip": "192.168.56.1",
+    "method": "GET",
+    "uri": "/",
+    "query_string": "",
+    "status_code": 200,
+    "request_id": "afa9819TYrFq3zXDH9-VkgAAANU",
+    "error_link_id": "",
+    "user_agent": "InternalMonitor/1.0",
+    "raw_request": "GET / HTTP/1.1",
+    "response_body_bytes": 75002,
+    "resp_content_type": "text/html",
+    "raw_request_target": "/",
+    "path_normalized_from_raw_request": false,
+    "likely_html_fallback_response": false,
+    "hpp_detected": false,
+    "hpp_param_names": [],
+    "reason_hints": [
+      "baseline:normal_get"
+    ]
+  }
+]

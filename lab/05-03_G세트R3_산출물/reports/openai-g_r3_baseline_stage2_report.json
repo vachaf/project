@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "generated_at": "2026-05-03T12:18:07.281+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.1",
+      "192.168.56.105",
+      "192.168.56.109",
+      "192.168.56.110",
+      "192.168.56.111"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_0484c00c2e8b2aa40169f6be665a5c8193977aeccf248a59b3",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/lab/05-03_G세트R3_산출물/data/processed/openai-g_r3_baseline_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/lab/05-03_G세트R3_산출물/data/processed/openai-g_r3_baseline_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 웹 로그 사건형 분석 요약 (2026-05-03 12:15:56~12:16:10 KST)",
+    "overall_assessment": "이번 구간에서는 확정적인 침해나 성공적 악용으로 볼 만한 고신호 사건은 분류되지 않았습니다. 다만 192.168.56.1에서 내부 자산으로 보이는 출발지 기준의 저신호 탐색성 요청과 method probing 정황이 관찰되어, 내부 테스트·운영 점검 가능성을 함께 열어둔 상태로 보수적으로 해석하는 것이 적절합니다.",
+    "executive_summary": [
+      "분석 시간 구간: 2026-05-03 12:15:56~12:16:10(KST), 총 14개 수집 행 중 후보 사건은 0건이었습니다.",
+      "필터링된 요청은 저신호 퍼징 5건, 정상 검색 비교군 2건으로 정리되었으며, 공격 성공을 뒷받침하는 근거는 확인되지 않았습니다.",
+      "192.168.56.1은 내부 자산 IP와 일치하므로 외부 공격자 단정은 부적절하고, 내부 테스트/자체 호출/운영 점검 가능성을 함께 고려해야 합니다.",
+      "같은 IP에서 HEAD/GET 중심의 baseline 요청과 OPTIONS 1건이 함께 보여 method probing 또는 점검성 트래픽 가능성이 있으나, Apache 로그만으로 성공 여부는 단정할 수 없습니다."
+    ],
+    "key_findings": [
+      {
+        "title": "고신호 사건 부재",
+        "detail": "이번 분석 창에는 analysis candidate 로 승격된 사건이 없었습니다. 즉, 확정적인 침투, 파일 유출, 인증 성공, XSS 실행 성공으로 해석할 수 있는 증거는 제공되지 않았습니다.",
+        "severity": "info"
+      },
+      {
+        "title": "내부 자산 IP에서의 저신호 탐색성 요청",
+        "detail": "192.168.56.1에서 low_signal_fuzzing 5건과 method behavior context 1건이 관찰되었습니다. User-Agent가 InternalMonitor/1.0 이고 HEAD/GET baseline 요청이 다수이며 OPTIONS 1건이 포함되어 있어, 자동화된 점검·테스트성 트래픽 또는 경미한 탐색 정황으로 해석하는 것이 적절합니다.",
+        "severity": "low"
+      },
+      {
+        "title": "정상 검색 비교군이 함께 존재",
+        "detail": "filtered_out_breakdown 에 benign_normal_search 2건이 포함되어 있어, 일부 요청은 후보 밖 탐색이 아니라 같은 엔드포인트의 정상 비교군으로 보는 것이 맞습니다. 이는 공격 성공이나 비정상 행위의 증거가 아니라 비교 문맥입니다.",
+        "severity": "info"
+      },
+      {
+        "title": "method probing 정황은 있으나 성공 근거는 없음",
+        "detail": "method_behavior_summaries 에서 HEAD 4, GET 2, OPTIONS 1이 관찰되었고 상태코드는 200/204였습니다. 그러나 이는 OPTIONS method discovery 또는 probing 수준으로만 해석해야 하며, Apache 로그만으로 업로드·삭제·권한 우회·취약점 악용 성공을 단정할 수 없습니다.",
+        "severity": "low"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "N/A",
+        "request_id": "N/A",
+        "src_ip": "192.168.56.1",
+        "verdict": "후보 사건 없음",
+        "severity": "info",
+        "why_it_matters": "이번 구간에서 개별 incident 로 승격된 요청은 없었습니다. 다만 내부 자산 IP에서의 저신호 퍼징과 method probing 문맥은 남아 있어, 운영 점검 또는 내부 테스트인지 확인할 가치가 있습니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.1",
+        "reason": "known_asset_ips 와 일치하는 내부 자산 IP입니다. HEAD/GET 중심 요청과 OPTIONS 1건이 함께 보여 내부 테스트, 자체 호출, 또는 운영 점검 가능성을 우선 고려해야 합니다."
+      }
+    ],
+    "noise_interpretation": "필터링된 7건은 low_signal_fuzzing 5건(71.4%)과 benign_normal_search 2건(28.6%)으로 구성됩니다. low_signal_fuzzing 은 후보 밖 탐색성 요청으로, benign_normal_search 는 같은 endpoint 의 정상 비교군으로 해석하는 것이 맞습니다. 특히 192.168.56.1에서 반복된 HEAD 요청과 1건의 OPTIONS는 강한 공격 신호라기보다 경량 점검·자동화 탐색 문맥에 가깝습니다. 단, 정상 baseline 이 근접해 있다고 해서 탐색성 요청의 의도를 낮추지는 않으며, 단지 비교 문맥으로만 사용해야 합니다.",
+    "recommended_actions": [
+      {
+        "priority": "P2",
+        "action": "192.168.56.1의 요청 주체를 내부 점검 자산, 모니터링 도구, 또는 자동화 테스트 계정과 대조해 소유 부서를 확인하세요.",
+        "why": "known asset IP 에서 발생한 요청이므로 외부 공격으로 단정하지 말고 내부 업무 목적 여부를 먼저 검증하는 것이 필요합니다."
+      },
+      {
+        "priority": "P2",
+        "action": "OPTIONS 요청과 반복 HEAD/GET 패턴이 의도된 점검인지 확인하고, 동일 시간대에 관리자 경로 또는 민감 경로 접근이 더 있었는지 추가 상관분석을 수행하세요.",
+        "why": "현재 로그만으로는 성공 여부를 단정할 수 없지만, 짧은 시간 내 method probing 패턴은 점검성 트래픽 또는 초기 탐색일 수 있습니다."
+      },
+      {
+        "priority": "P3",
+        "action": "후속 분석 시 raw request target, response body, 애플리케이션 로그를 함께 확인해 실제 노출이나 실행 성공 여부를 분리 검증하세요.",
+        "why": "Apache 로그만으로는 file disclosure, XSS 실행, 인증 성공 여부를 확정할 수 없기 때문입니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "원본 DB 로그가 아니라 1차 분류 후 요약 데이터만 제공되어 있어 세부 요청 단위의 재검증에는 한계가 있습니다.",
+      "Apache 로그 표면만으로는 response body 원문, raw POST body, 서버 내부 상태를 볼 수 없으므로 성공 여부는 보수적으로 해석했습니다.",
+      "known_asset IP 인 경우 내부 테스트·자체 호출·운영 점검 가능성을 배제할 수 없으며, 공격자 단정은 피했습니다.",
+      "이번 구간에서는 candidate 사건이 0건이어서 고신호 침해 정황보다는 저신호 탐색 문맥 중심의 해석이 적절합니다."
+    ],
+    "presentation_takeaway": "이번 구간은 확정 침해보다 내부 자산에서 발생한 저신호 탐색·점검성 트래픽이 핵심입니다. 즉시 경보를 울릴 수준의 사건은 없지만, 192.168.56.1의 요청 주체와 목적을 확인해 내부 테스트인지 운영 점검인지 정리해 두는 것이 좋습니다."
+  }
+}
