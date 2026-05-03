@@ -20,7 +20,8 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "baseline:favicon",
+      "baseline:static_asset"
     ]
   },
   {
@@ -44,7 +45,8 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "baseline:robots_txt",
+      "baseline:no_crawler_policy_inference"
     ]
   },
   {
@@ -68,7 +70,8 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "baseline:sitemap_xml",
+      "baseline:no_site_structure_inference"
     ]
   },
   {
@@ -92,7 +95,9 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "baseline:static_asset",
+      "baseline:static_js",
+      "baseline:no_js_execution_inference"
     ]
   },
   {
@@ -116,7 +121,8 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "baseline:static_asset",
+      "baseline:static_css"
     ]
   },
   {
@@ -140,7 +146,9 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "baseline:static_asset",
+      "baseline:static_image",
+      "baseline:no_file_exposure_inference"
     ]
   },
   {
@@ -164,7 +172,8 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "baseline:health_check",
+      "baseline:no_health_status_inference"
     ]
   },
   {
@@ -188,7 +197,7 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "baseline:normal_get"
     ]
   }
 ]
