@@ -1,0 +1,120 @@
+# Apache 웹 로그 사건형 분석 요약: 경량 정찰성 요청 및 후보 밖 탐색 패턴
+
+- 생성 시각: 2026-05-03T16:06:21.665+09:00
+- 분석 모드: routine
+- 사용 모델: gpt-5.4-mini
+- 분석 시간대: Asia/Seoul
+- 분석 구간: 2026-05-03T15:39:29.000+09:00 ~ 2026-05-03T15:39:44.000+09:00
+- known asset IP: 192.168.56.1, 192.168.56.105, 192.168.56.109, 192.168.56.110, 192.168.56.111
+
+## 1. 전체 평가
+이번 분석 구간에서는 1건의 저위험 정찰성 요청이 핵심 사건으로 남았고, 같은 출발지 IP에서 짧은 시간 동안 민감 경로를 넓게 훑는 후보 밖 탐색성 요청이 함께 관찰되었습니다. 다만 Apache 로그 표면만으로는 실제 파일 노출, 인증 성공, XSS 실행, 또는 침해 성공을 확정할 수 없습니다. 특히 대상 IP가 known asset 이므로 내부 테스트, 자체 호출, 운영 점검 트래픽일 가능성도 함께 열어두고 해석하는 것이 적절합니다.
+
+## 2. 경영 요약
+- 분석 시간창 내 핵심 incident 는 `/server-status` 접근 1건으로, 서버 상태 페이지를 노린 정찰성 요청으로 해석됩니다.
+- 동일 출발지 IP `192.168.56.1`에서 `/wp-login.php`, `/wp-admin/`, `/.env`, `/phpinfo.php`, `/backup.zip` 등을 짧은 시간에 반복 조회한 흐름이 보여 후보 밖 탐색성이 동반되었습니다.
+- 응답 코드 403이 일부 있어 접근 제어는 동작한 정황이 보이지만, 로그만으로 민감 정보 노출이나 침해 성공은 확인되지 않습니다.
+- 대상 IP가 known asset 이므로 외부 공격 단정보다는 내부 테스트/운영 점검 가능성까지 포함해 상관분석하는 것이 안전합니다.
+
+## 3. 파이프라인 요약
+- 전체 export row 수: 20
+- 1차 후보 row 수: 1
+- distinct incident 수: 1
+- filtered out row 수: 7
+- filtered out 비집계 row 수: 7
+- noise 집계 그룹 수: 0
+- static baseline summary 수: 0
+- crawler baseline summary 수: 0
+- ip behavior aggregate 수: 1
+- auth behavior summary 수: 0
+- method behavior summary 수: 0
+- protocol anomaly summary 수: 0
+- stage1 성공/오류: 1 / 0
+- verdict 분포: {"suspicious_scan": 1}
+- severity 분포: {"low": 1}
+- 대표 source table 분포: {"security": 1}
+- filtered_out 세부 분포: {"low_signal_dir_probe": 6, "low_signal_fuzzing": 1}
+- 후보 밖 주요 카테고리: low_signal_dir_probe 6건 (85.7%), low_signal_fuzzing 1건 (14.3%)
+
+## 4. 핵심 발견
+- **/server-status 정찰성 요청 1건이 주된 incident 로 남음** [low] - `GenericScanner/1.0` User-Agent 와 함께 `/server-status`를 요청했고 403으로 차단되었습니다. 서버 상태 페이지를 노리는 전형적인 탐색 시도로 볼 수 있으나, 응답 차단 때문에 실제 정보 노출이나 추가 악용은 확인되지 않았습니다.
+- **같은 출발지에서 민감 경로를 짧은 시간에 연속 탐색** [low] - 동일 IP `192.168.56.1`에서 `/wp-login.php`, `/wp-admin/`, `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip` 등이 8~9건 규모로 짧은 시간에 관찰되어 reconnaissance 또는 directory probing 흐름으로 해석됩니다. 다만 이는 후보 밖 탐색성 요청이며, 개별 요청을 침해 성공으로 승격할 근거는 없습니다.
+- **known asset IP 이므로 내부성 트래픽 가능성도 큼** [info] - 관측된 출발지 IP `192.168.56.1`은 known asset 목록과 일치합니다. 따라서 외부 공격자로 단정하기보다 내부 테스트, 자체 호출, 운영 점검, 보안 점검 스캐닝 가능성을 함께 고려해야 합니다.
+- **후보 밖 분포는 low_signal_dir_probe 중심** [info] - 필터링된 요청은 `low_signal_dir_probe` 6건과 `low_signal_fuzzing` 1건으로 집계되어, 본 구간의 대부분이 약한 탐색성 트래픽이었음을 보여줍니다. 다만 이 분포만으로 공격 성공 여부는 판단할 수 없습니다.
+
+## 5. 주목할 사건
+- request_id=afbtqV9TYrFq3zXDH9-VpAAAAMQ | src_ip=192.168.56.1 | verdict=suspicious_scan | severity=low
+  - 이유: `/server-status`는 서버 상태 정보 탐색 정황이 강한 경로이며, `GenericScanner/1.0`와 403 차단이 함께 보여 정찰성 요청으로 해석됩니다. 다만 차단 응답이므로 실제 서버 상태 노출이나 침해 성공은 확인되지 않았습니다.
+  - uri=/server-status | method=GET | status=403 | score=5 | log_time=2026-05-03T15:39:37.182 09:00
+  - incident_ref=request_id:afbtqV9TYrFq3zXDH9-VpAAAAMQ|table:security|log_id:31720|candidate:0 | merged_rows=1 | source_tables=security
+  - 주의: 이 출발지 IP 는 known asset 목록과 일치하므로 내부 테스트/자체 호출 가능성을 함께 고려해야 합니다.
+  - stage1 요약: `/server-status`는 서버 상태 페이지를 노리는 전형적인 정찰성 요청이며, `GenericScanner/1.0` 사용자 에이전트와 403 응답이 함께 보여 탐색 시도로 보는 것이 타당합니다. 다만 응답이 차단되었고 추가 공격 페이로드는 없어, 실제 침해 징후보다는 스캔 수준으로 보입니다.
+
+## 6. 주목할 출발지 IP
+- 192.168.56.1: 유일한 핵심 incident 의 출발지이자, 동일 시간대에 민감 경로 다건 탐색과 후보 밖 directory probing 흐름이 함께 관찰된 IP입니다. known asset 과 일치하므로 내부 테스트/운영 점검 가능성도 함께 검토해야 합니다.
+
+참고: 위 출발지 IP 중 일부는 known asset 목록과 일치하므로, 실제 공격자 IP 로 단정하지 말고 내부 테스트/자체 호출 여부를 먼저 확인해야 합니다.
+
+## 7. 후보 밖 문맥 요청
+필터링된 후보 밖 요청은 총 7건이며, 세부 분포는 `low_signal_dir_probe` 6건(85.7%)과 `low_signal_fuzzing` 1건(14.3%)입니다. 즉, 이 구간의 잡음은 주로 민감 경로를 얕게 훑는 탐색성 요청으로 구성되었고, 정상 비교군이나 reference baseline 은 별도로 제시되지 않았습니다. 또한 `probing_sequence_summaries` 에서는 200 text/html 응답이 반복되지만, Apache 로그 표면만으로는 fallback HTML인지 실제 민감 리소스 노출인지 구분할 수 없으므로 성공으로 해석하면 안 됩니다.
+
+정책:
+- low_signal_fuzzing / low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않습니다.
+- low_signal_fuzzing / low_signal_dir_probe 만 후보 밖 탐색성 요청으로 고정 표기합니다.
+- benign_normal_search / normal_search_baseline 과 supporting_role=reference_baseline 은 정상 baseline 또는 reference baseline 으로 설명합니다.
+- 동일 IP·동일 시간대·후속 고신호 incident 와 결합될 때만 승격 검토합니다.
+
+후보 밖 탐색성 요청 분포:
+- low_signal_dir_probe: 6건 (85.7%)
+- low_signal_fuzzing: 1건 (14.3%)
+
+Context-only probing sequence 요약:
+- src_ip=192.168.56.1 | window=2026-05-03T15:39:32.993 09:00 ~ 2026-05-03T15:39:43.265 09:00 | requests=8 | distinct_paths=5 | sample_paths=/wp-login.php, /wp-admin/, /.env, /server-status, /backup.zip
+  - 반복 응답 힌트: dominant_response_body_bytes=75002 | dominant_count=6
+  - 해석: Multiple low-signal directory probing paths from the same source in a short window. Context only; do not treat as confirmed compromise.
+
+## 8. Static baseline context
+- 관찰된 static_baseline_summaries 없음
+
+## 9. Crawler baseline context
+- 관찰된 crawler_baseline_summaries 없음
+
+## 10. IP behavior context
+- 아래 항목은 context-only 이며 개별 incident 승격이나 severity 상향 근거가 아닙니다.
+- ip_behavior_aggregates 의 request 수는 같은 src_ip/time window 기준 전체 또는 관련 요청 문맥 수이며, auth behavior count 와 직접 합산하지 않습니다.
+- src_ip=192.168.56.1 | window=2026-05-03T15:39:32.993 09:00 ~ 2026-05-03T15:39:43.265 09:00 | window_requests=9 | distinct_paths=6 | 4xx_ratio=0.22 | 5xx_count=0
+  - attempted_categories=dir_probe
+  - sensitive_path_hits=/wp-login.php, /wp-admin/, /.env, /server-status, /backup.zip
+  - reason_hints=ip_behavior:multi_path_burst, ip_behavior:sensitive_path_focus
+  - 해석: 같은 src_ip 에서 scanning-like 또는 reconnaissance-like behavior 가 관찰된 문맥으로만 본다.
+  - 제한: context_only_no_success_inference
+  - 주의: known asset IP 와 일치하므로 내부 테스트/운영 점검 가능성을 함께 고려해야 합니다.
+
+## 11. Auth behavior context
+- 관찰된 auth_behavior_summaries 없음
+
+## 12. Method behavior context
+- 관찰된 method_behavior_summaries 없음
+
+## 13. Protocol anomaly context
+- 관찰된 protocol_anomaly_summaries 없음
+
+## 14. 권고 조치
+- **P1** 해당 시간창의 원본 Apache 로그와 상관 로그를 재검토하여 `192.168.56.1`의 요청이 내부 점검, 취약점 스캐닝, 또는 우발적 자동화 트래픽인지 확인하십시오.
+  - 근거: known asset IP 이고, 단일 low-severity incident 와 후보 밖 탐색이 함께 있어 내부성 트래픽 여부 확인이 우선입니다.
+- **P2** `/server-status`, `/.env`, `/wp-login.php`, `/wp-admin/`, `/phpinfo.php`, `/backup.zip` 접근이 반복되는지 추가 기간으로 확장해 확인하고, 접근 제어 정책과 차단 로그를 대조하십시오.
+  - 근거: 짧은 시간의 다경로 탐색이 보여 재발 여부와 정책 효과를 확인할 필요가 있습니다.
+- **P2** `GenericScanner/1.0` 같은 비브라우저성 또는 자동화성 User-Agent 를 사용하는 트래픽을 내부 보안 점검 계정/장비와 매칭해보십시오.
+  - 근거: 정상 점검 트래픽일 가능성과 외부 스캐닝 가능성을 구분하는 데 도움이 됩니다.
+- **P3** 운영 절차상 필요한 경우 `server-status`, `phpinfo`, `backup.zip`, `.env` 등 민감 경로에 대해 추가 차단 또는 모니터링 규칙을 점검하십시오.
+  - 근거: 실제 노출은 확인되지 않았지만, 반복 탐색 경로 자체는 보안 운영 관점에서 관리 대상입니다.
+
+## 15. 신뢰도와 한계
+- Apache 로그만 사용했기 때문에 raw POST body, 브라우저 실행 여부, 서버 내부 파일 존재 여부, 실제 파일 내용 노출 성공은 확인할 수 없습니다.
+- `/server-status`의 403은 차단 정황을 의미하지만, 그 자체로 침해 성공을 뜻하지는 않습니다.
+- `probing_sequence_summaries` 와 `ip_behavior_aggregates` 는 모두 context-only 이므로 개별 incident 로 승격하지 않았습니다.
+- 대상 IP 가 known asset 이므로 공격 트래픽으로 단정하기보다 내부 테스트/운영 점검 가능성을 반드시 함께 고려해야 합니다.
+- 필터링된 저신호 요청은 실제로 존재하지만, 이들만으로는 성공적인 악용을 입증할 수 없습니다.
+
+## 16. 발표용 한 줄 정리
+이 구간은 ‘침해 성공’보다는 ‘known asset 에서 관찰된 경량 정찰 및 후보 밖 탐색’으로 요약하는 것이 정확합니다. 핵심은 `/server-status` 정찰 1건과 같은 출발지의 다경로 민감 탐색이며, 다음 단계는 원본 로그 상관분석으로 내부 점검 트래픽과 실제 스캔을 구분하는 것입니다.

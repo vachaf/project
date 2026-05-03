@@ -20,9 +20,11 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst",
-      "dir_probe:sensitive_path",
-      "dir_probe:admin_path"
+      "sensitive_path:wp_login",
+      "sensitive_path:admin_path",
+      "sensitive_path:no_app_presence_inference",
+      "sensitive_path:repeated_sensitive_path_sequence",
+      "sensitive_path:no_success_inference"
     ]
   },
   {
@@ -46,9 +48,11 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst",
-      "dir_probe:sensitive_path",
-      "dir_probe:admin_path"
+      "sensitive_path:wp_admin",
+      "sensitive_path:admin_path",
+      "sensitive_path:no_admin_access_inference",
+      "sensitive_path:repeated_sensitive_path_sequence",
+      "sensitive_path:no_success_inference"
     ]
   },
   {
@@ -72,8 +76,11 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst",
-      "dir_probe:sensitive_path"
+      "sensitive_path:env_file",
+      "sensitive_path:config_like_path",
+      "sensitive_path:no_file_exposure_inference",
+      "sensitive_path:repeated_sensitive_path_sequence",
+      "sensitive_path:no_success_inference"
     ]
   },
   {
@@ -97,8 +104,11 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst",
-      "dir_probe:sensitive_path"
+      "sensitive_path:env_file",
+      "sensitive_path:config_like_path",
+      "sensitive_path:no_file_exposure_inference",
+      "sensitive_path:repeated_sensitive_path_sequence",
+      "sensitive_path:no_success_inference"
     ]
   },
   {
@@ -122,7 +132,11 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "sensitive_path:phpinfo",
+      "sensitive_path:diagnostic_path",
+      "sensitive_path:no_phpinfo_exposure_inference",
+      "sensitive_path:repeated_sensitive_path_sequence",
+      "sensitive_path:no_success_inference"
     ]
   },
   {
@@ -146,8 +160,10 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst",
-      "dir_probe:sensitive_path"
+      "sensitive_path:backup_artifact",
+      "sensitive_path:no_backup_exposure_inference",
+      "sensitive_path:repeated_sensitive_path_sequence",
+      "sensitive_path:no_success_inference"
     ]
   },
   {
@@ -171,8 +187,10 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst",
-      "dir_probe:sensitive_path"
+      "sensitive_path:backup_artifact",
+      "sensitive_path:no_backup_exposure_inference",
+      "sensitive_path:repeated_sensitive_path_sequence",
+      "sensitive_path:no_success_inference"
     ]
   }
 ]
