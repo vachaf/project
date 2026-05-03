@@ -43,7 +43,7 @@ baseline/known asset/false positive 가능성을 함께 설명하는가?
 
 ## 2. 샘플 목록
 
-1차 검증은 최근 산출물이 안정적인 F/G/H 4개 샘플로 시작했다.
+1차 검증은 최근 산출물이 안정적인 F/G/H 5개 샘플로 시작했다.
 
 | 샘플 | 목적 | 사용 산출물 |
 |---|---|---|
@@ -51,6 +51,7 @@ baseline/known asset/false positive 가능성을 함께 설명하는가?
 | G R2 | Protocol anomaly | `openai-g_r2_protocol_anomaly_*` |
 | H R2 | Crawler-like baseline | `openai-h_r2_crawler_baseline_*` |
 | H R3 | Scanner-like sensitive path | `openai-h_r3_scanner_low_signal_*` |
+| H R4 | Mixed benign + scanner-like | `openai-h_r4_mixed_baseline_scanner_*` |
 
 ---
 
@@ -327,7 +328,83 @@ scanner-like sensitive path를 low severity context로 설명했고,
 
 ---
 
-## 7. 종합 평가
+## 7. H R4 — Mixed benign + scanner-like
+
+### 7.1 입력 요약
+
+H R4는 정상 browse/static/crawler-like 요청과 scanner-like sensitive path가 같은 src_ip/time window에 섞였을 때 Stage2가 문맥을 분리해서 설명하는지 확인한 샘플이다.
+
+주요 prepare / Stage2 input 요약:
+
+```text
+total_exported_rows=45
+candidate_rows=1
+filtered_out_rows=21
+static_baseline_summaries=1
+crawler_baseline_summaries=1
+sensitive_path_probe_summaries=1
+mixed_baseline_scanner_summaries=1
+ip_behavior_aggregates=1
+```
+
+대표 candidate:
+
+```text
+GET /server-status -> 403
+verdict=suspicious_scan
+severity=low
+```
+
+### 7.2 Stage1 평가
+
+Stage1은 `/server-status` 대표 candidate 1건을 처리했다.
+
+```text
+verdict=suspicious_scan
+severity=low
+confidence=high
+```
+
+평가:
+
+```text
+- /server-status를 정찰성 요청으로 설명
+- 실제 server-status 노출이나 침해 성공 단정 없음
+- known asset 문맥 병기 가능성 유지
+```
+
+### 7.3 Stage2 평가
+
+| 항목 | 점수 | 메모 |
+|---|---:|---|
+| 성공 단정 금지 | 2 | .env/backup/wp-login/server-status 노출·침해 성공 단정 없음 |
+| 로그 한계 반영 | 2 | body 미확인과 Apache 로그 한계를 반영 |
+| context-only 준수 | 2 | static/crawler/sensitive/mixed/ip context를 분리해 설명 |
+| severity 적정성 | 1 | top incident는 low이나 key finding 중 하나가 medium으로 표현됨 |
+| baseline/FP 가능성 병기 | 1 | known asset/내부 테스트 가능성은 병기되나 mixed context의 baseline/FP 성격을 더 명시할 여지 있음 |
+
+총점: **8/10**
+
+### 7.4 결론
+
+H R4는 통과하되 wording 개선 후보로 본다.
+
+```text
+mixed baseline + scanner-like 상황에서 성공 단정은 피했고,
+context-only summary도 대체로 잘 설명했다.
+다만 key finding severity가 대표 incident severity보다 높게 표현된 점은 Stage2 severity guidance 보강의 근거가 되었다.
+```
+
+개선 후보:
+
+```text
+- key_findings severity가 top_incident severity를 불필요하게 넘지 않도록 guidance 보강
+- mixed context에서 baseline과 scanner-like context가 단일 공격 체인처럼 보이지 않도록 wording 관리
+```
+
+---
+
+## 8. 종합 평가
 
 | 샘플 | 점수 | 판정 |
 |---|---:|---|
@@ -335,18 +412,19 @@ scanner-like sensitive path를 low severity context로 설명했고,
 | G R2 | 10/10 | 통과 |
 | H R2 | 9/10 | 통과 |
 | H R3 | 10/10 | 통과 |
+| H R4 | 8/10 | 통과, wording 개선 후보 |
 
-평균 점수:
+총점:
 
 ```text
-38 / 40 = 95%
+46 / 50 = 92%
 ```
 
 1차 F/G/H 실제 LLM 샘플 검증은 성공적으로 본다.
 
 ---
 
-## 8. 반복적으로 확인된 좋은 점
+## 9. 반복적으로 확인된 좋은 점
 
 ```text
 - 성공/침해/유출 단정을 피함
@@ -358,9 +436,9 @@ scanner-like sensitive path를 low severity context로 설명했고,
 
 ---
 
-## 9. 발견된 개선 후보
+## 10. 발견된 개선 후보
 
-### 9.1 Stage2 오타
+### 10.1 Stage2 오타
 
 H R2 보고서에서 `crawller-like` 오타가 있었다.
 
@@ -370,7 +448,18 @@ crawller-like -> crawler-like
 
 기능 문제는 아니지만, Stage2 wording 개선 후보로 남긴다.
 
-### 9.2 category 표현 세분화
+### 10.2 key_findings severity 일관성
+
+H R4 보고서에서 key finding severity가 대표 incident보다 높게 표현된 사례가 있었다.
+
+```text
+representative incident: suspicious_scan / low
+key finding: medium
+```
+
+이 문제는 성공 단정은 아니지만 report consistency 관점에서 감점 요소다. 이후 Stage2 guidance에 key finding severity ceiling 원칙을 보강했다.
+
+### 10.3 category 표현 세분화
 
 아래 category는 장기적으로 세분화할 수 있다.
 
@@ -386,11 +475,12 @@ crawler_like_baseline
 sensitive_path_probe_context
 static_asset_baseline
 health_check_error_context
+mixed_baseline_scanner_context
 ```
 
 현재는 top-level summaries가 문맥을 보존하므로 급한 문제는 아니다.
 
-### 9.3 실제 LLM 자동 검증은 아직 보류
+### 10.4 실제 LLM 자동 검증은 아직 보류
 
 이번 수동 검증 결과는 좋지만, 자동화는 아직 이르다.
 
@@ -404,7 +494,7 @@ health_check_error_context
 
 ---
 
-## 10. 결론
+## 11. 결론
 
 F/G/H 실제 LLM 샘플 1차 검증 결과, 현재 Stage1/Stage2는 Apache 로그 기반 보수적 해석 원칙을 대체로 잘 지킨다.
 
@@ -414,8 +504,10 @@ F/G/H 실제 LLM 샘플 1차 검증 결과, 현재 Stage1/Stage2는 Apache 로�
 - 실제 성공/침해/노출 단정을 하지 않음
 - context-only 구조를 적절히 설명함
 - baseline/FP 가능성을 병기함
-- severity가 과도하지 않음
+- severity가 대체로 과도하지 않음
 ```
+
+H R4에서 severity wording 불일치가 발견되었으나, 이는 성공/침해 단정 문제가 아니라 report consistency 문제다. Stage2 key finding severity guidance 보강으로 후속 대응했다.
 
 따라서 현재 Stage2 prompt/guidance는 F/G/H 범위에서는 사용 가능한 수준으로 평가한다.
 
