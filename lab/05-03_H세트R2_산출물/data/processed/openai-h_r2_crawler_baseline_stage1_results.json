@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "generated_at": "2026-05-03T15:09:18.271+09:00",
+    "input_file": "/opt/web_log_analysis/lab/05-03_H세트R2_산출물/data/processed/openai-h_r2_crawler_baseline_llm_input.json",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "base_url": "https://api.openai.com/v1",
+    "source_window": {
+      "start": "2026-05-03T14:48:07.000+09:00",
+      "end_exclusive": "2026-05-03T14:48:22.000+09:00"
+    },
+    "source_query_timezone": "Asia/Seoul",
+    "source_exported_at": "2026-05-03T14:48:29.134+09:00",
+    "source_prepared_at": "2026-05-03T15:09:18.220+09:00",
+    "source_counts": {
+      "total_exported_rows": 16,
+      "selected_source_rows": 8,
+      "filtered_out_rows": 8,
+      "filtered_out_non_aggregated_rows": 8,
+      "noise_group_count": 0,
+      "candidate_rows_before_auth_behavior_reduction": 0,
+      "auth_behavior_demoted_candidate_rows": 0,
+      "candidate_rows_before_dedup": 0,
+      "candidate_rows": 0,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 0,
+      "supporting_events": 0,
+      "false_positive_review_candidates": 0,
+      "probing_sequence_summaries": 0,
+      "static_baseline_summaries": 1,
+      "crawler_baseline_summaries": 1,
+      "ip_behavior_aggregates": 1,
+      "auth_behavior_summaries": 0,
+      "method_behavior_summaries": 0,
+      "protocol_anomaly_summaries": 0
+    },
+    "candidate_group_summary_count": 0,
+    "preserved_candidate_identity_fields": [
+      "incident_group_key",
+      "merged_row_count",
+      "merged_source_tables",
+      "merged_log_ids",
+      "method",
+      "query_string",
+      "verdict_hint",
+      "reason_hints",
+      "error_link_id",
+      "response_body_bytes",
+      "resp_content_type",
+      "raw_request_target",
+      "path_normalized_from_raw_request",
+      "likely_html_fallback_response"
+    ],
+    "processed_candidate_count": 0,
+    "success_count": 0,
+    "error_count": 0
+  },
+  "results": []
+}

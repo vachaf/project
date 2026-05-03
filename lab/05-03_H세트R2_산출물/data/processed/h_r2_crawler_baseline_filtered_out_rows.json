@@ -20,8 +20,13 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "baseline:robots_txt",
-      "baseline:no_crawler_policy_inference"
+      "crawler_like:googlebot_like_ua",
+      "crawler_like:ua_spoofable",
+      "crawler_like:no_crawler_authenticity_inference",
+      "crawler_like:robots_txt",
+      "crawler_like:no_crawler_policy_inference",
+      "crawler_like:repeated_crawl_sequence",
+      "crawler_like:no_attack_inference"
     ]
   },
   {
@@ -45,8 +50,13 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "baseline:sitemap_xml",
-      "baseline:no_site_structure_inference"
+      "crawler_like:googlebot_like_ua",
+      "crawler_like:ua_spoofable",
+      "crawler_like:no_crawler_authenticity_inference",
+      "crawler_like:sitemap_xml",
+      "crawler_like:no_site_structure_inference",
+      "crawler_like:repeated_crawl_sequence",
+      "crawler_like:no_attack_inference"
     ]
   },
   {
@@ -70,7 +80,13 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "crawler_like:generic_crawler_ua",
+      "crawler_like:ua_spoofable",
+      "crawler_like:no_crawler_authenticity_inference",
+      "crawler_like:product_browse",
+      "crawler_like:no_page_existence_inference",
+      "crawler_like:repeated_crawl_sequence",
+      "crawler_like:no_attack_inference"
     ]
   },
   {
@@ -94,7 +110,13 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "crawler_like:generic_crawler_ua",
+      "crawler_like:ua_spoofable",
+      "crawler_like:no_crawler_authenticity_inference",
+      "crawler_like:product_browse",
+      "crawler_like:no_page_existence_inference",
+      "crawler_like:repeated_crawl_sequence",
+      "crawler_like:no_attack_inference"
     ]
   },
   {
@@ -118,7 +140,13 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "crawler_like:generic_crawler_ua",
+      "crawler_like:ua_spoofable",
+      "crawler_like:no_crawler_authenticity_inference",
+      "crawler_like:category_browse",
+      "crawler_like:no_page_existence_inference",
+      "crawler_like:repeated_crawl_sequence",
+      "crawler_like:no_attack_inference"
     ]
   },
   {
@@ -142,6 +170,7 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
+      "crawler_like:normal_browse",
       "baseline:normal_get"
     ]
   },
@@ -166,8 +195,13 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "baseline:robots_txt",
-      "baseline:no_crawler_policy_inference"
+      "crawler_like:generic_crawler_ua",
+      "crawler_like:ua_spoofable",
+      "crawler_like:no_crawler_authenticity_inference",
+      "crawler_like:robots_txt",
+      "crawler_like:no_crawler_policy_inference",
+      "crawler_like:repeated_crawl_sequence",
+      "crawler_like:no_attack_inference"
     ]
   },
   {
@@ -191,8 +225,13 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "baseline:sitemap_xml",
-      "baseline:no_site_structure_inference"
+      "crawler_like:generic_crawler_ua",
+      "crawler_like:ua_spoofable",
+      "crawler_like:no_crawler_authenticity_inference",
+      "crawler_like:sitemap_xml",
+      "crawler_like:no_site_structure_inference",
+      "crawler_like:repeated_crawl_sequence",
+      "crawler_like:no_attack_inference"
     ]
   }
 ]
