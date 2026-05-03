@@ -26,6 +26,7 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 - `status_code=200`, `text/html`, `response_body_bytes`는 보조 지표이지 성공 증거가 아니다.
 - `PUT` / `DELETE` / `TRACE` / `OPTIONS`는 method behavior context로 보되 업로드·삭제·XST·CORS 취약점 성공을 단정하지 않는다.
 - malformed request, bad protocol, missing/odd Host는 protocol anomaly context로만 보고 우회/침해 성공을 단정하지 않는다.
+- 정상 `HEAD` / `GET` / browser-like `OPTIONS` / monitoring UA는 baseline 또는 FP bait로 우선 해석한다.
 - provider별 표현 차이는 있지만 최종 판단은 Apache 로그 표면 지표를 기준으로 보정한다.
 
 ---
@@ -44,6 +45,7 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 | F세트 R2B | 응답 차이 관찰형 | existing/nonexistent/lockout-probe 의도 그룹 모두 401/26B로 유사하게 관찰. user enumeration/lockout 발동 단정 불가 | Round 2B 완료 |
 | G세트 R1 | HTTP method probing | OPTIONS/TRACE/PUT/DELETE/HEAD/GET를 `method_behavior_summaries`로 context-only 보존. HEAD/GET baseline 과승격 없음 | Round 1 완료 |
 | G세트 R2 | protocol / malformed request | FAKEMETHOD, HTTP/1.0, bad protocol, missing/odd Host, long path를 `protocol_anomaly_summaries`로 context-only 보존 | Round 2 완료 |
+| G세트 R3 | baseline / FP bait | HEAD/GET/OPTIONS/monitoring UA baseline이 candidate로 과승격되지 않음. `method_behavior_summaries`로만 context 보존 | Round 3 완료 |
 
 ---
 
@@ -211,11 +213,43 @@ long path
 - protocol bypass, malformed request 우회, 서버 침해 성공은 단정하지 않았다.
 - Stage2는 protocol anomaly context를 보수적으로 설명했다.
 
+### G세트 R3
+
+G R3는 `lab/g_set/run_g_r3_baseline.py` Python runner 기반으로 실행했다.
+
+| 항목 | 값 |
+|---|---:|
+| all export rows | 14 |
+| selected security rows | 7 |
+| candidate rows | 0 |
+| filtered out rows | 7 |
+| noise groups | 1 |
+| method behavior summaries | 1 |
+| protocol anomaly summaries | 0 |
+
+관찰된 baseline / FP bait:
+
+```text
+HEAD /health -> 200
+browser-like OPTIONS / -> 204
+GET / browser-like -> 200
+GET / InternalMonitor -> 200
+repeated HEAD / InternalMonitor x3 -> 200
+```
+
+결론:
+
+- 정상 `HEAD`, `GET`, browser-like `OPTIONS`, monitoring UA, repeated `HEAD`가 candidate로 과승격되지 않았다.
+- `method_behavior_summaries=1`로 baseline/method context가 보존되었다.
+- `protocol_anomaly_summaries=0`으로 protocol anomaly 오탐이 발생하지 않았다.
+- Stage2는 내부 테스트/운영 점검 가능성을 병기하면서 CORS 취약점, method 허용, 공격 성공을 단정하지 않았다.
+
 상세 문서:
 
 - `docs/98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md`
 - `lab/05-03_G세트R1_산출물/2026-05-03_G세트R1_비교.md`
 - `lab/05-03_G세트R2_산출물/2026-05-03_G세트R2_비교.md`
+- `lab/05-03_G세트R3_산출물/2026-05-03_G세트R3_비교.md`
 
 ---
 
@@ -265,14 +299,9 @@ py_compile 주요 스크립트 통과
 
 ## 8. 다음 우선순위
 
-1. G세트 R3 baseline / FP bait runner 설계
-   - normal HEAD health check
-   - browser-like OPTIONS preflight
-   - normal GET browse
-   - internal monitoring UA
-2. G R3 실행 전 정상 method/baseline 요청이 candidate로 과승격되지 않는지 기대 기준 정리
-3. 필요 시 baseline/reference context 보강
-4. 실제 LLM 샘플 검증 체계는 dry-run regression 유지 이후 후순위로 검토
+1. G세트 전체 결과 정리
+2. 필요 시 `normal_method_baseline` / `monitoring_baseline` / `preflight_context` 표현 개선 검토
+3. 실제 LLM 샘플 검증 체계 또는 후속 H세트 후보 검토
 
 ---
 
