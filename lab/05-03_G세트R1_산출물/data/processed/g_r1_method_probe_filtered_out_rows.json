@@ -20,7 +20,7 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "method_probe:options"
     ]
   },
   {
@@ -44,7 +44,7 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "method_probe:trace"
     ]
   },
   {
@@ -68,7 +68,8 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "method_probe:put",
+      "method_probe:destructive_method"
     ]
   },
   {
@@ -92,7 +93,8 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "method_probe:delete",
+      "method_probe:destructive_method"
     ]
   },
   {
@@ -116,7 +118,7 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "baseline:normal_head"
     ]
   },
   {
@@ -140,7 +142,7 @@
     "hpp_detected": false,
     "hpp_param_names": [],
     "reason_hints": [
-      "dir_probe:burst"
+      "baseline:normal_get"
     ]
   }
 ]

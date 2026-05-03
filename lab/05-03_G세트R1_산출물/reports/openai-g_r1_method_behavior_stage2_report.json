@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "generated_at": "2026-05-03T10:24:05.855+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.1",
+      "192.168.56.105",
+      "192.168.56.109",
+      "192.168.56.110",
+      "192.168.56.111"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_0d2f7bd3b26c09550169f6a3add3148193b619451338aedfc6",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/lab/05-03_G세트R1_산출물/data/processed/openai-g_r1_method_behavior_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/lab/05-03_G세트R1_산출물/data/processed/openai-g_r1_method_behavior_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 웹 로그 2차 분석 요약 (2026-05-03 10:00:06~10:00:18 KST)",
+    "overall_assessment": "이번 구간에서는 확정적인 침해나 성공한 악용 정황은 보이지 않았습니다. 전체 6건이 후보 밖(low_signal_fuzzing)으로 정리되었고, 주목할 만한 사건형 고신호는 없습니다. 다만 한 출발지 IP에서 짧은 시간에 여러 HTTP 메서드를 섞어 호출한 정황이 있어, 내부 테스트 또는 자동화된 메서드 점검 가능성을 포함한 탐색성 행위로는 볼 수 있습니다.",
+    "executive_summary": [
+      "분석 구간 내 6건 모두 후보 밖 탐색성 요청(low_signal_fuzzing)으로 분류되었습니다.",
+      "고신호 incident 는 없었고, 확정된 침해·노출·실행 성공 근거도 확인되지 않았습니다.",
+      "192.168.56.1 에서 OPTIONS/TRACE/PUT/DELETE 와 GET/HEAD 가 섞인 메서드 probing 패턴이 관찰되었습니다.",
+      "해당 IP 는 known_asset 범주와 일치하므로 내부 테스트, 자체 호출, 운영 점검 가능성을 함께 고려해야 합니다."
+    ],
+    "key_findings": [
+      {
+        "title": "후보 밖 탐색성 요청이 전체를 차지",
+        "detail": "분석된 6건은 모두 low_signal_fuzzing 으로 필터링되었고, 별도 incident 로 승격된 항목은 없습니다. 즉, 이번 구간의 주된 특징은 공격 성공보다 경미한 탐색성 요청의 존재입니다.",
+        "severity": "info"
+      },
+      {
+        "title": "192.168.56.1 의 메서드 probing 정황",
+        "detail": "같은 출발지에서 6건의 요청이 짧은 시간대에 집중되었고, OPTIONS, TRACE, PUT, DELETE 같은 위험 메서드와 GET, HEAD 같은 기준 메서드가 함께 관찰되었습니다. 이는 메서드 탐색 또는 점검성 트래픽으로 해석하는 것이 타당합니다.",
+        "severity": "low"
+      },
+      {
+        "title": "내부 자산 IP 와의 일치로 인한 해석 주의",
+        "detail": "192.168.56.1 은 known_asset_ips 에 포함되어 있어 외부 공격자 단정은 부적절합니다. 내부 테스트, 자동화 점검, 또는 자체 호출 트래픽일 가능성을 함께 두고 봐야 합니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "-",
+        "request_id": "-",
+        "src_ip": "192.168.56.1",
+        "verdict": "사건형 고신호 incident 없음. 다만 메서드 probing 문맥의 저신호 요청이 관찰됨.",
+        "severity": "info",
+        "why_it_matters": "짧은 시간 내 다양한 HTTP 메서드를 섞어 호출한 정황은 취약점 악용 전 점검 또는 내부 테스트일 수 있어, 운영 환경에서는 의도 확인이 필요합니다. 다만 Apache 로그만으로 업로드 성공, 삭제 성공, XST 성공은 단정할 수 없습니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.1",
+        "reason": "짧은 시간에 6건의 메서드 probing 정황이 관찰된 유일한 주목 IP입니다. known_asset 범주와도 일치하므로 내부 테스트 또는 운영 점검 가능성을 함께 고려해야 합니다."
+      }
+    ],
+    "noise_interpretation": "후보 밖 요청 6건은 모두 low_signal_fuzzing 으로 분류되었습니다. 필터링 세부 분포는 low_signal_fuzzing 100%이며, 별도의 benign_normal_search 나 normal_search_baseline 항목은 보이지 않습니다. 이번 구간의 잡음은 메서드 탐색성 요청 중심으로 해석하는 것이 적절합니다.",
+    "recommended_actions": [
+      {
+        "priority": "P2",
+        "action": "192.168.56.1 의 요청 주체를 내부 테스트/운영 점검/자동화 도구 중 무엇으로 운용했는지 확인하세요.",
+        "why": "known_asset IP 이고 비브라우저성·탐색성 메서드 조합이 관찰되어, 악성 여부보다 먼저 정상 운영 활동인지 확인하는 것이 실무적으로 우선입니다."
+      },
+      {
+        "priority": "P2",
+        "action": "OPTIONS, TRACE, PUT, DELETE 를 포함한 메서드 사용이 실제 운영에서 필요한지 점검하고, 필요 없으면 서버/프록시 레벨에서 제한을 검토하세요.",
+        "why": "메서드 probing 은 직접적인 침해 증거는 아니지만, 불필요한 메서드 노출은 공격 표면을 넓힐 수 있습니다."
+      },
+      {
+        "priority": "P3",
+        "action": "후속 분석 시 동일 IP 의 전후 시간대 요청과 인증 로그를 함께 상관분석하세요.",
+        "why": "현재 구간만으로는 의도와 영향도를 확정하기 어렵고, 짧은 burst 가 테스트인지 점검인지 추가 문맥이 필요합니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "원본 DB 로그가 아니라 전처리·1차 분류 요약만 사용했으므로, 세부 요청 본문이나 응답 본문 수준의 성공 여부는 확인할 수 없습니다.",
+      "Apache 로그 표면에서는 method probing, file disclosure, XSS 실행, 인증 성공 여부를 확정할 수 없습니다.",
+      "known_asset IP 와 겹치는 요청은 내부 테스트나 운영 점검일 수 있으므로 공격자 단정은 피했습니다.",
+      "이번 구간은 표본 수가 적고 모두 저신호로 분류되어, 위험도 평가는 보수적으로 해석해야 합니다."
+    ],
+    "presentation_takeaway": "이번 구간은 ‘침해 성공’보다는 ‘내부 자산에서 관찰된 메서드 탐색성 요청’으로 요약하는 것이 정확합니다. 즉시 필요한 조치는 공격 차단보다도 출발지의 정체와 운영 목적을 확인하는 것입니다."
+  }
+}
