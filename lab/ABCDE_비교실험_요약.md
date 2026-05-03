@@ -1,7 +1,7 @@
-# A~F 비교실험 요약
+# A~G 비교실험 요약
 
-- 작성일: 2026-05-02
-- 문서 역할: A~F세트 전체 실험 결과의 현재 요약
+- 작성일: 2026-05-03
+- 문서 역할: A~G세트 전체 실험 결과의 현재 요약
 - 기준 데이터: Apache `security` 로그 중심 산출물
 - 분석 원칙: Apache 로그 표면 지표 기반 보수적 해석
 
@@ -9,12 +9,12 @@
 
 ## 1. 전체 결론
 
-A~F세트 실험은 현재까지 주요 목적을 달성했다.
+A~G세트 실험은 현재까지 주요 목적을 달성했다.
 
 핵심 결론은 다음과 같다.
 
 ```text
-LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PHP file disclosure, L3 고신호 패턴, Auth/Login abuse context를 대체로 보수적으로 선별·요약할 수 있다.
+LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PHP file disclosure, L3 고신호 패턴, Auth/Login abuse context, HTTP method behavior context를 대체로 보수적으로 선별·요약할 수 있다.
 다만 이 파이프라인은 성공한 공격 판정기가 아니라, Apache 로그 표면에서 관찰 가능한 공격 정황을 정리하는 분석기다.
 ```
 
@@ -24,6 +24,7 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 - response body 원문이 없으면 파일 내용 노출이나 XSS 실행 성공을 확정하지 않는다.
 - raw POST body가 없으면 POST body payload, login credential, 인증 성공 여부를 확정하지 않는다.
 - `status_code=200`, `text/html`, `response_body_bytes`는 보조 지표이지 성공 증거가 아니다.
+- `PUT` / `DELETE` / `TRACE` / `OPTIONS`는 method behavior context로 보되 업로드·삭제·XST·CORS 취약점 성공을 단정하지 않는다.
 - provider별 표현 차이는 있지만 최종 판단은 Apache 로그 표면 지표를 기준으로 보정한다.
 
 ---
@@ -39,6 +40,8 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 | E세트 | OpenCart / PHP wrapper / search baseline | PHP wrapper file disclosure, direct config path 과승격 방지, search SQLi/XSS와 정상 baseline 분리 | 완료, 개선 반영 |
 | F세트 R1 | Auth/Login abuse | 반복 401, rapid burst, 401/200 혼재를 `auth_behavior_summaries`로 보존. candidate 43 → 3, supporting_events 0 → 40 | Round 1 완료 |
 | F세트 R2A | 저속/혼합/FP baseline | Python runner 기반 실행. 저속 반복 401, browse 혼재, Chrome/CI 200 baseline을 보수적으로 분리 | Round 2A 완료 |
+| F세트 R2B | 응답 차이 관찰형 | existing/nonexistent/lockout-probe 의도 그룹 모두 401/26B로 유사하게 관찰. user enumeration/lockout 발동 단정 불가 | Round 2B 완료 |
+| G세트 R1 | HTTP method probing | OPTIONS/TRACE/PUT/DELETE/HEAD/GET를 `method_behavior_summaries`로 context-only 보존. HEAD/GET baseline 과승격 없음 | Round 1 완료 |
 
 ---
 
@@ -56,10 +59,11 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 | normal search baseline 분리 | 정상 검색을 reference baseline으로 보존 | E |
 | ip_behavior_aggregates | same src_ip/time window 행동 문맥 보존 | D, E, F |
 | auth_behavior_summaries | 반복 auth endpoint, 401/200 혼재, rapid/저속 반복 문맥 보존 | F |
+| method_behavior_summaries | HTTP method probing과 baseline method를 성공 단정 없이 context로 보존 | G |
 | L3 high-signal hints | Log4Shell, SSRF, SSTI, webshell-like access 보존 | L3 fixture |
 | Stage dry-run regression | LLM 호출 없이 schema/prompt/report-input 골격 검증 | 전체 |
 | prepare 모듈 분리 1단계 | decoders/l3_hints를 동작 변경 없이 분리 | 전체 |
-| F세트 runner 도입 | curl 나열 대신 Python runner로 실험 재현성 개선 | F |
+| F/G세트 runner 도입 | curl 나열 대신 Python runner로 실험 재현성 개선 | F, G |
 
 ---
 
@@ -104,22 +108,85 @@ R2A는 `lab/f_set/run_f_r2a_auth_scenarios.py` Python runner 기반으로 실행
 - Chrome/CI 단독 200 login은 `auth_baseline_context`로 분리되었다.
 - Stage2는 known asset/IP 내부 테스트 가능성과 POST body 미확인 한계를 유지했다.
 
+### F세트 R2B
+
+R2B는 `lab/f_set/run_f_r2b_response_delta.py` Python runner 기반으로 실행했다.
+
+| 항목 | 값 |
+|---|---:|
+| 전체 export rows | 11 |
+| candidate rows | 3 |
+| supporting events | 8 |
+| filtered out rows | 0 |
+| ip behavior aggregates | 1 |
+| auth behavior summaries | 1 |
+
+결론:
+
+- existing/nonexistent/lockout-probe 의도 그룹 모두 Apache 표면에서는 `401 / 26B`로 유사하게 관찰되었다.
+- 계정 존재 여부, user enumeration 성공, lockout 발동은 단정할 수 없다.
+- 반복 401은 대표 candidate 3건과 supporting context 8건으로 정리되었다.
+- Stage2는 low severity와 response surface comparison 중심으로 보수적으로 설명했다.
+
 상세 문서:
 
 - `docs/98B_F세트_Auth_Login_Abuse_비교실험.md`
 - `docs/98B_F세트_Auth_Login_Abuse_R2.md`
 - `lab/05-02_F세트R1_산출물/2026-05-02_F세트R1_비교.md`
 - `lab/05-02_F세트R2A_산출물/2026-05-02_F세트R2A_비교.md`
+- `lab/05-02_F세트R2B_산출물/2026-05-02_F세트R2B_비교.md`
 
 ---
 
-## 5. 회귀 검증 상태
+## 5. G세트 요약
+
+G세트는 HTTP method / protocol surface behavior를 Apache 로그 표면에서 보수적으로 해석할 수 있는지 확인한다.
+
+### G세트 R1
+
+G R1은 `lab/g_set/run_g_r1_method_probe.py` Python runner 기반으로 실행했다.
+
+| 항목 | 값 |
+|---|---:|
+| 전체 export rows | 6 |
+| candidate rows | 0 |
+| filtered out rows | 6 |
+| method behavior summaries | 1 |
+| Stage1 processed candidates | 0 |
+
+관찰된 method:
+
+```text
+OPTIONS / -> 204
+TRACE / -> 405
+PUT /upload/g_probe.txt -> 200
+DELETE /api/resource/g_probe -> 500
+HEAD / -> 200
+GET / -> 200
+```
+
+결론:
+
+- 최초 prepare에서는 6건 모두 `low_signal_fuzzing + dir_probe:burst`로만 정리되어 method 문맥이 약했다.
+- 개선 후 `method_behavior_summaries=1`로 `OPTIONS/TRACE/PUT/DELETE/HEAD/GET`가 context-only 보존되었다.
+- `HEAD/GET` baseline은 candidate로 과승격되지 않았다.
+- `PUT/DELETE/TRACE/OPTIONS`의 성공 여부는 단정하지 않았다.
+- Stage2는 method behavior context를 보수적으로 설명했다.
+
+상세 문서:
+
+- `docs/98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md`
+- `lab/05-03_G세트R1_산출물/2026-05-03_G세트R1_비교.md`
+
+---
+
+## 6. 회귀 검증 상태
 
 현재 회귀 검증 기준:
 
 ```text
-prepare regression: 12 fixtures, warn=0 fail=0
-stage dry-run regression: 6 fixtures, warn=0 fail=0
+prepare regression: 13 fixtures, warn=0 fail=0
+stage dry-run regression: 7 fixtures, warn=0 fail=0
 py_compile 주요 스크립트 통과
 ```
 
@@ -135,16 +202,18 @@ py_compile 주요 스크립트 통과
 - ip_behavior_aggregates context-only
 - L3 high-signal hints
 - F세트 auth_behavior_summaries 및 repeated auth candidate noise 축소
+- G세트 method_behavior_summaries 및 method success 단정 금지
 
 ---
 
-## 6. 주요 한계 항목
+## 7. 주요 한계 항목
 
 | 항목 | 한계 |
 |---|---|
 | Time-based SQLi | 충분한 duration/ttfb 차이 미관찰 |
 | POST body payload | raw POST body가 보이지 않음 |
 | Auth/Login abuse | email/password, 인증 성공, 계정 탈취는 Apache 로그만으로 확정 불가 |
+| Method probing | PUT/DELETE/TRACE/OPTIONS의 실제 성공 여부는 Apache 로그만으로 확정 불가 |
 | response body 검증 | 파일 내용, XSS 반영, DB 결과 확인 불가 |
 | fallback HTML | 200 text/html 대용량 응답을 성공으로 보면 안 됨 |
 | PHP empty output | `/config.php` 200/0B를 안전 또는 성공으로 단정하면 안 됨 |
@@ -153,17 +222,20 @@ py_compile 주요 스크립트 통과
 
 ---
 
-## 7. 다음 우선순위
+## 8. 다음 우선순위
 
-1. F세트 R2B 실행 여부 결정
-   - user enumeration-like 응답 차이 관찰
-   - lockout probing-like response change 관찰
-2. R2B도 Python runner 방식으로 작성할지 검토
-3. G세트 HTTP method / protocol anomaly 설계
-4. 실제 LLM 샘플 검증 체계는 dry-run regression 유지 이후 후순위로 검토
+1. G세트 R2 protocol / malformed request runner 설계
+   - invalid method token
+   - bad protocol version
+   - Host header 이상
+   - long method/path
+2. G R2 실행 전 malformed request가 `security/access/error` 중 어디에 남는지 확인
+3. 필요 시 `protocol_anomaly:*` hint 보강
+4. G세트 R3 baseline / FP bait는 R2 이후 검토
+5. 실제 LLM 샘플 검증 체계는 dry-run regression 유지 이후 후순위로 검토
 
 ---
 
-## 8. 발표용 한 줄 정리
+## 9. 발표용 한 줄 정리
 
-A~F세트 결과, Apache 로그 기반 LLM 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PHP wrapper, L3 고신호 패턴, Auth/Login abuse context를 보수적으로 정리할 수 있음을 확인했다. 핵심은 실제 성공·유출·로그인 성공·침해 여부를 단정하지 않고, 로그 표면에서 관찰 가능한 시도와 문맥만 제한적으로 보고하는 것이다.
+A~G세트 결과, Apache 로그 기반 LLM 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PHP wrapper, L3 고신호 패턴, Auth/Login abuse context, HTTP method behavior context를 보수적으로 정리할 수 있음을 확인했다. 핵심은 실제 성공·유출·로그인 성공·침해·method 실행 결과를 단정하지 않고, 로그 표면에서 관찰 가능한 시도와 문맥만 제한적으로 보고하는 것이다.
