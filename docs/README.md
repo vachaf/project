@@ -39,8 +39,10 @@
 docs/
 ├── README.md
 ├── standards/
+│   ├── README.md
 │   └── 실험 문서 작성 표준, 공통 템플릿, naming rule
 ├── experiments/
+│   ├── README.md
 │   ├── A_set/
 │   ├── B_set/
 │   ├── C_set/
@@ -50,12 +52,16 @@ docs/
 │   ├── G_set/
 │   └── H_set/
 ├── design/
+│   ├── README.md
 │   └── 파이프라인 구조, regression 설계, prepare/module split 계획
 ├── reviews/
+│   ├── README.md
 │   └── 중간정리, LLM 샘플 검증, Stage2 wording 품질 검토
 ├── operations/
+│   ├── README.md
 │   └── 실행 가이드, export/prepare/stage1/stage2 사용법, 로컬 실험 환경 기준
 ├── planning/
+│   ├── README.md
 │   └── 후속 작업 계획, TODO, 우선순위 관리
 └── archive/
     └── 오래된 초안, 교체된 설계안, 더 이상 직접 참조하지 않는 문서
@@ -82,6 +88,15 @@ docs/
 
 추가로 A~E 세트 실험 문서, 환경 구축 문서, 운영 메모, 과거 TODO 성격 문서도 현재 `docs/` 루트에 함께 있다.
 
+## 5-1. 폴더별 인덱스
+
+- [experiments/README.md](./experiments/README.md): A~H 세트 실험 문서 인덱스
+- [standards/README.md](./standards/README.md): 공통 표준과 결과 기록 템플릿 인덱스
+- [design/README.md](./design/README.md): 설계, 회귀 검증, 해석 한계 문서 인덱스
+- [reviews/README.md](./reviews/README.md): 평가, 품질 검토, 샘플 리뷰 문서 인덱스
+- [operations/README.md](./operations/README.md): 운영, 환경 구축, 로그 구조 문서 인덱스
+- [planning/README.md](./planning/README.md): TODO와 우선순위 문서 인덱스
+
 ## 6. 향후 이동 후보
 
 아래는 실제 이동이 아니라 정리 방향이다. 링크가 아니라 현재 위치 기준의 이동 후보로 본다.
@@ -101,6 +116,7 @@ docs/
 - 이동 완료 리뷰/품질 문서: `docs/reviews/99_A-H세트_중간정리.md`, `docs/reviews/99_llm_sample_review_plan.md`, `docs/reviews/99_stage2_wording_quality_review.md`
 - 이동 완료 operations 문서: `docs/operations/00_전체_흐름_요약_가이드.md`, `docs/operations/01_운영_기준_실행_가이드.md`, `docs/operations/01_프로젝트_방향과_실험대상.md`, `docs/operations/02_Juice_shop_환경_구축_및_설치.md`, `docs/operations/02_LLM_환경_구축_및_설치.md`, `docs/operations/02_MariaDB_환경_구축_및_설치.md`, `docs/operations/02_OpenCart_환경_구축_및_설치.md`, `docs/operations/03_로그_표준과_DB_구조.md`, `docs/operations/04_로그_적재_및_운영.md`, `docs/operations/05_Export_LLM_분석_전략.md`, `docs/operations/06_통합_스크립트_설명_정리본.md`
 - 이동 완료 planning 문서: `docs/planning/99_비교실험_후속개선_TODO.md`
+- 하위 폴더별 README 추가 완료: `docs/experiments/README.md`, `docs/standards/README.md`, `docs/design/README.md`, `docs/reviews/README.md`, `docs/operations/README.md`, `docs/planning/README.md`
 - 별도 검토 필요 후보: `docs/가상환경_구성_요약.txt`
 - 현재 위치 기준 오래된 초안, 길어진 TODO, 직접 참조하지 않는 문서: 이동 후보 `docs/archive/`
 

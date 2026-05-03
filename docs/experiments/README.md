@@ -1,0 +1,47 @@
+# experiments
+
+## 목적
+
+- `experiments/`는 A~H 실험 세트별 설계 문서와 실행 요청 문서를 둔다.
+- 라운드별 세부 문서와 runner 전환 문서도 이 폴더 아래 세트별로 관리한다.
+- 실험 실행 결과와 산출물은 `lab/`에 둔다.
+
+## 문서 목록
+
+- `A_set`
+  - [A_set/98A_A세트_비교실험.md](./A_set/98A_A세트_비교실험.md): A세트 초기 비교 실험 문서
+- `B_set`
+  - [B_set/98B_B세트_비교실험.md](./B_set/98B_B세트_비교실험.md): B세트 SQLi 비교 실험 문서
+  - [B_set/98B_B세트_비교실험_라운드2.md](./B_set/98B_B세트_비교실험_라운드2.md): B세트 Round 2 재설계/비교 실험 문서
+  - [B_set/98B_B세트_SQLi_runner_전환.md](./B_set/98B_B세트_SQLi_runner_전환.md): B세트 SQLi runner 전환 문서
+- `C_set`
+  - [C_set/98B_C세트_비교실험.md](./C_set/98B_C세트_비교실험.md): C세트 XSS 비교 실험 문서
+  - [C_set/98B_C세트_XSS_runner_전환.md](./C_set/98B_C세트_XSS_runner_전환.md): C세트 XSS runner 전환 문서
+- `D_set`
+  - [D_set/98B_D세트_비교실험.md](./D_set/98B_D세트_비교실험.md): D세트 traversal/HPP/dir probe 계열 비교 실험 문서
+  - [D_set/98B_D세트_runner_전환.md](./D_set/98B_D세트_runner_전환.md): D세트 runner 전환 문서
+- `E_set`
+  - [E_set/98B_E세트_OpenCart_비교실험.md](./E_set/98B_E세트_OpenCart_비교실험.md): E세트 OpenCart 비교 실험 문서
+  - [E_set/98B_E세트_OpenCart_R2_R2B_php_wrapper.md](./E_set/98B_E세트_OpenCart_R2_R2B_php_wrapper.md): E세트 OpenCart R2/R2B PHP wrapper 관련 문서
+  - [E_set/98B_E세트_OpenCart_R3_R3B_search.md](./E_set/98B_E세트_OpenCart_R3_R3B_search.md): E세트 OpenCart R3/R3B search 관련 문서
+  - [E_set/98B_E세트_OpenCart_runner_전환.md](./E_set/98B_E세트_OpenCart_runner_전환.md): E세트 OpenCart runner 전환 문서
+- `F_set`
+  - [F_set/98B_F세트_Auth_Login_Abuse_비교실험.md](./F_set/98B_F세트_Auth_Login_Abuse_비교실험.md): F세트 Auth/Login abuse 비교 실험 문서
+  - [F_set/98B_F세트_Auth_Login_Abuse_R2.md](./F_set/98B_F세트_Auth_Login_Abuse_R2.md): F세트 Auth/Login abuse R2 문서
+- `G_set`
+  - [G_set/98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md](./G_set/98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md): G세트 HTTP method/protocol anomaly 비교 실험 문서
+- `H_set`
+  - [H_set/98B_H세트_Static_Crawler_Noise_비교실험.md](./H_set/98B_H세트_Static_Crawler_Noise_비교실험.md): H세트 static/crawler/scanner/mixed noise 비교 실험 문서
+
+## 읽는 순서
+
+1. [../standards/98_비교_실험_요청_세트_표준.md](../standards/98_비교_실험_요청_세트_표준.md)
+2. 해당 세트의 기본 비교실험 문서
+3. 라운드 문서나 runner 전환 문서
+4. `lab/` 산출물
+
+## 관리 원칙
+
+- 새 실험 요청 문서와 세트별 설계 문서는 해당 세트 폴더에 둔다.
+- 실험 실행 결과와 산출물은 `lab/`에 둔다.
+- 공통 절차, 작성 표준, 템플릿은 `standards/`에 둔다.
