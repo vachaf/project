@@ -99,16 +99,55 @@ G세트는 아래를 목표로 하지 않는다.
 - unsupported/risky method가 candidate 또는 context로 보존되는지 확인
 - 정상 `HEAD`와 위험 method를 구분할 수 있는지 확인
 
+실행 방식:
+
+- G R1은 긴 `curl` 나열보다 Python runner 사용을 권장한다.
+- runner 위치: `lab/g_set/run_g_r1_method_probe.py`
+- runner는 request body 원문과 response body 원문을 저장하지 않는다.
+- runner는 method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점 성공을 검증하지 않는다.
+
+권장 예시:
+
+```bash
+python3 lab/g_set/run_g_r1_method_probe.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_G세트R1_산출물/runner_logs
+```
+
+dry-run / print-plan 예시:
+
+```bash
+python3 lab/g_set/run_g_r1_method_probe.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_G세트R1_산출물/runner_logs \
+  --dry-run
+
+python3 lab/g_set/run_g_r1_method_probe.py \
+  --base-url http://192.168.56.105 \
+  --scenario trace \
+  --out lab/05-xx_G세트R1_산출물/runner_logs_trace \
+  --print-plan
+```
+
 케이스:
 
-| ID | 요청 | 기대 관찰 | 기대 해석 | 금지 |
-|---|---|---|---|---|
-| G-R1-01 | `OPTIONS /` | `method=OPTIONS`, `status_code` 관찰 | method discovery/probing 가능성 | CORS 취약점 단정 |
-| G-R1-02 | `TRACE /` | `method=TRACE`, `status_code` 관찰 | TRACE exposure probing 가능성 | XST 성공 단정 |
-| G-R1-03 | `PUT /upload/g_probe.txt` | `method=PUT`, `status_code` 관찰 | upload/write probing 가능성 | 파일 업로드 성공 단정 |
-| G-R1-04 | `DELETE /api/resource/1` | `method=DELETE`, `status_code` 관찰 | destructive method probing 가능성 | 리소스 삭제 성공 단정 |
-| G-R1-05 | `HEAD /` | `method=HEAD`, `status_code` 관찰 | 정상 baseline 가능성 | 공격 단정 |
-| G-R1-06 | `GET /` | 일반 baseline | 정상 browse baseline | probing 단정 |
+| ID | runner label | 요청 | 기대 관찰 | 기대 해석 | 기대 응답 | 해석 제한 |
+|---|---|---|---|---|---|---|
+| G-R1-01 | `options_root` | `OPTIONS /` | `method=OPTIONS`, `status_code`, `response_body_bytes` 관찰 | method discovery/probing 가능성 | any | `no_cors_or_method_exposure_success_inference` |
+| G-R1-02 | `trace_root` | `TRACE /` | `method=TRACE`, `status_code` 관찰 | TRACE method exposure probing 가능성 | any | `no_xst_success_inference_without_response_body` |
+| G-R1-03 | `put_probe` | `PUT /upload/g_probe.txt` | `method=PUT`, `status_code` 관찰 | upload/write method probing 가능성 | any | `no_file_write_success_inference` |
+| G-R1-04 | `delete_probe` | `DELETE /api/resource/g_probe` | `method=DELETE`, `status_code` 관찰 | destructive method probing 가능성 | any | `no_resource_delete_success_inference` |
+| G-R1-05 | `head_root` | `HEAD /` | `method=HEAD`, `status_code` 관찰 | 정상 baseline 가능성 | any | `baseline_head_no_attack_inference` |
+| G-R1-06 | `get_root` | `GET /` | `method=GET`, `status_code` 관찰 | 정상 baseline | any | `baseline_get_no_attack_inference` |
+
+추가 제한:
+
+- `TRACE` 응답 body는 runner가 저장하거나 출력하지 않는다.
+- `PUT`은 짧은 dummy body만 전송할 수 있으나 body 원문은 저장하지 않고 길이만 기록한다.
+- `DELETE`는 테스트 전용 path만 사용한다.
+- `200` / `201` / `204` 같은 상태만으로 성공을 단정하지 않는다.
 
 ### G R2 — protocol / malformed request 관찰
 
@@ -212,7 +251,10 @@ G세트는 아래를 목표로 하지 않는다.
 - `run_g_r2_protocol_anomaly.py`: invalid method/protocol/malformed request 후보 실행
 - `run_g_r3_baseline.py`: 정상 `HEAD/OPTIONS/GET` 및 monitoring-like baseline 실행
 
-runner 상세 코드와 구현 방식은 이번 범위가 아니다.
+현재 범위:
+
+- `run_g_r1_method_probe.py`는 이번 작업 범위에 포함된다.
+- `run_g_r2_protocol_anomaly.py`, `run_g_r3_baseline.py`는 향후 작업이다.
 
 ---
 
