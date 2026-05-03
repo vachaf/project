@@ -1,0 +1,314 @@
+{
+  "description": "Crawler-like robots, sitemap, product/category browse, and normal GET rows should be preserved as context-only crawler baseline summaries without candidate promotion or crawler/page existence inference.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120",
+        "context_role": "crawler_baseline_context",
+        "aggregate_scope": "same_src_ip_crawler_like_time_window",
+        "should_promote_to_candidate": false
+      },
+      "message": "crawler baseline summary created as context-only"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "interpretation_limit",
+      "contains": "crawler_ua_spoofable_no_content_or_page_existence_inference",
+      "message": "crawler baseline summary keeps conservative interpretation limit"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "crawler_like_user_agent_families",
+      "contains": "googlebot_like",
+      "message": "googlebot-like family preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "crawler_like_user_agent_families",
+      "contains": "generic_crawler",
+      "message": "generic crawler family preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "path_categories_observed",
+      "contains": "robots_txt",
+      "message": "robots category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "path_categories_observed",
+      "contains": "sitemap_xml",
+      "message": "sitemap category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "path_categories_observed",
+      "contains": "product_browse",
+      "message": "product browse category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "path_categories_observed",
+      "contains": "category_browse",
+      "message": "category browse category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "path_categories_observed",
+      "contains": "normal_get",
+      "message": "normal GET category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:googlebot_like_ua",
+      "message": "googlebot-like hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:generic_crawler_ua",
+      "message": "generic crawler hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:robots_txt",
+      "message": "robots hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:sitemap_xml",
+      "message": "sitemap hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:product_browse",
+      "message": "product browse hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:category_browse",
+      "message": "category browse hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:ua_spoofable",
+      "message": "UA spoofable hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:no_crawler_authenticity_inference",
+      "message": "no crawler authenticity inference hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:no_site_structure_inference",
+      "message": "no site structure inference hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "crawler_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.120"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:no_page_existence_inference",
+      "message": "no page existence inference hint found"
+    },
+    {
+      "op": "collection_count_at_most",
+      "collection": "analysis_candidates",
+      "value": 0,
+      "message": "crawler baseline fixture does not create candidates"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-googlebot-robots-1"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:no_crawler_policy_inference",
+      "message": "googlebot robots filtered row keeps no-policy-inference hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-googlebot-sitemap-1"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:no_site_structure_inference",
+      "message": "googlebot sitemap filtered row keeps no-structure-inference hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-generic-products-1"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:product_browse",
+      "message": "generic products filtered row keeps product browse hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-generic-products-1"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:no_page_existence_inference",
+      "message": "generic products filtered row keeps no-page-existence hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-generic-category-1"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:category_browse",
+      "message": "generic category filtered row keeps category browse hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-browser-root-1"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:normal_browse",
+      "message": "browser root filtered row keeps normal browse hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-browser-root-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_get",
+      "message": "browser root filtered row keeps normal GET baseline hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-generic-robots-2"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:repeated_crawl_sequence",
+      "message": "repeated generic crawler row keeps repeated crawl sequence hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-generic-robots-2"
+      },
+      "field": "reason_hints",
+      "contains": "crawler_like:no_attack_inference",
+      "message": "repeated generic crawler row keeps no-attack-inference hint"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-generic-products-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "generic products filtered row must not keep dir_probe-only hints"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r2-generic-category-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "generic category filtered row must not keep dir_probe-only hints"
+    }
+  ]
+}

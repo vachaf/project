@@ -289,6 +289,8 @@ PROBING_SEQUENCE_SAMPLE_PATH_LIMIT = 10
 STATIC_BASELINE_WINDOW_SEC = 300
 STATIC_BASELINE_MIN_STATIC_PATHS = 3
 STATIC_BASELINE_SAMPLE_REQUEST_LIMIT = 10
+CRAWLER_BASELINE_WINDOW_SEC = 300
+CRAWLER_BASELINE_SAMPLE_REQUEST_LIMIT = 10
 IP_BEHAVIOR_WINDOW_SEC = 300
 IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
 IP_BEHAVIOR_SENSITIVE_PATH_LIMIT = 10
@@ -322,6 +324,9 @@ HEALTH_LIKE_PATHS = {
     "/status",
     "/ping",
 }
+CRAWLER_BROWSE_PRODUCT_SEGMENTS = {"product", "products"}
+CRAWLER_BROWSE_CATEGORY_SEGMENTS = {"category", "categories"}
+CRAWLER_BROWSE_GENERIC_SEGMENTS = {"list", "browse"}
 EDUCATIONAL_SQL_SEARCH_TERMS = (
     "how to",
     "tutorial",
@@ -2941,6 +2946,298 @@ def build_static_baseline_reason_hints_for_row(row: Dict[str, Any]) -> List[str]
     return hints
 
 
+def classify_crawler_like_user_agent_family(user_agent: str) -> str:
+    normalized = normalize_text(user_agent).lower()
+    if not normalized:
+        return ""
+    if "googlebot" in normalized:
+        return "googlebot_like"
+    if "bingbot" in normalized:
+        return "bingbot_like"
+    if "genericcrawler" in normalized:
+        return "generic_crawler"
+    if any(token in normalized for token in ("crawler", "spider", "bot")):
+        return "generic_crawler"
+    return ""
+
+
+def classify_crawler_baseline_path_category(path: str, method: str) -> str:
+    normalized_method = normalize_text(method).upper()
+    normalized_path = normalize_text(path).lower()
+    if normalized_method not in {"GET", "HEAD"} or not normalized_path:
+        return ""
+    if normalized_path == "/robots.txt":
+        return "robots_txt"
+    if normalized_path == "/sitemap.xml":
+        return "sitemap_xml"
+    if normalized_method == "GET" and normalized_path == "/":
+        return "normal_get"
+
+    segments = [segment for segment in normalized_path.split("/") if segment]
+    if any(segment in CRAWLER_BROWSE_PRODUCT_SEGMENTS for segment in segments):
+        return "product_browse"
+    if any(segment in CRAWLER_BROWSE_CATEGORY_SEGMENTS for segment in segments):
+        return "category_browse"
+    if any(segment in CRAWLER_BROWSE_GENERIC_SEGMENTS for segment in segments):
+        return "browse_like"
+    return ""
+
+
+def build_crawler_baseline_reason_hints_for_row(
+    row: Dict[str, Any],
+    *,
+    repeated_sequence: bool = False,
+) -> List[str]:
+    raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+    path = get_effective_request_path(get_uri(row), raw_request_target).lower()
+    path_category = classify_crawler_baseline_path_category(path, get_method(row))
+    ua_family = classify_crawler_like_user_agent_family(get_user_agent(row))
+
+    if not ua_family and not path_category:
+        return []
+
+    hints: List[str] = []
+    if ua_family == "googlebot_like":
+        append_unique_hint(hints, "crawler_like:googlebot_like_ua")
+    elif ua_family == "bingbot_like":
+        append_unique_hint(hints, "crawler_like:bingbot_like_ua")
+    elif ua_family == "generic_crawler":
+        append_unique_hint(hints, "crawler_like:generic_crawler_ua")
+
+    if ua_family:
+        append_unique_hint(hints, "crawler_like:ua_spoofable")
+        append_unique_hint(hints, "crawler_like:no_crawler_authenticity_inference")
+
+    if path_category == "robots_txt":
+        append_unique_hint(hints, "crawler_like:robots_txt")
+        append_unique_hint(hints, "crawler_like:no_crawler_policy_inference")
+    elif path_category == "sitemap_xml":
+        append_unique_hint(hints, "crawler_like:sitemap_xml")
+        append_unique_hint(hints, "crawler_like:no_site_structure_inference")
+    elif path_category == "product_browse":
+        append_unique_hint(hints, "crawler_like:product_browse")
+        append_unique_hint(hints, "crawler_like:no_page_existence_inference")
+    elif path_category == "category_browse":
+        append_unique_hint(hints, "crawler_like:category_browse")
+        append_unique_hint(hints, "crawler_like:no_page_existence_inference")
+    elif path_category == "browse_like":
+        append_unique_hint(hints, "crawler_like:no_page_existence_inference")
+    elif path_category == "normal_get":
+        append_unique_hint(hints, "crawler_like:normal_browse")
+        append_unique_hint(hints, "baseline:normal_get")
+
+    if repeated_sequence and (ua_family or path_category in {"robots_txt", "sitemap_xml", "product_browse", "category_browse", "browse_like"}):
+        append_unique_hint(hints, "crawler_like:repeated_crawl_sequence")
+        append_unique_hint(hints, "crawler_like:no_attack_inference")
+
+    return hints
+
+
+def finalize_crawler_baseline_bucket(
+    items: List[Dict[str, Any]],
+    window_sec: int,
+) -> Optional[Dict[str, Any]]:
+    if len(items) < 2:
+        return None
+
+    sorted_items = sorted(items, key=lambda item: item["dt"])
+    status_counts = Counter(str(safe_int(item.get("status_code"), 0)) for item in sorted_items)
+    path_counts = Counter(normalize_text(item.get("path")).lower() for item in sorted_items if normalize_text(item.get("path")))
+    crawler_like_user_agent_families: List[str] = []
+    path_categories_observed: List[str] = []
+    sample_request_ids: List[str] = []
+    reason_hints: List[str] = []
+
+    crawler_like_request_count = 0
+    normal_get_count = 0
+    has_robots_or_sitemap_with_crawler_ua = False
+    has_browse_like_with_crawler_ua = False
+
+    for item in sorted_items:
+        ua_family = normalize_text(item.get("crawler_like_user_agent_family"))
+        path_category = normalize_text(item.get("path_category"))
+        if ua_family:
+            crawler_like_request_count += 1
+            append_unique_hint(crawler_like_user_agent_families, ua_family)
+        if path_category:
+            append_unique_hint(path_categories_observed, path_category)
+        if path_category == "normal_get":
+            normal_get_count += 1
+        if ua_family and path_category in {"robots_txt", "sitemap_xml"}:
+            has_robots_or_sitemap_with_crawler_ua = True
+        if ua_family and path_category in {"product_browse", "category_browse", "browse_like"}:
+            has_browse_like_with_crawler_ua = True
+
+        extend_unique_hints(reason_hints, item.get("reason_hints") or [])
+
+        sample_request_id = normalize_text(item.get("sample_request_id"))
+        if sample_request_id and len(sample_request_ids) < CRAWLER_BASELINE_SAMPLE_REQUEST_LIMIT:
+            append_unique_hint(sample_request_ids, sample_request_id)
+
+    should_emit = any(
+        (
+            crawler_like_request_count >= 2,
+            has_robots_or_sitemap_with_crawler_ua,
+            has_browse_like_with_crawler_ua,
+            crawler_like_request_count >= 1 and normal_get_count >= 1,
+        )
+    )
+    if not should_emit:
+        return None
+
+    if crawler_like_request_count >= 2 or len(sorted_items) >= 3:
+        append_unique_hint(reason_hints, "crawler_like:repeated_crawl_sequence")
+    append_unique_hint(reason_hints, "crawler_like:ua_spoofable")
+    append_unique_hint(reason_hints, "crawler_like:no_crawler_authenticity_inference")
+    if "robots_txt" in path_categories_observed:
+        append_unique_hint(reason_hints, "crawler_like:robots_txt")
+        append_unique_hint(reason_hints, "crawler_like:no_crawler_policy_inference")
+    if "sitemap_xml" in path_categories_observed:
+        append_unique_hint(reason_hints, "crawler_like:sitemap_xml")
+        append_unique_hint(reason_hints, "crawler_like:no_site_structure_inference")
+    if any(category in {"product_browse", "category_browse", "browse_like"} for category in path_categories_observed):
+        append_unique_hint(reason_hints, "crawler_like:no_page_existence_inference")
+    append_unique_hint(reason_hints, "crawler_like:no_attack_inference")
+
+    return {
+        "context_role": "crawler_baseline_context",
+        "aggregate_scope": "same_src_ip_crawler_like_time_window",
+        "should_promote_to_candidate": False,
+        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
+        "window_start": normalize_text(sorted_items[0].get("log_time")),
+        "window_end": normalize_text(sorted_items[-1].get("log_time")),
+        "burst_window_sec": window_sec,
+        "request_count": len(sorted_items),
+        "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (safe_int(kv[0], 0), kv[0]))),
+        "crawler_like_user_agent_families": crawler_like_user_agent_families,
+        "path_categories_observed": path_categories_observed,
+        "path_counts": dict(sorted(path_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
+        "sample_request_ids": sample_request_ids,
+        "reason_hints": reason_hints,
+        "interpretation_limit": "crawler_ua_spoofable_no_content_or_page_existence_inference",
+    }
+
+
+def build_crawler_baseline_summaries(
+    rows: List[Dict[str, Any]],
+    window_sec: int = CRAWLER_BASELINE_WINDOW_SEC,
+) -> List[Dict[str, Any]]:
+    rows_by_ip: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        src_ip = get_src_ip(row)
+        if not src_ip or src_ip == "-":
+            continue
+
+        log_time = choose_best_time(row)
+        dt = parse_flexible_iso_dt(log_time or "")
+        if dt is None:
+            continue
+
+        raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+        path = get_effective_request_path(get_uri(row), raw_request_target).lower()
+        path_category = classify_crawler_baseline_path_category(path, get_method(row))
+        crawler_like_user_agent_family = classify_crawler_like_user_agent_family(get_user_agent(row))
+        if not crawler_like_user_agent_family and not path_category:
+            continue
+
+        rows_by_ip[src_ip].append(
+            {
+                "src_ip": src_ip,
+                "log_time": log_time,
+                "dt": dt,
+                "path": path,
+                "status_code": get_status_code(row),
+                "path_category": path_category,
+                "crawler_like_user_agent_family": crawler_like_user_agent_family,
+                "reason_hints": build_crawler_baseline_reason_hints_for_row(row),
+                "sample_request_id": get_sample_request_id(row),
+            }
+        )
+
+    summaries: List[Dict[str, Any]] = []
+    for items in rows_by_ip.values():
+        sorted_items = sorted(items, key=lambda item: item["dt"])
+        bucket: List[Dict[str, Any]] = []
+        bucket_start: Optional[datetime] = None
+        for item in sorted_items:
+            if not bucket:
+                bucket = [item]
+                bucket_start = item["dt"]
+                continue
+
+            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
+                bucket.append(item)
+                continue
+
+            summary = finalize_crawler_baseline_bucket(bucket, window_sec=window_sec)
+            if summary:
+                summaries.append(summary)
+            bucket = [item]
+            bucket_start = item["dt"]
+
+        summary = finalize_crawler_baseline_bucket(bucket, window_sec=window_sec)
+        if summary:
+            summaries.append(summary)
+
+    summaries.sort(
+        key=lambda item: (
+            safe_int(item.get("request_count"), 0),
+            len(item.get("crawler_like_user_agent_families") or []),
+            len(item.get("path_categories_observed") or []),
+            normalize_text(item.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return summaries
+
+
+def build_crawler_baseline_summary_contexts(
+    crawler_baseline_summaries: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    contexts: List[Dict[str, Any]] = []
+    for summary in crawler_baseline_summaries:
+        src_ip = normalize_text(summary.get("src_ip"))
+        window_start = normalize_text(summary.get("window_start"))
+        window_end = normalize_text(summary.get("window_end"))
+        start_dt = parse_flexible_iso_dt(window_start)
+        end_dt = parse_flexible_iso_dt(window_end)
+        if not src_ip or start_dt is None or end_dt is None:
+            continue
+        contexts.append(
+            {
+                "summary": summary,
+                "src_ip": src_ip,
+                "start_dt": start_dt,
+                "end_dt": end_dt,
+            }
+        )
+    return contexts
+
+
+def get_crawler_baseline_context_for_row(
+    row: Dict[str, Any],
+    crawler_baseline_contexts: List[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not crawler_baseline_contexts:
+        return None
+
+    crawler_hints = build_crawler_baseline_reason_hints_for_row(row)
+    if not crawler_hints:
+        return None
+
+    src_ip = get_src_ip(row)
+    row_dt = parse_flexible_iso_dt(choose_best_time(row) or "")
+    if not src_ip or row_dt is None:
+        return None
+
+    for context in crawler_baseline_contexts:
+        if context["src_ip"] != src_ip:
+            continue
+        if context["start_dt"] <= row_dt <= context["end_dt"]:
+            return context
+    return None
+
+
 def parse_iso_dt(text: str) -> Optional[datetime]:
     if not text:
         return None
@@ -3383,13 +3680,12 @@ def sanitize_filtered_reason_hints(
     row: Dict[str, Any],
     reason_hints: Iterable[str],
     analysis_texts: Iterable[str],
+    crawler_baseline_contexts: Optional[List[Dict[str, Any]]] = None,
     method_behavior_contexts: Optional[List[Dict[str, Any]]] = None,
     protocol_anomaly_contexts: Optional[List[Dict[str, Any]]] = None,
     static_baseline_contexts: Optional[List[Dict[str, Any]]] = None,
 ) -> List[str]:
     sanitized = [raw_text(hint) for hint in reason_hints if raw_text(hint)]
-    if not sanitized:
-        return sanitized
 
     noise_category = normalize_text(row.get("_noise_category"))
     if (
@@ -3409,6 +3705,20 @@ def sanitize_filtered_reason_hints(
         raw_request_target=raw_request_target,
     ):
         return [hint for hint in sanitized if not hint.startswith("dir_probe:")]
+
+    crawler_context = get_crawler_baseline_context_for_row(row, crawler_baseline_contexts or [])
+    if crawler_context is not None:
+        crawler_hints = build_crawler_baseline_reason_hints_for_row(
+            row,
+            repeated_sequence="crawler_like:repeated_crawl_sequence" in (crawler_context.get("summary", {}).get("reason_hints") or []),
+        )
+        if crawler_hints:
+            preserved_hints = [
+                hint
+                for hint in sanitized
+                if not hint.startswith("dir_probe:") and not hint.startswith("baseline:") and not hint.startswith("crawler_like:")
+            ]
+            return unique_non_empty_texts(crawler_hints + preserved_hints)
 
     if row_is_covered_by_protocol_anomaly_context(row, protocol_anomaly_contexts or []):
         protocol_hints = build_protocol_anomaly_reason_hints_for_row(row, include_inference_limit=False)
@@ -3690,6 +4000,7 @@ def classify_filtered_noise_category(
 
 def build_filtered_row_payload(
     row: Dict[str, Any],
+    crawler_baseline_contexts: Optional[List[Dict[str, Any]]] = None,
     method_behavior_contexts: Optional[List[Dict[str, Any]]] = None,
     protocol_anomaly_contexts: Optional[List[Dict[str, Any]]] = None,
     static_baseline_contexts: Optional[List[Dict[str, Any]]] = None,
@@ -3733,6 +4044,7 @@ def build_filtered_row_payload(
         row,
         get_probe_sequence_reason_hints(probe_path),
         analysis_texts=analysis_texts,
+        crawler_baseline_contexts=crawler_baseline_contexts,
         method_behavior_contexts=method_behavior_contexts,
         protocol_anomaly_contexts=protocol_anomaly_contexts,
         static_baseline_contexts=static_baseline_contexts,
@@ -4356,9 +4668,11 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
     )
     probing_sequence_summaries = build_probing_sequence_summaries(all_rows)
     static_baseline_summaries = build_static_baseline_summaries(all_rows)
+    crawler_baseline_summaries = build_crawler_baseline_summaries(all_rows)
     ip_behavior_aggregates = build_ip_behavior_aggregates(all_rows)
     method_behavior_summaries = build_method_behavior_summaries(all_rows)
     protocol_anomaly_summaries = build_protocol_anomaly_summaries(all_rows)
+    crawler_baseline_contexts = build_crawler_baseline_summary_contexts(crawler_baseline_summaries)
     method_behavior_contexts = build_method_behavior_summary_contexts(method_behavior_summaries)
     protocol_anomaly_contexts = build_protocol_anomaly_summary_contexts(protocol_anomaly_summaries)
     static_baseline_contexts = build_static_baseline_summary_contexts(static_baseline_summaries)
@@ -4403,6 +4717,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "false_positive_review_candidates_are_context_only": True,
                 "probing_sequence_summaries_are_context_only": True,
                 "static_baseline_summaries_are_context_only": True,
+                "crawler_baseline_summaries_are_context_only": True,
                 "ip_behavior_aggregates_are_context_only": True,
                 "auth_behavior_summaries_are_context_only": True,
                 "method_behavior_summaries_are_context_only": True,
@@ -4414,6 +4729,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "supporting_event_time_window_sec": SUPPORTING_EVENT_TIME_WINDOW_SEC,
                 "probing_sequence_window_sec": PROBING_SEQUENCE_WINDOW_SEC,
                 "static_baseline_window_sec": STATIC_BASELINE_WINDOW_SEC,
+                "crawler_baseline_window_sec": CRAWLER_BASELINE_WINDOW_SEC,
                 "ip_behavior_window_sec": IP_BEHAVIOR_WINDOW_SEC,
                 "auth_behavior_window_sec": AUTH_BEHAVIOR_WINDOW_SEC,
                 "auth_behavior_rapid_window_sec": AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
@@ -4437,6 +4753,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "false_positive_review_candidates": len(false_positive_review_candidates),
                 "probing_sequence_summaries": len(probing_sequence_summaries),
                 "static_baseline_summaries": len(static_baseline_summaries),
+                "crawler_baseline_summaries": len(crawler_baseline_summaries),
                 "ip_behavior_aggregates": len(ip_behavior_aggregates),
                 "auth_behavior_summaries": len(auth_behavior_summaries),
                 "method_behavior_summaries": len(method_behavior_summaries),
@@ -4451,6 +4768,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         "false_positive_review_candidates": false_positive_review_candidates,
         "probing_sequence_summaries": probing_sequence_summaries,
         "static_baseline_summaries": static_baseline_summaries,
+        "crawler_baseline_summaries": crawler_baseline_summaries,
         "ip_behavior_aggregates": ip_behavior_aggregates,
         "auth_behavior_summaries": auth_behavior_summaries,
         "method_behavior_summaries": method_behavior_summaries,
@@ -4460,6 +4778,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
     filtered_payload = [
         build_filtered_row_payload(
             r,
+            crawler_baseline_contexts=crawler_baseline_contexts,
             method_behavior_contexts=method_behavior_contexts,
             protocol_anomaly_contexts=protocol_anomaly_contexts,
             static_baseline_contexts=static_baseline_contexts,

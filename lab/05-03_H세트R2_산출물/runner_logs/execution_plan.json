@@ -1,0 +1,213 @@
+{
+  "metadata": {
+    "allow_public_target": false,
+    "base_url": "http://192.168.56.105",
+    "ended_at": null,
+    "files": {
+      "metadata_json": "lab/05-03_H세트R2_산출물/runner_logs/run_metadata.json",
+      "plan_json": "lab/05-03_H세트R2_산출물/runner_logs/execution_plan.json",
+      "plan_md": "lab/05-03_H세트R2_산출물/runner_logs/execution_plan.md",
+      "results_jsonl": "lab/05-03_H세트R2_산출물/runner_logs/request_results.jsonl",
+      "summary_md": "lab/05-03_H세트R2_산출물/runner_logs/run_summary.md"
+    },
+    "mode": "execute",
+    "request_count": 8,
+    "scenario": "all",
+    "sleep_scale": 1.0,
+    "started_at": "2026-05-03T14:48:12+09:00",
+    "stores_request_body_content": false,
+    "stores_response_body_content": false,
+    "supports_https": true,
+    "target_class": "private-ip",
+    "timeout_sec": 10.0,
+    "transport": "urllib.request"
+  },
+  "requests": [
+    {
+      "expected_interpretation": [
+        "crawler-like robots baseline possibility",
+        "Googlebot authenticity must not be inferred",
+        "robots policy content must not be inferred"
+      ],
+      "expected_observation": [
+        "robots.txt request",
+        "crawler-like User-Agent",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/robots.txt",
+      "interpretation_limit": "crawler_ua_spoofable_no_robot_policy_inference",
+      "method": "GET",
+      "path": "/robots.txt",
+      "request_label": "robots_googlebot_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R2-01",
+      "scenario_label": "robots_googlebot_like",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like sitemap baseline possibility",
+        "site structure disclosure must not be inferred"
+      ],
+      "expected_observation": [
+        "sitemap.xml request",
+        "crawler-like User-Agent",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/sitemap.xml",
+      "interpretation_limit": "crawler_ua_spoofable_no_site_structure_inference",
+      "method": "GET",
+      "path": "/sitemap.xml",
+      "request_label": "sitemap_googlebot_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R2-02",
+      "scenario_label": "sitemap_googlebot_like",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like browse context",
+        "product page existence must not be inferred"
+      ],
+      "expected_observation": [
+        "product-like browse path",
+        "generic crawler-like User-Agent"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/products/",
+      "interpretation_limit": "crawler_like_browse_no_page_existence_inference",
+      "method": "GET",
+      "path": "/products/",
+      "request_label": "products_generic_crawler_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R2-03",
+      "scenario_label": "products_generic_crawler",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericCrawler/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like browse context",
+        "category/page existence must not be inferred"
+      ],
+      "expected_observation": [
+        "category-like browse path",
+        "generic crawler-like User-Agent"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/category/",
+      "interpretation_limit": "crawler_like_browse_no_page_existence_inference",
+      "method": "GET",
+      "path": "/category/",
+      "request_label": "category_generic_crawler_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R2-04",
+      "scenario_label": "category_generic_crawler",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericCrawler/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "normal browse baseline",
+        "should not be promoted as crawler/scanner by itself"
+      ],
+      "expected_observation": [
+        "normal browser-like GET baseline"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/",
+      "interpretation_limit": "baseline_get_no_attack_inference",
+      "method": "GET",
+      "path": "/",
+      "request_label": "normal_browser_get_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R2-05",
+      "scenario_label": "normal_browser_get",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like repeated baseline or low-signal crawl context",
+        "should not be promoted as attack without sensitive paths or stronger indicators"
+      ],
+      "expected_observation": [
+        "repeated crawler-like browse sequence",
+        "same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/robots.txt",
+      "interpretation_limit": "crawler_like_repetition_no_attack_inference",
+      "method": "GET",
+      "path": "/robots.txt",
+      "request_label": "repeated_crawler_robots_request",
+      "scaled_sleep_after_sec": 2.0,
+      "scenario_id": "H-R2-06",
+      "scenario_label": "repeated_crawler_browse_x3",
+      "sleep_after_sec": 2.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericCrawler/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like repeated baseline or low-signal crawl context",
+        "should not be promoted as attack without sensitive paths or stronger indicators"
+      ],
+      "expected_observation": [
+        "repeated crawler-like browse sequence",
+        "same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/sitemap.xml",
+      "interpretation_limit": "crawler_like_repetition_no_attack_inference",
+      "method": "GET",
+      "path": "/sitemap.xml",
+      "request_label": "repeated_crawler_sitemap_request",
+      "scaled_sleep_after_sec": 2.0,
+      "scenario_id": "H-R2-06",
+      "scenario_label": "repeated_crawler_browse_x3",
+      "sleep_after_sec": 2.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericCrawler/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "crawler-like repeated baseline or low-signal crawl context",
+        "should not be promoted as attack without sensitive paths or stronger indicators"
+      ],
+      "expected_observation": [
+        "repeated crawler-like browse sequence",
+        "same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/products/",
+      "interpretation_limit": "crawler_like_repetition_no_attack_inference",
+      "method": "GET",
+      "path": "/products/",
+      "request_label": "repeated_crawler_products_request",
+      "scaled_sleep_after_sec": 0.0,
+      "scenario_id": "H-R2-06",
+      "scenario_label": "repeated_crawler_browse_x3",
+      "sleep_after_sec": 0.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericCrawler/1.0"
+    }
+  ]
+}

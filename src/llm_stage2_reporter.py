@@ -41,6 +41,7 @@ ENV_FILE_NAMES = ("config/llm.env", "llm.env", ".env")
 IP_BEHAVIOR_CONTEXT_LIMIT = 10
 IP_BEHAVIOR_LIST_LIMIT = 10
 STATIC_BASELINE_CONTEXT_LIMIT = 10
+CRAWLER_BASELINE_CONTEXT_LIMIT = 10
 AUTH_BEHAVIOR_CONTEXT_LIMIT = 10
 METHOD_BEHAVIOR_CONTEXT_LIMIT = 10
 PROTOCOL_ANOMALY_CONTEXT_LIMIT = 10
@@ -774,6 +775,49 @@ def build_static_baseline_context_rows(
     return rows[:top_n]
 
 
+def build_crawler_baseline_context_rows(
+    summaries: List[Dict[str, Any]],
+    known_asset_ips: Sequence[str],
+    top_n: int = CRAWLER_BASELINE_CONTEXT_LIMIT,
+) -> List[Dict[str, Any]]:
+    known_asset_set = set(known_asset_ips)
+    rows: List[Dict[str, Any]] = []
+    for item in summaries:
+        src_ip = normalize_str(item.get("src_ip")) or "-"
+        rows.append(
+            {
+                "context_role": normalize_str(item.get("context_role")) or "crawler_baseline_context",
+                "aggregate_scope": normalize_str(item.get("aggregate_scope")) or "same_src_ip_crawler_like_time_window",
+                "should_promote_to_candidate": bool(item.get("should_promote_to_candidate")),
+                "src_ip": src_ip,
+                "window_start": normalize_str(item.get("window_start")),
+                "window_end": normalize_str(item.get("window_end")),
+                "burst_window_sec": safe_int(item.get("burst_window_sec"), 0),
+                "request_count": safe_int(item.get("request_count"), 0),
+                "status_counts": normalize_counter_dict(item.get("status_counts")),
+                "crawler_like_user_agent_families": truncate_unique_strings(item.get("crawler_like_user_agent_families")),
+                "path_categories_observed": truncate_unique_strings(item.get("path_categories_observed")),
+                "path_counts": normalize_counter_dict(item.get("path_counts")),
+                "sample_request_ids": truncate_unique_strings(item.get("sample_request_ids")),
+                "reason_hints": truncate_unique_strings(item.get("reason_hints")),
+                "interpretation_limit": normalize_str(item.get("interpretation_limit"))
+                or "crawler_ua_spoofable_no_content_or_page_existence_inference",
+                "known_asset": src_ip in known_asset_set,
+            }
+        )
+
+    rows.sort(
+        key=lambda x: (
+            safe_int(x.get("request_count"), 0),
+            len(x.get("crawler_like_user_agent_families") or []),
+            len(x.get("path_categories_observed") or []),
+            normalize_str(x.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return rows[:top_n]
+
+
 def build_ip_behavior_context_rows(
     aggregates: List[Dict[str, Any]],
     known_asset_ips: Sequence[str],
@@ -1016,6 +1060,7 @@ def build_report_input(
     false_positive_review_candidates = (llm_input_payload or {}).get("false_positive_review_candidates") or []
     probing_sequence_summaries = (llm_input_payload or {}).get("probing_sequence_summaries") or []
     static_baseline_summaries = (llm_input_payload or {}).get("static_baseline_summaries") or []
+    crawler_baseline_summaries = (llm_input_payload or {}).get("crawler_baseline_summaries") or []
     ip_behavior_aggregates = (llm_input_payload or {}).get("ip_behavior_aggregates") or []
     auth_behavior_summaries = (llm_input_payload or {}).get("auth_behavior_summaries") or []
     method_behavior_summaries = (llm_input_payload or {}).get("method_behavior_summaries") or []
@@ -1066,6 +1111,11 @@ def build_report_input(
         static_baseline_summaries,
         known_asset_ips=known_asset_ips,
         top_n=STATIC_BASELINE_CONTEXT_LIMIT,
+    )
+    top_crawler_baseline_summaries = build_crawler_baseline_context_rows(
+        crawler_baseline_summaries,
+        known_asset_ips=known_asset_ips,
+        top_n=CRAWLER_BASELINE_CONTEXT_LIMIT,
     )
     top_ip_behavior_aggregates = build_ip_behavior_context_rows(
         ip_behavior_aggregates,
@@ -1126,6 +1176,10 @@ def build_report_input(
                 counts.get("static_baseline_summaries"),
                 len(static_baseline_summaries),
             ),
+            "crawler_baseline_summary_count": safe_int(
+                counts.get("crawler_baseline_summaries"),
+                len(crawler_baseline_summaries),
+            ),
             "ip_behavior_aggregate_count": safe_int(
                 counts.get("ip_behavior_aggregates"),
                 len(ip_behavior_aggregates),
@@ -1165,6 +1219,10 @@ def build_report_input(
             counts.get("static_baseline_summaries"),
             len(static_baseline_summaries),
         ),
+        "crawler_baseline_summary_count": safe_int(
+            counts.get("crawler_baseline_summaries"),
+            len(crawler_baseline_summaries),
+        ),
         "ip_behavior_aggregate_count": safe_int(
             counts.get("ip_behavior_aggregates"),
             len(ip_behavior_aggregates),
@@ -1183,6 +1241,7 @@ def build_report_input(
         ),
         "probing_sequence_summaries": probing_sequence_summaries[:10],
         "static_baseline_summaries": top_static_baseline_summaries,
+        "crawler_baseline_summaries": top_crawler_baseline_summaries,
         "ip_behavior_aggregates": top_ip_behavior_aggregates,
         "auth_behavior_summaries": top_auth_behavior_summaries,
         "method_behavior_summaries": top_method_behavior_summaries,
@@ -1225,14 +1284,22 @@ def build_report_input(
                 "success_rule": "status_code, response_body_bytes, content_type 만으로 static file 내용, crawler policy, site structure, JS 실행, file exposure, health 상태를 단정하지 않음",
                 "visibility_rule": "Apache 로그 표면에서는 response body 원문, 브라우저 실행 여부, 서버 내부 파일 존재 여부를 확인할 수 없으므로 static/baseline outcome 은 관찰 문맥으로만 해석",
             },
+            "crawler_baseline_summary_policy": {
+                "default_action": "crawler_baseline_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+                "interpretation_rule": "crawler-like User-Agent, robots.txt, sitemap.xml, product/category browse 요청은 crawler-like baseline 또는 low-signal crawl context 로만 설명",
+                "ua_rule": "Googlebot/Bingbot/GenericCrawler-like User-Agent 는 spoof 가능하므로 실제 crawler 정체를 단정하지 않음",
+                "success_rule": "status_code, response_body_bytes, content_type 만으로 robots policy, sitemap 내용, site structure, product/category page existence, 공격 성공을 단정하지 않음",
+                "visibility_rule": "Apache 로그 표면에서는 response body 원문, crawler verification, 서버 내부 page 존재 여부를 확인할 수 없으므로 crawler/browse outcome 은 관찰 문맥으로만 해석",
+            },
             "behavior_scope_separation_policy": {
                 "static_scope_rule": "static_baseline_summaries 의 request_count 는 같은 src_ip 와 static/health/browse baseline 시간창 기준 관찰 수를 뜻함",
+                "crawler_scope_rule": "crawler_baseline_summaries 의 request_count 는 같은 src_ip 와 crawler-like UA/browse baseline 시간창 기준 관찰 수를 뜻함",
                 "auth_scope_rule": "auth_behavior_summaries 의 request_count/auth_request_count 는 같은 src_ip 와 auth endpoint family 시간창 기준 auth 요청 수를 뜻함",
                 "method_scope_rule": "method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수를 뜻함",
                 "protocol_scope_rule": "protocol_anomaly_summaries 의 request_count 는 같은 src_ip 와 protocol anomaly relevant row 시간창 기준 관찰 수를 뜻함",
                 "ip_scope_rule": "ip_behavior_aggregates 의 request_count 는 같은 src_ip 와 시간창 기준 전체 또는 관련 요청 문맥 수를 뜻함",
-                "non_merge_rule": "static_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 scope 가 다르므로 48~51건 같은 range 표현이나 직접 합산으로 설명하지 않음",
-                "context_only_rule": "static_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 모두 context-only 이며 candidate 승격 근거가 아님",
+                "non_merge_rule": "static_baseline_summaries, crawler_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 scope 가 다르므로 48~51건 같은 range 표현이나 직접 합산으로 설명하지 않음",
+                "context_only_rule": "static_baseline_summaries, crawler_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 모두 context-only 이며 candidate 승격 근거가 아님",
             },
             "ip_behavior_aggregate_policy": {
                 "default_action": "ip_behavior_aggregates 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
@@ -1433,10 +1500,15 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "static_baseline_summaries 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 summary 때문에 analysis_candidate 로 승격된 것으로 해석하지 마라. "
         "static_baseline_summaries 의 status_code=200/404/500, response_body_bytes, content_type 만으로 static file 존재, crawler policy 내용, site structure 노출, JS 실행, file exposure, health 정상 여부를 단정하지 마라. "
         "Apache 로그 표면에서는 response body 원문, 브라우저 실행 여부, 서버 내부 파일 존재 여부를 확인할 수 없으므로 static_baseline_summaries 는 관찰 문맥으로만 해석하라. "
-        "static_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 를 함께 언급할 때는 count scope 를 분리하라. "
-        "static_baseline_summaries 의 request_count 는 같은 src_ip 와 static/health/browse baseline 시간창 기준 관찰 수이고, auth_behavior_summaries 의 request_count/auth_request_count 는 auth endpoint family 기준 auth 요청 수이며, method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, protocol_anomaly_summaries 의 request_count 는 같은 src_ip 와 protocol anomaly relevant row 시간창 기준 관찰 수이고, ip_behavior_aggregates 의 request_count 는 같은 src_ip/time window 기준 전체 또는 관련 요청 수다. "
+        "crawler_baseline_summaries 가 있으면 이는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 말고, 같은 src_ip 와 짧은 시간 window 안에서 crawler-like User-Agent, robots.txt, sitemap.xml, product/category browse, normal browse 가 함께 관찰된 crawler baseline context 로만 설명하라. "
+        "crawler_baseline_summaries 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 summary 때문에 analysis_candidate 로 승격된 것으로 해석하지 마라. "
+        "Googlebot/Bingbot/GenericCrawler-like User-Agent 는 spoof 가능하므로 실제 crawler 정체를 단정하지 마라. "
+        "crawler_baseline_summaries 의 status_code=200/404/500, response_body_bytes, content_type 만으로 robots policy 내용, sitemap 내용, site structure, product/category page existence, 공격 성공을 단정하지 마라. "
+        "Apache 로그 표면에서는 response body 원문, crawler verification, 서버 내부 page 존재 여부를 확인할 수 없으므로 crawler_baseline_summaries 는 관찰 문맥으로만 해석하라. "
+        "static_baseline_summaries, crawler_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 를 함께 언급할 때는 count scope 를 분리하라. "
+        "static_baseline_summaries 의 request_count 는 같은 src_ip 와 static/health/browse baseline 시간창 기준 관찰 수이고, crawler_baseline_summaries 의 request_count 는 같은 src_ip 와 crawler-like UA/browse baseline 시간창 기준 관찰 수이며, auth_behavior_summaries 의 request_count/auth_request_count 는 auth endpoint family 기준 auth 요청 수이며, method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, protocol_anomaly_summaries 의 request_count 는 같은 src_ip 와 protocol anomaly relevant row 시간창 기준 관찰 수이고, ip_behavior_aggregates 의 request_count 는 같은 src_ip/time window 기준 전체 또는 관련 요청 수다. "
         "세 count 를 48~51건 규모 같은 range 로 합치거나 같은 사건 수처럼 직접 합산하지 마라. "
-        "다섯 collection 모두 context-only 이며 candidate 승격 근거가 아니다. "
+        "여섯 collection 모두 context-only 이며 candidate 승격 근거가 아니다. "
         "ip_behavior_aggregates 가 있으면 이는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 에서 짧은 시간 안에 여러 경로 접근, 높은 4xx 비율, 다중 attempted category, 민감 경로 접근이 함께 관찰된 reconnaissance 또는 scanning-like context 로만 설명하라. "
         "ip_behavior_aggregates 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 analysis_candidate 로 승격된 것으로 해석하지 마라. "
         "ip_behavior_aggregates 의 attack_categories_attempted 는 시도 유형 요약이지 성공한 공격 유형 목록이 아니며, sensitive_path_hits 는 민감 경로 접근 문맥일 뿐 실제 파일 노출 근거가 아니다. "
@@ -1513,10 +1585,15 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "static_baseline_summaries 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 summary 때문에 candidate 로 승격된 것으로 해석하지 마라.",
             "static_baseline_summaries 의 status_code, response_body_bytes, content_type 만으로 static file 존재, crawler policy 내용, site structure 노출, JS 실행, file exposure, health 정상 여부를 단정하지 마라.",
             "Apache 로그 표면에서는 response body 원문, 브라우저 실행 여부, 서버 내부 파일 존재 여부를 확인할 수 없으므로 static_baseline_summaries 는 관찰 문맥으로만 해석하라.",
-            "static_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 를 함께 언급할 때는 count scope 를 분리하라.",
-            "static_baseline_summaries 의 request_count 는 같은 src_ip 와 static/health/browse baseline 시간창 기준 관찰 수이고, auth_behavior_summaries 의 request_count/auth_request_count 는 auth endpoint family 기준 auth 요청 수이며, method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, protocol_anomaly_summaries 의 request_count 는 같은 src_ip 와 protocol anomaly relevant row 시간창 기준 관찰 수이고, ip_behavior_aggregates 의 request_count 는 같은 src_ip/time window 기준 전체 또는 관련 요청 수다.",
+            "crawler_baseline_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 말고, 같은 src_ip 와 짧은 시간 window 안에서 crawler-like User-Agent, robots.txt, sitemap.xml, product/category browse, normal browse 가 함께 관찰된 crawler baseline context 로만 설명하라.",
+            "crawler_baseline_summaries 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 summary 때문에 candidate 로 승격된 것으로 해석하지 마라.",
+            "Googlebot/Bingbot/GenericCrawler-like User-Agent 는 spoof 가능하므로 실제 crawler 정체를 단정하지 마라.",
+            "crawler_baseline_summaries 의 status_code, response_body_bytes, content_type 만으로 robots policy 내용, sitemap 내용, site structure, product/category page existence, 공격 성공을 단정하지 마라.",
+            "Apache 로그 표면에서는 response body 원문, crawler verification, 서버 내부 page 존재 여부를 확인할 수 없으므로 crawler_baseline_summaries 는 관찰 문맥으로만 해석하라.",
+            "static_baseline_summaries, crawler_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 를 함께 언급할 때는 count scope 를 분리하라.",
+            "static_baseline_summaries 의 request_count 는 같은 src_ip 와 static/health/browse baseline 시간창 기준 관찰 수이고, crawler_baseline_summaries 의 request_count 는 같은 src_ip 와 crawler-like UA/browse baseline 시간창 기준 관찰 수이며, auth_behavior_summaries 의 request_count/auth_request_count 는 auth endpoint family 기준 auth 요청 수이며, method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, protocol_anomaly_summaries 의 request_count 는 같은 src_ip 와 protocol anomaly relevant row 시간창 기준 관찰 수이고, ip_behavior_aggregates 의 request_count 는 같은 src_ip/time window 기준 전체 또는 관련 요청 수다.",
             "세 count 를 48~51건 같은 range 로 합치거나 같은 사건 수처럼 직접 합산하지 마라.",
-            "static_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 모두 context-only 이며 candidate 승격 근거가 아니다.",
+            "static_baseline_summaries, crawler_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 모두 context-only 이며 candidate 승격 근거가 아니다.",
             "ip_behavior_aggregates 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip, 짧은 시간 window, 여러 path 접근, 높은 4xx 비율, attempted category 혼합이 관찰된 reconnaissance/scanning-like context 로만 설명하라.",
             "ip_behavior_aggregates 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 candidate 로 승격된 것으로 해석하지 마라.",
             "ip_behavior_aggregates 의 attack_categories_attempted 는 시도 유형 요약일 뿐 성공한 공격 유형 목록이 아니다.",
@@ -1569,6 +1646,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     top_out_of_candidate_recon = report_input.get("top_out_of_candidate_recon") or []
     probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
     static_baseline_summaries = report_input.get("static_baseline_summaries") or []
+    crawler_baseline_summaries = report_input.get("crawler_baseline_summaries") or []
     ip_behavior_aggregates = report_input.get("ip_behavior_aggregates") or []
     auth_behavior_summaries = report_input.get("auth_behavior_summaries") or []
     method_behavior_summaries = report_input.get("method_behavior_summaries") or []
@@ -1610,6 +1688,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     lines.append(f"- filtered out 비집계 row 수: {safe_int(counts.get('filtered_out_non_aggregated_rows'), 0)}")
     lines.append(f"- noise 집계 그룹 수: {safe_int(counts.get('noise_group_count'), 0)}")
     lines.append(f"- static baseline summary 수: {safe_int(counts.get('static_baseline_summary_count'), len(static_baseline_summaries))}")
+    lines.append(f"- crawler baseline summary 수: {safe_int(counts.get('crawler_baseline_summary_count'), len(crawler_baseline_summaries))}")
     lines.append(f"- ip behavior aggregate 수: {safe_int(counts.get('ip_behavior_aggregate_count'), len(ip_behavior_aggregates))}")
     lines.append(f"- auth behavior summary 수: {safe_int(counts.get('auth_behavior_summary_count'), len(auth_behavior_summaries))}")
     lines.append(f"- method behavior summary 수: {safe_int(counts.get('method_behavior_summary_count'), len(method_behavior_summaries))}")
@@ -1752,7 +1831,31 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
         lines.append("- 관찰된 static_baseline_summaries 없음")
     lines.append("")
 
-    lines.append("## 9. IP behavior context")
+    lines.append("## 9. Crawler baseline context")
+    if crawler_baseline_summaries:
+        lines.append("- 아래 항목은 context-only 이며 개별 incident 승격이나 crawler authenticity 확정 근거가 아닙니다.")
+        lines.append("- crawler_baseline_summaries 의 request 수는 같은 src_ip 와 crawler-like UA/browse baseline 시간창 기준 관찰 수입니다.")
+        for item in crawler_baseline_summaries[:5]:
+            status_counts = json.dumps(item.get("status_counts") or {}, ensure_ascii=False)
+            ua_families = ", ".join(item.get("crawler_like_user_agent_families") or []) or "-"
+            path_categories = ", ".join(item.get("path_categories_observed") or []) or "-"
+            reason_hints = ", ".join(item.get("reason_hints") or []) or "-"
+            lines.append(
+                f"- src_ip={normalize_str(item.get('src_ip')) or '-'} | "
+                f"window={normalize_str(item.get('window_start')) or '-'} ~ {normalize_str(item.get('window_end')) or '-'} | "
+                f"window_requests={safe_int(item.get('request_count'), 0)} | "
+                f"ua_families={ua_families} | path_categories={path_categories} | status_counts={status_counts}"
+            )
+            lines.append(f"  - reason_hints={reason_hints}")
+            lines.append("  - 해석: crawler-like baseline 또는 low-signal crawl context 로만 본다.")
+            lines.append("  - 제한: User-Agent spoof 가능성, robots/sitemap 내용, site structure, page existence, attack success 를 단정하지 않는다.")
+            if bool(item.get("known_asset")):
+                lines.append("  - 주의: known asset IP 와 일치하므로 내부 테스트/운영 점검 가능성을 함께 고려해야 합니다.")
+    else:
+        lines.append("- 관찰된 crawler_baseline_summaries 없음")
+    lines.append("")
+
+    lines.append("## 10. IP behavior context")
     if ip_behavior_aggregates:
         lines.append("- 아래 항목은 context-only 이며 개별 incident 승격이나 severity 상향 근거가 아닙니다.")
         lines.append("- ip_behavior_aggregates 의 request 수는 같은 src_ip/time window 기준 전체 또는 관련 요청 문맥 수이며, auth behavior count 와 직접 합산하지 않습니다.")
@@ -1783,7 +1886,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
         lines.append("- 관찰된 ip_behavior_aggregates 없음")
     lines.append("")
 
-    lines.append("## 10. Auth behavior context")
+    lines.append("## 11. Auth behavior context")
     if auth_behavior_summaries:
         lines.append("- 아래 항목은 context-only 이며 개별 incident 승격이나 auth success 확정 근거가 아닙니다.")
         lines.append("- auth_behavior_summaries 의 request 수는 auth endpoint family 기준 auth 요청 수이며, ip behavior aggregate request 수와 scope 가 다릅니다.")
@@ -1809,7 +1912,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
         lines.append("- 관찰된 auth_behavior_summaries 없음")
     lines.append("")
 
-    lines.append("## 11. Method behavior context")
+    lines.append("## 12. Method behavior context")
     if method_behavior_summaries:
         lines.append("- 아래 항목은 context-only 이며 개별 incident 승격이나 method success 확정 근거가 아닙니다.")
         lines.append("- method_behavior_summaries 의 request 수는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, auth/ip behavior count 와 직접 합산하지 않습니다.")
@@ -1836,7 +1939,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
         lines.append("- 관찰된 method_behavior_summaries 없음")
     lines.append("")
 
-    lines.append("## 12. Protocol anomaly context")
+    lines.append("## 13. Protocol anomaly context")
     if protocol_anomaly_summaries:
         lines.append("- 아래 항목은 context-only 이며 개별 incident 승격이나 protocol bypass / exploit success 확정 근거가 아닙니다.")
         lines.append("- protocol_anomaly_summaries 의 request 수는 같은 src_ip 와 protocol anomaly relevant row 시간창 기준 관찰 수이며, auth/method/ip behavior count 와 직접 합산하지 않습니다.")
@@ -1861,18 +1964,18 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
         lines.append("- 관찰된 protocol_anomaly_summaries 없음")
     lines.append("")
 
-    lines.append("## 13. 권고 조치")
+    lines.append("## 14. 권고 조치")
     for item in report_json.get("recommended_actions") or []:
         lines.append(f"- **{normalize_str(item.get('priority'))}** {normalize_str(item.get('action'))}")
         lines.append(f"  - 근거: {normalize_str(item.get('why'))}")
     lines.append("")
 
-    lines.append("## 14. 신뢰도와 한계")
+    lines.append("## 15. 신뢰도와 한계")
     for item in report_json.get("confidence_and_limitations") or []:
         lines.append(f"- {normalize_str(item)}")
     lines.append("")
 
-    lines.append("## 15. 발표용 한 줄 정리")
+    lines.append("## 16. 발표용 한 줄 정리")
     lines.append(normalize_str(report_json.get("presentation_takeaway")))
     lines.append("")
 
@@ -1887,6 +1990,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     recon_rows = report_input.get("top_out_of_candidate_recon") or []
     probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
     static_baseline_summaries = report_input.get("static_baseline_summaries") or []
+    crawler_baseline_summaries = report_input.get("crawler_baseline_summaries") or []
     ip_behavior_aggregates = report_input.get("ip_behavior_aggregates") or []
     auth_behavior_summaries = report_input.get("auth_behavior_summaries") or []
     method_behavior_summaries = report_input.get("method_behavior_summaries") or []
@@ -1911,6 +2015,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append(f"- filtered out row 수: {safe_int(counts.get('filtered_out_rows'), 0)}")
     lines.append(f"- probing sequence summary 수: {safe_int(counts.get('probing_sequence_summary_count'), len(probing_sequence_summaries))}")
     lines.append(f"- static baseline summary 수: {safe_int(counts.get('static_baseline_summary_count'), len(static_baseline_summaries))}")
+    lines.append(f"- crawler baseline summary 수: {safe_int(counts.get('crawler_baseline_summary_count'), len(crawler_baseline_summaries))}")
     lines.append(f"- ip behavior aggregate 수: {safe_int(counts.get('ip_behavior_aggregate_count'), len(ip_behavior_aggregates))}")
     lines.append(f"- auth behavior summary 수: {safe_int(counts.get('auth_behavior_summary_count'), len(auth_behavior_summaries))}")
     lines.append(f"- method behavior summary 수: {safe_int(counts.get('method_behavior_summary_count'), len(method_behavior_summaries))}")
@@ -1947,6 +2052,18 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
                 f"status_counts={json.dumps(item.get('status_counts') or {}, ensure_ascii=False)}"
             )
         lines.append("- static baseline 해석 제한: status_code, response_body_bytes, content_type 만으로 static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 정상 여부를 단정하지 않는다.")
+    if crawler_baseline_summaries:
+        lines.append("- Crawler baseline context:")
+        lines.append("- crawler_baseline_summaries 의 request 수는 같은 src_ip 와 crawler-like UA/browse baseline 시간창 기준 관찰 수다.")
+        for item in crawler_baseline_summaries[:5]:
+            lines.append(
+                f"  - src_ip={normalize_str(item.get('src_ip')) or '-'} | "
+                f"window_requests={safe_int(item.get('request_count'), 0)} | "
+                f"ua_families={','.join(item.get('crawler_like_user_agent_families') or []) or '-'} | "
+                f"path_categories={','.join(item.get('path_categories_observed') or []) or '-'} | "
+                f"status_counts={json.dumps(item.get('status_counts') or {}, ensure_ascii=False)}"
+            )
+        lines.append("- crawler baseline 해석 제한: 실제 crawler 여부, robots/sitemap 내용, site structure, product/category page existence, attack success 를 단정하지 않는다.")
     if ip_behavior_aggregates:
         lines.append("- context-only IP behavior aggregates:")
         lines.append("- ip_behavior_aggregates 의 request 수는 같은 src_ip/time window 기준 전체 또는 관련 요청 문맥 수다.")
@@ -2023,8 +2140,9 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append("- dry-run 이므로 실제 LLM API 호출 없이 요약 입력만 검증했다.")
     lines.append("- incident 는 request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 병합했다.")
     lines.append("- filtered_out_breakdown 은 noise_summary 와 별도로 보존되며, 보고서 초안에도 함께 노출된다.")
-    lines.append("- static_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 scope 가 다르므로 count 를 range 로 합치거나 같은 사건 수처럼 직접 합산하지 않는다.")
+    lines.append("- static_baseline_summaries, crawler_baseline_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 scope 가 다르므로 count 를 range 로 합치거나 같은 사건 수처럼 직접 합산하지 않는다.")
     lines.append("- static_baseline_summaries 는 context-only 이며 static/health/browse baseline 문맥으로만 사용하고 static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 정상 여부를 단정하지 않는다.")
+    lines.append("- crawler_baseline_summaries 는 context-only 이며 crawler-like baseline 문맥으로만 사용하고 crawler authenticity, robots/sitemap 내용, site structure, page existence, attack success 를 단정하지 않는다.")
     lines.append("- ip_behavior_aggregates 는 context-only 이며 개별 incident 승격이나 severity 상향 근거로 사용하지 않는다.")
     lines.append("- auth_behavior_summaries 는 context-only 이며 raw POST body 미확인 상태에서 auth sequence 문맥으로만 사용한다.")
     lines.append("- method_behavior_summaries 는 context-only 이며 method probing / baseline 문맥으로만 사용하고 method 허용이나 성공 근거로 사용하지 않는다.")

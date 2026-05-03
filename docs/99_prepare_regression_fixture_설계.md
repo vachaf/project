@@ -148,6 +148,7 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - 2026-05-03 기준 `method_behavior_summaries`는 prepare top-level context-only 출력과 Stage2 dry-run report input 최소 반영까지 완료되었다.
 - 2026-05-03 기준 `protocol_anomaly_summaries`는 prepare top-level context-only 출력과 Stage2 dry-run report input 최소 반영까지 완료되었다.
 - 2026-05-03 기준 `h_r1_static_baseline_context` fixture 는 `static_baseline_summaries` 생성, `baseline:*` filtered hint 치환, candidate 비승격을 검증한다.
+- 2026-05-03 기준 `h_r2_crawler_baseline_context` fixture 는 `crawler_baseline_summaries` 생성, `crawler_like:*` filtered hint 치환, candidate 비승격을 검증한다.
 - 2026-04-30 기준 `b_r2b_double_encoded_sqli` expected 는 `encoding:decoded_depth_2` 외에 `sqli:boolean_true_condition` 및 일부 구조 hint(`quote_termination`, `parenthesis_termination`, `comment_sequence`, `xclose_pattern`)를 함께 확인한다.
 
 ## `h_r1_static_baseline_context` expected 기준
@@ -170,6 +171,16 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - `risky_methods_observed`에는 `OPTIONS`, `TRACE`, `PUT`, `DELETE`가, `baseline_methods_observed`에는 `HEAD`, `GET`가 포함되어야 한다.
 - fixture 전체를 개별 `analysis_candidates`로 승격하지 않아야 하며, `HEAD`/`GET` baseline row 는 특히 candidate 로 과승격되면 안 된다.
 - method behavior context 로 덮인 filtered row 는 `dir_probe:*` 단독 hint 대신 `method_probe:*` 또는 `baseline:*` hint 를 가져야 한다.
+
+## `h_r2_crawler_baseline_context` expected 기준
+
+- 같은 `src_ip`의 300초 window 안에서 crawler-like `User-Agent`가 2건 이상 관찰되거나, crawler-like `User-Agent`와 함께 `robots.txt`, `sitemap.xml`, product/category browse, normal `GET /` baseline 이 함께 관찰되면 `crawler_baseline_summaries`가 생성되어야 한다.
+- summary 는 `context_role=crawler_baseline_context`, `aggregate_scope=same_src_ip_crawler_like_time_window`, `should_promote_to_candidate=false`를 유지해야 한다.
+- `reason_hints`에는 `crawler_like:googlebot_like_ua`, `crawler_like:generic_crawler_ua`, `crawler_like:robots_txt`, `crawler_like:sitemap_xml`, `crawler_like:product_browse`, `crawler_like:category_browse`, `crawler_like:ua_spoofable`, `crawler_like:no_crawler_authenticity_inference`, `crawler_like:no_site_structure_inference`, `crawler_like:no_page_existence_inference` 같은 보수적 힌트가 포함되어야 한다.
+- `interpretation_limit`은 `crawler_ua_spoofable_no_content_or_page_existence_inference`를 유지해야 한다.
+- `crawler_like_user_agent_families`에는 `googlebot_like`, `generic_crawler`가 반영되어야 하며, `path_categories_observed`에는 `robots_txt`, `sitemap_xml`, `product_browse`, `category_browse`, `normal_get`가 반영되어야 한다.
+- fixture 전체를 개별 `analysis_candidates`로 승격하지 않아야 한다.
+- crawler baseline context 로 덮인 filtered row 는 `/products/`, `/category/` 같은 browse row 에서 `dir_probe:*` 단독 hint 대신 `crawler_like:*` 중심 hint 를 가져야 한다.
 
 ## `g_r2_protocol_anomaly_context` expected 기준
 

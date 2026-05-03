@@ -219,6 +219,7 @@ python3 lab/h_set/run_h_r2_crawler_baseline.py \
 - crawler-like 접근이 반복되더라도 성공/침해 단정은 하지 않는다.
 - `robots.txt` / `sitemap.xml` 내용, site structure, product/category page existence는 검증하지 않는다.
 - response body 원문과 request body 원문은 저장하지 않는다.
+- 2026-05-03 실제 prepare 확인에서 candidate 과승격은 없었지만 crawler-like 문맥이 top-level summary 없이 약하게 남는 문제가 확인되었고, 후속 prepare 개선에서는 `crawler_baseline_summaries`와 `crawler_like:*` filtered hint 정리가 필요하다는 점이 확인됐다.
 
 ### 향후 hint 후보
 

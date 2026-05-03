@@ -1,0 +1,150 @@
+{
+  "description": "Stage dry-run should preserve crawler baseline summaries as context-only crawler context without asserting crawler authenticity, robots/sitemap contents, site structure, page existence, or attack success.",
+  "MUST": [
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.crawler_baseline_summary_count",
+      "message": "crawler baseline summary count exists"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.crawler_baseline_summary_count",
+      "equals": 1,
+      "message": "crawler baseline summary count is preserved"
+    },
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.crawler_baseline_summary_policy",
+      "message": "crawler baseline summary policy exists"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.crawler_baseline_summary_policy.success_rule",
+      "contains": "robots policy, sitemap 내용, site structure, product/category page existence, 공격 성공을 단정하지 않음",
+      "message": "crawler baseline policy keeps conservative success rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.behavior_scope_separation_policy.non_merge_rule",
+      "contains": "crawler_baseline_summaries",
+      "message": "behavior scope separation policy includes crawler baseline summaries"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "crawler_baseline_summaries.0.context_role",
+      "equals": "crawler_baseline_context",
+      "message": "crawler baseline summary keeps context role"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "crawler_baseline_summaries.0.should_promote_to_candidate",
+      "equals": false,
+      "message": "crawler baseline summary stays non-promoting"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "crawler_baseline_summaries.0.interpretation_limit",
+      "equals": "crawler_ua_spoofable_no_content_or_page_existence_inference",
+      "message": "crawler baseline summary keeps interpretation limit"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.candidate_rows",
+      "equals": 0,
+      "message": "crawler baseline fixture does not create candidates"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "crawler_baseline_summaries 가 있으면 이는 context-only",
+      "message": "stage2 prompt includes crawler baseline context-only rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "Googlebot/Bingbot/GenericCrawler-like User-Agent 는 spoof 가능하므로 실제 crawler 정체를 단정하지 마라",
+      "message": "stage2 prompt includes crawler authenticity limitation"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "Crawler baseline context",
+      "message": "markdown includes crawler baseline context section"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "crawler baseline 해석 제한",
+      "message": "markdown includes crawler baseline interpretation limitation"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "ua_families=",
+      "message": "markdown includes crawler UA family list"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "실제 crawler",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert crawler authenticity"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "robots/sitemap 내용",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert robots or sitemap contents"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "site structure",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert site structure"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "page existence",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert page existence"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "attack success",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert attack success"
+    }
+  ]
+}
