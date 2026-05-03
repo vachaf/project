@@ -7,10 +7,12 @@ Apache 웹 로그를 MariaDB에 적재한 뒤 `export -> prepare -> stage1 -> st
 ## 프로젝트 개요
 
 - Apache 웹 로그 기반 분석
-- `prepare_llm_input.py`에서 후보와 문맥을 선별
+- `export -> prepare -> stage1 -> stage2` 구조로 동작
+- `prepare_llm_input.py`에서 후보와 context-only 문맥을 선별
 - `llm_stage1_classifier.py`에서 후보별 1차 분류
 - `llm_stage2_reporter.py`에서 Markdown / JSON 보고서 생성
-- `run_analysis_pipeline.py --dry-run`으로 실제 LLM API 호출 없이 Stage1/Stage2 구조 검증 가능
+- `run_analysis_pipeline.py --dry-run`으로 실제 LLM API 호출 없이 구조 검증 가능
+- 문서 허브는 [docs/README.md](docs/README.md)에서 관리
 
 ## Pipeline
 
@@ -22,6 +24,7 @@ Apache logs
   -> prepare_llm_input.py
   -> llm_stage1_classifier.py
   -> llm_stage2_reporter.py
+  -> run_analysis_pipeline.py
 ```
 
 ## Supported Signals
@@ -35,9 +38,25 @@ Apache logs
 - SSRF-like internal / metadata target
 - SSTI expression
 - webshell-like access pattern
+- Auth/Login abuse context
+- HTTP method behavior context
+- HTTP protocol anomaly context
+- Static / health / normal browse baseline context
+- Crawler-like baseline context
+- Scanner-like sensitive path context
+- Mixed benign + scanner-like context
 - `supporting_events`
 - `probing_sequence_summaries`
-- `ip_behavior_aggregates` context-only
+- `ip_behavior_aggregates`
+- `auth_behavior_summaries`
+- `method_behavior_summaries`
+- `protocol_anomaly_summaries`
+- `static_baseline_summaries`
+- `crawler_baseline_summaries`
+- `sensitive_path_probe_summaries`
+- `mixed_baseline_scanner_summaries`
+
+위 context-only 항목은 성공/침해 단정 근거가 아니라 문맥 보존용입니다.
 
 ## Regression Checks
 
@@ -50,8 +69,10 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 
 현재 기준:
 
-- prepare regression: 11 fixtures, `0 fail`
-- stage dry-run regression: 5 fixtures, `0 fail`
+- prepare regression: 18 fixtures, `warn=0 fail=0`
+- stage dry-run regression: 12 fixtures, `warn=0 fail=0`
+
+최신 상태는 [docs/진행상황.md](docs/진행상황.md)를 기준으로 확인합니다.
 
 ## Limitations
 
@@ -59,7 +80,8 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 - no response body content
 - no DB result
 - no browser execution validation
-- no success / exfiltration / compromise assertion from `status_code`, `response_body_bytes`, `resp_content_type` alone
+- no success / exfiltration / compromise assertion from status/bytes/content-type alone
+- Apache logs-only visibility can produce blind spots
 
 ## Safety Principles
 
@@ -67,13 +89,17 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 - no specific IP rule
 - no response size hard-code
 - no product-name hard-code
-- hint/category-based analysis
+- no route-specific exception as core detection logic
+- hint/category/context-based analysis
+- avoid environment-specific overfitting
 
-## Key Docs
+## Documentation
 
-- 운영/실행: [docs/01_운영_기준_실행_가이드.md](docs/01_운영_기준_실행_가이드.md)
-- 전체 흐름: [docs/00_전체_흐름_요약_가이드.md](docs/00_전체_흐름_요약_가이드.md)
-- prepare regression 설계: [docs/99_prepare_regression_fixture_설계.md](docs/99_prepare_regression_fixture_설계.md)
-- stage dry-run regression 설계: [docs/99_stage_dryrun_regression_설계.md](docs/99_stage_dryrun_regression_설계.md)
+- 문서 허브: [docs/README.md](docs/README.md)
 - 현재 상태 대시보드: [docs/진행상황.md](docs/진행상황.md)
-- 남은 TODO: [docs/99_비교실험_후속개선_TODO.md](docs/99_비교실험_후속개선_TODO.md)
+- 운영/실행: [docs/operations/01_운영_기준_실행_가이드.md](docs/operations/01_운영_기준_실행_가이드.md)
+- 전체 흐름: [docs/operations/00_전체_흐름_요약_가이드.md](docs/operations/00_전체_흐름_요약_가이드.md)
+- 실험 표준: [docs/standards/98_비교_실험_요청_세트_표준.md](docs/standards/98_비교_실험_요청_세트_표준.md)
+- 실험 문서 인덱스: [docs/experiments/README.md](docs/experiments/README.md)
+- 회귀 검증 설계: [docs/design/99_prepare_regression_fixture_설계.md](docs/design/99_prepare_regression_fixture_설계.md), [docs/design/99_stage_dryrun_regression_설계.md](docs/design/99_stage_dryrun_regression_설계.md)
+- 후속 작업: [docs/planning/99_비교실험_후속개선_TODO.md](docs/planning/99_비교실험_후속개선_TODO.md)
