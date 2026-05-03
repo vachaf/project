@@ -11,10 +11,10 @@
 현재 runner:
 
 - `run_h_r1_static_baseline.py`: R1 static / health / normal browse baseline
+- `run_h_r2_crawler_baseline.py`: R2 crawler-like baseline for robots/sitemap/product/category browse and repeated crawler-like UA sequences
 
 future:
 
-- `run_h_r2_crawler_baseline.py`
 - `run_h_r3_scanner_low_signal.py`
 - `run_h_r4_mixed_baseline_scanner.py`
 
@@ -26,6 +26,12 @@ python3 lab/h_set/run_h_r1_static_baseline.py \
   --scenario all \
   --out lab/05-xx_H세트R1_산출물/runner_logs \
   --dry-run
+
+python3 lab/h_set/run_h_r2_crawler_baseline.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R2_산출물/runner_logs \
+  --dry-run
 ```
 
 실행 산출물:
@@ -36,7 +42,11 @@ python3 lab/h_set/run_h_r1_static_baseline.py \
 주의:
 
 - runner는 static file 존재 여부를 증명하지 않는다.
+- R2 runner는 robots/sitemap/product/category browse와 crawler-like UA가 candidate로 과승격되지 않는지 보는 baseline harness다.
+- Googlebot/Bingbot-like UA라도 실제 crawler로 단정하지 않는다.
+- runner는 robots/sitemap 내용, site structure, product/category page existence를 검증하지 않는다.
 - runner는 `robots.txt` / `sitemap.xml` 내용을 저장하거나 정책/구조를 해석하지 않는다.
 - runner는 JS/CSS/image 내용을 저장하거나 실행 의미를 해석하지 않는다.
 - runner는 health endpoint의 정상 여부를 단정하지 않는다.
 - runner는 `status_code`, `response_body_bytes`, `User-Agent`만으로 정상/공격/노출 성공을 단정하지 않는다.
+- request body와 response body 원문은 저장하지 않는다.

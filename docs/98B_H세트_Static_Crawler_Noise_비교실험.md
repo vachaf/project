@@ -171,23 +171,54 @@ baseline:normal_browse
 
 ### 목표
 
-crawler-like User-Agent와 robots/sitemap/category/product browse 요청이 공격으로 과승격되지 않는지 확인한다.
+crawler-like User-Agent와 robots/sitemap/category/product browse 요청이 공격 candidate로 과승격되지 않는지 확인한다.
+
+H R2는 `lab/h_set/run_h_r2_crawler_baseline.py` Python runner로 실행하는 것을 권장한다. 이 runner는 crawler-like UA와 robots/sitemap/browse 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 baseline harness이며, 실제 Googlebot/Bingbot 검증이나 공격 성공 검증을 하지 않는다.
+
+실행 예시:
+
+```bash
+python3 lab/h_set/run_h_r2_crawler_baseline.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R2_산출물/runner_logs
+```
+
+dry-run / print-plan 예시:
+
+```bash
+python3 lab/h_set/run_h_r2_crawler_baseline.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R2_산출물/runner_logs \
+  --dry-run
+
+python3 lab/h_set/run_h_r2_crawler_baseline.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R2_산출물/runner_logs \
+  --print-plan
+```
 
 ### 케이스
 
-| ID | 요청 | User-Agent | 기대 해석 |
-|---|---|---|---|
-| H-R2-01 | `GET /robots.txt` | Googlebot-like | crawler-like baseline 가능성 |
-| H-R2-02 | `GET /sitemap.xml` | Googlebot-like | sitemap crawl 가능성 |
-| H-R2-03 | `GET /products/` | generic crawler | crawl/browse context |
-| H-R2-04 | `GET /category/` | generic crawler | crawl/browse context |
-| H-R2-05 | `GET /` | browser-like UA | normal browse baseline |
+| ID | runner label | 요청 | User-Agent | 기대 관찰 | 기대 해석 | 기대 응답 | 해석 제한 |
+|---|---|---|---|---|---|---|---|
+| H-R2-01 | `robots_googlebot_like` | `GET /robots.txt` | `Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)` | `robots.txt` request, crawler-like `User-Agent`, `status_code` 관찰 | crawler-like robots baseline possibility, Googlebot authenticity must not be inferred, robots policy content must not be inferred | `any` | `crawler_ua_spoofable_no_robot_policy_inference` |
+| H-R2-02 | `sitemap_googlebot_like` | `GET /sitemap.xml` | `Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)` | `sitemap.xml` request, crawler-like `User-Agent`, `status_code` 관찰 | crawler-like sitemap baseline possibility, site structure disclosure must not be inferred | `any` | `crawler_ua_spoofable_no_site_structure_inference` |
+| H-R2-03 | `products_generic_crawler` | `GET /products/` | `GenericCrawler/1.0` | product-like browse path, generic crawler-like `User-Agent` | crawler-like browse context, product page existence must not be inferred | `any` | `crawler_like_browse_no_page_existence_inference` |
+| H-R2-04 | `category_generic_crawler` | `GET /category/` | `GenericCrawler/1.0` | category-like browse path, generic crawler-like `User-Agent` | crawler-like browse context, category/page existence must not be inferred | `any` | `crawler_like_browse_no_page_existence_inference` |
+| H-R2-05 | `normal_browser_get` | `GET /` | `Mozilla/5.0 regression-browser` | normal browser-like GET baseline | normal browse baseline, should not be promoted as crawler/scanner by itself | `any` | `baseline_get_no_attack_inference` |
+| H-R2-06 | `repeated_crawler_browse_x3` | `GET /robots.txt` -> `GET /sitemap.xml` -> `GET /products/` | `GenericCrawler/1.0` | repeated crawler-like browse sequence, same `src_ip`/time window | crawler-like repeated baseline or low-signal crawl context, should not be promoted as attack without sensitive paths or stronger indicators | `any` | `crawler_like_repetition_no_attack_inference` |
 
 주의:
 
+- H R2의 목표는 crawler-like UA와 robots/sitemap/browse 요청이 candidate로 과승격되지 않는지 확인하는 것이다.
 - User-Agent가 Googlebot/Bingbot처럼 보여도 실제 crawler라고 단정하지 않는다.
 - User-Agent는 spoof 가능하다.
 - crawler-like 접근이 반복되더라도 성공/침해 단정은 하지 않는다.
+- `robots.txt` / `sitemap.xml` 내용, site structure, product/category page existence는 검증하지 않는다.
+- response body 원문과 request body 원문은 저장하지 않는다.
 
 ### 향후 hint 후보
 
