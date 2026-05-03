@@ -1,0 +1,235 @@
+{
+  "metadata": {
+    "allow_public_target": false,
+    "base_url": "http://192.168.56.105",
+    "ended_at": null,
+    "files": {
+      "metadata_json": "lab/05-03_H세트R3_산출물/runner_logs/run_metadata.json",
+      "plan_json": "lab/05-03_H세트R3_산출물/runner_logs/execution_plan.json",
+      "plan_md": "lab/05-03_H세트R3_산출물/runner_logs/execution_plan.md",
+      "results_jsonl": "lab/05-03_H세트R3_산출물/runner_logs/request_results.jsonl",
+      "summary_md": "lab/05-03_H세트R3_산출물/runner_logs/run_summary.md"
+    },
+    "mode": "execute",
+    "request_count": 9,
+    "scenario": "all",
+    "sleep_scale": 1.0,
+    "started_at": "2026-05-03T15:39:33+09:00",
+    "stores_request_body_content": false,
+    "stores_response_body_content": false,
+    "supports_https": true,
+    "target_class": "private-ip",
+    "timeout_sec": 10.0,
+    "transport": "urllib.request"
+  },
+  "requests": [
+    {
+      "expected_interpretation": [
+        "common scanner-like path context",
+        "WordPress presence or vulnerability must not be inferred"
+      ],
+      "expected_observation": [
+        "common WordPress login path request",
+        "status_code 관찰",
+        "response_body_bytes 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/wp-login.php",
+      "interpretation_limit": "scanner_path_context_no_app_presence_inference",
+      "method": "GET",
+      "path": "/wp-login.php",
+      "request_label": "wp_login_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R3-01",
+      "scenario_label": "wp_login_probe",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "common scanner-like admin path context",
+        "admin access success must not be inferred"
+      ],
+      "expected_observation": [
+        "common WordPress admin path request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/wp-admin/",
+      "interpretation_limit": "scanner_path_context_no_admin_access_inference",
+      "method": "GET",
+      "path": "/wp-admin/",
+      "request_label": "wp_admin_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R3-02",
+      "scenario_label": "wp_admin_probe",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "sensitive config path probing possibility",
+        ".env exposure must not be inferred"
+      ],
+      "expected_observation": [
+        "sensitive-looking config path request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/.env",
+      "interpretation_limit": "sensitive_path_context_no_file_exposure_inference",
+      "method": "GET",
+      "path": "/.env",
+      "request_label": "env_file_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R3-03",
+      "scenario_label": "env_file_probe",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "diagnostic path probing possibility",
+        "phpinfo exposure must not be inferred"
+      ],
+      "expected_observation": [
+        "diagnostic phpinfo-like path request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/phpinfo.php",
+      "interpretation_limit": "sensitive_path_context_no_phpinfo_exposure_inference",
+      "method": "GET",
+      "path": "/phpinfo.php",
+      "request_label": "phpinfo_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R3-04",
+      "scenario_label": "phpinfo_probe",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "server-status probing possibility",
+        "server-status exposure or access control success must not be inferred"
+      ],
+      "expected_observation": [
+        "Apache server-status-like path request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/server-status",
+      "interpretation_limit": "sensitive_path_context_no_server_status_exposure_inference",
+      "method": "GET",
+      "path": "/server-status",
+      "request_label": "server_status_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R3-05",
+      "scenario_label": "server_status_probe",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "backup artifact probing possibility",
+        "backup file exposure must not be inferred"
+      ],
+      "expected_observation": [
+        "backup artifact-looking path request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/backup.zip",
+      "interpretation_limit": "sensitive_path_context_no_backup_exposure_inference",
+      "method": "GET",
+      "path": "/backup.zip",
+      "request_label": "backup_zip_probe_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R3-06",
+      "scenario_label": "backup_zip_probe",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "scanner-like sensitive path probing context",
+        "no file exposure or compromise inference"
+      ],
+      "expected_observation": [
+        "repeated sensitive-looking path sequence",
+        "same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/.env",
+      "interpretation_limit": "sensitive_path_burst_no_success_inference",
+      "method": "GET",
+      "path": "/.env",
+      "request_label": "sensitive_burst_env_request",
+      "scaled_sleep_after_sec": 2.0,
+      "scenario_id": "H-R3-07",
+      "scenario_label": "sensitive_path_burst",
+      "sleep_after_sec": 2.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "scanner-like sensitive path probing context",
+        "no file exposure or compromise inference"
+      ],
+      "expected_observation": [
+        "repeated sensitive-looking path sequence",
+        "same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/server-status",
+      "interpretation_limit": "sensitive_path_burst_no_success_inference",
+      "method": "GET",
+      "path": "/server-status",
+      "request_label": "sensitive_burst_server_status_request",
+      "scaled_sleep_after_sec": 2.0,
+      "scenario_id": "H-R3-07",
+      "scenario_label": "sensitive_path_burst",
+      "sleep_after_sec": 2.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "scanner-like sensitive path probing context",
+        "no file exposure or compromise inference"
+      ],
+      "expected_observation": [
+        "repeated sensitive-looking path sequence",
+        "same src_ip/time window"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/backup.zip",
+      "interpretation_limit": "sensitive_path_burst_no_success_inference",
+      "method": "GET",
+      "path": "/backup.zip",
+      "request_label": "sensitive_burst_backup_zip_request",
+      "scaled_sleep_after_sec": 0.0,
+      "scenario_id": "H-R3-07",
+      "scenario_label": "sensitive_path_burst",
+      "sleep_after_sec": 0.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "GenericScanner/1.0"
+    }
+  ]
+}
