@@ -65,6 +65,7 @@ docs/
 - 운영/흐름: [진행상황.md](./진행상황.md), [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)
 - 실험 표준: [98_비교_실험_요청_세트_표준.md](./98_비교_실험_요청_세트_표준.md)
 - A 세트: [98A_A세트_비교실험.md](./experiments/A_set/98A_A세트_비교실험.md)
+- C 세트: [98B_C세트_비교실험.md](./experiments/C_set/98B_C세트_비교실험.md), [98B_C세트_XSS_runner_전환.md](./experiments/C_set/98B_C세트_XSS_runner_전환.md)
 - F 세트: [98B_F세트_Auth_Login_Abuse_비교실험.md](./experiments/F_set/98B_F세트_Auth_Login_Abuse_비교실험.md), [98B_F세트_Auth_Login_Abuse_R2.md](./experiments/F_set/98B_F세트_Auth_Login_Abuse_R2.md)
 - G 세트: [98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md](./experiments/G_set/98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md)
 - H 세트: [98B_H세트_Static_Crawler_Noise_비교실험.md](./experiments/H_set/98B_H세트_Static_Crawler_Noise_비교실험.md)
@@ -82,7 +83,8 @@ docs/
 - 이동 완료 `98B_G세트_*` 문서: `docs/experiments/G_set/`
 - 이동 완료 `98B_H세트_*` 문서: `docs/experiments/H_set/`
 - 이동 완료 `98A_A세트_*` 문서: `docs/experiments/A_set/`
-- 현재 위치 기준 B~E 세트 실험 문서: `docs/experiments/B_set/` ~ `docs/experiments/E_set/` 이동 후보
+- 이동 완료 `98B_C세트_*` 문서: `docs/experiments/C_set/`
+- 현재 위치 기준 B/D/E 세트 실험 문서: `docs/experiments/B_set/`, `docs/experiments/D_set/`, `docs/experiments/E_set/` 이동 후보
 - 이동 완료 설계/회귀 검증 문서: `docs/design/99_prepare_regression_fixture_설계.md`, `docs/design/99_stage_dryrun_regression_설계.md`, `docs/design/99_prepare_module_split_plan.md`
 - 이동 완료 리뷰/품질 문서: `docs/reviews/99_A-H세트_중간정리.md`, `docs/reviews/99_llm_sample_review_plan.md`, `docs/reviews/99_stage2_wording_quality_review.md`
 - 현재 위치 기준 오래된 초안, 길어진 TODO, 직접 참조하지 않는 문서: 이동 후보 `docs/archive/`
