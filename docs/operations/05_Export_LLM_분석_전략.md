@@ -5,6 +5,7 @@
 
 실제 운영 명령은 [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)를 본다.
 스크립트별 역할과 입출력 개요는 [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)를 본다.
+설계 결정과 해석 한계는 [99_POST_body_visibility_한계와_해석_기준.md](../design/99_POST_body_visibility_한계와_해석_기준.md), [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](../design/99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md)를 본다.
 
 ## 1. 현재 파이프라인
 
@@ -32,6 +33,7 @@ llm_stage2_reporter.py
 
 통합 실행:
 
+- `run_analysis_pipeline.py`는 prepare -> stage1 -> stage2를 묶는 통합 실행 입구다.
 - `run_analysis_pipeline.py`는 `--export-input`, `--llm-input`, `--stage1-results`에서 시작할 수 있다.
 - `--dry-run`으로 실제 LLM API 호출 없이 구조 검증이 가능하다.
 - 실행 후 `pipeline_manifest.json`을 생성한다.
@@ -113,6 +115,8 @@ llm_stage2_reporter.py
 - `sensitive_path_probe_summaries`
 - `mixed_baseline_scanner_summaries`
 
+위 context summary 계열은 현재 코드 기준의 주요 예시이며, 완전한 고정 schema 전체 목록으로 단정하지 않는다.
+
 ### 4.1 로그 가시성 한계와 POST body blind spot
 
 현재 파이프라인은 Apache 공통/security 로그 표면에 직접 남는 신호를 우선 사용한다. 따라서 아래와 같은 신호에는 비교적 강하다.
@@ -166,6 +170,8 @@ llm_stage2_reporter.py
 - `merged_row_count`
 - `merged_source_tables`
 - `merged_log_ids`
+
+실제 전체 필드는 prepare 코드 기준을 따르며, 위 목록은 현재 운영 해석에 자주 쓰는 대표 필드다.
 
 ## 6. stage1 기준
 
@@ -250,6 +256,17 @@ dry-run 주의:
 - `policy_notes`
 - `supporting_events`
 
+필요 시 아래 context summary 계열이 함께 포함될 수 있다.
+
+- `static_baseline_summaries`
+- `crawler_baseline_summaries`
+- `sensitive_path_probe_summaries`
+- `mixed_baseline_scanner_summaries`
+- `ip_behavior_aggregates`
+- `auth_behavior_summaries`
+- `method_behavior_summaries`
+- `protocol_anomaly_summaries`
+
 현재 운영 기준에서는 `KNOWN_ASSET_IPS`를 기본 필수로 보지 않는다.
 
 해석 기준:
@@ -263,6 +280,7 @@ dry-run 주의:
 - suspicious/high incident는 `request_id` 기반 raw log 대조 절차와 함께 해석한다.
 - 운영자는 `request_id`로 `apache_security_logs.raw_log` 원문을 조회하고, 같은 시간대 `apache_error_logs` 및 앱 로그를 대조해 payload 정황, 도구 사용 정황, 서버 반응, 성공 정황을 구분해야 한다.
 - Anthropic 경로에서는 JSON 출력이 길어지면 `stop_reason=max_tokens`로 truncation이 날 수 있으므로 stop reason 확인이 중요하다.
+- error/raw_error 진단 출력은 실패 또는 parse error 상황에서만 생성될 수 있으며, 일반 성공 출력의 고정 산출물로 보지 않는다.
 
 ## 8. run_analysis_pipeline 기준
 
