@@ -263,7 +263,7 @@ CREATE DATABASE opencart
   DEFAULT CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
-CREATE USER 'opencartuser'@'localhost' IDENTIFIED BY 'hoseo2026';
+CREATE USER 'opencartuser'@'localhost' IDENTIFIED BY '여기에_OpenCart_DB_비밀번호를_입력';
 GRANT ALL PRIVILEGES ON opencart.* TO 'opencartuser'@'localhost';
 FLUSH PRIVILEGES;
 EXIT;

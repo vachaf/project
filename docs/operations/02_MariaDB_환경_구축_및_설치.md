@@ -114,7 +114,7 @@ CREATE USER IF NOT EXISTS 'log_reader'@'192.168.56.110' IDENTIFIED BY 'YourPass'
 
 GRANT SELECT, INSERT, UPDATE ON web_logs.* TO 'log_writer'@'192.168.56.105'; -- JUICE SHOP
 GRANT SELECT, INSERT, UPDATE ON web_logs.* TO 'log_writer'@'192.168.56.111'; -- OPENCART
-GRANT SELECT ON web_logs.* TO 'log_reader'@'1192.168.56.110'; -- LLM
+GRANT SELECT ON web_logs.* TO 'log_reader'@'192.168.56.110'; -- LLM
 
 FLUSH PRIVILEGES;
 ```
