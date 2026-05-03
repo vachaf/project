@@ -1,0 +1,254 @@
+{
+  "description": "Baseline/static/crawler-like rows mixed with scanner-like sensitive paths in the same src_ip window should be preserved as context-only mixed baseline/scanner summaries without candidate promotion or single-attack/success inference.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140",
+        "context_role": "mixed_baseline_scanner_context",
+        "aggregate_scope": "same_src_ip_mixed_baseline_scanner_time_window",
+        "should_promote_to_candidate": false
+      },
+      "message": "mixed baseline/scanner summary created as context-only"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "interpretation_limit",
+      "contains": "mixed_context_no_success_or_single_attack_inference",
+      "message": "mixed baseline/scanner summary keeps conservative interpretation limit"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "baseline_contexts_observed",
+      "contains": "static_baseline",
+      "message": "static baseline context preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "baseline_contexts_observed",
+      "contains": "crawler_baseline",
+      "message": "crawler baseline context preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "baseline_contexts_observed",
+      "contains": "normal_get",
+      "message": "normal GET context preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "scanner_contexts_observed",
+      "contains": "sensitive_path_probe",
+      "message": "sensitive path probe context preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "path_categories_observed",
+      "contains": "static_asset",
+      "message": "static asset category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "path_categories_observed",
+      "contains": "favicon",
+      "message": "favicon category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "path_categories_observed",
+      "contains": "robots_txt",
+      "message": "baseline robots category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "path_categories_observed",
+      "contains": "crawler_sitemap",
+      "message": "crawler sitemap category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "path_categories_observed",
+      "contains": "crawler_product_browse",
+      "message": "crawler product browse category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "path_categories_observed",
+      "contains": "sensitive_env_file",
+      "message": "sensitive env category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "path_categories_observed",
+      "contains": "sensitive_wp_login",
+      "message": "sensitive wp-login category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "path_categories_observed",
+      "contains": "sensitive_backup_artifact",
+      "message": "sensitive backup category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "reason_hints",
+      "contains": "mixed_context:benign_and_scanner_like",
+      "message": "mixed benign/scanner hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "reason_hints",
+      "contains": "mixed_context:static_baseline_present",
+      "message": "static baseline presence hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "reason_hints",
+      "contains": "mixed_context:crawler_baseline_present",
+      "message": "crawler baseline presence hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "reason_hints",
+      "contains": "mixed_context:sensitive_path_probe_present",
+      "message": "sensitive path probe presence hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "reason_hints",
+      "contains": "mixed_context:keep_baseline_and_scanner_separate",
+      "message": "mixed separation hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "reason_hints",
+      "contains": "mixed_context:no_single_attack_inference",
+      "message": "no single-attack inference hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "reason_hints",
+      "contains": "mixed_context:no_success_inference",
+      "message": "no success inference hint found"
+    },
+    {
+      "op": "collection_count_at_most",
+      "collection": "analysis_candidates",
+      "value": 0,
+      "message": "fixture does not promote mixed low-signal rows to candidates"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "reason_hints",
+      "contains": "single_attack_success",
+      "message": "mixed summary must not assert single-attack success"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "reason_hints",
+      "contains": "app_presence_confirmed",
+      "message": "mixed summary must not assert app presence"
+    },
+    {
+      "op": "field_contains",
+      "collection": "mixed_baseline_scanner_summaries",
+      "where": {
+        "src_ip": "198.51.100.140"
+      },
+      "field": "reason_hints",
+      "contains": "page_existence_confirmed",
+      "message": "mixed summary must not assert page existence"
+    }
+  ]
+}

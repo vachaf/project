@@ -35,6 +35,7 @@ COLLECTION_KEYS = {
     "static_baseline_summaries": "static_baseline_summaries",
     "crawler_baseline_summaries": "crawler_baseline_summaries",
     "sensitive_path_probe_summaries": "sensitive_path_probe_summaries",
+    "mixed_baseline_scanner_summaries": "mixed_baseline_scanner_summaries",
     "ip_behavior_aggregates": "ip_behavior_aggregates",
     "auth_behavior_summaries": "auth_behavior_summaries",
     "method_behavior_summaries": "method_behavior_summaries",

@@ -1,0 +1,146 @@
+{
+  "description": "Stage dry-run should preserve mixed baseline/scanner summaries as context-only mixed context without merging baseline/static/crawler-like and scanner-like rows into a single successful attack narrative.",
+  "MUST": [
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.mixed_baseline_scanner_summary_count",
+      "message": "mixed baseline/scanner summary count exists"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.mixed_baseline_scanner_summary_count",
+      "equals": 1,
+      "message": "mixed baseline/scanner summary count is preserved"
+    },
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.mixed_baseline_scanner_summary_policy",
+      "message": "mixed baseline/scanner summary policy exists"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.mixed_baseline_scanner_summary_policy.interpretation_rule",
+      "contains": "단일 공격 성공으로 합치지 않고 각각의 문맥을 분리해서 설명",
+      "message": "mixed baseline/scanner policy keeps separation rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.mixed_baseline_scanner_summary_policy.success_rule",
+      "contains": "file exposure, app presence, crawler authenticity, page existence, attack success 를 단정하지 않음",
+      "message": "mixed baseline/scanner policy keeps conservative success rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.behavior_scope_separation_policy.non_merge_rule",
+      "contains": "mixed_baseline_scanner_summaries",
+      "message": "behavior scope separation policy includes mixed baseline/scanner summaries"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "mixed_baseline_scanner_summaries.0.context_role",
+      "equals": "mixed_baseline_scanner_context",
+      "message": "mixed baseline/scanner summary keeps context role"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "mixed_baseline_scanner_summaries.0.should_promote_to_candidate",
+      "equals": false,
+      "message": "mixed baseline/scanner summary stays non-promoting"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "mixed_baseline_scanner_summaries.0.interpretation_limit",
+      "equals": "mixed_context_no_success_or_single_attack_inference",
+      "message": "mixed baseline/scanner summary keeps interpretation limit"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "mixed_baseline_scanner_summaries 가 있으면 이는 context-only",
+      "message": "stage2 prompt includes mixed baseline/scanner context-only rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "baseline/static/crawler-like context 와 sensitive path probe context 를 같은 성공 공격이나 단일 침해 체인으로 합치지",
+      "message": "stage2 prompt includes mixed baseline/scanner separation rule"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "Mixed baseline/scanner context",
+      "message": "markdown includes mixed baseline/scanner context section"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "mixed baseline/scanner 해석 제한",
+      "message": "markdown includes mixed baseline/scanner interpretation limitation"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "baseline_contexts=",
+      "message": "markdown includes baseline context list"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "scanner_contexts=",
+      "message": "markdown includes scanner context list"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "file exposure",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert file exposure from mixed context"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "crawler authenticity",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert crawler authenticity from mixed context"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "page existence",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert page existence from mixed context"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "attack success",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert attack success from mixed context"
+    }
+  ]
+}

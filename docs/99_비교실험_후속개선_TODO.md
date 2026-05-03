@@ -18,6 +18,7 @@
 - `static_baseline_summaries` context-only 추가 및 H R1 static/health/browse row `baseline:*` hint 정리
 - `crawler_baseline_summaries` context-only 추가 및 H R2 crawler-like row `crawler_like:*` hint 정리
 - `sensitive_path_probe_summaries` context-only 추가 및 H R3 scanner-like sensitive path row `sensitive_path:*` hint 정리
+- `mixed_baseline_scanner_summaries` context-only 추가 및 H R4 mixed baseline/scanner top-level 분리 문맥 보강
 
 ## P1. prepare 모듈 분리 설계
 
@@ -118,6 +119,16 @@
 - 후속 검토:
   - 실제 Stage2 narrative 에서 `/server-status 403`가 summary보다 과도하게 부각되지 않는지 점검
   - WordPress 존재, admin access, `.env`/`phpinfo`/`server-status`/`backup` 노출 또는 차단 성공 단정 표현이 실제 LLM narrative 에서 다시 나타나지 않는지 수동 샘플로 계속 점검
+
+## P9. H세트 mixed baseline/scanner narrative 튜닝
+
+- 현재 상태:
+  - prepare `mixed_baseline_scanner_summaries` 추가 완료
+  - H R4 mixed benign/static/crawler-like + sensitive path window 를 context-only top-level summary 로 보존 완료
+  - Stage2 report input / dry-run Markdown 에 mixed baseline/scanner 분리 정책 최소 반영 완료
+- 후속 검토:
+  - 실제 Stage2 narrative 에서 static/crawler/sensitive path 문맥이 다시 단일 성공 공격처럼 합쳐지지 않는지 수동 샘플로 점검
+  - mixed summary 와 `ip_behavior_aggregates` 서술이 중복되지 않도록 표현 길이와 우선순위를 계속 다듬을 여지 있음
 
 ## 장기 후보
 

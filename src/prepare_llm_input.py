@@ -294,6 +294,9 @@ CRAWLER_BASELINE_SAMPLE_REQUEST_LIMIT = 10
 SENSITIVE_PATH_PROBE_WINDOW_SEC = 300
 SENSITIVE_PATH_PROBE_SAMPLE_REQUEST_LIMIT = 10
 SENSITIVE_PATH_PROBE_REPRESENTATIVE_CANDIDATE_LIMIT = 1
+MIXED_BASELINE_SCANNER_WINDOW_SEC = 300
+MIXED_BASELINE_SCANNER_MIN_REQUEST_COUNT = 4
+MIXED_BASELINE_SCANNER_SAMPLE_REQUEST_LIMIT = 10
 IP_BEHAVIOR_WINDOW_SEC = 300
 IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
 IP_BEHAVIOR_SENSITIVE_PATH_LIMIT = 10
@@ -3659,6 +3662,236 @@ def get_sensitive_path_probe_context_for_row(
     return None
 
 
+def map_mixed_static_path_category(asset_category: str) -> str:
+    category = normalize_text(asset_category)
+    if category in {"javascript_asset", "css_asset", "image_asset", "static_asset"}:
+        return "static_asset"
+    return category
+
+
+def map_mixed_crawler_path_category(path_category: str) -> str:
+    category = normalize_text(path_category)
+    mapping = {
+        "robots_txt": "crawler_robots_txt",
+        "sitemap_xml": "crawler_sitemap",
+        "product_browse": "crawler_product_browse",
+        "category_browse": "crawler_category_browse",
+        "browse_like": "crawler_browse_like",
+        "normal_get": "crawler_normal_get",
+    }
+    return mapping.get(category, "")
+
+
+def map_mixed_sensitive_path_category(path_category: str) -> str:
+    category = normalize_text(path_category)
+    mapping = {
+        "wp_login": "sensitive_wp_login",
+        "wp_admin": "sensitive_wp_admin",
+        "env_file": "sensitive_env_file",
+        "phpinfo": "sensitive_phpinfo",
+        "server_status": "sensitive_server_status",
+        "backup_artifact": "sensitive_backup_artifact",
+        "config_php": "sensitive_config_php",
+        "admin_config_php": "sensitive_admin_config_php",
+        "backup_directory": "sensitive_backup_directory",
+        "admin_directory": "sensitive_admin_directory",
+    }
+    return mapping.get(category, "")
+
+
+def build_mixed_baseline_scanner_row_context(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+    path = get_effective_request_path(get_uri(row), raw_request_target).lower()
+    method = get_method(row)
+    user_agent = get_user_agent(row)
+
+    static_category = classify_static_baseline_asset_category(path, method)
+    crawler_path_category = classify_crawler_baseline_path_category(path, method)
+    crawler_ua_family = classify_crawler_like_user_agent_family(user_agent)
+    sensitive_path_category = classify_sensitive_path_probe_category(path, method)
+
+    baseline_contexts: List[str] = []
+    scanner_contexts: List[str] = []
+    path_categories_observed: List[str] = []
+
+    if static_category:
+        mapped_static_category = map_mixed_static_path_category(static_category)
+        if mapped_static_category:
+            append_unique_hint(path_categories_observed, mapped_static_category)
+        if static_category == "normal_get":
+            append_unique_hint(baseline_contexts, "normal_get")
+        else:
+            append_unique_hint(baseline_contexts, "static_baseline")
+
+    crawler_context_detected = False
+    if crawler_ua_family:
+        if crawler_path_category in {
+            "robots_txt",
+            "sitemap_xml",
+            "product_browse",
+            "category_browse",
+            "browse_like",
+            "normal_get",
+        }:
+            crawler_context_detected = True
+        elif not static_category and not sensitive_path_category:
+            crawler_context_detected = True
+    if crawler_context_detected:
+        append_unique_hint(baseline_contexts, "crawler_baseline")
+        mapped_crawler_category = map_mixed_crawler_path_category(crawler_path_category)
+        if mapped_crawler_category:
+            append_unique_hint(path_categories_observed, mapped_crawler_category)
+
+    if sensitive_path_category:
+        append_unique_hint(scanner_contexts, "sensitive_path_probe")
+        mapped_sensitive_category = map_mixed_sensitive_path_category(sensitive_path_category)
+        if mapped_sensitive_category:
+            append_unique_hint(path_categories_observed, mapped_sensitive_category)
+
+    if not baseline_contexts and not scanner_contexts:
+        return None
+
+    return {
+        "src_ip": get_src_ip(row),
+        "log_time": choose_best_time(row),
+        "dt": parse_flexible_iso_dt(choose_best_time(row) or ""),
+        "path": path,
+        "status_code": get_status_code(row),
+        "baseline_contexts": baseline_contexts,
+        "scanner_contexts": scanner_contexts,
+        "path_categories_observed": path_categories_observed,
+        "sample_request_id": get_sample_request_id(row),
+    }
+
+
+def finalize_mixed_baseline_scanner_bucket(
+    items: List[Dict[str, Any]],
+    window_sec: int,
+) -> Optional[Dict[str, Any]]:
+    if not items:
+        return None
+
+    sorted_items = sorted(items, key=lambda item: item["dt"])
+    if len(sorted_items) < MIXED_BASELINE_SCANNER_MIN_REQUEST_COUNT:
+        return None
+
+    status_counts = Counter(str(safe_int(item.get("status_code"), 0)) for item in sorted_items)
+    baseline_contexts_observed: List[str] = []
+    scanner_contexts_observed: List[str] = []
+    path_categories_observed: List[str] = []
+    sample_request_ids: List[str] = []
+
+    for item in sorted_items:
+        extend_unique_hints(baseline_contexts_observed, item.get("baseline_contexts") or [])
+        extend_unique_hints(scanner_contexts_observed, item.get("scanner_contexts") or [])
+        extend_unique_hints(path_categories_observed, item.get("path_categories_observed") or [])
+
+        sample_request_id = normalize_text(item.get("sample_request_id"))
+        if sample_request_id and len(sample_request_ids) < MIXED_BASELINE_SCANNER_SAMPLE_REQUEST_LIMIT:
+            append_unique_hint(sample_request_ids, sample_request_id)
+
+    has_baseline_context = any(
+        context in {"static_baseline", "crawler_baseline", "normal_get"}
+        for context in baseline_contexts_observed
+    )
+    has_scanner_context = "sensitive_path_probe" in scanner_contexts_observed
+    if not (has_baseline_context and has_scanner_context):
+        return None
+
+    reason_hints: List[str] = [
+        "mixed_context:benign_and_scanner_like",
+        "mixed_context:keep_baseline_and_scanner_separate",
+        "mixed_context:no_single_attack_inference",
+        "mixed_context:no_success_inference",
+        "mixed_context:no_file_exposure_inference",
+        "mixed_context:no_crawler_authenticity_inference",
+        "mixed_context:no_page_existence_inference",
+    ]
+    if "static_baseline" in baseline_contexts_observed:
+        append_unique_hint(reason_hints, "mixed_context:static_baseline_present")
+    if "crawler_baseline" in baseline_contexts_observed:
+        append_unique_hint(reason_hints, "mixed_context:crawler_baseline_present")
+    if "normal_get" in baseline_contexts_observed:
+        append_unique_hint(reason_hints, "mixed_context:normal_browse_present")
+    if "sensitive_path_probe" in scanner_contexts_observed:
+        append_unique_hint(reason_hints, "mixed_context:sensitive_path_probe_present")
+
+    return {
+        "context_role": "mixed_baseline_scanner_context",
+        "aggregate_scope": "same_src_ip_mixed_baseline_scanner_time_window",
+        "should_promote_to_candidate": False,
+        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
+        "window_start": normalize_text(sorted_items[0].get("log_time")),
+        "window_end": normalize_text(sorted_items[-1].get("log_time")),
+        "burst_window_sec": window_sec,
+        "request_count": len(sorted_items),
+        "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (safe_int(kv[0], 0), kv[0]))),
+        "baseline_contexts_observed": baseline_contexts_observed,
+        "scanner_contexts_observed": scanner_contexts_observed,
+        "path_categories_observed": path_categories_observed,
+        "sample_request_ids": sample_request_ids,
+        "reason_hints": reason_hints,
+        "interpretation_limit": "mixed_context_no_success_or_single_attack_inference",
+    }
+
+
+def build_mixed_baseline_scanner_summaries(
+    rows: List[Dict[str, Any]],
+    window_sec: int = MIXED_BASELINE_SCANNER_WINDOW_SEC,
+) -> List[Dict[str, Any]]:
+    rows_by_ip: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        src_ip = get_src_ip(row)
+        if not src_ip or src_ip == "-":
+            continue
+
+        row_context = build_mixed_baseline_scanner_row_context(row)
+        if not row_context:
+            continue
+
+        row_dt = row_context.get("dt")
+        if row_dt is None:
+            continue
+
+        rows_by_ip[src_ip].append(row_context)
+
+    summaries: List[Dict[str, Any]] = []
+    for items in rows_by_ip.values():
+        sorted_items = sorted(items, key=lambda item: item["dt"])
+        bucket: List[Dict[str, Any]] = []
+        bucket_start: Optional[datetime] = None
+        for item in sorted_items:
+            if not bucket:
+                bucket = [item]
+                bucket_start = item["dt"]
+                continue
+
+            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
+                bucket.append(item)
+                continue
+
+            summary = finalize_mixed_baseline_scanner_bucket(bucket, window_sec=window_sec)
+            if summary:
+                summaries.append(summary)
+            bucket = [item]
+            bucket_start = item["dt"]
+
+        summary = finalize_mixed_baseline_scanner_bucket(bucket, window_sec=window_sec)
+        if summary:
+            summaries.append(summary)
+
+    summaries.sort(
+        key=lambda item: (
+            safe_int(item.get("request_count"), 0),
+            len(item.get("baseline_contexts_observed") or []),
+            len(item.get("scanner_contexts_observed") or []),
+            normalize_text(item.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return summaries
+
+
 def parse_iso_dt(text: str) -> Optional[datetime]:
     if not text:
         return None
@@ -5118,6 +5351,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
     ip_behavior_aggregates = build_ip_behavior_aggregates(all_rows)
     method_behavior_summaries = build_method_behavior_summaries(all_rows)
     protocol_anomaly_summaries = build_protocol_anomaly_summaries(all_rows)
+    mixed_baseline_scanner_summaries = build_mixed_baseline_scanner_summaries(all_rows)
     crawler_baseline_contexts = build_crawler_baseline_summary_contexts(crawler_baseline_summaries)
     method_behavior_contexts = build_method_behavior_summary_contexts(method_behavior_summaries)
     protocol_anomaly_contexts = build_protocol_anomaly_summary_contexts(protocol_anomaly_summaries)
@@ -5166,6 +5400,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "static_baseline_summaries_are_context_only": True,
                 "crawler_baseline_summaries_are_context_only": True,
                 "sensitive_path_probe_summaries_are_context_only": True,
+                "mixed_baseline_scanner_summaries_are_context_only": True,
                 "ip_behavior_aggregates_are_context_only": True,
                 "auth_behavior_summaries_are_context_only": True,
                 "method_behavior_summaries_are_context_only": True,
@@ -5179,6 +5414,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "static_baseline_window_sec": STATIC_BASELINE_WINDOW_SEC,
                 "crawler_baseline_window_sec": CRAWLER_BASELINE_WINDOW_SEC,
                 "sensitive_path_probe_window_sec": SENSITIVE_PATH_PROBE_WINDOW_SEC,
+                "mixed_baseline_scanner_window_sec": MIXED_BASELINE_SCANNER_WINDOW_SEC,
                 "ip_behavior_window_sec": IP_BEHAVIOR_WINDOW_SEC,
                 "auth_behavior_window_sec": AUTH_BEHAVIOR_WINDOW_SEC,
                 "auth_behavior_rapid_window_sec": AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
@@ -5204,6 +5440,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "static_baseline_summaries": len(static_baseline_summaries),
                 "crawler_baseline_summaries": len(crawler_baseline_summaries),
                 "sensitive_path_probe_summaries": len(sensitive_path_probe_summaries),
+                "mixed_baseline_scanner_summaries": len(mixed_baseline_scanner_summaries),
                 "ip_behavior_aggregates": len(ip_behavior_aggregates),
                 "auth_behavior_summaries": len(auth_behavior_summaries),
                 "method_behavior_summaries": len(method_behavior_summaries),
@@ -5220,6 +5457,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         "static_baseline_summaries": static_baseline_summaries,
         "crawler_baseline_summaries": crawler_baseline_summaries,
         "sensitive_path_probe_summaries": sensitive_path_probe_summaries,
+        "mixed_baseline_scanner_summaries": mixed_baseline_scanner_summaries,
         "ip_behavior_aggregates": ip_behavior_aggregates,
         "auth_behavior_summaries": auth_behavior_summaries,
         "method_behavior_summaries": method_behavior_summaries,

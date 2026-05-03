@@ -153,6 +153,7 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - 2026-05-03 기준 `h_r1_static_baseline_context` fixture 는 `static_baseline_summaries` 생성, `baseline:*` filtered hint 치환, candidate 비승격을 검증한다.
 - 2026-05-03 기준 `h_r2_crawler_baseline_context` fixture 는 `crawler_baseline_summaries` 생성, `crawler_like:*` filtered hint 치환, candidate 비승격을 검증한다.
 - 2026-05-03 기준 `h_r3_sensitive_path_probe_context` fixture 는 `sensitive_path_probe_summaries` 생성, `sensitive_path:*` filtered hint 치환, `/server-status` representative candidate 축소를 검증한다.
+- 2026-05-03 기준 `h_r4_mixed_baseline_scanner_context` fixture 는 `mixed_baseline_scanner_summaries` 생성, baseline/static/crawler-like 와 sensitive path probe 문맥 분리, candidate 비승격 원칙 유지를 검증한다.
 - 2026-04-30 기준 `b_r2b_double_encoded_sqli` expected 는 `encoding:decoded_depth_2` 외에 `sqli:boolean_true_condition` 및 일부 구조 hint(`quote_termination`, `parenthesis_termination`, `comment_sequence`, `xclose_pattern`)를 함께 확인한다.
 
 ## `h_r1_static_baseline_context` expected 기준
@@ -196,6 +197,17 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - `wp-login`, `/.env`, `/backup.zip` 같은 low-signal sensitive path row 는 개별 `analysis_candidates`로 과승격되면 안 된다.
 - repeated `/server-status` candidate 가 남더라도 1개 대표 이하로 유지하고, summary/context 힌트가 함께 반영되어야 한다.
 - sensitive path context 로 덮인 filtered row 는 `dir_probe:*` 단독 hint 대신 `sensitive_path:*` 중심 hint 를 가져야 한다.
+
+## `h_r4_mixed_baseline_scanner_context` expected 기준
+
+- 같은 `src_ip`의 300초 window 안에서 static baseline 또는 crawler-like baseline 또는 normal `GET /` baseline 과 scanner-like sensitive path 가 함께 관찰되면 `mixed_baseline_scanner_summaries`가 생성되어야 한다.
+- summary 는 `context_role=mixed_baseline_scanner_context`, `aggregate_scope=same_src_ip_mixed_baseline_scanner_time_window`, `should_promote_to_candidate=false`를 유지해야 한다.
+- `reason_hints`에는 `mixed_context:benign_and_scanner_like`, `mixed_context:static_baseline_present`, `mixed_context:crawler_baseline_present`, `mixed_context:normal_browse_present`, `mixed_context:sensitive_path_probe_present`, `mixed_context:keep_baseline_and_scanner_separate`, `mixed_context:no_single_attack_inference`, `mixed_context:no_success_inference` 같은 보수적 힌트가 포함되어야 한다.
+- `interpretation_limit`은 `mixed_context_no_success_or_single_attack_inference`를 유지해야 한다.
+- `baseline_contexts_observed`에는 `static_baseline`, `crawler_baseline`, `normal_get` 중 관찰된 baseline family 가 반영되어야 하고, `scanner_contexts_observed`에는 `sensitive_path_probe`가 반영되어야 한다.
+- `path_categories_observed`에는 `static_asset`, `favicon`, `robots_txt`, `crawler_sitemap`, `crawler_product_browse`, `sensitive_env_file`, `sensitive_wp_login`, `sensitive_backup_artifact`, `sensitive_server_status` 같은 mixed category 가 반영되어야 한다.
+- fixture 전체를 개별 `analysis_candidates`로 승격하지 않아야 하며, mixed summary 때문에 low-signal row 가 candidate 로 재승격되면 안 된다.
+- mixed summary 는 file exposure, crawler authenticity, page existence, app presence, attack success 를 단정하는 필드를 추가하면 안 된다.
 
 ## `g_r2_protocol_anomaly_context` expected 기준
 

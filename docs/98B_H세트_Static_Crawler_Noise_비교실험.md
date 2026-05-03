@@ -315,7 +315,7 @@ lab/h_set/run_h_r3_scanner_low_signal.py
 lab/h_set/run_h_r4_mixed_baseline_scanner.py  # optional mixed benign + scanner-like runner
 ```
 
-현재 H R1/H R2/H R3 후속 prepare 보강으로 `static_baseline_summaries`, `crawler_baseline_summaries`, `sensitive_path_probe_summaries`가 반영되었다. 이후 H R4 mixed baseline/scanner round에서는 summary 간 충돌 없이 narrative가 유지되는지 추가 확인할 수 있다.
+현재 H R1/H R2/H R3 후속 prepare 보강으로 `static_baseline_summaries`, `crawler_baseline_summaries`, `sensitive_path_probe_summaries`가 반영되었다. H R4 실제 prepare에서는 row-level hint 분리는 비교적 잘 되었지만 mixed top-level 문맥이 비어 있었고, 후속으로 `mixed_baseline_scanner_summaries`를 추가해 baseline/static/crawler-like 와 sensitive path probe 를 같은 성공 공격으로 합치지 않는 제한을 별도 보존했다.
 
 ---
 
