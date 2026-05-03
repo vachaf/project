@@ -137,7 +137,6 @@ python3 lab/g_set/run_g_r1_method_probe.py \
 
 케이스:
 
-<<<<<<< HEAD
 | ID | runner label | 요청 | 기대 관찰 | 기대 해석 | 기대 응답 | 해석 제한 |
 |---|---|---|---|---|---|---|
 | G-R1-01 | `options_root` | `OPTIONS /` | `method=OPTIONS`, `status_code`, `response_body_bytes` 관찰 | method discovery/probing 가능성 | any | `no_cors_or_method_exposure_success_inference` |
@@ -153,13 +152,6 @@ python3 lab/g_set/run_g_r1_method_probe.py \
 - `PUT`은 짧은 dummy body만 전송할 수 있으나 body 원문은 저장하지 않고 길이만 기록한다.
 - `DELETE`는 테스트 전용 path만 사용한다.
 - `200` / `201` / `204` 같은 상태만으로 성공을 단정하지 않는다.
-=======
-
-주의:
-
-- `PUT` / `DELETE`는 실제 중요 리소스를 대상으로 하지 않는다.
-- 테스트 전용 경로만 사용한다.
-- 쓰기/삭제 성공 여부는 runner나 Apache 로그만으로 검증하지 않는다.
 
 ### G R2 — protocol / malformed request 관찰
 
@@ -168,21 +160,58 @@ python3 lab/g_set/run_g_r1_method_probe.py \
 - 이상 method token, protocol version, malformed request-like row가 어떻게 남는지 확인
 - Apache `security/access/error` 중 어떤 로그 표면에 보존되는지 확인
 - `400` / `408` / `501` 류 상태를 protocol anomaly context로만 해석하는지 확인
+- malformed request가 `security/access/error` 중 어디에 남는지 확인하는 것이 R2 핵심이다.
 
-케이스 후보:
+실행 방식:
 
-| ID | 유형 | 기대 관찰 | 해석 제한 |
-|---|---|---|---|
-| G-R2-01 | invalid method token | 비표준 `method` 또는 parse failure 흔적 | unsupported/invalid method 가능성만 설명 |
-| G-R2-02 | HTTP/1.0 odd request | 낮은 protocol version 또는 비정상 조합 관찰 | legacy/odd client 또는 probing 가능성 병기 |
-| G-R2-03 | bad protocol version | 이상 `protocol`, `400/501` 등 관찰 가능 | protocol anomaly context로만 설명 |
-| G-R2-04 | missing/odd Host | request row 또는 error/security 보조 흔적 | Host 이상 요청 가능성만 설명 |
-| G-R2-05 | long method/path | 긴 token/path, parse 이상, 거절 status 가능 | malformed request-like behavior로만 설명 |
+- G R2는 Python raw socket runner 사용을 권장한다.
+- runner 위치: `lab/g_set/run_g_r2_protocol_anomaly.py`
+- runner는 `http://` base URL만 지원하며 `https://`는 명확히 거부한다.
+- runner는 raw request 원문, request body 원문, response body 원문을 저장하지 않는다.
+- runner는 침해 성공, 우회 성공, malformed request 성공을 검증하지 않는다.
+
+권장 예시:
+
+```bash
+python3 lab/g_set/run_g_r2_protocol_anomaly.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_G세트R2_산출물/runner_logs
+```
+
+dry-run / print-plan 예시:
+
+```bash
+python3 lab/g_set/run_g_r2_protocol_anomaly.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_G세트R2_산출물/runner_logs \
+  --dry-run
+
+python3 lab/g_set/run_g_r2_protocol_anomaly.py \
+  --base-url http://192.168.56.105 \
+  --scenario bad_protocol \
+  --out lab/05-xx_G세트R2_산출물/runner_logs_bad_protocol \
+  --print-plan
+```
+
+케이스:
+
+| ID | runner label | 요청 | 기대 관찰 | 기대 해석 | 기대 응답 | 해석 제한 |
+|---|---|---|---|---|---|---|
+| G-R2-01 | `invalid_method_token` | `FAKEMETHOD / HTTP/1.1` + `Host: <host>` | `security/access/error` 중 어디에 남는지, `method=FAKEMETHOD` 또는 parse failure 흔적 확인 | unsupported/invalid method probing possibility; no exploit success inference | `400/405/501` 등 가능 | `protocol_anomaly_context_only_no_success_inference` |
+| G-R2-02 | `http10_odd_request` | `GET / HTTP/1.0` + no `Host` | `protocol=HTTP/1.0`으로 남는지, Host 없는 요청이 어떻게 기록되는지 확인 | legacy protocol or probing-like context; no vulnerability inference | `200/400/403` 등 가능 | `protocol_surface_observation_only` |
+| G-R2-03 | `bad_protocol_version` | `GET / HTTP/9.9` + `Host: <host>` | bad protocol version이 `security/access/error` 중 어디에 남는지 확인 | protocol anomaly context; no bypass or exploit success inference | `400/505/501` 등 가능 | `protocol_anomaly_context_only_no_success_inference` |
+| G-R2-04 | `missing_host_http11` | `GET / HTTP/1.1` + no `Host` | missing `Host`가 어떤 status/log surface로 남는지 확인 | malformed HTTP/1.1 request-like context; no exploit success inference | `400` 등 가능 | `malformed_request_context_only` |
+| G-R2-05 | `odd_host_header` | `GET / HTTP/1.1` + `Host: invalid..host` | odd `Host` header가 어떻게 기록되는지 확인 | odd host/protocol surface observation; no virtual-host bypass inference | `400/403/200` 등 가능 | `host_header_anomaly_context_only` |
+| G-R2-06 | `long_path_probe` | `GET /g-probe/<long-token> HTTP/1.1` + `Host: <host>` | long path가 정상 row로 남는지, 거절 status가 나는지 확인 | malformed/long path probing-like context; no exploit success inference | `200/400/414/404` 등 가능 | `long_path_context_only_no_success_inference` |
 
 주의:
 
 - malformed request 성공 또는 침해 단정 금지
 - 특정 상태코드만으로 exploit/우회 성공 단정 금지
+- `status_code=400/408/501/505` 류는 protocol anomaly context로만 해석한다.
+- long path는 대략 2048~4096자 범위로 제한하며, 서버에 과도한 부담을 주지 않는다.
 
 ### G R3 — baseline / FP bait
 
@@ -261,18 +290,18 @@ G세트는 provider별 표현 차이가 생길 수 있으므로, Stage1/Stage2 �
 
 ---
 
-## 8. Python runner 계획
+## 8. Python runner 구성
 
-장기적으로 G세트도 긴 `curl` 나열보다 Python runner 기반으로 관리한다. 이번 문서에서는 위치와 역할만 정의한다.
+G세트는 긴 `curl` 나열보다 Python runner 기반으로 관리한다. 현재 기준 구성은 다음과 같다.
 
-예상 파일:
+파일:
 
 - `lab/g_set/README.md`
 - `lab/g_set/run_g_r1_method_probe.py`
 - `lab/g_set/run_g_r2_protocol_anomaly.py`
 - `lab/g_set/run_g_r3_baseline.py`
 
-예상 역할:
+역할:
 
 - `README.md`: round 범위, 실행 순서, export 연계 위치 정리
 - `run_g_r1_method_probe.py`: `OPTIONS/TRACE/PUT/DELETE/HEAD/GET` 시나리오 실행
@@ -281,8 +310,9 @@ G세트는 provider별 표현 차이가 생길 수 있으므로, Stage1/Stage2 �
 
 현재 범위:
 
-- `run_g_r1_method_probe.py`는 이번 작업 범위에 포함된다.
-- `run_g_r2_protocol_anomaly.py`, `run_g_r3_baseline.py`는 향후 작업이다.
+- `run_g_r1_method_probe.py`: 완료
+- `run_g_r2_protocol_anomaly.py`: 이번 작업에서 runner 추가 및 dry-run 검증
+- `run_g_r3_baseline.py`: 향후 작업
 
 ---
 
@@ -323,12 +353,11 @@ G세트는 provider별 표현 차이가 생길 수 있으므로, Stage1/Stage2 �
 
 ## 11. 다음 작업
 
-1. G R1 Python runner 설계
-2. G R1 실행
-3. prepare-only 확인
-4. 필요 시 `method_probe` / `protocol_anomaly` hint 설계
-5. Stage1 / Stage2 실행
-6. G R1 비교 문서 작성
+1. 승인된 로컬 실험 환경에서 G R2 실제 실행
+2. G R2 prepare-only 확인
+3. G R2 Stage1 / Stage2 비교
+4. 필요 시 `method_probe` / `protocol_anomaly` hint 검토
+5. G R3 baseline runner 설계 및 비교 실험 준비
 
 ---
 

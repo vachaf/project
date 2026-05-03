@@ -11,10 +11,10 @@
 현재 runner:
 
 - `run_g_r1_method_probe.py`: R1 `OPTIONS` / `TRACE` / `PUT` / `DELETE` / `HEAD` / `GET` method probing
+- `run_g_r2_protocol_anomaly.py`: R2 protocol / malformed request-like behavior 관찰 runner, raw socket 기반 HTTP 요청 사용
 
 future:
 
-- `run_g_r2_protocol_anomaly.py`
 - `run_g_r3_baseline.py`
 
 권장 예시:
@@ -24,6 +24,12 @@ python3 lab/g_set/run_g_r1_method_probe.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_G세트R1_산출물/runner_logs \
+  --dry-run
+
+python3 lab/g_set/run_g_r2_protocol_anomaly.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_G세트R2_산출물/runner_logs \
   --dry-run
 ```
 
@@ -37,3 +43,7 @@ python3 lab/g_set/run_g_r1_method_probe.py \
 - `TRACE` 응답 body는 수집하거나 출력하지 않는다.
 - `PUT` dummy body는 매우 짧게 사용하며, body 원문은 저장하지 않고 길이만 기록한다.
 - `DELETE`는 테스트 전용 path에만 사용한다.
+- R2는 invalid method, bad protocol version, missing/odd `Host`, long path 같은 protocol / malformed request-like behavior가 Apache 로그 표면에 어떻게 남는지 관찰하기 위한 harness다.
+- R2는 raw socket 기반일 수 있으며 `http://` target만 지원한다.
+- R2는 침해 성공, 우회 성공, malformed request 성공을 검증하지 않는다.
+- R2는 raw request 원문과 response body 원문을 저장하지 않는다.
