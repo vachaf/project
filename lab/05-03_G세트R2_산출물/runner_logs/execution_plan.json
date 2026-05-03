@@ -1,0 +1,162 @@
+{
+  "metadata": {
+    "allow_public_target": false,
+    "base_url": "http://192.168.56.105",
+    "ended_at": null,
+    "files": {
+      "metadata_json": "lab/05-03_G세트R2_산출물/runner_logs/run_metadata.json",
+      "plan_json": "lab/05-03_G세트R2_산출물/runner_logs/execution_plan.json",
+      "plan_md": "lab/05-03_G세트R2_산출물/runner_logs/execution_plan.md",
+      "results_jsonl": "lab/05-03_G세트R2_산출물/runner_logs/request_results.jsonl",
+      "summary_md": "lab/05-03_G세트R2_산출물/runner_logs/run_summary.md"
+    },
+    "mode": "execute",
+    "request_count": 6,
+    "scenario": "all",
+    "sleep_scale": 1.0,
+    "started_at": "2026-05-03T11:14:35+09:00",
+    "stores_raw_request_content": false,
+    "stores_request_body_content": false,
+    "stores_response_body_content": false,
+    "supports_https": false,
+    "target_class": "private-ip",
+    "timeout_sec": 10.0,
+    "transport": "raw-http-socket"
+  },
+  "requests": [
+    {
+      "expected_interpretation": [
+        "unsupported/invalid method probing possibility",
+        "no exploit success inference"
+      ],
+      "expected_observation": [
+        "security/access/error 중 어디에 남는지 확인",
+        "method가 FAKEMETHOD로 남는지 또는 parse failure로 남는지 확인"
+      ],
+      "expected_response": "400/405/501 등 가능",
+      "host_header": "192.168.56.105",
+      "interpretation_limit": "protocol_anomaly_context_only_no_success_inference",
+      "raw_request_template_name": "invalid_method_token",
+      "request_label": "invalid_method_token_request",
+      "request_line_preview": "FAKEMETHOD / HTTP/1.1",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "G-R2-01",
+      "scenario_label": "invalid_method_token",
+      "sleep_after_sec": 1.0,
+      "stores_raw_request_content": false,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false
+    },
+    {
+      "expected_interpretation": [
+        "legacy protocol or probing-like context",
+        "no vulnerability inference"
+      ],
+      "expected_observation": [
+        "protocol=HTTP/1.0으로 남는지 확인",
+        "Host 없는 요청이 어떻게 기록되는지 확인"
+      ],
+      "expected_response": "200/400/403 등 가능",
+      "host_header": null,
+      "interpretation_limit": "protocol_surface_observation_only",
+      "raw_request_template_name": "http10_odd_request",
+      "request_label": "http10_odd_request_request",
+      "request_line_preview": "GET / HTTP/1.0",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "G-R2-02",
+      "scenario_label": "http10_odd_request",
+      "sleep_after_sec": 1.0,
+      "stores_raw_request_content": false,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false
+    },
+    {
+      "expected_interpretation": [
+        "protocol anomaly context",
+        "no bypass or exploit success inference"
+      ],
+      "expected_observation": [
+        "bad protocol version이 security/access/error 중 어디에 남는지 확인"
+      ],
+      "expected_response": "400/505/501 등 가능",
+      "host_header": "192.168.56.105",
+      "interpretation_limit": "protocol_anomaly_context_only_no_success_inference",
+      "raw_request_template_name": "bad_protocol_version",
+      "request_label": "bad_protocol_version_request",
+      "request_line_preview": "GET / HTTP/9.9",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "G-R2-03",
+      "scenario_label": "bad_protocol_version",
+      "sleep_after_sec": 1.0,
+      "stores_raw_request_content": false,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false
+    },
+    {
+      "expected_interpretation": [
+        "malformed HTTP/1.1 request-like context",
+        "no exploit success inference"
+      ],
+      "expected_observation": [
+        "missing Host가 어떤 status/log surface로 남는지 확인"
+      ],
+      "expected_response": "400 등 가능",
+      "host_header": null,
+      "interpretation_limit": "malformed_request_context_only",
+      "raw_request_template_name": "missing_host_http11",
+      "request_label": "missing_host_http11_request",
+      "request_line_preview": "GET / HTTP/1.1",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "G-R2-04",
+      "scenario_label": "missing_host_http11",
+      "sleep_after_sec": 1.0,
+      "stores_raw_request_content": false,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false
+    },
+    {
+      "expected_interpretation": [
+        "odd host/protocol surface observation",
+        "no virtual-host bypass inference"
+      ],
+      "expected_observation": [
+        "odd Host header가 어떻게 기록되는지 확인"
+      ],
+      "expected_response": "400/403/200 등 가능",
+      "host_header": "invalid..host",
+      "interpretation_limit": "host_header_anomaly_context_only",
+      "raw_request_template_name": "odd_host_header",
+      "request_label": "odd_host_header_request",
+      "request_line_preview": "GET / HTTP/1.1",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "G-R2-05",
+      "scenario_label": "odd_host_header",
+      "sleep_after_sec": 1.0,
+      "stores_raw_request_content": false,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false
+    },
+    {
+      "expected_interpretation": [
+        "malformed/long path probing-like context",
+        "no exploit success inference"
+      ],
+      "expected_observation": [
+        "long path가 정상 row로 남는지, 거절 status가 나는지 확인"
+      ],
+      "expected_response": "200/400/414/404 등 가능",
+      "host_header": "192.168.56.105",
+      "interpretation_limit": "long_path_context_only_no_success_inference",
+      "raw_request_template_name": "long_path_probe",
+      "request_label": "long_path_probe_request",
+      "request_line_preview": "GET /g-probe/<long-token:3072 chars> HTTP/1.1",
+      "scaled_sleep_after_sec": 0.0,
+      "scenario_id": "G-R2-06",
+      "scenario_label": "long_path_probe",
+      "sleep_after_sec": 0.0,
+      "stores_raw_request_content": false,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false
+    }
+  ]
+}
