@@ -320,6 +320,18 @@ def safe_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def max_severity_label(rows: Sequence[Dict[str, Any]], default: str = "info") -> str:
+    best = normalize_str(default) or "info"
+    best_order = SEVERITY_ORDER.get(best, 0)
+    for row in rows:
+        severity = normalize_str(row.get("severity"))
+        order = SEVERITY_ORDER.get(severity, 0)
+        if order > best_order:
+            best = severity
+            best_order = order
+    return best
+
+
 def iso_now() -> str:
     return datetime.now(tz=timezone.utc).astimezone().isoformat(timespec="milliseconds")
 
@@ -1179,6 +1191,8 @@ def build_report_input(
             candidate_lookup=candidate_lookup,
         )
     ]
+    max_top_incident_severity = max_severity_label(briefs, default="info")
+    max_candidate_severity = max_severity_label(deduped_results, default="info")
     ip_rows = summarize_ips(results, top_n=top_ips, known_asset_ips=known_asset_ips)
     top_noise = sorted(
         noise_summary,
@@ -1432,6 +1446,14 @@ def build_report_input(
                 "non_merge_rule": "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 scope 가 다르므로 48~51건 같은 range 표현이나 직접 합산으로 설명하지 않음",
                 "context_only_rule": "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 모두 context-only 이며 candidate 승격 근거가 아님",
             },
+            "key_finding_severity_policy": {
+                "max_top_incident_severity": max_top_incident_severity,
+                "max_candidate_severity": max_candidate_severity,
+                "ceiling_rule": "명시적인 non-context-only 근거가 없으면 key_findings severity 를 top_incidents 의 최대 severity 보다 높이지 않음",
+                "context_only_non_elevation_rule": "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 severity 상향의 단독 근거가 아님",
+                "low_incident_rule": "top_incidents 가 없거나 모두 info/low 이고 관찰 근거가 context-only summary 중심이면 key_findings severity 는 info 또는 low 를 사용",
+                "medium_high_rule": "medium/high 는 report_input 에 medium/high top_incident 가 있거나, 반복적인 고신뢰 candidate incident 또는 다른 명시적 non-context-only candidate evidence 가 있을 때만 사용",
+            },
             "ip_behavior_aggregate_policy": {
                 "default_action": "ip_behavior_aggregates 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
                 "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 incident 후보로 승격된 것으로 해석하지 않음",
@@ -1649,6 +1671,10 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         "static_baseline_summaries 의 request_count 는 같은 src_ip 와 static/health/browse baseline 시간창 기준 관찰 수이고, crawler_baseline_summaries 의 request_count 는 같은 src_ip 와 crawler-like UA/browse baseline 시간창 기준 관찰 수이며, sensitive_path_probe_summaries 의 request_count 는 같은 src_ip 와 sensitive path 시간창 기준 관찰 수이며, mixed_baseline_scanner_summaries 의 request_count 는 같은 src_ip 와 mixed baseline/scanner 시간창 기준 관찰 수이며, auth_behavior_summaries 의 request_count/auth_request_count 는 auth endpoint family 기준 auth 요청 수이며, method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, protocol_anomaly_summaries 의 request_count 는 같은 src_ip 와 protocol anomaly relevant row 시간창 기준 관찰 수이고, ip_behavior_aggregates 의 request_count 는 같은 src_ip/time window 기준 전체 또는 관련 요청 수다. "
         "여덟 count 를 48~51건 규모 같은 range 로 합치거나 같은 사건 수처럼 직접 합산하지 마라. "
         "여덟 collection 모두 context-only 이며 candidate 승격 근거가 아니다. "
+        "key_findings severity 를 부여할 때는 명시적인 non-context-only 근거가 없으면 report_input.policy_notes.key_finding_severity_policy.max_top_incident_severity 보다 높이지 마라. "
+        "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 같은 context-only summary 는 key_findings severity 상향의 단독 근거가 아니다. "
+        "top_incidents 가 없거나 모두 info/low 이고 finding 이 context-only summary 중심이면 key_findings severity 는 info 또는 low 를 사용하라. "
+        "key_findings severity 에서 medium/high 는 report_input 에 medium/high top_incident 가 있거나 반복적인 고신뢰 candidate incident, 또는 다른 명시적 non-context-only candidate evidence 가 있을 때만 사용하라. "
         "ip_behavior_aggregates 가 있으면 이는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 에서 짧은 시간 안에 여러 경로 접근, 높은 4xx 비율, 다중 attempted category, 민감 경로 접근이 함께 관찰된 reconnaissance 또는 scanning-like context 로만 설명하라. "
         "ip_behavior_aggregates 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 analysis_candidate 로 승격된 것으로 해석하지 마라. "
         "ip_behavior_aggregates 의 attack_categories_attempted 는 시도 유형 요약이지 성공한 공격 유형 목록이 아니며, sensitive_path_hits 는 민감 경로 접근 문맥일 뿐 실제 파일 노출 근거가 아니다. "
@@ -1739,6 +1765,10 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "static_baseline_summaries 의 request_count 는 같은 src_ip 와 static/health/browse baseline 시간창 기준 관찰 수이고, crawler_baseline_summaries 의 request_count 는 같은 src_ip 와 crawler-like UA/browse baseline 시간창 기준 관찰 수이며, sensitive_path_probe_summaries 의 request_count 는 같은 src_ip 와 sensitive path 시간창 기준 관찰 수이며, mixed_baseline_scanner_summaries 의 request_count 는 같은 src_ip 와 mixed baseline/scanner 시간창 기준 관찰 수이며, auth_behavior_summaries 의 request_count/auth_request_count 는 auth endpoint family 기준 auth 요청 수이며, method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수이며, protocol_anomaly_summaries 의 request_count 는 같은 src_ip 와 protocol anomaly relevant row 시간창 기준 관찰 수이고, ip_behavior_aggregates 의 request_count 는 같은 src_ip/time window 기준 전체 또는 관련 요청 수다.",
             "여덟 count 를 48~51건 같은 range 로 합치거나 같은 사건 수처럼 직접 합산하지 마라.",
             "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 모두 context-only 이며 candidate 승격 근거가 아니다.",
+            "key_findings severity 를 부여할 때는 명시적인 non-context-only 근거가 없으면 report_input.policy_notes.key_finding_severity_policy.max_top_incident_severity 보다 높이지 마라.",
+            "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 같은 context-only summary 는 key_findings severity 상향의 단독 근거가 아니다.",
+            "top_incidents 가 없거나 모두 info/low 이고 finding 이 context-only summary 중심이면 key_findings severity 는 info 또는 low 를 사용하라.",
+            "key_findings severity 에서 medium/high 는 report_input 에 medium/high top_incident 가 있거나 반복적인 고신뢰 candidate incident, 또는 다른 명시적 non-context-only candidate evidence 가 있을 때만 사용하라.",
             "ip_behavior_aggregates 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip, 짧은 시간 window, 여러 path 접근, 높은 4xx 비율, attempted category 혼합이 관찰된 reconnaissance/scanning-like context 로만 설명하라.",
             "ip_behavior_aggregates 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 candidate 로 승격된 것으로 해석하지 마라.",
             "ip_behavior_aggregates 의 attack_categories_attempted 는 시도 유형 요약일 뿐 성공한 공격 유형 목록이 아니다.",
@@ -2161,6 +2191,8 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     ctx = report_input.get("analysis_context") or {}
     counts = report_input.get("pipeline_counts") or {}
     incidents = report_input.get("top_incidents") or []
+    policy_notes = report_input.get("policy_notes") or {}
+    key_finding_severity_policy = policy_notes.get("key_finding_severity_policy") or {}
     filtered_rows = report_input.get("top_filtered_categories") or []
     recon_rows = report_input.get("top_out_of_candidate_recon") or []
     probing_sequence_summaries = report_input.get("probing_sequence_summaries") or []
@@ -2200,6 +2232,12 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append(f"- method behavior summary 수: {safe_int(counts.get('method_behavior_summary_count'), len(method_behavior_summaries))}")
     lines.append(f"- protocol anomaly summary 수: {safe_int(counts.get('protocol_anomaly_summary_count'), len(protocol_anomaly_summaries))}")
     lines.append(f"- stage1 성공/오류: {safe_int(counts.get('stage1_success_count'), 0)} / {safe_int(counts.get('stage1_error_count'), 0)}")
+    if key_finding_severity_policy:
+        lines.append(
+            "- key finding severity 기준: "
+            f"max_top_incident_severity={normalize_str(key_finding_severity_policy.get('max_top_incident_severity')) or 'info'} | "
+            "context-only summary 단독으로 severity 를 올리지 않음"
+        )
     if filtered_rows:
         lines.append("- 후보 밖 주요 카테고리:")
         for row in filtered_rows:
@@ -2344,6 +2382,8 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append("- incident 는 request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 병합했다.")
     lines.append("- filtered_out_breakdown 은 noise_summary 와 별도로 보존되며, 보고서 초안에도 함께 노출된다.")
     lines.append("- static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 scope 가 다르므로 count 를 range 로 합치거나 같은 사건 수처럼 직접 합산하지 않는다.")
+    lines.append("- key_findings severity 는 명시적인 non-context-only 근거가 없으면 top_incidents 최대 severity 를 넘기지 않는다.")
+    lines.append("- top_incidents 가 없거나 모두 info/low 이고 관찰 근거가 context-only summary 중심이면 key_findings severity 는 info 또는 low 를 사용한다.")
     lines.append("- static_baseline_summaries 는 context-only 이며 static/health/browse baseline 문맥으로만 사용하고 static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 정상 여부를 단정하지 않는다.")
     lines.append("- crawler_baseline_summaries 는 context-only 이며 crawler-like baseline 문맥으로만 사용하고 crawler authenticity, robots/sitemap 내용, site structure, page existence, attack success 를 단정하지 않는다.")
     lines.append("- sensitive_path_probe_summaries 는 context-only 이며 scanner-like sensitive path probing 문맥으로만 사용하고 WordPress 존재, admin access, .env/phpinfo/server-status/backup 노출, 차단 성공, attack success 를 단정하지 않는다.")

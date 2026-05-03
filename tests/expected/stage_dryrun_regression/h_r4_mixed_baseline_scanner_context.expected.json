@@ -42,6 +42,33 @@
       "message": "behavior scope separation policy includes mixed baseline/scanner summaries"
     },
     {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.key_finding_severity_policy",
+      "message": "key finding severity policy exists"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "policy_notes.key_finding_severity_policy.max_top_incident_severity",
+      "equals": "info",
+      "message": "H R4 max top incident severity remains info"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.key_finding_severity_policy.ceiling_rule",
+      "contains": "top_incidents 의 최대 severity 보다 높이지 않음",
+      "message": "key finding severity policy keeps top incident ceiling rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.key_finding_severity_policy.context_only_non_elevation_rule",
+      "contains": "severity 상향의 단독 근거가 아님",
+      "message": "context-only summaries cannot raise severity alone"
+    },
+    {
       "op": "json_path_equals",
       "file": "stage2_report_input",
       "path": "mixed_baseline_scanner_summaries.0.context_role",
@@ -77,6 +104,13 @@
       "message": "stage2 prompt includes mixed baseline/scanner separation rule"
     },
     {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "key_findings severity 를 부여할 때는 명시적인 non-context-only 근거가 없으면",
+      "message": "stage2 prompt includes key finding severity ceiling guidance"
+    },
+    {
       "op": "file_contains",
       "file": "stage2_report_md",
       "contains": "Mixed baseline/scanner context",
@@ -99,6 +133,18 @@
       "file": "stage2_report_md",
       "contains": "scanner_contexts=",
       "message": "markdown includes scanner context list"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "key finding severity 기준: max_top_incident_severity=info",
+      "message": "markdown includes key finding severity ceiling reference"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "context-only summary 단독으로 severity 를 올리지 않음",
+      "message": "markdown includes context-only severity non-elevation note"
     }
   ],
   "MUST_NOT": [

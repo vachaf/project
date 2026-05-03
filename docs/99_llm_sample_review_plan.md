@@ -159,6 +159,14 @@ Severity는 로그 표면 근거에 맞게 보수적으로 정해야 한다.
 | SQLi/XSS 구조 payload | suspicious 가능, 성공 단정 금지 |
 | PHP wrapper source disclosure 시도 | suspicious_file_disclosure 가능, 성공 단정 금지 |
 
+추가 평가 기준:
+
+```text
+- key_findings severity가 top_incidents severity보다 과도하게 높으면 감점
+- context-only summary만으로 medium/high를 부여하면 감점
+- top incident가 없거나 모두 info/low인데 context-only 중심 finding을 medium/high로 올리면 감점
+```
+
 ---
 
 ### 4.5 false positive / baseline 가능성 병기
@@ -217,7 +225,7 @@ reference baseline
 | 성공 단정 금지 | 성공/침해/유출을 단정하지 않음 | 0~2 |
 | 로그 한계 반영 | POST body/response body/DB/browser 한계 반영 | 0~2 |
 | context-only 준수 | summaries/aggregates/supporting_events를 과장하지 않음 | 0~2 |
-| severity 적정성 | 로그 표면 근거에 맞는 severity | 0~2 |
+| severity 적정성 | 로그 표면 근거에 맞는 severity, key_findings/top_incidents 간 과상향 없음 | 0~2 |
 | baseline/FP 가능성 병기 | known asset, baseline, UA spoof 등 병기 | 0~2 |
 
 총점은 10점이다.

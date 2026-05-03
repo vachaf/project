@@ -129,6 +129,36 @@ reason_hints = wp_login, env_file, backup_artifact 등 summary-level hint 포함
 
 ---
 
+### 2.5 key finding severity와 top incident severity 불일치
+
+H R4 mixed benign + scanner-like dry-run/실제 보고서 검토에서 다음 사례가 관찰됐다.
+
+대표 incident:
+
+```text
+verdict=suspicious_scan
+severity=low
+uri=/server-status
+status=403
+```
+
+그런데 Stage2 `key_findings` 중 하나가 다음처럼 표현됐다.
+
+```text
+"민감 경로 정찰과 /server-status 탐색이 같은 출발지에서 관찰됨" [medium]
+```
+
+이 사례의 성격은 다음과 같다.
+
+```text
+- 성공/침해/노출 단정은 없었다.
+- 따라서 치명적 오판은 아니다.
+- 그러나 top incident가 low인데 key finding이 medium으로 올라가 report consistency 관점에서 과장으로 보일 수 있다.
+- 특히 H R4는 static/crawler/sensitive-path/mixed/ip aggregate 같은 context-only summary가 함께 많아 전체 중요도를 높게 표현하기 쉬운 조건이었다.
+```
+
+---
+
 ## 3. 원인 분석
 
 ### 3.1 LLM 자연어 생성 특성
@@ -202,6 +232,22 @@ crawler-like User-Agent와 baseline context가 함께 관찰됨
 - 표현의 어색함
 - 과도한 완곡/과장 표현
 ```
+
+---
+
+### 3.5 key finding severity와 top incident severity가 별도 생성됨
+
+현재 Stage2는 `top_incidents`와 `key_findings`를 같은 입력으로 생성하지만, severity 문구는 LLM이 별도로 서술한다.
+
+이때 다음 현상이 생길 수 있다.
+
+```text
+- top incident severity는 low
+- context-only summary 수는 많음
+- LLM이 전체 관찰 중요도를 강조하면서 key finding severity만 medium으로 올림
+```
+
+즉, 이 문제는 prepare 탐지 로직이나 candidate 선정 로직의 오류라기보다 **Stage2 wording/guidance 부족**에 가깝다.
 
 ---
 
@@ -346,20 +392,42 @@ compromized -> compromised
 
 ---
 
-## 7. 현재 판단
+### 6.4 key finding severity ceiling guidance 추가
 
-현재는 **즉시 코드 수정은 보류**한다.
+이번 작업에서는 탐지 로직을 바꾸지 않고 `src/llm_stage2_reporter.py`의 Stage2 guidance를 보강한다.
 
-이유:
+핵심 규칙:
 
 ```text
-- H R2의 `crawller-like`는 단발 오타다.
-- 해석 원칙 위반은 아니다.
-- 성공/침해/노출 단정은 없었다.
-- LLM 샘플 검증 결과도 F/G/H 평균 95%로 양호했다.
+- 명시적인 non-context-only 근거가 없으면 key_findings severity를 top_incidents 최대 severity보다 높이지 않는다.
+- context-only summary는 severity 상향의 단독 근거가 아니다.
+- top incident가 없거나 모두 info/low이고 관찰 근거가 context-only summary 중심이면 key_findings severity는 info 또는 low를 사용한다.
+- medium/high는 medium/high top incident, 반복적인 고신뢰 candidate, 또는 다른 명시적 non-context-only candidate evidence가 있을 때만 허용한다.
 ```
 
-따라서 현재는 문서에 문제 유형과 대응 기준을 정리하고, 반복 발생 시 Stage2 prompt/guidance 또는 report lint 도구를 검토한다.
+이 대응은 다음 성격을 가진다.
+
+```text
+- prepare 수정 아님
+- Stage1 schema/logic 수정 아님
+- candidate 선정 로직 수정 아님
+- H R4 prepare 결과 수정 아님
+- Stage2 wording/guidance 수정
+```
+
+---
+
+## 7. 현재 판단
+
+현재 판단은 다음과 같다.
+
+```text
+- 단순 오타/용어 흔들림은 계속 관찰 대상으로 둔다.
+- H R4 severity consistency 문제는 실제 prompt/guidance 보강 대상으로 본다.
+- 이번 대응은 탐지 로직 수정이 아니라 wording/guidance 수정으로 한정한다.
+```
+
+즉, 오타 계열은 문서화와 관찰 중심으로 두되, severity 과상향 가능성은 Stage2 prompt/report input policy 강화로 바로 관리한다.
 
 ---
 
@@ -398,5 +466,6 @@ Stage2 wording 품질 문제는 현재까지는 경미하다.
 ```text
 탐지/해석 원칙은 유지되고 있다.
 단발 오타와 표현 흔들림은 문서화하고 관찰한다.
-반복되거나 보고서 제출 단계가 되면 표준 용어 prompt 또는 lint 도구로 대응한다.
+H R4 같은 severity consistency 문제는 Stage2 guidance 보강으로 대응한다.
+이번 조정은 탐지 로직이 아니라 wording/guidance 범위의 수정이다.
 ```
