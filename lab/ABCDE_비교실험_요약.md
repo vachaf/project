@@ -14,7 +14,7 @@ A~H세트 실험은 현재까지 주요 목적을 달성했다.
 핵심 결론은 다음과 같다.
 
 ```text
-LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PHP file disclosure, L3 고신호 패턴, Auth/Login abuse context, HTTP method/protocol behavior context, static/crawler/noise baseline context를 대체로 보수적으로 선별·요약할 수 있다.
+LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PHP file disclosure, L3 고신호 패턴, Auth/Login abuse context, HTTP method/protocol behavior context, static/crawler/scanner-like noise context를 대체로 보수적으로 선별·요약할 수 있다.
 다만 이 파이프라인은 성공한 공격 판정기가 아니라, Apache 로그 표면에서 관찰 가능한 공격 정황과 정상/저신호 baseline을 정리하는 분석기다.
 ```
 
@@ -28,6 +28,7 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 - malformed request, bad protocol, missing/odd Host는 protocol anomaly context로만 보고 우회/침해 성공을 단정하지 않는다.
 - static asset, robots/sitemap, JS/CSS/image, health endpoint는 baseline/context로 해석하며 파일 존재/내용/실행/정상 여부를 단정하지 않는다.
 - crawler-like User-Agent는 spoof 가능하므로 실제 crawler 정체, robots/sitemap 내용, site structure, page existence를 단정하지 않는다.
+- scanner-like sensitive path는 context로 보되 WordPress 존재, admin access, `.env`/`phpinfo`/`server-status`/backup 노출을 단정하지 않는다.
 - 정상 `HEAD` / `GET` / browser-like `OPTIONS` / monitoring UA는 baseline 또는 FP bait로 우선 해석한다.
 - provider별 표현 차이는 있지만 최종 판단은 Apache 로그 표면 지표를 기준으로 보정한다.
 
@@ -50,6 +51,7 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 | G세트 R3 | baseline / FP bait | HEAD/GET/OPTIONS/monitoring UA baseline이 candidate로 과승격되지 않음. `method_behavior_summaries`로만 context 보존 | Round 3 완료 |
 | H세트 R1 | static / health baseline | favicon, robots, sitemap, JS/CSS/image, health, normal GET을 `static_baseline_summaries`로 context-only 보존 | Round 1 완료 |
 | H세트 R2 | crawler-like baseline | Googlebot-like/GenericCrawler-like UA와 robots/sitemap/products/category browse를 `crawler_baseline_summaries`로 context-only 보존 | Round 2 완료 |
+| H세트 R3 | scanner-like low-signal path | `/server-status` 대표 candidate 1건과 `sensitive_path_probe_summaries`로 민감 경로 문맥 보존. 노출/침해 성공 단정 없음 | Round 3 완료 |
 
 ---
 
@@ -60,9 +62,9 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 | URL decode depth 1/2 | double encoding payload 복원 | B, C, E, L3 |
 | HTML entity decode view | entity encoded XSS 복원 | C, E |
 | educational SQL/XSS 완화 | false positive 감소 | B, C |
-| supporting_events | 후보 밖 저신호 문맥 보존 | B, D, F |
+| supporting_events | 후보 밖 저신호 문맥 보존 | B, D, F, H |
 | false_positive_review_candidates | 교육용/오탐 가능 요청 보존 | C |
-| probing_sequence_summaries | directory probing burst context 전달 | D, E |
+| probing_sequence_summaries | directory probing burst context 전달 | D, E, H |
 | suspicious_file_disclosure | PHP wrapper/source disclosure를 traversal과 구분 | E |
 | normal search baseline 분리 | 정상 검색을 reference baseline으로 보존 | E |
 | ip_behavior_aggregates | same src_ip/time window 행동 문맥 보존 | D, E, F, G, H |
@@ -71,6 +73,7 @@ LLM 기반 Apache 로그 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PH
 | protocol_anomaly_summaries | malformed/protocol request를 우회·침해 단정 없이 context로 보존 | G |
 | static_baseline_summaries | static/health/normal browse 요청을 baseline context로 보존 | H |
 | crawler_baseline_summaries | crawler-like UA와 robots/sitemap/browse 요청을 실제 crawler 단정 없이 context로 보존 | H |
+| sensitive_path_probe_summaries | scanner-like 민감 경로를 노출/침해 단정 없이 context로 보존 | H |
 | L3 high-signal hints | Log4Shell, SSRF, SSTI, webshell-like access 보존 | L3 fixture |
 | Stage dry-run regression | LLM 호출 없이 schema/prompt/report-input 골격 검증 | 전체 |
 | prepare 모듈 분리 1단계 | decoders/l3_hints를 동작 변경 없이 분리 | 전체 |
@@ -331,11 +334,46 @@ GenericCrawler repeated /robots.txt, /sitemap.xml, /products/
 - robots/sitemap 내용, site structure, product/category page existence, 공격 성공은 단정하지 않았다.
 - Stage2는 crawler-like baseline 또는 low-signal crawl context로 보수적으로 설명했다.
 
+### H세트 R3
+
+H R3는 `lab/h_set/run_h_r3_scanner_low_signal.py` Python runner 기반으로 실행했다.
+
+| 항목 | 값 |
+|---|---:|
+| all export rows | 20 |
+| selected security rows | 9 |
+| candidate rows | 1 |
+| supporting events | 1 |
+| filtered out rows | 7 |
+| probing sequence summaries | 1 |
+| ip behavior aggregates | 1 |
+| sensitive path probe summaries | 1 |
+| Stage1 processed candidates | 1 |
+
+관찰된 scanner-like sensitive path:
+
+```text
+/wp-login.php
+/wp-admin/
+/.env
+/phpinfo.php
+/server-status
+/backup.zip
+```
+
+결론:
+
+- `/server-status` 403 대표 candidate 1건만 `suspicious_scan / low`로 남았다.
+- 나머지 sensitive-looking path는 filtered context와 `sensitive_path_probe_summaries`로 보존되었다.
+- `/.env`, `/phpinfo.php`, `/backup.zip`, `/wp-login.php`, `/wp-admin/`의 존재·노출·접근 성공은 단정하지 않았다.
+- Stage2는 known asset 기반 내부 테스트/운영 점검 가능성을 병기하면서 scanner-like context를 보수적으로 설명했다.
+
 상세 문서:
 
 - `docs/98B_H세트_Static_Crawler_Noise_비교실험.md`
 - `lab/05-03_H세트R1_산출물/2026-05-03_H세트R1_비교.md`
 - `lab/05-03_H세트R2_산출물/2026-05-03_H세트R2_비교.md`
+- `lab/05-03_H세트R3_산출물/2026-05-03_H세트R3_비교.md`
 
 ---
 
@@ -344,8 +382,8 @@ GenericCrawler repeated /robots.txt, /sitemap.xml, /products/
 현재 회귀 검증 기준:
 
 ```text
-prepare regression: 16 fixtures, warn=0 fail=0
-stage dry-run regression: 10 fixtures, warn=0 fail=0
+prepare regression: 17 fixtures, warn=0 fail=0
+stage dry-run regression: 11 fixtures, warn=0 fail=0
 py_compile 주요 스크립트 통과
 ```
 
@@ -365,6 +403,7 @@ py_compile 주요 스크립트 통과
 - G세트 protocol_anomaly_summaries 및 protocol bypass/침해 단정 금지
 - H세트 static_baseline_summaries 및 static/health baseline 과승격 방지
 - H세트 crawler_baseline_summaries 및 crawler-like baseline 과승격 방지
+- H세트 sensitive_path_probe_summaries 및 sensitive path 성공 단정 금지
 
 ---
 
@@ -379,6 +418,7 @@ py_compile 주요 스크립트 통과
 | Protocol anomaly | malformed request 우회, Host bypass, protocol bypass 성공은 Apache 로그만으로 확정 불가 |
 | Static baseline | static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 정상 여부는 Apache 로그만으로 확정 불가 |
 | Crawler-like baseline | crawler UA 진위, robots/sitemap 내용, site structure, page existence는 Apache 로그만으로 확정 불가 |
+| Sensitive path probe | WordPress 존재, admin access, `.env`/`phpinfo`/`server-status`/backup 노출은 Apache 로그만으로 확정 불가 |
 | response body 검증 | 파일 내용, XSS 반영, DB 결과 확인 불가 |
 | fallback HTML | 200 text/html 대용량 응답을 성공으로 보면 안 됨 |
 | PHP empty output | `/config.php` 200/0B를 안전 또는 성공으로 단정하면 안 됨 |
@@ -389,19 +429,14 @@ py_compile 주요 스크립트 통과
 
 ## 9. 다음 우선순위
 
-1. H세트 R3 scanner-like low-signal path runner 설계
-   - `/wp-login.php`
-   - `/wp-admin/`
-   - `/.env`
-   - `/phpinfo.php`
-   - `/server-status`
-   - `/backup.zip`
-2. H R3 실행 전 scanner path의 성공 단정 금지 기준 정리
-3. 필요 시 `scanner_path_context` / `sensitive_path_probe_context` 표현 개선 검토
-4. 실제 LLM 샘플 검증 체계 또는 후속 H세트 R4 mixed baseline/scanner 검토
+1. H세트 전체 결과 정리
+2. supporting event reason_hints를 row-specific하게 줄일지 검토
+3. 필요 시 `sensitive_path_probe_context` category 도입 검토
+4. H세트 R4 mixed benign + scanner-like 실험 여부 검토
+5. 실제 LLM 샘플 검증 체계 또는 발표/보고용 요약 정리
 
 ---
 
 ## 10. 발표용 한 줄 정리
 
-A~H세트 결과, Apache 로그 기반 LLM 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PHP wrapper, L3 고신호 패턴, Auth/Login abuse context, HTTP method/protocol behavior context, static/crawler/noise baseline context를 보수적으로 정리할 수 있음을 확인했다. 핵심은 실제 성공·유출·로그인 성공·침해·method/protocol 실행 결과·static/crawler content 의미를 단정하지 않고, 로그 표면에서 관찰 가능한 시도와 문맥만 제한적으로 보고하는 것이다.
+A~H세트 결과, Apache 로그 기반 LLM 분석 파이프라인은 SQLi, XSS, Traversal, HPP, PHP wrapper, L3 고신호 패턴, Auth/Login abuse context, HTTP method/protocol behavior context, static/crawler/scanner-like noise context를 보수적으로 정리할 수 있음을 확인했다. 핵심은 실제 성공·유출·로그인 성공·침해·method/protocol 실행 결과·static/crawler/sensitive-path content 의미를 단정하지 않고, 로그 표면에서 관찰 가능한 시도와 문맥만 제한적으로 보고하는 것이다.
