@@ -3,9 +3,12 @@
 - 문서 상태: 분석 기준 문서
 - 목적: export, prepare, stage1, stage2의 데이터 구조와 해석 기준을 정리한다.
 
-실제 운영 명령은 [docs/operations/01_운영_기준_실행_가이드.md](01_운영_기준_실행_가이드.md)를 본다.
+실제 운영 명령은 [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)를 본다.
+스크립트별 역할과 입출력 개요는 [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)를 본다.
 
 ## 1. 현재 파이프라인
+
+수동 흐름:
 
 ```text
 MariaDB(web_logs)
@@ -27,11 +30,21 @@ llm_stage2_reporter.py
 <base>_stage2_report.md / .json
 ```
 
+통합 실행:
+
+- `run_analysis_pipeline.py`는 `--export-input`, `--llm-input`, `--stage1-results`에서 시작할 수 있다.
+- `--dry-run`으로 실제 LLM API 호출 없이 구조 검증이 가능하다.
+- 실행 후 `pipeline_manifest.json`을 생성한다.
+
 ## 2. 로그 역할
 
-- `security`: 분석 기본 입력
+- `security`: 기본 prepare 입력, 분석 기본 입력
 - `error`: 5xx 또는 `request_id`/`error_link_id` 연계 확인용 보조 입력
 - `access`: 운영 확인과 기준선 비교용 보조 입력
+
+- 기본 prepare 입력은 `security`다.
+- `error`와 `access`는 필요 시 `--include-source-tables`로 포함 범위를 조정할 수 있다.
+- `access`를 현재 주 입력처럼 보지 않는다.
 
 ## 3. export 기준
 
@@ -41,12 +54,23 @@ llm_stage2_reporter.py
 - 기본 `--table`: `security`
 - 상위 키: `meta`, `counts`, `data`
 
+주요 옵션:
+
+- `--table`
+- `--today`
+- `--date`
+- `--start`
+- `--end`
+- `--out`
+- `--out-dir`
+- `--test-connection`
+
 파일명 기준:
 
 - `{table}_{date}_kst.json`
 - `{table}_{start}_to_{end}_kst.json`
 
-운영 기준 경로는 `docs/operations/01_운영_기준_실행_가이드.md`를 우선한다.
+실제 명령은 [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)를 우선한다.
 
 ## 4. prepare 기준
 
@@ -64,12 +88,30 @@ llm_stage2_reporter.py
 - `<base>_noise_summary.json`
 - `<base>_filtered_out_rows.json` 선택
 
-`<base>_llm_input.json` 상위 키:
+추가 기준:
+
+- `--include-source-tables`로 `security,error` 등 포함 범위를 조정할 수 있다.
+- `--write-filtered-out` 사용 시 `<base>_filtered_out_rows.json`을 저장한다.
+- 같은 incident 중복 row를 dedup 한다.
+- context-only 문맥을 보존한다.
+- context-only 문맥은 성공/침해 단정 근거가 아니라 후보 밖, 저신호, 반복 행위 문맥을 Stage2에 전달하기 위한 구조다.
+
+`<base>_llm_input.json`의 주요 상위 키 예시:
 
 - `meta`
 - `noise_summary`
 - `candidate_group_summary`
 - `analysis_candidates`
+- `supporting_events`
+- `probing_sequence_summaries`
+- `ip_behavior_aggregates`
+- `auth_behavior_summaries`
+- `method_behavior_summaries`
+- `protocol_anomaly_summaries`
+- `static_baseline_summaries`
+- `crawler_baseline_summaries`
+- `sensitive_path_probe_summaries`
+- `mixed_baseline_scanner_summaries`
 
 ### 4.1 로그 가시성 한계와 POST body blind spot
 
@@ -87,7 +129,11 @@ llm_stage2_reporter.py
 
 이 한계는 모델이 payload 의미를 해석하지 못해서라기보다, LLM에 전달되기 전 단계에서 확보 가능한 데이터 가시성 범위가 좁기 때문에 발생한다. 즉 현재 baseline은 "Apache 공통/security 로그를 기반으로 어디까지 분류·요약할 수 있는가"를 평가하는 구조이며, 상류에서 body-derived signal을 추가하면 평가 질문 자체가 달라진다.
 
+자세한 기준은 [99_POST_body_visibility_한계와_해석_기준.md](../design/99_POST_body_visibility_한계와_해석_기준.md)를 본다.
+
 ## 5. `analysis_candidates` 핵심 필드
+
+대표 필드:
 
 - `source_table`
 - `log_id`
@@ -113,6 +159,9 @@ llm_stage2_reporter.py
 - `raw_request_target`
 - `path_normalized_from_raw_request`
 - `likely_html_fallback_response`
+- `hpp_detected`
+- `hpp_param_names`
+- `embedded_attack_hint`
 - `incident_group_key`
 - `merged_row_count`
 - `merged_source_tables`
@@ -130,6 +179,16 @@ llm_stage2_reporter.py
 - 기본 `--candidate-limit`: `0`
 - 기본 `--max-evidence-items`: `8`
 
+주요 옵션:
+
+- `--provider`
+- `--model`
+- `--candidate-limit`
+- `--max-evidence-items`
+- `--reasoning-effort`
+- `--dry-run`
+- `--store`
+
 출력 파일:
 
 - `<base>_stage1_results.json`
@@ -144,6 +203,11 @@ llm_stage2_reporter.py
 - `reasoning_summary`
 - `evidence_fields`
 - `recommended_actions`
+
+dry-run 주의:
+
+- `llm_stage1_classifier.py --dry-run`은 실제 API 호출 없이 요청 계획/preview 성격의 결과를 만든다.
+- 실제 실행 예시는 [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)를 본다.
 
 ## 7. stage2 기준
 
@@ -160,12 +224,18 @@ llm_stage2_reporter.py
 
 출력 파일:
 
+일반 출력:
+
 - `<base>_stage2_report_input.json`
 - `<base>_stage2_report.json`
 - `<base>_stage2_report.md`
-- `<base>_stage2_report_error.json`
 
-`<base>_stage2_report_input.json` 상위 키:
+실패 또는 parse error 시 생성될 수 있는 진단 출력:
+
+- `<base>_stage2_report_error.json`
+- `<base>_stage2_report_raw_error.json`
+
+`<base>_stage2_report_input.json`의 주요 상위 키 예시:
 
 - `analysis_context`
 - `pipeline_counts`
@@ -178,6 +248,7 @@ llm_stage2_reporter.py
 - `stage1_errors_excerpt`
 - `asset_context`
 - `policy_notes`
+- `supporting_events`
 
 현재 운영 기준에서는 `KNOWN_ASSET_IPS`를 기본 필수로 보지 않는다.
 
@@ -211,6 +282,11 @@ llm_stage2_reporter.py
 
 - 현재 실제 운영 경로는 `/opt/web_log_analysis/data/processed`와 `/opt/web_log_analysis/reports`
 - 따라서 `--work-dir /opt/web_log_analysis`만 지정해도 기본 산출물 경로가 운영 기준과 맞는다
+- `--stop-after`로 prepare/stage1/stage2 중단이 가능하다.
+- `--dry-run`으로 실제 LLM API 호출 없이 구조 검증이 가능하다.
+- `--keep-going`으로 오류가 나도 가능한 범위에서 manifest를 남길 수 있다.
+- `pipeline_manifest.json`이 생성된다.
+- manifest에는 입력, 단계별 command, 산출물 경로, provider, known asset IP 등이 기록된다.
 
 ## 9. 현재 보수 해석 기준
 
@@ -224,7 +300,11 @@ path traversal 계열에서는 아래 순서로 본다.
 
 `resp_html_*`는 현재 보류 또는 선택 항목이다.
 
+핵심 근거처럼 사용하지 않는다. 자세한 기준은 [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](../design/99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md)를 본다.
+
 ## 10. 문서 역할 경계
 
 - 이 문서는 데이터 구조와 분석 기준을 설명한다.
-- 실제 운영 명령 복붙은 [docs/operations/01_운영_기준_실행_가이드.md](01_운영_기준_실행_가이드.md)로 모은다.
+- 실제 운영 명령 복붙은 [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)로 모은다.
+- 스크립트별 역할, 입력, 출력 개요는 [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)를 본다.
+- 설계 결정과 해석 한계는 [99_POST_body_visibility_한계와_해석_기준.md](../design/99_POST_body_visibility_한계와_해석_기준.md), [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](../design/99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md)를 본다.
