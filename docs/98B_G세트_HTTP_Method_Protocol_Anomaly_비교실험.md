@@ -218,21 +218,60 @@ python3 lab/g_set/run_g_r2_protocol_anomaly.py \
 
 목표:
 
+- 정상 method/baseline 요청이 candidate로 과승격되지 않는지 확인
 - 정상 monitoring/health-check-like method가 공격으로 과승격되지 않는지 확인
 - User-Agent, 단일 method, 단일 status만으로 공격 단정하지 않는지 확인
 
+실행 방식:
+
+- G R3는 Python runner 사용을 권장한다.
+- runner 위치: `lab/g_set/run_g_r3_baseline.py`
+- runner는 `http://`, `https://` base URL을 지원한다.
+- runner는 request body 원문과 response body 원문을 저장하지 않는다.
+- runner는 CORS 취약점, method 허용, 서버 설정 취약 여부, 공격 성공을 검증하지 않는다.
+
+권장 예시:
+
+```bash
+python3 lab/g_set/run_g_r3_baseline.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_G세트R3_산출물/runner_logs
+```
+
+dry-run / print-plan 예시:
+
+```bash
+python3 lab/g_set/run_g_r3_baseline.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_G세트R3_산출물/runner_logs \
+  --dry-run
+
+python3 lab/g_set/run_g_r3_baseline.py \
+  --base-url http://192.168.56.105 \
+  --scenario options_preflight \
+  --out lab/05-xx_G세트R3_산출물/runner_logs_options \
+  --print-plan
+```
+
 케이스:
 
-| ID | 유형 | 기대 관찰 | 기대 해석 |
-|---|---|---|---|
-| G-R3-01 | normal `HEAD` health check | 반복 가능하나 단순 `HEAD` 중심 | baseline/reference context 우선 |
-| G-R3-02 | browser-like `OPTIONS` preflight | `OPTIONS`와 일반 브라우저성 부가 신호 혼재 가능 | 정상 동작 가능성 병기 |
-| G-R3-03 | normal `GET` browse | 일반 `GET` / `200` / 정적 자산 접근 | baseline 유지 |
-| G-R3-04 | known internal monitoring UA | 규칙적 접근 또는 점검성 패턴 | UA 단독 확정 없이 내부 점검 가능성 병기 |
+| ID | runner label | 요청 | 기대 관찰 | 기대 해석 | 기대 응답 | 해석 제한 |
+|---|---|---|---|---|---|---|
+| G-R3-01 | `normal_head_health_check` | `HEAD /health` with `HealthCheck/1.0` | `method=HEAD`, health-check-like path, `status_code` 관찰 | normal health check or monitoring baseline possibility; should not be promoted as attack by method alone | any | `baseline_head_no_attack_inference` |
+| G-R3-02 | `browser_like_options_preflight` | `OPTIONS /` with browser-like preflight headers and `Mozilla/5.0 regression-browser` | `method=OPTIONS`, preflight-like headers were sent, `status_code` 관찰 | browser-like preflight baseline possibility; CORS vulnerability must not be inferred | any | `preflight_context_no_cors_success_inference` |
+| G-R3-03 | `normal_get_browse` | `GET /` with `Mozilla/5.0 regression-browser` | `method=GET`, normal browse-like request | normal baseline; should not be promoted as method probing | any | `baseline_get_no_attack_inference` |
+| G-R3-04 | `internal_monitoring_get` | `GET /` with `InternalMonitor/1.0` | `method=GET`, monitoring-like User-Agent | internal monitoring or automation baseline possibility; User-Agent alone is not attack evidence | any | `monitoring_ua_no_attack_inference` |
+| G-R3-05 | `repeated_head_monitoring_x3` | `HEAD /` with `InternalMonitor/1.0`, repeat 3, 2-second sleep | repeated `HEAD` requests, same `src_ip` / time window | monitoring-like repeated baseline possibility; repeated HEAD alone should not be promoted as probing | any | `repeated_head_baseline_no_attack_inference` |
 
 주의:
 
+- `HEAD /health`가 `404`여도 health check intent/context로만 본다.
+- `HEAD /health`가 `200`이어도 health endpoint 가능성 정도로만 본다.
+- `OPTIONS` preflight 응답 header 상세를 분석하지 않는다.
 - User-Agent만으로 정상/공격 단정 금지
+- `OPTIONS` 자체를 공격으로 단정하지 않는다.
 - baseline/reference context로만 보존하는 방향을 우선 검토
 
 ---
@@ -312,8 +351,8 @@ G세트는 긴 `curl` 나열보다 Python runner 기반으로 관리한다. 현�
 현재 범위:
 
 - `run_g_r1_method_probe.py`: 완료
-- `run_g_r2_protocol_anomaly.py`: 이번 작업에서 runner 추가 및 dry-run 검증
-- `run_g_r3_baseline.py`: 향후 작업
+- `run_g_r2_protocol_anomaly.py`: 완료
+- `run_g_r3_baseline.py`: baseline / FP bait runner 추가 및 dry-run 검증 대상
 
 ---
 
@@ -347,7 +386,7 @@ G세트는 긴 `curl` 나열보다 Python runner 기반으로 관리한다. 현�
 
 주의:
 
-- runner 로그에는 실험용 request body가 들어갈 수 있으므로 공유 범위를 제한한다.
+- runner 로그에는 request metadata와 timing 정보가 들어가므로 공유 범위를 제한한다.
 - 비교 문서에는 raw body나 credential-like 값을 직접 싣지 않는다.
 
 ---
@@ -358,7 +397,7 @@ G세트는 긴 `curl` 나열보다 Python runner 기반으로 관리한다. 현�
 2. G R2 prepare-only 확인
 3. G R2 Stage1 / Stage2 비교
 4. 필요 시 `method_probe` / `protocol_anomaly` hint 검토
-5. G R3 baseline runner 설계 및 비교 실험 준비
+5. 승인된 로컬 실험 환경에서 G R3 baseline 실행 후 prepare / Stage1 / Stage2 비교 준비
 
 ---
 
