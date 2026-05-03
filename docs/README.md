@@ -25,9 +25,10 @@
 
 - `standards/`: 실험 문서 작성 표준, 공통 템플릿, naming rule
 - `experiments/`: A~H 세트별 설계 문서, 실행 요청 문서, 라운드별 세부 문서
-- `design/`: 파이프라인 구조 설계, regression 설계, `prepare` module split 계획, context summary 설계
+- `design/`: 파이프라인 구조 설계, regression 설계, `prepare` module split 계획, context summary 설계, 해석 한계와 설계 결정
 - `reviews/`: 중간정리, LLM 샘플 검증, Stage2 wording 품질 검토, 완료·평가성 문서
 - `operations/`: 실행 가이드, 운영 기준, 로컬 실험 환경 기준
+- `planning/`: 후속 작업 계획, TODO, 우선순위 관리
 - `archive/`: 오래된 초안, 길어진 과거 TODO, 교체된 설계안
 
 ## 4. 권장 목표 구조
@@ -54,6 +55,8 @@ docs/
 │   └── 중간정리, LLM 샘플 검증, Stage2 wording 품질 검토
 ├── operations/
 │   └── 실행 가이드, export/prepare/stage1/stage2 사용법, 로컬 실험 환경 기준
+├── planning/
+│   └── 후속 작업 계획, TODO, 우선순위 관리
 └── archive/
     └── 오래된 초안, 교체된 설계안, 더 이상 직접 참조하지 않는 문서
 ```
@@ -63,7 +66,7 @@ docs/
 아래 목록은 현재 `docs/` 루트에서 바로 확인되는 대표 예시다.
 
 - 운영/흐름: [진행상황.md](./진행상황.md), [00_전체_흐름_요약_가이드.md](./operations/00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./operations/01_운영_기준_실행_가이드.md), [01_프로젝트_방향과_실험대상.md](./operations/01_프로젝트_방향과_실험대상.md), [02_Juice_shop_환경_구축_및_설치.md](./operations/02_Juice_shop_환경_구축_및_설치.md), [02_LLM_환경_구축_및_설치.md](./operations/02_LLM_환경_구축_및_설치.md), [02_MariaDB_환경_구축_및_설치.md](./operations/02_MariaDB_환경_구축_및_설치.md), [02_OpenCart_환경_구축_및_설치.md](./operations/02_OpenCart_환경_구축_및_설치.md), [03_로그_표준과_DB_구조.md](./operations/03_로그_표준과_DB_구조.md), [04_로그_적재_및_운영.md](./operations/04_로그_적재_및_운영.md), [05_Export_LLM_분석_전략.md](./operations/05_Export_LLM_분석_전략.md), [06_통합_스크립트_설명_정리본.md](./operations/06_통합_스크립트_설명_정리본.md)
-- 실험 표준: [98_비교_실험_요청_세트_표준.md](./98_비교_실험_요청_세트_표준.md)
+- 실험 표준: [98_비교_실험_요청_세트_표준.md](./standards/98_비교_실험_요청_세트_표준.md), [99_비교_실험_결과_기록_템플릿.md](./standards/99_비교_실험_결과_기록_템플릿.md)
 - A 세트: [98A_A세트_비교실험.md](./experiments/A_set/98A_A세트_비교실험.md)
 - B 세트: [98B_B세트_비교실험.md](./experiments/B_set/98B_B세트_비교실험.md), [98B_B세트_비교실험_라운드2.md](./experiments/B_set/98B_B세트_비교실험_라운드2.md), [98B_B세트_SQLi_runner_전환.md](./experiments/B_set/98B_B세트_SQLi_runner_전환.md)
 - C 세트: [98B_C세트_비교실험.md](./experiments/C_set/98B_C세트_비교실험.md), [98B_C세트_XSS_runner_전환.md](./experiments/C_set/98B_C세트_XSS_runner_전환.md)
@@ -73,8 +76,9 @@ docs/
 - G 세트: [98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md](./experiments/G_set/98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md)
 - H 세트: [98B_H세트_Static_Crawler_Noise_비교실험.md](./experiments/H_set/98B_H세트_Static_Crawler_Noise_비교실험.md)
 - 설계/회귀 검증: [99_prepare_regression_fixture_설계.md](./design/99_prepare_regression_fixture_설계.md), [99_stage_dryrun_regression_설계.md](./design/99_stage_dryrun_regression_설계.md), [99_prepare_module_split_plan.md](./design/99_prepare_module_split_plan.md)
+- 설계 결정/해석 한계: [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](./design/99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md), [99_POST_body_visibility_한계와_해석_기준.md](./design/99_POST_body_visibility_한계와_해석_기준.md), [99_sensitive_path_probe_context_category_검토.md](./design/99_sensitive_path_probe_context_category_검토.md)
 - 리뷰/품질: [99_A-H세트_중간정리.md](./reviews/99_A-H세트_중간정리.md), [99_llm_sample_review_plan.md](./reviews/99_llm_sample_review_plan.md), [99_stage2_wording_quality_review.md](./reviews/99_stage2_wording_quality_review.md)
-- 해석 한계/보류 결정: [99_POST_body_visibility_한계와_해석_기준.md](./99_POST_body_visibility_한계와_해석_기준.md), [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](./99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md)
+- planning: [99_비교실험_후속개선_TODO.md](./planning/99_비교실험_후속개선_TODO.md)
 
 추가로 A~E 세트 실험 문서, 환경 구축 문서, 운영 메모, 과거 TODO 성격 문서도 현재 `docs/` 루트에 함께 있다.
 
@@ -92,8 +96,11 @@ docs/
 - 이동 완료 `98B_E세트_*` 문서: `docs/experiments/E_set/`
 - A~H 실험 문서 이동 완료: `docs/experiments/A_set/` ~ `docs/experiments/H_set/`
 - 이동 완료 설계/회귀 검증 문서: `docs/design/99_prepare_regression_fixture_설계.md`, `docs/design/99_stage_dryrun_regression_설계.md`, `docs/design/99_prepare_module_split_plan.md`
+- 이동 완료 standards 문서: `docs/standards/98_비교_실험_요청_세트_표준.md`, `docs/standards/99_비교_실험_결과_기록_템플릿.md`
+- 이동 완료 design decision 문서: `docs/design/99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md`, `docs/design/99_POST_body_visibility_한계와_해석_기준.md`, `docs/design/99_sensitive_path_probe_context_category_검토.md`
 - 이동 완료 리뷰/품질 문서: `docs/reviews/99_A-H세트_중간정리.md`, `docs/reviews/99_llm_sample_review_plan.md`, `docs/reviews/99_stage2_wording_quality_review.md`
 - 이동 완료 operations 문서: `docs/operations/00_전체_흐름_요약_가이드.md`, `docs/operations/01_운영_기준_실행_가이드.md`, `docs/operations/01_프로젝트_방향과_실험대상.md`, `docs/operations/02_Juice_shop_환경_구축_및_설치.md`, `docs/operations/02_LLM_환경_구축_및_설치.md`, `docs/operations/02_MariaDB_환경_구축_및_설치.md`, `docs/operations/02_OpenCart_환경_구축_및_설치.md`, `docs/operations/03_로그_표준과_DB_구조.md`, `docs/operations/04_로그_적재_및_운영.md`, `docs/operations/05_Export_LLM_분석_전략.md`, `docs/operations/06_통합_스크립트_설명_정리본.md`
+- 이동 완료 planning 문서: `docs/planning/99_비교실험_후속개선_TODO.md`
 - 별도 검토 필요 후보: `docs/가상환경_구성_요약.txt`
 - 현재 위치 기준 오래된 초안, 길어진 TODO, 직접 참조하지 않는 문서: 이동 후보 `docs/archive/`
 

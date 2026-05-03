@@ -23,7 +23,7 @@ E세트 원문이 길어져, 메인 문서는 인덱스와 공통 기준만 남�
 | `docs/experiments/E_set/98B_E세트_OpenCart_비교실험.md` | E세트 전체 인덱스, 공통 원칙, 실행 순서 |
 | `docs/experiments/E_set/98B_E세트_OpenCart_R2_R2B_php_wrapper.md` | PHP wrapper / config exposure / file disclosure 실험 상세 |
 | `docs/experiments/E_set/98B_E세트_OpenCart_R3_R3B_search.md` | product/search SQLi/XSS 및 정상 search baseline 상세 |
-| `docs/99_비교실험_후속개선_TODO.md` | 회귀 fixture, verdict taxonomy, hint 품질 개선 등 후속 작업 |
+| `docs/planning/99_비교실험_후속개선_TODO.md` | 회귀 fixture, verdict taxonomy, hint 품질 개선 등 후속 작업 |
 
 ---
 
