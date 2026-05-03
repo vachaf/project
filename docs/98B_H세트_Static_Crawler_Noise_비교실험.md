@@ -290,9 +290,14 @@ python3 lab/h_set/run_h_r3_scanner_low_signal.py \
 
 ```text
 - 단발 scanner-like path는 high candidate로 과승격하지 않음
-- 여러 sensitive/scanner path가 짧은 window에 있으면 probing_sequence_summaries 또는 ip_behavior_aggregates로 보존 가능
+- 여러 sensitive/scanner path가 짧은 window에 있으면 sensitive_path_probe_summaries, probing_sequence_summaries, ip_behavior_aggregates 같은 context-only summary로 보존 가능
 - 200/403/404만으로 노출 성공/차단 성공을 단정하지 않음
 ```
+
+### 실제 H R3 보완 포인트
+
+- 2026-05-03 실제 prepare 확인에서 `/.env`, `/backup.zip`, `/wp-login.php` 등은 filtered/context로 남았지만 `/server-status 403` 두 건은 개별 candidate로 상대적으로 더 부각됐고 filtered row hint도 `dir_probe:*` 중심으로 약하게 남았다.
+- 따라서 top-level `sensitive_path_probe_summaries`와 filtered/candidate row의 `sensitive_path:*` hint 정리가 필요하다는 점이 확인됐다.
 
 ### 향후 hint 후보
 
@@ -372,7 +377,7 @@ lab/h_set/run_h_r3_scanner_low_signal.py
 lab/h_set/run_h_r4_mixed_baseline_scanner.py
 ```
 
-현재 우선 구현 대상은 H R3 Python runner다. prepare / Stage1 / Stage2 분석 로직 변경 없이 실행 harness와 문서만 추가한다.
+현재 H R1/H R2/H R3 후속 prepare 보강으로 `static_baseline_summaries`, `crawler_baseline_summaries`, `sensitive_path_probe_summaries`가 반영되었다. 이후 H R4 mixed baseline/scanner round에서는 summary 간 충돌 없이 narrative가 유지되는지 추가 확인이 필요하다.
 
 ---
 

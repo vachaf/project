@@ -291,6 +291,9 @@ STATIC_BASELINE_MIN_STATIC_PATHS = 3
 STATIC_BASELINE_SAMPLE_REQUEST_LIMIT = 10
 CRAWLER_BASELINE_WINDOW_SEC = 300
 CRAWLER_BASELINE_SAMPLE_REQUEST_LIMIT = 10
+SENSITIVE_PATH_PROBE_WINDOW_SEC = 300
+SENSITIVE_PATH_PROBE_SAMPLE_REQUEST_LIMIT = 10
+SENSITIVE_PATH_PROBE_REPRESENTATIVE_CANDIDATE_LIMIT = 1
 IP_BEHAVIOR_WINDOW_SEC = 300
 IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
 IP_BEHAVIOR_SENSITIVE_PATH_LIMIT = 10
@@ -2813,6 +2816,151 @@ def reduce_repeated_auth_candidates(
     return reduced_candidates, supporting_events
 
 
+def candidate_is_sensitive_path_probe_only(candidate: Candidate) -> bool:
+    if normalize_text(candidate.verdict_hint) != "suspicious":
+        return False
+
+    path = get_effective_request_path(candidate.uri, candidate.raw_request_target).lower()
+    if not classify_sensitive_path_probe_category(path, candidate.method):
+        return False
+
+    if get_attack_categories_from_reason_hints(candidate.reason_hints):
+        return False
+
+    return True
+
+
+def build_sensitive_path_probe_support_reason_hints(summary: Dict[str, Any]) -> List[str]:
+    hints = list(summary.get("reason_hints") or [])
+    append_unique_hint(hints, "sensitive_path:covered_by_sensitive_path_probe_summary")
+    return [raw_text(hint) for hint in hints if raw_text(hint)]
+
+
+def build_sensitive_path_probe_supporting_event(
+    candidate: Candidate,
+    summary: Dict[str, Any],
+    covered_candidate_count: int,
+) -> Dict[str, Any]:
+    return {
+        "supporting_reason": "covered_by_sensitive_path_probe_summary",
+        "supporting_role": "sensitive_path_probe_support",
+        "context_role": "sensitive_path_probe_context",
+        "should_promote_to_candidate": False,
+        "source_table": candidate.source_table,
+        "log_id": candidate.log_id,
+        "log_time": candidate.log_time,
+        "src_ip": candidate.src_ip,
+        "method": candidate.method,
+        "uri": candidate.uri,
+        "query_string": candidate.query_string,
+        "status_code": candidate.status_code,
+        "response_body_bytes": candidate.response_body_bytes,
+        "duration_us": candidate.duration_us,
+        "ttfb_us": candidate.ttfb_us,
+        "resp_content_type": candidate.resp_content_type,
+        "user_agent": candidate.user_agent,
+        "raw_request": candidate.raw_request,
+        "raw_request_target": candidate.raw_request_target,
+        "request_id": candidate.request_id,
+        "incident_group_key": candidate.incident_group_key or build_incident_group_key(candidate),
+        "reason_hints": build_sensitive_path_probe_support_reason_hints(summary),
+        "temporal_context_key": build_temporal_context_key(candidate.src_ip, candidate.uri, candidate.log_time),
+        "temporal_context_role": "sensitive_path_probe_context",
+        "nearby_candidate_count": covered_candidate_count,
+        "sensitive_path_summary_window_start": normalize_text(summary.get("window_start")),
+        "sensitive_path_summary_window_end": normalize_text(summary.get("window_end")),
+        "interpretation_limit": "sensitive_path_probe_no_file_or_app_exposure_inference",
+    }
+
+
+def reduce_repeated_sensitive_path_candidates(
+    candidates: List[Candidate],
+    sensitive_path_probe_summaries: List[Dict[str, Any]],
+    representative_limit: int = SENSITIVE_PATH_PROBE_REPRESENTATIVE_CANDIDATE_LIMIT,
+) -> Tuple[List[Candidate], List[Dict[str, Any]]]:
+    contexts = build_sensitive_path_probe_summary_contexts(sensitive_path_probe_summaries)
+    if not contexts:
+        return candidates, []
+
+    grouped_candidates: Dict[str, List[Candidate]] = defaultdict(list)
+    matched_summary_by_group: Dict[str, Dict[str, Any]] = {}
+    passthrough_candidates: List[Candidate] = []
+
+    for candidate in candidates:
+        if not candidate_is_sensitive_path_probe_only(candidate):
+            passthrough_candidates.append(candidate)
+            continue
+
+        candidate_dt = parse_flexible_iso_dt(candidate.log_time or "")
+        if candidate_dt is None:
+            passthrough_candidates.append(candidate)
+            continue
+
+        matched_context: Optional[Dict[str, Any]] = None
+        for context in contexts:
+            if context["src_ip"] != normalize_text(candidate.src_ip):
+                continue
+            if context["start_dt"] <= candidate_dt <= context["end_dt"]:
+                matched_context = context
+                break
+
+        if matched_context is None:
+            passthrough_candidates.append(candidate)
+            continue
+
+        summary_key = "|".join(
+            [
+                normalize_text(matched_context["summary"].get("src_ip")),
+                normalize_text(matched_context["summary"].get("window_start")),
+                normalize_text(matched_context["summary"].get("window_end")),
+            ]
+        )
+        grouped_candidates[summary_key].append(candidate)
+        matched_summary_by_group[summary_key] = matched_context["summary"]
+
+    reduced_candidates: List[Candidate] = list(passthrough_candidates)
+    supporting_events: List[Dict[str, Any]] = []
+    for summary_key, items in grouped_candidates.items():
+        summary = matched_summary_by_group[summary_key]
+        if len(items) <= representative_limit:
+            reduced_candidates.extend(items)
+            continue
+
+        sorted_items = sorted(
+            items,
+            key=lambda item: (
+                item.score,
+                item.duration_us,
+                item.ttfb_us,
+                normalize_text(item.log_time),
+            ),
+            reverse=True,
+        )
+        representative_candidates = sorted_items[:representative_limit]
+        representative_keys = {id(item) for item in representative_candidates}
+        reduced_candidates.extend(representative_candidates)
+        for candidate in items:
+            if id(candidate) in representative_keys:
+                continue
+            supporting_events.append(
+                build_sensitive_path_probe_supporting_event(
+                    candidate,
+                    summary=summary,
+                    covered_candidate_count=len(items),
+                )
+            )
+
+    reduced_candidates.sort(key=lambda item: (item.score, normalize_text(item.log_time)), reverse=True)
+    supporting_events.sort(
+        key=lambda item: (
+            safe_int(item.get("nearby_candidate_count"), 0),
+            normalize_text(item.get("log_time")),
+        ),
+        reverse=True,
+    )
+    return reduced_candidates, supporting_events
+
+
 def safe_int(value: Optional[Any], default: int = 0) -> int:
     if value is None:
         return default
@@ -3231,6 +3379,279 @@ def get_crawler_baseline_context_for_row(
         return None
 
     for context in crawler_baseline_contexts:
+        if context["src_ip"] != src_ip:
+            continue
+        if context["start_dt"] <= row_dt <= context["end_dt"]:
+            return context
+    return None
+
+
+def classify_sensitive_path_probe_category(path: str, method: str) -> str:
+    normalized_method = normalize_text(method).upper()
+    normalized_path = normalize_text(path).lower()
+    if normalized_method not in {"GET", "HEAD", "OPTIONS"} or not normalized_path:
+        return ""
+
+    if normalized_path == "/wp-login.php":
+        return "wp_login"
+    if normalized_path == "/wp-admin/" or normalized_path.startswith("/wp-admin/"):
+        return "wp_admin"
+    if normalized_path == "/.env" or normalized_path.endswith("/.env"):
+        return "env_file"
+    if normalized_path == "/phpinfo.php":
+        return "phpinfo"
+    if normalized_path == "/server-status" or normalized_path.startswith("/server-status/"):
+        return "server_status"
+    if normalized_path == "/backup.zip":
+        return "backup_artifact"
+    if normalized_path == "/config.php":
+        return "config_php"
+    if normalized_path == "/admin/config.php":
+        return "admin_config_php"
+    if normalized_path == "/backup/" or normalized_path.startswith("/backup/"):
+        return "backup_directory"
+    if normalized_path == "/admin/" or normalized_path.startswith("/admin/"):
+        return "admin_directory"
+    return ""
+
+
+def build_sensitive_path_reason_hints_for_row(
+    row: Dict[str, Any],
+    *,
+    repeated_sequence: bool = False,
+) -> List[str]:
+    raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+    path = get_effective_request_path(get_uri(row), raw_request_target).lower()
+    category = classify_sensitive_path_probe_category(path, get_method(row))
+    if not category:
+        return []
+
+    hints: List[str] = []
+    if category == "wp_login":
+        append_unique_hint(hints, "sensitive_path:wp_login")
+        append_unique_hint(hints, "sensitive_path:admin_path")
+        append_unique_hint(hints, "sensitive_path:no_app_presence_inference")
+    elif category == "wp_admin":
+        append_unique_hint(hints, "sensitive_path:wp_admin")
+        append_unique_hint(hints, "sensitive_path:admin_path")
+        append_unique_hint(hints, "sensitive_path:no_admin_access_inference")
+    elif category == "env_file":
+        append_unique_hint(hints, "sensitive_path:env_file")
+        append_unique_hint(hints, "sensitive_path:config_like_path")
+        append_unique_hint(hints, "sensitive_path:no_file_exposure_inference")
+    elif category == "phpinfo":
+        append_unique_hint(hints, "sensitive_path:phpinfo")
+        append_unique_hint(hints, "sensitive_path:diagnostic_path")
+        append_unique_hint(hints, "sensitive_path:no_phpinfo_exposure_inference")
+    elif category == "server_status":
+        append_unique_hint(hints, "sensitive_path:server_status")
+        append_unique_hint(hints, "sensitive_path:no_server_status_exposure_inference")
+    elif category == "backup_artifact":
+        append_unique_hint(hints, "sensitive_path:backup_artifact")
+        append_unique_hint(hints, "sensitive_path:no_backup_exposure_inference")
+    elif category == "config_php":
+        append_unique_hint(hints, "sensitive_path:config_php")
+        append_unique_hint(hints, "sensitive_path:config_like_path")
+        append_unique_hint(hints, "sensitive_path:no_file_exposure_inference")
+    elif category == "admin_config_php":
+        append_unique_hint(hints, "sensitive_path:admin_config_php")
+        append_unique_hint(hints, "sensitive_path:admin_path")
+        append_unique_hint(hints, "sensitive_path:config_like_path")
+        append_unique_hint(hints, "sensitive_path:no_file_exposure_inference")
+    elif category == "backup_directory":
+        append_unique_hint(hints, "sensitive_path:backup_directory")
+        append_unique_hint(hints, "sensitive_path:no_backup_exposure_inference")
+    elif category == "admin_directory":
+        append_unique_hint(hints, "sensitive_path:admin_path")
+        append_unique_hint(hints, "sensitive_path:no_admin_access_inference")
+
+    if repeated_sequence:
+        append_unique_hint(hints, "sensitive_path:repeated_sensitive_path_sequence")
+        append_unique_hint(hints, "sensitive_path:no_success_inference")
+
+    return hints
+
+
+def finalize_sensitive_path_probe_bucket(
+    items: List[Dict[str, Any]],
+    window_sec: int,
+) -> Optional[Dict[str, Any]]:
+    if not items:
+        return None
+
+    sorted_items = sorted(items, key=lambda item: item["dt"])
+    status_counts = Counter(str(safe_int(item.get("status_code"), 0)) for item in sorted_items)
+    path_counts = Counter(normalize_text(item.get("path")).lower() for item in sorted_items if normalize_text(item.get("path")))
+    path_categories_observed: List[str] = []
+    sample_request_ids: List[str] = []
+    reason_hints: List[str] = []
+    errorish_status_observed = False
+    repeated_path_observed = False
+
+    for item in sorted_items:
+        path_category = normalize_text(item.get("path_category"))
+        if path_category:
+            append_unique_hint(path_categories_observed, path_category)
+
+        extend_unique_hints(reason_hints, item.get("reason_hints") or [])
+
+        status_code = safe_int(item.get("status_code"), 0)
+        if status_code in {403, 404, 500}:
+            errorish_status_observed = True
+
+        sample_request_id = normalize_text(item.get("sample_request_id"))
+        if sample_request_id and len(sample_request_ids) < SENSITIVE_PATH_PROBE_SAMPLE_REQUEST_LIMIT:
+            append_unique_hint(sample_request_ids, sample_request_id)
+
+    repeated_path_observed = any(count >= 2 for count in path_counts.values())
+    should_emit = any(
+        (
+            len(path_categories_observed) >= 2,
+            repeated_path_observed,
+            errorish_status_observed,
+        )
+    )
+    if not should_emit:
+        return None
+
+    if repeated_path_observed or len(sorted_items) >= 3:
+        append_unique_hint(reason_hints, "sensitive_path:repeated_sensitive_path_sequence")
+    append_unique_hint(reason_hints, "sensitive_path:no_app_presence_inference")
+    append_unique_hint(reason_hints, "sensitive_path:no_admin_access_inference")
+    append_unique_hint(reason_hints, "sensitive_path:no_file_exposure_inference")
+    append_unique_hint(reason_hints, "sensitive_path:no_phpinfo_exposure_inference")
+    append_unique_hint(reason_hints, "sensitive_path:no_server_status_exposure_inference")
+    append_unique_hint(reason_hints, "sensitive_path:no_backup_exposure_inference")
+    append_unique_hint(reason_hints, "sensitive_path:no_success_inference")
+
+    return {
+        "context_role": "sensitive_path_probe_context",
+        "aggregate_scope": "same_src_ip_sensitive_path_time_window",
+        "should_promote_to_candidate": False,
+        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
+        "window_start": normalize_text(sorted_items[0].get("log_time")),
+        "window_end": normalize_text(sorted_items[-1].get("log_time")),
+        "burst_window_sec": window_sec,
+        "request_count": len(sorted_items),
+        "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (safe_int(kv[0], 0), kv[0]))),
+        "path_categories_observed": path_categories_observed,
+        "path_counts": dict(sorted(path_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
+        "sample_request_ids": sample_request_ids,
+        "reason_hints": reason_hints,
+        "interpretation_limit": "sensitive_path_probe_no_file_or_app_exposure_inference",
+    }
+
+
+def build_sensitive_path_probe_summaries(
+    rows: List[Dict[str, Any]],
+    window_sec: int = SENSITIVE_PATH_PROBE_WINDOW_SEC,
+) -> List[Dict[str, Any]]:
+    rows_by_ip: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        src_ip = get_src_ip(row)
+        if not src_ip or src_ip == "-":
+            continue
+
+        log_time = choose_best_time(row)
+        dt = parse_flexible_iso_dt(log_time or "")
+        if dt is None:
+            continue
+
+        raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+        path = get_effective_request_path(get_uri(row), raw_request_target).lower()
+        path_category = classify_sensitive_path_probe_category(path, get_method(row))
+        if not path_category:
+            continue
+
+        rows_by_ip[src_ip].append(
+            {
+                "src_ip": src_ip,
+                "log_time": log_time,
+                "dt": dt,
+                "path": path,
+                "path_category": path_category,
+                "status_code": get_status_code(row),
+                "reason_hints": build_sensitive_path_reason_hints_for_row(row),
+                "sample_request_id": get_sample_request_id(row),
+            }
+        )
+
+    summaries: List[Dict[str, Any]] = []
+    for items in rows_by_ip.values():
+        sorted_items = sorted(items, key=lambda item: item["dt"])
+        bucket: List[Dict[str, Any]] = []
+        bucket_start: Optional[datetime] = None
+        for item in sorted_items:
+            if not bucket:
+                bucket = [item]
+                bucket_start = item["dt"]
+                continue
+
+            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
+                bucket.append(item)
+                continue
+
+            summary = finalize_sensitive_path_probe_bucket(bucket, window_sec=window_sec)
+            if summary:
+                summaries.append(summary)
+            bucket = [item]
+            bucket_start = item["dt"]
+
+        summary = finalize_sensitive_path_probe_bucket(bucket, window_sec=window_sec)
+        if summary:
+            summaries.append(summary)
+
+    summaries.sort(
+        key=lambda item: (
+            safe_int(item.get("request_count"), 0),
+            len(item.get("path_categories_observed") or []),
+            normalize_text(item.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return summaries
+
+
+def build_sensitive_path_probe_summary_contexts(
+    sensitive_path_probe_summaries: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    contexts: List[Dict[str, Any]] = []
+    for summary in sensitive_path_probe_summaries:
+        src_ip = normalize_text(summary.get("src_ip"))
+        window_start = normalize_text(summary.get("window_start"))
+        window_end = normalize_text(summary.get("window_end"))
+        start_dt = parse_flexible_iso_dt(window_start)
+        end_dt = parse_flexible_iso_dt(window_end)
+        if not src_ip or start_dt is None or end_dt is None:
+            continue
+        contexts.append(
+            {
+                "summary": summary,
+                "src_ip": src_ip,
+                "start_dt": start_dt,
+                "end_dt": end_dt,
+            }
+        )
+    return contexts
+
+
+def get_sensitive_path_probe_context_for_row(
+    row: Dict[str, Any],
+    sensitive_path_probe_contexts: List[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not sensitive_path_probe_contexts:
+        return None
+
+    sensitive_hints = build_sensitive_path_reason_hints_for_row(row)
+    if not sensitive_hints:
+        return None
+
+    src_ip = get_src_ip(row)
+    row_dt = parse_flexible_iso_dt(choose_best_time(row) or "")
+    if not src_ip or row_dt is None:
+        return None
+
+    for context in sensitive_path_probe_contexts:
         if context["src_ip"] != src_ip:
             continue
         if context["start_dt"] <= row_dt <= context["end_dt"]:
@@ -3684,6 +4105,7 @@ def sanitize_filtered_reason_hints(
     method_behavior_contexts: Optional[List[Dict[str, Any]]] = None,
     protocol_anomaly_contexts: Optional[List[Dict[str, Any]]] = None,
     static_baseline_contexts: Optional[List[Dict[str, Any]]] = None,
+    sensitive_path_probe_contexts: Optional[List[Dict[str, Any]]] = None,
 ) -> List[str]:
     sanitized = [raw_text(hint) for hint in reason_hints if raw_text(hint)]
 
@@ -3745,6 +4167,21 @@ def sanitize_filtered_reason_hints(
                 if not hint.startswith("dir_probe:") and not hint.startswith("baseline:")
             ]
             return unique_non_empty_texts(static_hints + preserved_hints)
+
+    sensitive_context = get_sensitive_path_probe_context_for_row(row, sensitive_path_probe_contexts or [])
+    if sensitive_context is not None:
+        sensitive_hints = build_sensitive_path_reason_hints_for_row(
+            row,
+            repeated_sequence="sensitive_path:repeated_sensitive_path_sequence"
+            in (sensitive_context.get("summary", {}).get("reason_hints") or []),
+        )
+        if sensitive_hints:
+            preserved_hints = [
+                hint
+                for hint in sanitized
+                if not hint.startswith("dir_probe:") and not hint.startswith("sensitive_path:")
+            ]
+            return unique_non_empty_texts(sensitive_hints + preserved_hints)
 
     return sanitized
 
@@ -4004,6 +4441,7 @@ def build_filtered_row_payload(
     method_behavior_contexts: Optional[List[Dict[str, Any]]] = None,
     protocol_anomaly_contexts: Optional[List[Dict[str, Any]]] = None,
     static_baseline_contexts: Optional[List[Dict[str, Any]]] = None,
+    sensitive_path_probe_contexts: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     raw_req_original = "" if row.get("raw_request") is None else str(row.get("raw_request")).strip()
     uri = get_uri(row)
@@ -4048,6 +4486,7 @@ def build_filtered_row_payload(
         method_behavior_contexts=method_behavior_contexts,
         protocol_anomaly_contexts=protocol_anomaly_contexts,
         static_baseline_contexts=static_baseline_contexts,
+        sensitive_path_probe_contexts=sensitive_path_probe_contexts,
     )
 
     return {
@@ -4223,6 +4662,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
             raw_request_target_variants=raw_request_target_variants,
         ),
     )
+    extend_unique_hints(reason_hints, build_sensitive_path_reason_hints_for_row(row))
 
     if hpp_detected:
         score += 1
@@ -4650,15 +5090,21 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
     noise_counter = Counter(normalize_text(r.get("_noise_category")) or "unclassified" for r in filtered_out_rows)
 
     auth_behavior_summaries = build_auth_behavior_summaries(all_rows)
+    sensitive_path_probe_summaries = build_sensitive_path_probe_summaries(all_rows)
     original_candidate_count = len(candidates)
     reduced_candidates, auth_behavior_supporting_events = reduce_repeated_auth_candidates(
         candidates,
         auth_behavior_summaries=auth_behavior_summaries,
     )
+    reduced_candidates, sensitive_path_probe_supporting_events = reduce_repeated_sensitive_path_candidates(
+        reduced_candidates,
+        sensitive_path_probe_summaries=sensitive_path_probe_summaries,
+    )
     raw_candidate_count = len(reduced_candidates)
     deduped_candidates, candidate_group_summaries = deduplicate_candidates(reduced_candidates)
     supporting_events = build_supporting_events(filtered_out_rows, deduped_candidates, min_score=min_score)
     supporting_events.extend(auth_behavior_supporting_events)
+    supporting_events.extend(sensitive_path_probe_supporting_events)
     supporting_events.sort(
         key=lambda item: (
             safe_int(item.get("nearby_candidate_count"), 0),
@@ -4676,6 +5122,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
     method_behavior_contexts = build_method_behavior_summary_contexts(method_behavior_summaries)
     protocol_anomaly_contexts = build_protocol_anomaly_summary_contexts(protocol_anomaly_summaries)
     static_baseline_contexts = build_static_baseline_summary_contexts(static_baseline_summaries)
+    sensitive_path_probe_contexts = build_sensitive_path_probe_summary_contexts(sensitive_path_probe_summaries)
     false_positive_review_candidates = [
         item
         for item in (
@@ -4718,6 +5165,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "probing_sequence_summaries_are_context_only": True,
                 "static_baseline_summaries_are_context_only": True,
                 "crawler_baseline_summaries_are_context_only": True,
+                "sensitive_path_probe_summaries_are_context_only": True,
                 "ip_behavior_aggregates_are_context_only": True,
                 "auth_behavior_summaries_are_context_only": True,
                 "method_behavior_summaries_are_context_only": True,
@@ -4730,6 +5178,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "probing_sequence_window_sec": PROBING_SEQUENCE_WINDOW_SEC,
                 "static_baseline_window_sec": STATIC_BASELINE_WINDOW_SEC,
                 "crawler_baseline_window_sec": CRAWLER_BASELINE_WINDOW_SEC,
+                "sensitive_path_probe_window_sec": SENSITIVE_PATH_PROBE_WINDOW_SEC,
                 "ip_behavior_window_sec": IP_BEHAVIOR_WINDOW_SEC,
                 "auth_behavior_window_sec": AUTH_BEHAVIOR_WINDOW_SEC,
                 "auth_behavior_rapid_window_sec": AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
@@ -4754,6 +5203,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "probing_sequence_summaries": len(probing_sequence_summaries),
                 "static_baseline_summaries": len(static_baseline_summaries),
                 "crawler_baseline_summaries": len(crawler_baseline_summaries),
+                "sensitive_path_probe_summaries": len(sensitive_path_probe_summaries),
                 "ip_behavior_aggregates": len(ip_behavior_aggregates),
                 "auth_behavior_summaries": len(auth_behavior_summaries),
                 "method_behavior_summaries": len(method_behavior_summaries),
@@ -4769,6 +5219,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         "probing_sequence_summaries": probing_sequence_summaries,
         "static_baseline_summaries": static_baseline_summaries,
         "crawler_baseline_summaries": crawler_baseline_summaries,
+        "sensitive_path_probe_summaries": sensitive_path_probe_summaries,
         "ip_behavior_aggregates": ip_behavior_aggregates,
         "auth_behavior_summaries": auth_behavior_summaries,
         "method_behavior_summaries": method_behavior_summaries,
@@ -4782,6 +5233,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
             method_behavior_contexts=method_behavior_contexts,
             protocol_anomaly_contexts=protocol_anomaly_contexts,
             static_baseline_contexts=static_baseline_contexts,
+            sensitive_path_probe_contexts=sensitive_path_probe_contexts,
         )
         for r in non_aggregated_filtered
     ]

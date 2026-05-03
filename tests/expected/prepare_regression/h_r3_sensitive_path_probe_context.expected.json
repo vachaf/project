@@ -1,0 +1,249 @@
+{
+  "description": "Scanner-like sensitive-looking paths should be summarized as context-only sensitive path probe context without asserting app presence, file exposure, admin access, or attack success.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130",
+        "context_role": "sensitive_path_probe_context",
+        "aggregate_scope": "same_src_ip_sensitive_path_time_window",
+        "should_promote_to_candidate": false
+      },
+      "message": "sensitive path probe summary created as context-only"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "interpretation_limit",
+      "contains": "sensitive_path_probe_no_file_or_app_exposure_inference",
+      "message": "sensitive path probe summary keeps conservative interpretation limit"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "path_categories_observed",
+      "contains": "wp_login",
+      "message": "wp_login category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "path_categories_observed",
+      "contains": "wp_admin",
+      "message": "wp_admin category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "path_categories_observed",
+      "contains": "env_file",
+      "message": "env_file category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "path_categories_observed",
+      "contains": "phpinfo",
+      "message": "phpinfo category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "path_categories_observed",
+      "contains": "server_status",
+      "message": "server_status category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "path_categories_observed",
+      "contains": "backup_artifact",
+      "message": "backup_artifact category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:wp_login",
+      "message": "wp_login hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:wp_admin",
+      "message": "wp_admin hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:env_file",
+      "message": "env_file hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:phpinfo",
+      "message": "phpinfo hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:server_status",
+      "message": "server_status hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:backup_artifact",
+      "message": "backup_artifact hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:no_file_exposure_inference",
+      "message": "no file exposure inference hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:no_server_status_exposure_inference",
+      "message": "no server-status exposure inference hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "sensitive_path_probe_summaries",
+      "where": {
+        "src_ip": "198.51.100.130"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:no_success_inference",
+      "message": "no success inference hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r3-wp-login-1"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:wp_login",
+      "message": "wp-login filtered row keeps sensitive path hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r3-env-1"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:no_file_exposure_inference",
+      "message": ".env filtered row keeps no-file-exposure hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "uri": "/server-status"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:no_server_status_exposure_inference",
+      "message": "remaining server-status candidate keeps no-exposure hint"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "h-r3-wp-login-1"
+      },
+      "message": "wp-login row must not be promoted to a candidate"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "h-r3-env-1"
+      },
+      "message": ".env row must not be promoted to a candidate"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "h-r3-backup-1"
+      },
+      "message": "backup row must not be promoted to a candidate"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "collection_count_at_least",
+      "collection": "sensitive_path_probe_summaries",
+      "value": 1,
+      "message": "at least one sensitive path probe summary is emitted"
+    },
+    {
+      "op": "collection_count_by_where_at_most",
+      "collection": "analysis_candidates",
+      "where": {
+        "uri": "/server-status"
+      },
+      "value": 1,
+      "message": "server-status candidate count is reduced to at most one representative"
+    }
+  ]
+}

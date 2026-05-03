@@ -17,6 +17,7 @@
 - Log4Shell / SSRF / SSTI / webshell 제한적 L3 hint 추가
 - `static_baseline_summaries` context-only 추가 및 H R1 static/health/browse row `baseline:*` hint 정리
 - `crawler_baseline_summaries` context-only 추가 및 H R2 crawler-like row `crawler_like:*` hint 정리
+- `sensitive_path_probe_summaries` context-only 추가 및 H R3 scanner-like sensitive path row `sensitive_path:*` hint 정리
 
 ## P1. prepare 모듈 분리 설계
 
@@ -106,6 +107,17 @@
 - 후속 검토:
   - 실제 Stage2 narrative 에서 crawler baseline 문맥이 static baseline 과 중복되지 않게 정리되는지 점검
   - crawler authenticity, robots/sitemap 내용, site structure, page existence, attack success 단정 표현이 실제 LLM narrative 에서 다시 나타나지 않는지 수동 샘플로 계속 점검
+
+## P8. H세트 sensitive path probe narrative 튜닝
+
+- 현재 상태:
+  - prepare `sensitive_path_probe_summaries` 추가 완료
+  - H R3 scanner-like sensitive path filtered row 의 `dir_probe:*` 단독 hint 문제 완화 완료
+  - repeated `/server-status` candidate 는 1개 대표만 남기고 나머지는 `supporting_events.sensitive_path_probe_support`로 정리 완료
+  - Stage2 report input 과 dry-run Markdown 에 sensitive path probe context 최소 반영 완료
+- 후속 검토:
+  - 실제 Stage2 narrative 에서 `/server-status 403`가 summary보다 과도하게 부각되지 않는지 점검
+  - WordPress 존재, admin access, `.env`/`phpinfo`/`server-status`/`backup` 노출 또는 차단 성공 단정 표현이 실제 LLM narrative 에서 다시 나타나지 않는지 수동 샘플로 계속 점검
 
 ## 장기 후보
 

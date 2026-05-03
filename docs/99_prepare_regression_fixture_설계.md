@@ -3,7 +3,7 @@
 ## 목적
 
 - `src/prepare_llm_input.py`의 prepare 단계만 빠르게 회귀 검증한다.
-- Stage1/Stage2 LLM 호출 없이 synthetic export JSON을 넣고 `analysis_candidates`, `supporting_events`, `false_positive_review_candidates`, `probing_sequence_summaries`, `ip_behavior_aggregates`, `filtered_out_rows`의 분류 결과를 확인한다.
+- Stage1/Stage2 LLM 호출 없이 synthetic export JSON을 넣고 `analysis_candidates`, `supporting_events`, `false_positive_review_candidates`, `probing_sequence_summaries`, `sensitive_path_probe_summaries`, `ip_behavior_aggregates`, `filtered_out_rows`의 분류 결과를 확인한다.
 - Apache 로그 표면 지표만 사용한 현재 규칙 기반 prepare 동작이 의도와 크게 벗어나지 않는지 smoke 수준으로 확인한다.
 
 ## 비목표
@@ -31,8 +31,11 @@
 - `e_r3_search_attack_and_baseline`
 - `f_r1_auth_behavior_context`
 - `g_r1_method_behavior_context`
+- `g_r2_protocol_anomaly_context`
 - `ip_behavior_multi_signal_context`
 - `h_r1_static_baseline_context`
+- `h_r2_crawler_baseline_context`
+- `h_r3_sensitive_path_probe_context`
 - `l3_log4shell_ssrf_context`
 - `l3_ssti_webshell_context`
 
@@ -149,6 +152,7 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - 2026-05-03 기준 `protocol_anomaly_summaries`는 prepare top-level context-only 출력과 Stage2 dry-run report input 최소 반영까지 완료되었다.
 - 2026-05-03 기준 `h_r1_static_baseline_context` fixture 는 `static_baseline_summaries` 생성, `baseline:*` filtered hint 치환, candidate 비승격을 검증한다.
 - 2026-05-03 기준 `h_r2_crawler_baseline_context` fixture 는 `crawler_baseline_summaries` 생성, `crawler_like:*` filtered hint 치환, candidate 비승격을 검증한다.
+- 2026-05-03 기준 `h_r3_sensitive_path_probe_context` fixture 는 `sensitive_path_probe_summaries` 생성, `sensitive_path:*` filtered hint 치환, `/server-status` representative candidate 축소를 검증한다.
 - 2026-04-30 기준 `b_r2b_double_encoded_sqli` expected 는 `encoding:decoded_depth_2` 외에 `sqli:boolean_true_condition` 및 일부 구조 hint(`quote_termination`, `parenthesis_termination`, `comment_sequence`, `xclose_pattern`)를 함께 확인한다.
 
 ## `h_r1_static_baseline_context` expected 기준
@@ -181,6 +185,17 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - `crawler_like_user_agent_families`에는 `googlebot_like`, `generic_crawler`가 반영되어야 하며, `path_categories_observed`에는 `robots_txt`, `sitemap_xml`, `product_browse`, `category_browse`, `normal_get`가 반영되어야 한다.
 - fixture 전체를 개별 `analysis_candidates`로 승격하지 않아야 한다.
 - crawler baseline context 로 덮인 filtered row 는 `/products/`, `/category/` 같은 browse row 에서 `dir_probe:*` 단독 hint 대신 `crawler_like:*` 중심 hint 를 가져야 한다.
+
+## `h_r3_sensitive_path_probe_context` expected 기준
+
+- 같은 `src_ip`의 300초 window 안에서 `/wp-login.php`, `/wp-admin/`, `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip` 같은 scanner-like sensitive path family 가 2종 이상 관찰되거나 같은 path 가 반복되면 `sensitive_path_probe_summaries`가 생성되어야 한다.
+- summary 는 `context_role=sensitive_path_probe_context`, `aggregate_scope=same_src_ip_sensitive_path_time_window`, `should_promote_to_candidate=false`를 유지해야 한다.
+- `reason_hints`에는 `sensitive_path:wp_login`, `sensitive_path:wp_admin`, `sensitive_path:env_file`, `sensitive_path:phpinfo`, `sensitive_path:server_status`, `sensitive_path:backup_artifact`, `sensitive_path:no_file_exposure_inference`, `sensitive_path:no_server_status_exposure_inference`, `sensitive_path:no_success_inference` 같은 보수적 힌트가 포함되어야 한다.
+- `interpretation_limit`은 `sensitive_path_probe_no_file_or_app_exposure_inference`를 유지해야 한다.
+- `path_categories_observed`에는 `wp_login`, `wp_admin`, `env_file`, `phpinfo`, `server_status`, `backup_artifact`가 반영되어야 한다.
+- `wp-login`, `/.env`, `/backup.zip` 같은 low-signal sensitive path row 는 개별 `analysis_candidates`로 과승격되면 안 된다.
+- repeated `/server-status` candidate 가 남더라도 1개 대표 이하로 유지하고, summary/context 힌트가 함께 반영되어야 한다.
+- sensitive path context 로 덮인 filtered row 는 `dir_probe:*` 단독 hint 대신 `sensitive_path:*` 중심 hint 를 가져야 한다.
 
 ## `g_r2_protocol_anomaly_context` expected 기준
 

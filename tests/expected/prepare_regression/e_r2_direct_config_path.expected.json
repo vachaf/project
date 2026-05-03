@@ -68,8 +68,8 @@
         "request_id": "e-r2-direct-config-1"
       },
       "field": "reason_hints",
-      "contains": "dir_probe:",
-      "message": "direct config access remains low-signal directory/file probing"
+      "contains": "sensitive_path:config_like_path",
+      "message": "direct config access remains low-signal sensitive config probing"
     }
   ]
 }
