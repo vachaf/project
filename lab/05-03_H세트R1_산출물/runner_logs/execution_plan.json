@@ -1,0 +1,211 @@
+{
+  "metadata": {
+    "allow_public_target": false,
+    "base_url": "http://192.168.56.105",
+    "ended_at": null,
+    "files": {
+      "metadata_json": "lab/05-03_H세트R1_산출물/runner_logs/run_metadata.json",
+      "plan_json": "lab/05-03_H세트R1_산출물/runner_logs/execution_plan.json",
+      "plan_md": "lab/05-03_H세트R1_산출물/runner_logs/execution_plan.md",
+      "results_jsonl": "lab/05-03_H세트R1_산출물/runner_logs/request_results.jsonl",
+      "summary_md": "lab/05-03_H세트R1_산출물/runner_logs/run_summary.md"
+    },
+    "mode": "execute",
+    "request_count": 8,
+    "scenario": "all",
+    "sleep_scale": 1.0,
+    "started_at": "2026-05-03T13:52:31+09:00",
+    "stores_request_body_content": false,
+    "stores_response_body_content": false,
+    "supports_https": true,
+    "target_class": "private-ip",
+    "timeout_sec": 10.0,
+    "transport": "urllib.request"
+  },
+  "requests": [
+    {
+      "expected_interpretation": [
+        "favicon/static baseline possibility",
+        "should not be promoted as probing by single request"
+      ],
+      "expected_observation": [
+        "favicon path request",
+        "status_code 관찰",
+        "response_body_bytes 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/favicon.ico",
+      "interpretation_limit": "static_asset_baseline_no_attack_inference",
+      "method": "GET",
+      "path": "/favicon.ico",
+      "request_label": "favicon_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R1-01",
+      "scenario_label": "favicon_baseline",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "robots baseline possibility",
+        "crawler policy content must not be inferred"
+      ],
+      "expected_observation": [
+        "robots.txt request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/robots.txt",
+      "interpretation_limit": "robots_content_not_visible_no_policy_inference",
+      "method": "GET",
+      "path": "/robots.txt",
+      "request_label": "robots_txt_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R1-02",
+      "scenario_label": "robots_txt_baseline",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "sitemap baseline possibility",
+        "site structure disclosure must not be inferred"
+      ],
+      "expected_observation": [
+        "sitemap.xml request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/sitemap.xml",
+      "interpretation_limit": "sitemap_content_not_visible_no_structure_inference",
+      "method": "GET",
+      "path": "/sitemap.xml",
+      "request_label": "sitemap_xml_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R1-03",
+      "scenario_label": "sitemap_xml_baseline",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "static JavaScript asset baseline possibility",
+        "JS execution or XSS must not be inferred"
+      ],
+      "expected_observation": [
+        "static JS path request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/assets/app.js",
+      "interpretation_limit": "static_asset_content_not_visible_no_js_execution_inference",
+      "method": "GET",
+      "path": "/assets/app.js",
+      "request_label": "js_asset_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R1-04",
+      "scenario_label": "js_asset_baseline",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "static CSS asset baseline possibility",
+        "content meaning must not be inferred"
+      ],
+      "expected_observation": [
+        "static CSS path request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/assets/style.css",
+      "interpretation_limit": "static_asset_content_not_visible_no_attack_inference",
+      "method": "GET",
+      "path": "/assets/style.css",
+      "request_label": "css_asset_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R1-05",
+      "scenario_label": "css_asset_baseline",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "static image asset baseline possibility",
+        "file content or exposure success must not be inferred"
+      ],
+      "expected_observation": [
+        "image path request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/images/logo.png",
+      "interpretation_limit": "static_asset_content_not_visible_no_file_exposure_inference",
+      "method": "GET",
+      "path": "/images/logo.png",
+      "request_label": "image_asset_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R1-06",
+      "scenario_label": "image_asset_baseline",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    },
+    {
+      "expected_interpretation": [
+        "health check baseline possibility",
+        "auth/API abuse must not be inferred by endpoint name alone"
+      ],
+      "expected_observation": [
+        "health-like endpoint request",
+        "status_code 관찰"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/api/health",
+      "interpretation_limit": "health_check_baseline_no_auth_or_api_abuse_inference",
+      "method": "GET",
+      "path": "/api/health",
+      "request_label": "health_check_request",
+      "scaled_sleep_after_sec": 1.0,
+      "scenario_id": "H-R1-07",
+      "scenario_label": "health_check_baseline",
+      "sleep_after_sec": 1.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "HealthCheck/1.0"
+    },
+    {
+      "expected_interpretation": [
+        "normal browse baseline",
+        "should not be promoted as attack"
+      ],
+      "expected_observation": [
+        "normal GET browse-like request"
+      ],
+      "expected_response": "any",
+      "full_url": "http://192.168.56.105/",
+      "interpretation_limit": "baseline_get_no_attack_inference",
+      "method": "GET",
+      "path": "/",
+      "request_label": "normal_get_request",
+      "scaled_sleep_after_sec": 0.0,
+      "scenario_id": "H-R1-08",
+      "scenario_label": "normal_get_baseline",
+      "sleep_after_sec": 0.0,
+      "stores_request_body_content": false,
+      "stores_response_body_content": false,
+      "user_agent": "Mozilla/5.0 regression-browser"
+    }
+  ]
+}
