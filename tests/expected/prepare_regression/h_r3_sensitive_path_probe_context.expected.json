@@ -201,6 +201,37 @@
       "field": "reason_hints",
       "contains": "sensitive_path:no_server_status_exposure_inference",
       "message": "remaining server-status candidate keeps no-exposure hint"
+    },
+    {
+      "op": "exists",
+      "collection": "supporting_events",
+      "where": {
+        "supporting_role": "sensitive_path_probe_support",
+        "request_id": "h-r3-server-status-1"
+      },
+      "message": "sensitive path probe support event exists"
+    },
+    {
+      "op": "field_contains",
+      "collection": "supporting_events",
+      "where": {
+        "supporting_role": "sensitive_path_probe_support",
+        "request_id": "h-r3-server-status-1"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:server_status",
+      "message": "support event keeps row-specific server-status hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "supporting_events",
+      "where": {
+        "supporting_role": "sensitive_path_probe_support",
+        "request_id": "h-r3-server-status-1"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:covered_by_sensitive_path_probe_summary",
+      "message": "support event keeps covered-by-summary hint"
     }
   ],
   "MUST_NOT": [
@@ -227,6 +258,39 @@
         "request_id": "h-r3-backup-1"
       },
       "message": "backup row must not be promoted to a candidate"
+    },
+    {
+      "op": "field_contains",
+      "collection": "supporting_events",
+      "where": {
+        "supporting_role": "sensitive_path_probe_support",
+        "request_id": "h-r3-server-status-1"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:wp_login",
+      "message": "support event must not carry unrelated wp_login hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "supporting_events",
+      "where": {
+        "supporting_role": "sensitive_path_probe_support",
+        "request_id": "h-r3-server-status-1"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:env_file",
+      "message": "support event must not carry unrelated env_file hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "supporting_events",
+      "where": {
+        "supporting_role": "sensitive_path_probe_support",
+        "request_id": "h-r3-server-status-1"
+      },
+      "field": "reason_hints",
+      "contains": "sensitive_path:backup_artifact",
+      "message": "support event must not carry unrelated backup_artifact hint"
     }
   ],
   "SHOULD": [

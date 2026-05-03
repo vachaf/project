@@ -2830,8 +2830,8 @@ def candidate_is_sensitive_path_probe_only(candidate: Candidate) -> bool:
     return True
 
 
-def build_sensitive_path_probe_support_reason_hints(summary: Dict[str, Any]) -> List[str]:
-    hints = list(summary.get("reason_hints") or [])
+def build_sensitive_path_probe_support_reason_hints(candidate: Candidate) -> List[str]:
+    hints = build_sensitive_path_reason_hints_for_row(asdict(candidate))
     append_unique_hint(hints, "sensitive_path:covered_by_sensitive_path_probe_summary")
     return [raw_text(hint) for hint in hints if raw_text(hint)]
 
@@ -2863,7 +2863,7 @@ def build_sensitive_path_probe_supporting_event(
         "raw_request_target": candidate.raw_request_target,
         "request_id": candidate.request_id,
         "incident_group_key": candidate.incident_group_key or build_incident_group_key(candidate),
-        "reason_hints": build_sensitive_path_probe_support_reason_hints(summary),
+        "reason_hints": build_sensitive_path_probe_support_reason_hints(candidate),
         "temporal_context_key": build_temporal_context_key(candidate.src_ip, candidate.uri, candidate.log_time),
         "temporal_context_role": "sensitive_path_probe_context",
         "nearby_candidate_count": covered_candidate_count,
