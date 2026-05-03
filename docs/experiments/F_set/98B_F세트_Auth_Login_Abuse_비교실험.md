@@ -5,7 +5,7 @@
 - 기준 데이터: Apache `security/access/error` 로그 표면 지표
 - 1차 대상 서비스: Juice Shop
 - 상세 문서:
-  - `docs/98B_F세트_Auth_Login_Abuse_R2.md`
+  - `98B_F세트_Auth_Login_Abuse_R2.md`
 - 핵심 전제: **raw POST body는 Apache 기본 로그에 남지 않는다**
 
 > 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로는 계정·비밀번호·로그인 성공·계정 탈취·credential stuffing 성공·lockout 발동·세션 탈취를 확정하지 않는다.
@@ -132,7 +132,7 @@ WRONG_PASS="wrongpass123"
 | R2B | user enumeration-like / lockout-probing-like 응답 차이 관찰 | R2A 이후 후보 |
 | R2C | 분산 IP auth probing | 환경 지원 시 선택 |
 
-R2 상세는 `docs/98B_F세트_Auth_Login_Abuse_R2.md`에서 관리한다. R2는 한 export window에 모두 섞지 않고 R2A/R2B/R2C로 분리한다.
+R2 상세는 `98B_F세트_Auth_Login_Abuse_R2.md`에서 관리한다. R2는 한 export window에 모두 섞지 않고 R2A/R2B/R2C로 분리한다.
 
 공통 실행 흐름:
 
@@ -217,7 +217,7 @@ Round 2는 기존처럼 분산 IP, 저속 brute, user enumeration, lockout probi
 
 상세 설계:
 
-- `docs/98B_F세트_Auth_Login_Abuse_R2.md`
+- `98B_F세트_Auth_Login_Abuse_R2.md`
 
 ---
 

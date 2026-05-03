@@ -64,9 +64,9 @@ docs/
 
 - 운영/흐름: [진행상황.md](./진행상황.md), [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)
 - 실험 표준: [98_비교_실험_요청_세트_표준.md](./98_비교_실험_요청_세트_표준.md)
-- F 세트: [98B_F세트_Auth_Login_Abuse_비교실험.md](./98B_F세트_Auth_Login_Abuse_비교실험.md), [98B_F세트_Auth_Login_Abuse_R2.md](./98B_F세트_Auth_Login_Abuse_R2.md)
-- G 세트: [98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md](./98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md)
-- H 세트: [98B_H세트_Static_Crawler_Noise_비교실험.md](./98B_H세트_Static_Crawler_Noise_비교실험.md)
+- F 세트: [98B_F세트_Auth_Login_Abuse_비교실험.md](./experiments/F_set/98B_F세트_Auth_Login_Abuse_비교실험.md), [98B_F세트_Auth_Login_Abuse_R2.md](./experiments/F_set/98B_F세트_Auth_Login_Abuse_R2.md)
+- G 세트: [98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md](./experiments/G_set/98B_G세트_HTTP_Method_Protocol_Anomaly_비교실험.md)
+- H 세트: [98B_H세트_Static_Crawler_Noise_비교실험.md](./experiments/H_set/98B_H세트_Static_Crawler_Noise_비교실험.md)
 - 설계/회귀 검증: [99_prepare_regression_fixture_설계.md](./99_prepare_regression_fixture_설계.md), [99_stage_dryrun_regression_설계.md](./99_stage_dryrun_regression_설계.md), [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
 - 리뷰/품질: [99_A-H세트_중간정리.md](./99_A-H세트_중간정리.md), [99_llm_sample_review_plan.md](./99_llm_sample_review_plan.md), [99_stage2_wording_quality_review.md](./99_stage2_wording_quality_review.md)
 - 해석 한계/보류 결정: [99_POST_body_visibility_한계와_해석_기준.md](./99_POST_body_visibility_한계와_해석_기준.md), [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](./99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md)
@@ -77,9 +77,10 @@ docs/
 
 아래는 실제 이동이 아니라 정리 방향이다. 링크가 아니라 현재 위치 기준의 이동 후보로 본다.
 
-- 현재 위치 기준 `98B_F세트_*` 문서: 이동 후보 `docs/experiments/F_set/`
-- 현재 위치 기준 `98B_G세트_*` 문서: 이동 후보 `docs/experiments/G_set/`
-- 현재 위치 기준 `98B_H세트_*` 문서: 이동 후보 `docs/experiments/H_set/`
+- 이동 완료 `98B_F세트_*` 문서: `docs/experiments/F_set/`
+- 이동 완료 `98B_G세트_*` 문서: `docs/experiments/G_set/`
+- 이동 완료 `98B_H세트_*` 문서: `docs/experiments/H_set/`
+- 현재 위치 기준 A~E 세트 실험 문서: `docs/experiments/A_set/` ~ `docs/experiments/E_set/` 이동 후보
 - 현재 위치 기준 `99_prepare_*`, `99_stage_*` 설계 문서: 이동 후보 `docs/design/`
 - 현재 위치 기준 `99_A-H세트_중간정리`, `99_llm_sample_review_plan`, `99_stage2_wording_quality_review`: 이동 후보 `docs/reviews/`
 - 현재 위치 기준 오래된 초안, 길어진 TODO, 직접 참조하지 않는 문서: 이동 후보 `docs/archive/`
