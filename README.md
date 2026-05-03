@@ -93,6 +93,19 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 - hint/category/context-based analysis
 - avoid environment-specific overfitting
 
+## Documentation Layout
+
+- `docs/README.md`: 전체 문서 허브
+- `docs/operations/`: 실행 가이드, 환경 구축, 로그 구조, `export/prepare/stage1/stage2` 운영 문서
+- `docs/standards/`: 비교 실험 표준, 결과 기록 템플릿
+- `docs/experiments/`: A~H 세트별 실험 설계/실행 요청 문서
+- `docs/design/`: 파이프라인 설계, regression 설계, 해석 한계, 보류 결정
+- `docs/reviews/`: 중간정리, LLM 샘플 검증, Stage2 wording 품질 검토
+- `docs/planning/`: 후속 작업 TODO와 우선순위
+- `lab/`: 실험 산출물, 비교 결과, 실행 결과 보관
+
+자세한 문서 인덱스는 [docs/README.md](docs/README.md)를 기준으로 확인합니다.
+
 ## Documentation
 
 - 문서 허브: [docs/README.md](docs/README.md)
