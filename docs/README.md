@@ -65,6 +65,7 @@ docs/
 - 운영/흐름: [진행상황.md](./진행상황.md), [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)
 - 실험 표준: [98_비교_실험_요청_세트_표준.md](./98_비교_실험_요청_세트_표준.md)
 - A 세트: [98A_A세트_비교실험.md](./experiments/A_set/98A_A세트_비교실험.md)
+- B 세트: [98B_B세트_비교실험.md](./experiments/B_set/98B_B세트_비교실험.md), [98B_B세트_비교실험_라운드2.md](./experiments/B_set/98B_B세트_비교실험_라운드2.md), [98B_B세트_SQLi_runner_전환.md](./experiments/B_set/98B_B세트_SQLi_runner_전환.md)
 - C 세트: [98B_C세트_비교실험.md](./experiments/C_set/98B_C세트_비교실험.md), [98B_C세트_XSS_runner_전환.md](./experiments/C_set/98B_C세트_XSS_runner_전환.md)
 - D 세트: [98B_D세트_비교실험.md](./experiments/D_set/98B_D세트_비교실험.md), [98B_D세트_runner_전환.md](./experiments/D_set/98B_D세트_runner_전환.md)
 - E 세트: [98B_E세트_OpenCart_비교실험.md](./experiments/E_set/98B_E세트_OpenCart_비교실험.md), [98B_E세트_OpenCart_R2_R2B_php_wrapper.md](./experiments/E_set/98B_E세트_OpenCart_R2_R2B_php_wrapper.md), [98B_E세트_OpenCart_R3_R3B_search.md](./experiments/E_set/98B_E세트_OpenCart_R3_R3B_search.md), [98B_E세트_OpenCart_runner_전환.md](./experiments/E_set/98B_E세트_OpenCart_runner_전환.md)
@@ -85,10 +86,11 @@ docs/
 - 이동 완료 `98B_G세트_*` 문서: `docs/experiments/G_set/`
 - 이동 완료 `98B_H세트_*` 문서: `docs/experiments/H_set/`
 - 이동 완료 `98A_A세트_*` 문서: `docs/experiments/A_set/`
+- 이동 완료 `98B_B세트_*` 문서: `docs/experiments/B_set/`
 - 이동 완료 `98B_C세트_*` 문서: `docs/experiments/C_set/`
 - 이동 완료 `98B_D세트_*` 문서: `docs/experiments/D_set/`
 - 이동 완료 `98B_E세트_*` 문서: `docs/experiments/E_set/`
-- 현재 위치 기준 B 세트 실험 문서: `docs/experiments/B_set/` 이동 후보
+- A~H 실험 문서 이동 완료: `docs/experiments/A_set/` ~ `docs/experiments/H_set/`
 - 이동 완료 설계/회귀 검증 문서: `docs/design/99_prepare_regression_fixture_설계.md`, `docs/design/99_stage_dryrun_regression_설계.md`, `docs/design/99_prepare_module_split_plan.md`
 - 이동 완료 리뷰/품질 문서: `docs/reviews/99_A-H세트_중간정리.md`, `docs/reviews/99_llm_sample_review_plan.md`, `docs/reviews/99_stage2_wording_quality_review.md`
 - 현재 위치 기준 오래된 초안, 길어진 TODO, 직접 참조하지 않는 문서: 이동 후보 `docs/archive/`
