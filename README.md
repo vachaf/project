@@ -96,6 +96,8 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 ## Documentation Layout
 
 - `docs/README.md`: 전체 문서 허브
+- `src/`: 분석 파이프라인의 주요 Python 코드
+- `scripts/`: 회귀 검증, dry-run 검증, 보조 점검 스크립트
 - `docs/operations/`: 실행 가이드, 환경 구축, 로그 구조, `export/prepare/stage1/stage2` 운영 문서
 - `docs/standards/`: 비교 실험 표준, 결과 기록 템플릿
 - `docs/experiments/`: A~H 세트별 실험 설계/실행 요청 문서
