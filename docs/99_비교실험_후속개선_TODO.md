@@ -15,6 +15,7 @@
 - PHP wrapper 보수 설명 반영
 - SQLi 구조 hint 보강
 - Log4Shell / SSRF / SSTI / webshell 제한적 L3 hint 추가
+- `static_baseline_summaries` context-only 추가 및 H R1 static/health/browse row `baseline:*` hint 정리
 
 ## P1. prepare 모듈 분리 설계
 
@@ -84,6 +85,16 @@
 - dry-run regression 유지가 우선
 - API 비용과 비결정성을 고려해 고정 샘플 + 수동 review 중심으로 설계
 - schema/prompt/report-input 구조 검증과 실제 모델 품질 검증을 계속 분리
+
+## P6. H세트 static baseline narrative 튜닝
+
+- 현재 상태:
+  - prepare `static_baseline_summaries` 추가 완료
+  - H R1 static/health/normal browse filtered row 의 `dir_probe:*` 단독 hint 문제 완화 완료
+  - Stage2 report input 과 dry-run Markdown 에 static baseline context 최소 반영 완료
+- 후속 검토:
+  - 실제 Stage2 narrative 에서 static baseline 문맥이 과하게 길어지지 않는지 점검
+  - mixed benign + scanner-like H 후속 round 에서 static baseline 과 probing context 충돌 여부 점검
 
 ## 장기 후보
 

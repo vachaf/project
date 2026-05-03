@@ -1,0 +1,150 @@
+{
+  "description": "Stage dry-run should preserve static baseline summaries as context-only baseline context without asserting asset contents, crawler policy, JS execution, file exposure, or health success.",
+  "MUST": [
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.static_baseline_summary_count",
+      "message": "static baseline summary count exists"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.static_baseline_summary_count",
+      "equals": 1,
+      "message": "static baseline summary count is preserved"
+    },
+    {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.static_baseline_summary_policy",
+      "message": "static baseline summary policy exists"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.static_baseline_summary_policy.success_rule",
+      "contains": "static file 내용, crawler policy, site structure, JS 실행, file exposure, health 상태를 단정하지 않음",
+      "message": "static baseline policy keeps conservative success rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.behavior_scope_separation_policy.non_merge_rule",
+      "contains": "static_baseline_summaries",
+      "message": "behavior scope separation policy includes static baseline summaries"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "static_baseline_summaries.0.context_role",
+      "equals": "static_baseline_context",
+      "message": "static baseline summary keeps context role"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "static_baseline_summaries.0.should_promote_to_candidate",
+      "equals": false,
+      "message": "static baseline summary stays non-promoting"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "static_baseline_summaries.0.interpretation_limit",
+      "equals": "static_content_not_visible_no_attack_inference",
+      "message": "static baseline summary keeps interpretation limit"
+    },
+    {
+      "op": "json_path_equals",
+      "file": "stage2_report_input",
+      "path": "pipeline_counts.candidate_rows",
+      "equals": 0,
+      "message": "static baseline fixture does not create candidates"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "static_baseline_summaries 가 있으면 이는 context-only",
+      "message": "stage2 prompt includes static baseline context-only rule"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "static file 존재, crawler policy 내용, site structure 노출, JS 실행, file exposure, health 정상 여부를 단정하지 마라",
+      "message": "stage2 prompt includes static baseline no-success-inference rule"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "Static baseline context",
+      "message": "markdown includes static baseline context section"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "static baseline 해석 제한",
+      "message": "markdown includes static baseline interpretation limitation"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "asset_categories=",
+      "message": "markdown includes asset category list"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "static file 존재",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert static file existence"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "robots/sitemap 내용",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert robots or sitemap contents"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "JS 실행",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert JS execution"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "file exposure",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert file exposure"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "health 정상 여부",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert health success"
+    }
+  ]
+}

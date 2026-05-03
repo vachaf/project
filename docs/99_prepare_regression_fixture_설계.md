@@ -32,6 +32,7 @@
 - `f_r1_auth_behavior_context`
 - `g_r1_method_behavior_context`
 - `ip_behavior_multi_signal_context`
+- `h_r1_static_baseline_context`
 - `l3_log4shell_ssrf_context`
 - `l3_ssti_webshell_context`
 
@@ -146,7 +147,18 @@ check 스크립트는 이 규칙을 함수로 해석해서 산출물을 찾는�
 - 2026-05-02 기준 `auth_behavior_summaries`는 prepare top-level context-only 출력과 Stage2 dry-run report input 반영까지 완료되었다.
 - 2026-05-03 기준 `method_behavior_summaries`는 prepare top-level context-only 출력과 Stage2 dry-run report input 최소 반영까지 완료되었다.
 - 2026-05-03 기준 `protocol_anomaly_summaries`는 prepare top-level context-only 출력과 Stage2 dry-run report input 최소 반영까지 완료되었다.
+- 2026-05-03 기준 `h_r1_static_baseline_context` fixture 는 `static_baseline_summaries` 생성, `baseline:*` filtered hint 치환, candidate 비승격을 검증한다.
 - 2026-04-30 기준 `b_r2b_double_encoded_sqli` expected 는 `encoding:decoded_depth_2` 외에 `sqli:boolean_true_condition` 및 일부 구조 hint(`quote_termination`, `parenthesis_termination`, `comment_sequence`, `xclose_pattern`)를 함께 확인한다.
+
+## `h_r1_static_baseline_context` expected 기준
+
+- 같은 `src_ip`의 300초 window 안에서 `/favicon.ico`, `/robots.txt`, `/sitemap.xml`, `.js`, `.css`, image asset, health-like endpoint, `GET /` baseline 이 함께 관찰되면 `static_baseline_summaries`가 생성되어야 한다.
+- summary 는 `context_role=static_baseline_context`, `aggregate_scope=same_src_ip_static_baseline_time_window`, `should_promote_to_candidate=false`를 유지해야 한다.
+- `reason_hints`에는 `baseline:favicon`, `baseline:robots_txt`, `baseline:sitemap_xml`, `baseline:static_js`, `baseline:static_css`, `baseline:static_image`, `baseline:health_check`, `baseline:normal_get`, `baseline:no_static_content_inference`가 포함되어야 한다.
+- `interpretation_limit`은 `static_content_not_visible_no_attack_inference`를 유지해야 한다.
+- `asset_categories_observed`에는 `favicon`, `robots_txt`, `sitemap_xml`, `javascript_asset`, `css_asset`, `image_asset`, `health_check`, `normal_get`가 반영되어야 한다.
+- fixture 전체를 개별 `analysis_candidates`로 승격하지 않아야 한다.
+- static baseline context 로 덮인 filtered row 는 `dir_probe:*` 단독 hint 대신 `baseline:*` 중심 hint 를 가져야 한다.
 
 ## `g_r1_method_behavior_context` expected 기준
 

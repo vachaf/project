@@ -286,6 +286,9 @@ PROBING_SEQUENCE_WINDOW_SEC = 120
 PROBING_SEQUENCE_MIN_REQUESTS = 3
 PROBING_SEQUENCE_MIN_DISTINCT_PATHS = 3
 PROBING_SEQUENCE_SAMPLE_PATH_LIMIT = 10
+STATIC_BASELINE_WINDOW_SEC = 300
+STATIC_BASELINE_MIN_STATIC_PATHS = 3
+STATIC_BASELINE_SAMPLE_REQUEST_LIMIT = 10
 IP_BEHAVIOR_WINDOW_SEC = 300
 IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
 IP_BEHAVIOR_SENSITIVE_PATH_LIMIT = 10
@@ -311,6 +314,13 @@ STANDARD_HTTP_METHODS = {
     "OPTIONS",
     "TRACE",
     "PATCH",
+}
+STATIC_BASELINE_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp")
+HEALTH_LIKE_PATHS = {
+    "/health",
+    "/api/health",
+    "/status",
+    "/ping",
 }
 EDUCATIONAL_SQL_SEARCH_TERMS = (
     "how to",
@@ -1344,6 +1354,209 @@ def build_probing_sequence_summaries(
         reverse=True,
     )
     return summaries
+
+
+def finalize_static_baseline_bucket(
+    items: List[Dict[str, Any]],
+    window_sec: int,
+) -> Optional[Dict[str, Any]]:
+    if not items:
+        return None
+
+    sorted_items = sorted(items, key=lambda item: item["dt"])
+    status_counts = Counter(str(safe_int(item.get("status_code"), 0)) for item in sorted_items)
+    path_counts = Counter(normalize_text(item.get("path")).lower() for item in sorted_items if normalize_text(item.get("path")))
+    asset_categories_observed: List[str] = []
+    sample_request_ids: List[str] = []
+    reason_hints: List[str] = []
+
+    static_like_count = 0
+    health_like_count = 0
+    normal_get_count = 0
+
+    for item in sorted_items:
+        category = normalize_text(item.get("asset_category"))
+        if category:
+            append_unique_hint(asset_categories_observed, category)
+
+        if bool(item.get("is_static_like")):
+            static_like_count += 1
+        if category == "health_check":
+            health_like_count += 1
+        if category == "normal_get":
+            normal_get_count += 1
+
+        extend_unique_hints(reason_hints, item.get("reason_hints") or [])
+
+        sample_request_id = normalize_text(item.get("sample_request_id"))
+        if sample_request_id and len(sample_request_ids) < STATIC_BASELINE_SAMPLE_REQUEST_LIMIT:
+            append_unique_hint(sample_request_ids, sample_request_id)
+
+    should_emit = any(
+        (
+            static_like_count >= STATIC_BASELINE_MIN_STATIC_PATHS,
+            health_like_count >= 1,
+            normal_get_count >= 1 and (static_like_count >= 1 or health_like_count >= 1),
+            len(asset_categories_observed) >= 3,
+        )
+    )
+    if not should_emit:
+        return None
+
+    if static_like_count >= 1:
+        append_unique_hint(reason_hints, "baseline:no_static_content_inference")
+    if "robots_txt" in asset_categories_observed:
+        append_unique_hint(reason_hints, "baseline:no_crawler_policy_inference")
+    if "sitemap_xml" in asset_categories_observed:
+        append_unique_hint(reason_hints, "baseline:no_site_structure_inference")
+    if "javascript_asset" in asset_categories_observed:
+        append_unique_hint(reason_hints, "baseline:no_js_execution_inference")
+    if "image_asset" in asset_categories_observed:
+        append_unique_hint(reason_hints, "baseline:no_file_exposure_inference")
+    if "health_check" in asset_categories_observed:
+        append_unique_hint(reason_hints, "baseline:no_health_status_inference")
+
+    return {
+        "context_role": "static_baseline_context",
+        "aggregate_scope": "same_src_ip_static_baseline_time_window",
+        "should_promote_to_candidate": False,
+        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
+        "window_start": normalize_text(sorted_items[0].get("log_time")),
+        "window_end": normalize_text(sorted_items[-1].get("log_time")),
+        "burst_window_sec": window_sec,
+        "request_count": len(sorted_items),
+        "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (safe_int(kv[0], 0), kv[0]))),
+        "asset_categories_observed": asset_categories_observed,
+        "path_counts": dict(sorted(path_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
+        "sample_request_ids": sample_request_ids,
+        "reason_hints": reason_hints,
+        "interpretation_limit": "static_content_not_visible_no_attack_inference",
+    }
+
+
+def build_static_baseline_summaries(
+    rows: List[Dict[str, Any]],
+    window_sec: int = STATIC_BASELINE_WINDOW_SEC,
+) -> List[Dict[str, Any]]:
+    rows_by_ip: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        src_ip = get_src_ip(row)
+        if not src_ip or src_ip == "-":
+            continue
+
+        log_time = choose_best_time(row)
+        dt = parse_flexible_iso_dt(log_time or "")
+        if dt is None:
+            continue
+
+        raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+        path = get_effective_request_path(get_uri(row), raw_request_target).lower()
+        asset_category = classify_static_baseline_asset_category(path, get_method(row))
+        if not asset_category:
+            continue
+
+        rows_by_ip[src_ip].append(
+            {
+                "src_ip": src_ip,
+                "log_time": log_time,
+                "dt": dt,
+                "path": path,
+                "status_code": get_status_code(row),
+                "asset_category": asset_category,
+                "reason_hints": build_static_baseline_reason_hints_for_row(row),
+                "sample_request_id": get_sample_request_id(row),
+                "is_static_like": asset_category in {
+                    "favicon",
+                    "robots_txt",
+                    "sitemap_xml",
+                    "javascript_asset",
+                    "css_asset",
+                    "image_asset",
+                    "static_asset",
+                },
+            }
+        )
+
+    summaries: List[Dict[str, Any]] = []
+    for items in rows_by_ip.values():
+        sorted_items = sorted(items, key=lambda item: item["dt"])
+        bucket: List[Dict[str, Any]] = []
+        bucket_start: Optional[datetime] = None
+        for item in sorted_items:
+            if not bucket:
+                bucket = [item]
+                bucket_start = item["dt"]
+                continue
+
+            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
+                bucket.append(item)
+                continue
+
+            summary = finalize_static_baseline_bucket(bucket, window_sec=window_sec)
+            if summary:
+                summaries.append(summary)
+            bucket = [item]
+            bucket_start = item["dt"]
+
+        summary = finalize_static_baseline_bucket(bucket, window_sec=window_sec)
+        if summary:
+            summaries.append(summary)
+
+    summaries.sort(
+        key=lambda item: (
+            safe_int(item.get("request_count"), 0),
+            len(item.get("asset_categories_observed") or []),
+            normalize_text(item.get("window_start")),
+        ),
+        reverse=True,
+    )
+    return summaries
+
+
+def build_static_baseline_summary_contexts(
+    static_baseline_summaries: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    contexts: List[Dict[str, Any]] = []
+    for summary in static_baseline_summaries:
+        src_ip = normalize_text(summary.get("src_ip"))
+        window_start = normalize_text(summary.get("window_start"))
+        window_end = normalize_text(summary.get("window_end"))
+        start_dt = parse_flexible_iso_dt(window_start)
+        end_dt = parse_flexible_iso_dt(window_end)
+        if not src_ip or start_dt is None or end_dt is None:
+            continue
+        contexts.append(
+            {
+                "src_ip": src_ip,
+                "start_dt": start_dt,
+                "end_dt": end_dt,
+            }
+        )
+    return contexts
+
+
+def row_is_covered_by_static_baseline_context(
+    row: Dict[str, Any],
+    static_baseline_contexts: List[Dict[str, Any]],
+) -> bool:
+    if not static_baseline_contexts:
+        return False
+
+    static_hints = build_static_baseline_reason_hints_for_row(row)
+    if not static_hints:
+        return False
+
+    src_ip = get_src_ip(row)
+    row_dt = parse_flexible_iso_dt(choose_best_time(row) or "")
+    if not src_ip or row_dt is None:
+        return False
+
+    for context in static_baseline_contexts:
+        if context["src_ip"] != src_ip:
+            continue
+        if context["start_dt"] <= row_dt <= context["end_dt"]:
+            return True
+    return False
 
 
 def build_row_context_reason_hints(row: Dict[str, Any]) -> List[str]:
@@ -2659,6 +2872,75 @@ def is_static_resource(uri: str) -> bool:
     return uri_lower.endswith(STATIC_EXTENSIONS) or any(uri_lower.startswith(p) for p in STATIC_PREFIXES)
 
 
+def is_health_like_path(path: str) -> bool:
+    return normalize_text(path).lower() in HEALTH_LIKE_PATHS
+
+
+def classify_static_baseline_asset_category(path: str, method: str) -> str:
+    normalized_method = normalize_text(method).upper()
+    normalized_path = normalize_text(path).lower()
+    if normalized_method not in {"GET", "HEAD"} or not normalized_path:
+        return ""
+
+    if normalized_path == "/favicon.ico":
+        return "favicon"
+    if normalized_path == "/robots.txt":
+        return "robots_txt"
+    if normalized_path == "/sitemap.xml":
+        return "sitemap_xml"
+    if is_health_like_path(normalized_path):
+        return "health_check"
+    if normalized_method == "GET" and normalized_path == "/":
+        return "normal_get"
+    if normalized_path.endswith(".js"):
+        return "javascript_asset"
+    if normalized_path.endswith(".css"):
+        return "css_asset"
+    if normalized_path.endswith(STATIC_BASELINE_IMAGE_EXTENSIONS):
+        return "image_asset"
+    if is_static_resource(normalized_path):
+        return "static_asset"
+    return ""
+
+
+def build_static_baseline_reason_hints_for_row(row: Dict[str, Any]) -> List[str]:
+    raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
+    path = get_effective_request_path(get_uri(row), raw_request_target).lower()
+    category = classify_static_baseline_asset_category(path, get_method(row))
+    if not category:
+        return []
+
+    hints: List[str] = []
+    if category == "favicon":
+        append_unique_hint(hints, "baseline:favicon")
+        append_unique_hint(hints, "baseline:static_asset")
+    elif category == "robots_txt":
+        append_unique_hint(hints, "baseline:robots_txt")
+        append_unique_hint(hints, "baseline:no_crawler_policy_inference")
+    elif category == "sitemap_xml":
+        append_unique_hint(hints, "baseline:sitemap_xml")
+        append_unique_hint(hints, "baseline:no_site_structure_inference")
+    elif category == "javascript_asset":
+        append_unique_hint(hints, "baseline:static_asset")
+        append_unique_hint(hints, "baseline:static_js")
+        append_unique_hint(hints, "baseline:no_js_execution_inference")
+    elif category == "css_asset":
+        append_unique_hint(hints, "baseline:static_asset")
+        append_unique_hint(hints, "baseline:static_css")
+    elif category == "image_asset":
+        append_unique_hint(hints, "baseline:static_asset")
+        append_unique_hint(hints, "baseline:static_image")
+        append_unique_hint(hints, "baseline:no_file_exposure_inference")
+    elif category == "static_asset":
+        append_unique_hint(hints, "baseline:static_asset")
+    elif category == "health_check":
+        append_unique_hint(hints, "baseline:health_check")
+        append_unique_hint(hints, "baseline:no_health_status_inference")
+    elif category == "normal_get":
+        append_unique_hint(hints, "baseline:normal_get")
+    return hints
+
+
 def parse_iso_dt(text: str) -> Optional[datetime]:
     if not text:
         return None
@@ -3103,6 +3385,7 @@ def sanitize_filtered_reason_hints(
     analysis_texts: Iterable[str],
     method_behavior_contexts: Optional[List[Dict[str, Any]]] = None,
     protocol_anomaly_contexts: Optional[List[Dict[str, Any]]] = None,
+    static_baseline_contexts: Optional[List[Dict[str, Any]]] = None,
 ) -> List[str]:
     sanitized = [raw_text(hint) for hint in reason_hints if raw_text(hint)]
     if not sanitized:
@@ -3142,6 +3425,16 @@ def sanitize_filtered_reason_hints(
         if method_hints:
             preserved_hints = [hint for hint in sanitized if not hint.startswith("dir_probe:")]
             return unique_non_empty_texts(method_hints + preserved_hints)
+
+    if row_is_covered_by_static_baseline_context(row, static_baseline_contexts or []):
+        static_hints = build_static_baseline_reason_hints_for_row(row)
+        if static_hints:
+            preserved_hints = [
+                hint
+                for hint in sanitized
+                if not hint.startswith("dir_probe:") and not hint.startswith("baseline:")
+            ]
+            return unique_non_empty_texts(static_hints + preserved_hints)
 
     return sanitized
 
@@ -3399,6 +3692,7 @@ def build_filtered_row_payload(
     row: Dict[str, Any],
     method_behavior_contexts: Optional[List[Dict[str, Any]]] = None,
     protocol_anomaly_contexts: Optional[List[Dict[str, Any]]] = None,
+    static_baseline_contexts: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     raw_req_original = "" if row.get("raw_request") is None else str(row.get("raw_request")).strip()
     uri = get_uri(row)
@@ -3441,6 +3735,7 @@ def build_filtered_row_payload(
         analysis_texts=analysis_texts,
         method_behavior_contexts=method_behavior_contexts,
         protocol_anomaly_contexts=protocol_anomaly_contexts,
+        static_baseline_contexts=static_baseline_contexts,
     )
 
     return {
@@ -4060,11 +4355,13 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         reverse=True,
     )
     probing_sequence_summaries = build_probing_sequence_summaries(all_rows)
+    static_baseline_summaries = build_static_baseline_summaries(all_rows)
     ip_behavior_aggregates = build_ip_behavior_aggregates(all_rows)
     method_behavior_summaries = build_method_behavior_summaries(all_rows)
     protocol_anomaly_summaries = build_protocol_anomaly_summaries(all_rows)
     method_behavior_contexts = build_method_behavior_summary_contexts(method_behavior_summaries)
     protocol_anomaly_contexts = build_protocol_anomaly_summary_contexts(protocol_anomaly_summaries)
+    static_baseline_contexts = build_static_baseline_summary_contexts(static_baseline_summaries)
     false_positive_review_candidates = [
         item
         for item in (
@@ -4105,6 +4402,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "supporting_events_are_context_only": True,
                 "false_positive_review_candidates_are_context_only": True,
                 "probing_sequence_summaries_are_context_only": True,
+                "static_baseline_summaries_are_context_only": True,
                 "ip_behavior_aggregates_are_context_only": True,
                 "auth_behavior_summaries_are_context_only": True,
                 "method_behavior_summaries_are_context_only": True,
@@ -4115,6 +4413,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "noise_min_repeat_aggregate": min_repeat_aggregate,
                 "supporting_event_time_window_sec": SUPPORTING_EVENT_TIME_WINDOW_SEC,
                 "probing_sequence_window_sec": PROBING_SEQUENCE_WINDOW_SEC,
+                "static_baseline_window_sec": STATIC_BASELINE_WINDOW_SEC,
                 "ip_behavior_window_sec": IP_BEHAVIOR_WINDOW_SEC,
                 "auth_behavior_window_sec": AUTH_BEHAVIOR_WINDOW_SEC,
                 "auth_behavior_rapid_window_sec": AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
@@ -4137,6 +4436,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
                 "supporting_events": len(supporting_events),
                 "false_positive_review_candidates": len(false_positive_review_candidates),
                 "probing_sequence_summaries": len(probing_sequence_summaries),
+                "static_baseline_summaries": len(static_baseline_summaries),
                 "ip_behavior_aggregates": len(ip_behavior_aggregates),
                 "auth_behavior_summaries": len(auth_behavior_summaries),
                 "method_behavior_summaries": len(method_behavior_summaries),
@@ -4150,6 +4450,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         "supporting_events": supporting_events,
         "false_positive_review_candidates": false_positive_review_candidates,
         "probing_sequence_summaries": probing_sequence_summaries,
+        "static_baseline_summaries": static_baseline_summaries,
         "ip_behavior_aggregates": ip_behavior_aggregates,
         "auth_behavior_summaries": auth_behavior_summaries,
         "method_behavior_summaries": method_behavior_summaries,
@@ -4161,6 +4462,7 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
             r,
             method_behavior_contexts=method_behavior_contexts,
             protocol_anomaly_contexts=protocol_anomaly_contexts,
+            static_baseline_contexts=static_baseline_contexts,
         )
         for r in non_aggregated_filtered
     ]

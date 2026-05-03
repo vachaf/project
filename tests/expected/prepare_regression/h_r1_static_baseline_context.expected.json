@@ -1,0 +1,294 @@
+{
+  "description": "Static, robots, sitemap, health, and normal browse rows should be preserved as context-only static baseline summaries without candidate promotion or success inference.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90",
+        "context_role": "static_baseline_context",
+        "aggregate_scope": "same_src_ip_static_baseline_time_window",
+        "should_promote_to_candidate": false
+      },
+      "message": "static baseline summary created as context-only"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "interpretation_limit",
+      "contains": "static_content_not_visible_no_attack_inference",
+      "message": "static baseline summary keeps conservative interpretation limit"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "asset_categories_observed",
+      "contains": "favicon",
+      "message": "favicon category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "asset_categories_observed",
+      "contains": "robots_txt",
+      "message": "robots category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "asset_categories_observed",
+      "contains": "sitemap_xml",
+      "message": "sitemap category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "asset_categories_observed",
+      "contains": "javascript_asset",
+      "message": "javascript asset category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "asset_categories_observed",
+      "contains": "css_asset",
+      "message": "css asset category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "asset_categories_observed",
+      "contains": "image_asset",
+      "message": "image asset category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "asset_categories_observed",
+      "contains": "health_check",
+      "message": "health category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "asset_categories_observed",
+      "contains": "normal_get",
+      "message": "normal GET category preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:favicon",
+      "message": "favicon baseline hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:robots_txt",
+      "message": "robots baseline hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:sitemap_xml",
+      "message": "sitemap baseline hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:static_js",
+      "message": "static js baseline hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:static_css",
+      "message": "static css baseline hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:static_image",
+      "message": "static image baseline hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:health_check",
+      "message": "health baseline hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_get",
+      "message": "normal GET baseline hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "static_baseline_summaries",
+      "where": {
+        "src_ip": "198.51.100.90"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:no_static_content_inference",
+      "message": "no static content inference hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r1-favicon-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:favicon",
+      "message": "favicon filtered row keeps baseline hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r1-robots-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:no_crawler_policy_inference",
+      "message": "robots filtered row keeps no-policy-inference hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r1-sitemap-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:no_site_structure_inference",
+      "message": "sitemap filtered row keeps no-structure-inference hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r1-js-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:no_js_execution_inference",
+      "message": "js filtered row keeps no-js-execution hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r1-image-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:no_file_exposure_inference",
+      "message": "image filtered row keeps no-file-exposure hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r1-health-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:no_health_status_inference",
+      "message": "health filtered row keeps no-health-status hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r1-root-1"
+      },
+      "field": "reason_hints",
+      "contains": "baseline:normal_get",
+      "message": "root filtered row keeps normal GET hint"
+    },
+    {
+      "op": "collection_count_at_most",
+      "collection": "analysis_candidates",
+      "value": 0,
+      "message": "fixture does not create incident candidates"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r1-favicon-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "favicon filtered row must not keep dir_probe-only hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "h-r1-health-1"
+      },
+      "field": "reason_hints",
+      "contains": "dir_probe:",
+      "message": "health filtered row must not keep dir_probe-only hint"
+    }
+  ]
+}

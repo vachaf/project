@@ -146,6 +146,11 @@ python3 lab/h_set/run_h_r1_static_baseline.py \
 - response_body_bytes나 status=200만으로 성공/노출 단정 없음
 ```
 
+### 실제 H R1 보완 포인트
+
+- 2026-05-03 실제 H R1 prepare 실행에서는 candidate 과승격은 억제됐지만, static/health/normal browse row 의 `reason_hints`가 `dir_probe:burst` 중심으로만 남아 baseline 문맥 보존이 약했다.
+- 따라서 top-level `static_baseline_summaries`와 filtered row `baseline:*` hint 정리가 필요하다는 점이 확인됐다.
+
 ### 향후 hint 후보
 
 이번 설계 문서에서는 구현하지 않는다. 실행 결과를 보고 필요하면 검토한다.
