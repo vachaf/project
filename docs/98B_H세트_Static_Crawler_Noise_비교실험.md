@@ -91,9 +91,9 @@ H세트는 아래를 목표로 하지 않는다.
 | H R1 | Static / health baseline | static asset, favicon, health check 과승격 방지 | 완료 |
 | H R2 | Crawler-like baseline | robots/sitemap/crawler UA 해석 보수성 | 완료 |
 | H R3 | Scanner-like low-signal path | 흔한 scanner path의 context-only 보존 | 완료 |
-| H R4 | Mixed benign + scanner-like | 정상 browse와 scanner-like path 분리 | 선택 검토 |
+| H R4 | Mixed benign + scanner-like | 정상 baseline/crawler-like와 scanner-like path 분리 | 선택 실행 가능 |
 
-H R1/R2/R3는 2026-05-03 기준으로 실행과 비교 문서 작성이 완료되었다. H R4는 실제 운영형 혼합 시나리오를 더 강화하고 싶을 때 선택적으로 진행한다.
+H R1/R2/R3는 2026-05-03 기준으로 실행과 비교 문서 작성이 완료되었다. H R4는 실제 운영형 혼합 시나리오를 더 강화하고 싶을 때 선택적으로 진행하는 Python runner 기반 실험이다.
 
 ---
 
@@ -234,28 +234,45 @@ lab/05-03_H세트R3_산출물/2026-05-03_H세트R3_비교.md
 
 ### 목표
 
-정상 browse/static 요청과 scanner-like path가 같은 시간대에 섞일 때, pipeline이 이를 하나의 공격으로 과도하게 묶지 않고 baseline과 scanner context를 분리할 수 있는지 확인한다.
+정상 browse/static 요청과 scanner-like path가 같은 시간대에 섞일 때, pipeline이 이를 하나의 공격으로 과도하게 묶지 않고 baseline context, crawler-like context, scanner-like context를 분리할 수 있는지 확인한다.
 
-### 케이스 후보
+H R4는 `lab/h_set/run_h_r4_mixed_baseline_scanner.py` Python runner로 선택 실행할 수 있다. 이 runner는 mixed benign/static/crawler/scanner 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 실험 harness이며, 공격 성공을 검증하지 않는다.
 
-```text
-GET /
-GET /assets/app.js
-GET /favicon.ico
-GET /.env
-GET /wp-login.php
-GET /robots.txt
+실행 예시:
+
+```bash
+python3 lab/h_set/run_h_r4_mixed_baseline_scanner.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R4_산출물/runner_logs
 ```
 
-기대:
+계획만 확인하는 예시:
 
-```text
-- normal/static/robots 요청은 baseline
-- scanner-like/sensitive path는 low-signal context
-- 두 범주가 같은 src_ip/time window에 있어도 성공/침해 단정 금지
+```bash
+python3 lab/h_set/run_h_r4_mixed_baseline_scanner.py \
+  --base-url http://192.168.56.105 \
+  --scenario all \
+  --out lab/05-xx_H세트R4_산출물/runner_logs \
+  --dry-run
+
+python3 lab/h_set/run_h_r4_mixed_baseline_scanner.py \
+  --base-url http://192.168.56.105 \
+  --scenario mixed_with_crawler \
+  --out lab/05-xx_H세트R4_산출물/runner_logs \
+  --print-plan
 ```
 
-H R4는 아직 선택 사항이다. H R1/R2/R3가 안정적으로 통과했으므로, 실제 운영형 혼합 시나리오까지 강화하고 싶을 때 별도 runner로 진행한다.
+### 케이스
+
+| ID | runner label | 요청 | User-Agent | 기대 관찰 | 기대 해석 | 기대 응답 | 해석 제한 |
+|---|---|---|---|---|---|---|---|
+| H-R4-01 | `mixed_benign_scanner_basic` | `GET /` -> `GET /assets/app.js` -> `GET /favicon.ico` -> `GET /.env` -> `GET /wp-login.php` -> `GET /backup.zip` -> `GET /robots.txt` | baseline/static=`Mozilla/5.0 regression-browser`, scanner-like=`GenericScanner/1.0` | normal browse/static baseline and scanner-like sensitive paths in same `src_ip`/time window | baseline requests and scanner-like requests should be separated, no file exposure or app presence inference | `any` | `mixed_baseline_scanner_no_success_inference` |
+| H-R4-02 | `benign_static_only` | `GET /` -> `GET /assets/app.js` -> `GET /assets/style.css` -> `GET /favicon.ico` -> `GET /robots.txt` | `Mozilla/5.0 regression-browser` | normal/static baseline only | should remain baseline/static context, should not create scanner-like context | `any` | `static_baseline_no_attack_inference` |
+| H-R4-03 | `scanner_sensitive_only` | `GET /.env` -> `GET /wp-login.php` -> `GET /backup.zip` -> `GET /server-status` | `GenericScanner/1.0` | scanner-like sensitive paths only | sensitive path probe context, no file exposure, WordPress presence, server-status exposure inference | `any` | `sensitive_path_probe_no_file_or_app_exposure_inference` |
+| H-R4-04 | `mixed_static_crawler_scanner` | `GET /` -> `GET /robots.txt` -> `GET /sitemap.xml` -> `GET /products/` -> `GET /.env` -> `GET /backup.zip` | browse=`Mozilla/5.0 regression-browser`, Googlebot-like for `robots`/`sitemap`, `GenericCrawler/1.0` for `/products/`, `GenericScanner/1.0` for sensitive paths | static/browse, crawler-like, scanner-like paths mixed | crawler-like and scanner-like contexts should be separated, actual crawler authenticity, page existence, file exposure must not be inferred | `any` | `mixed_crawler_scanner_no_success_inference` |
+
+R4의 핵심 목표는 정상 baseline과 scanner-like context가 같은 window에 있어도 서로 과도하게 섞이지 않는지 확인하는 것이다. H R4 역시 static file 존재, crawler authenticity, WordPress 존재, `.env`/`backup.zip` 노출, server-status 노출, 공격 성공을 단정하지 않는다.
 
 ---
 
@@ -295,7 +312,7 @@ lab/h_set/README.md
 lab/h_set/run_h_r1_static_baseline.py
 lab/h_set/run_h_r2_crawler_baseline.py
 lab/h_set/run_h_r3_scanner_low_signal.py
-lab/h_set/run_h_r4_mixed_baseline_scanner.py  # future, optional
+lab/h_set/run_h_r4_mixed_baseline_scanner.py  # optional mixed benign + scanner-like runner
 ```
 
 현재 H R1/H R2/H R3 후속 prepare 보강으로 `static_baseline_summaries`, `crawler_baseline_summaries`, `sensitive_path_probe_summaries`가 반영되었다. 이후 H R4 mixed baseline/scanner round에서는 summary 간 충돌 없이 narrative가 유지되는지 추가 확인할 수 있다.
