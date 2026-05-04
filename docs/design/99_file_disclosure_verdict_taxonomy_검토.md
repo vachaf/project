@@ -61,7 +61,7 @@ FILE_DISCLOSURE_WRAPPER_HINTS:
 ```text
 - 과거 실제 E R2B 산출물에는 suspicious_path_traversal로 수렴한 흔적이 있다.
 - 현재 코드 기준으로 같은 샘플을 다시 dry-run/실행하면 suspicious_file_disclosure가 안정적으로 반영되는지 확인해야 한다.
-- Stage1/Stage2 자연어에서 lab-* UA를 공격 근거처럼 쓰지 않도록 wording guard가 필요하다.
+- Stage1/Stage2 자연어에서 lab-* UA를 공격 근거처럼 쓰지 않도록 wording guard가 필요했고, 1차 보강이 완료됐다.
 ```
 
 ---
@@ -89,6 +89,15 @@ FILE_DISCLOSURE_WRAPPER_HINTS:
 - 200/text/html 또는 큰 response_body_bytes를 실제 파일 노출 성공처럼 표현
 - lab-* UA를 실험 식별자가 아니라 공격 근거처럼 사용
 - direct /config.php 접근을 wrapper 기반 file disclosure와 같은 수준으로 과승격
+```
+
+추가로 현재 main 기준의 guard 반영 상태는 다음과 같다.
+
+```text
+- Stage1: llm_stage1_classifier.py 에서 User-Agent 를 요청 식별/trace aid 로만 사용하고, lab-* 또는 실험용 UA 를 공격 근거/탐지 근거로 쓰지 않도록 prompt guard 추가
+- Stage2: llm_stage2_reporter.py 에서 User-Agent 를 보조 evidence 로만 사용하고, policy_notes.user_agent_interpretation_policy.stage1_carryover_rule 로 Stage1 evidence_fields/reasoning_summary 의 lab-* / 실험용 UA 자유서술 carry-over 재해석을 금지
+- expected: e_r2_php_wrapper.expected.json 에 Stage1/Stage2 guard 존재 여부 확인 rule 추가
+- regression: python3 scripts/check_stage_dryrun_regression.py --strict -> pass=12 warn=0 fail=0, python3 scripts/check_prepare_regression.py --strict -> pass=18 warn=0 fail=0 fixtures=18
 ```
 
 ---
@@ -214,7 +223,14 @@ Do not treat lab-* or experiment-like User-Agent values as attack evidence.
 Prefer payload structure, decoded query, path, status, bytes, content-type, timing, and sequence context.
 ```
 
-이 guard는 Stage1 prompt와 Stage2 prompt/policy 양쪽에 반영 후보로 둘 수 있다.
+이 guard는 Stage1 prompt와 Stage2 prompt/policy 양쪽에 1차 반영 완료됐다.
+
+현재 반영 상태 요약:
+
+```text
+- Stage1: user_agent 는 trace aid 로만 사용하고, lab-* / 실험용 UA 를 공격 근거나 탐지 근거로 쓰지 않도록 system prompt + instructions 보강
+- Stage2: User-Agent 원문뿐 아니라 Stage1 evidence_fields/reasoning_summary 에 남은 lab-* / 실험용 UA 표현도 공격 증거나 severity 상향 근거로 재해석하지 않도록 policy + prompt carry-over guard 보강
+```
 
 ---
 
@@ -232,7 +248,7 @@ Stage1 schema, prompt, dry-run regression에도 반영되어 있다.
 
 ```text
 1. 현재 main 기준으로 E R2B stage dry-run 또는 실제 Stage1 재실행 시 suspicious_file_disclosure가 안정적으로 나오는지 확인
-2. Stage1/Stage2 prompt에 lab-* UA를 공격 근거로 쓰지 말라는 guard를 더 명시
+2. Stage1/Stage2 lab-* UA guard는 1차 보강 완료 상태이므로, 이후에는 실제 LLM 출력에서 carry-over wording 재발 여부를 점검
 ```
 
 ---
@@ -251,6 +267,7 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 - e_r2_php_wrapper fixture 통과 여부
 - suspicious_file_disclosure enum/guidance 유지
 - file_disclosure_policy 유지
+- Stage1/Stage2 lab-* UA guard 및 carry-over guard 유지
 - dry-run Markdown에서 파일 노출 성공 단정 없음
 ```
 
