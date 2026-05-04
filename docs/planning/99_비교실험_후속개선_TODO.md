@@ -13,8 +13,10 @@
   - F/G/H 5개 샘플 수동 리뷰 완료
   - B/C/E 3개 샘플 수동 리뷰 완료
   - 누적 8개 샘플, 72/80 = 90%
-- 분석 품질 기준 문서 추가 완료
+- 분석 품질 기준/체크리스트 정리 완료
   - `docs/standards/99_analysis_quality_criteria.md`
+  - `docs/standards/99_LLM분석_품질평가_체크리스트.md`
+  - `docs/reviews/99_A-F세트_대표샘플_6선.md`
 - file disclosure verdict taxonomy 검토 완료
   - `suspicious_file_disclosure` verdict는 이미 존재하며 새 verdict 추가는 현재 필요 없음
 - Stage1/Stage2 `lab-*` / experiment-like User-Agent wording guard 1차 보강 완료
@@ -24,6 +26,9 @@
 - prepare regression 18 fixtures, stage dry-run regression 12 fixtures 모두 strict 기준 통과
   - `python3 scripts/check_prepare_regression.py --strict`
   - `python3 scripts/check_stage_dryrun_regression.py --strict`
+- retention/output cleanup 정책과 cleanup script 설계 문서 작성 완료
+  - `docs/operations/99_output_retention_policy.md`
+  - `docs/design/99_output_cleanup_script_설계.md`
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
 
@@ -32,7 +37,8 @@
   - B/C/E 3개 샘플 수동 리뷰 완료
   - 누적 8개 샘플, 72/80 = 90%
   - dry-run regression과 실제 LLM 품질 검증을 분리해서 문서화
-  - 분석 품질 기준 문서 추가
+  - 분석 품질 기준과 수동 평가 체크리스트 추가
+  - A~F 대표 샘플 6선 문서 추가
 - 남은 관리:
   - 새 샘플은 반복 문제나 발표/보고 필요 시점에만 추가
   - provider별 비교는 필요할 때만 선택 수행
@@ -55,20 +61,21 @@
   - status/bytes/content-type만으로 성공을 단정하지 않는다.
   - `lab-*` UA를 공격 근거로 일반화하지 않는다.
 
-## P3. retention / output cleanup 정책 — 다음 우선순위
+## P3. retention / output cleanup — 정책·설계 완료, list-only prototype 검토
 
-- 목표:
-  - raw export, processed JSON, reports, manifest, lab 산출물 보관 기준을 정한다.
-- 할 일:
-  - 보관 대상과 삭제 후보 기준 정의
-  - dry-run cleanup script 검토
-  - `--apply` 옵션일 때만 실제 삭제하도록 설계
-  - `lab/` 산출물은 기본 보존 원칙 유지
+- 완료:
+  - output retention policy 작성
+  - cleanup script 설계 문서 작성
+  - dry-run 기본, `--apply`에서만 삭제, 보호 경로 제외 원칙 문서화
+- 다음 후보:
+  - 삭제 기능 없는 list-only prototype 검토
+  - 후보 파일을 `KEEP` / `REVIEW` / `CLEANUP_CANDIDATE` / `DO_NOT_AUTO_DELETE`로 분류하는 출력만 먼저 확인
+  - `/tmp` 또는 명시적 임시 output 대상부터 시작
 - 주의:
-  - 삭제 자동화는 가장 나중에 적용한다.
-  - 먼저 문서 기준부터 작성한다.
-- 추천 다음 문서:
-  - `docs/operations/99_output_retention_policy.md`
+  - 실제 삭제 기능은 아직 구현하지 않는다.
+  - `--apply`는 초기 prototype 범위에서 제외한다.
+  - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
+  - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
 ## P4. prepare 모듈 분리
 
@@ -86,13 +93,14 @@
   - 작은 커밋 유지
   - prepare regression, stage dry-run regression, py_compile 통과 유지
   - 기존 behavior 변경 없이 구조 분리 우선
-  - P3 이후 또는 별도 작업으로 분리 진행 가능
+  - P3 list-only prototype 검토 이후 또는 별도 작업으로 분리 진행 가능
 
 ## P5. docs 유지보수
 
 - 할 일:
   - 문서 구조가 바뀌면 루트 README와 docs/README.md 동기화
   - operations 문서가 코드 옵션과 어긋나지 않는지 주기적으로 확인
+  - 새 standards/reviews 문서가 생기면 해당 README 인덱스를 먼저 갱신
   - 오래된 문서는 archive 후보로 검토하되, 직접 참조 중인 문서는 이동하지 않음
 - 현재 별도 후보:
   - archive 후보 조사
