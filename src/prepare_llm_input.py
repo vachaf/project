@@ -81,6 +81,9 @@ try:
         finalize_protocol_anomaly_bucket as _finalize_protocol_anomaly_bucket,
     )
     from src.prepare.static_baseline import (
+        STATIC_BASELINE_MIN_STATIC_PATHS,
+        STATIC_BASELINE_SAMPLE_REQUEST_LIMIT,
+        STATIC_BASELINE_WINDOW_SEC,
         build_static_baseline_reason_hints_for_row as _build_static_baseline_reason_hints_for_row,
         build_static_baseline_summaries as _build_static_baseline_summaries,
         build_static_baseline_summary_contexts as _build_static_baseline_summary_contexts,
@@ -160,6 +163,9 @@ except ImportError:
         finalize_protocol_anomaly_bucket as _finalize_protocol_anomaly_bucket,
     )
     from prepare.static_baseline import (
+        STATIC_BASELINE_MIN_STATIC_PATHS,
+        STATIC_BASELINE_SAMPLE_REQUEST_LIMIT,
+        STATIC_BASELINE_WINDOW_SEC,
         build_static_baseline_reason_hints_for_row as _build_static_baseline_reason_hints_for_row,
         build_static_baseline_summaries as _build_static_baseline_summaries,
         build_static_baseline_summary_contexts as _build_static_baseline_summary_contexts,
@@ -410,9 +416,6 @@ PROBING_SEQUENCE_WINDOW_SEC = 120
 PROBING_SEQUENCE_MIN_REQUESTS = 3
 PROBING_SEQUENCE_MIN_DISTINCT_PATHS = 3
 PROBING_SEQUENCE_SAMPLE_PATH_LIMIT = 10
-STATIC_BASELINE_WINDOW_SEC = 300
-STATIC_BASELINE_MIN_STATIC_PATHS = 3
-STATIC_BASELINE_SAMPLE_REQUEST_LIMIT = 10
 CRAWLER_BASELINE_WINDOW_SEC = 300
 CRAWLER_BASELINE_SAMPLE_REQUEST_LIMIT = 10
 SENSITIVE_PATH_PROBE_WINDOW_SEC = 300

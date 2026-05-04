@@ -5,6 +5,10 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import unquote_plus
 
+STATIC_BASELINE_WINDOW_SEC = 300
+STATIC_BASELINE_MIN_STATIC_PATHS = 3
+STATIC_BASELINE_SAMPLE_REQUEST_LIMIT = 10
+
 
 def _normalize_text(value: Optional[Any]) -> str:
     if value is None:
@@ -185,10 +189,10 @@ def build_static_baseline_reason_hints_for_row(
 
 def build_static_baseline_summaries(
     rows: List[Dict[str, Any]],
-    window_sec: int = 300,
+    window_sec: int = STATIC_BASELINE_WINDOW_SEC,
     *,
-    min_static_paths: int = 3,
-    sample_request_limit: int = 10,
+    min_static_paths: int = STATIC_BASELINE_MIN_STATIC_PATHS,
+    sample_request_limit: int = STATIC_BASELINE_SAMPLE_REQUEST_LIMIT,
     get_src_ip_fn: Callable[[Dict[str, Any]], str],
     choose_best_time_fn: Callable[[Dict[str, Any]], Optional[str]],
     raw_text_fn: Callable[[Optional[Any]], str],
