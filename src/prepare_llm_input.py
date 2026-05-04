@@ -96,6 +96,9 @@ try:
         finalize_sensitive_path_probe_bucket as _finalize_sensitive_path_probe_bucket,
     )
     from src.prepare.ip_behavior import (
+        IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
+        IP_BEHAVIOR_SENSITIVE_PATH_LIMIT,
+        IP_BEHAVIOR_WINDOW_SEC,
         build_ip_behavior_aggregates as _build_ip_behavior_aggregates,
         finalize_ip_behavior_bucket as _finalize_ip_behavior_bucket,
         is_sensitive_ip_behavior_path as _is_sensitive_ip_behavior_path,
@@ -167,6 +170,9 @@ except ImportError:
         finalize_sensitive_path_probe_bucket as _finalize_sensitive_path_probe_bucket,
     )
     from prepare.ip_behavior import (
+        IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
+        IP_BEHAVIOR_SENSITIVE_PATH_LIMIT,
+        IP_BEHAVIOR_WINDOW_SEC,
         build_ip_behavior_aggregates as _build_ip_behavior_aggregates,
         finalize_ip_behavior_bucket as _finalize_ip_behavior_bucket,
         is_sensitive_ip_behavior_path as _is_sensitive_ip_behavior_path,
@@ -405,9 +411,6 @@ SENSITIVE_PATH_PROBE_REPRESENTATIVE_CANDIDATE_LIMIT = 1
 MIXED_BASELINE_SCANNER_WINDOW_SEC = 300
 MIXED_BASELINE_SCANNER_MIN_REQUEST_COUNT = 4
 MIXED_BASELINE_SCANNER_SAMPLE_REQUEST_LIMIT = 10
-IP_BEHAVIOR_WINDOW_SEC = 300
-IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
-IP_BEHAVIOR_SENSITIVE_PATH_LIMIT = 10
 AUTH_BEHAVIOR_WINDOW_SEC = 300
 AUTH_BEHAVIOR_RAPID_WINDOW_SEC = 60
 AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
