@@ -52,6 +52,7 @@
   - `docs/design/99_prepare_ip_behavior_aggregates_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_probing_sequence_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_mixed_baseline_scanner_split_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_module_split_round2_summary.md` 작성 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -109,7 +110,7 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — round2 summary 작성 대기
+## P4. prepare 모듈 분리 — constants ownership map 작성 대기
 
 - 완료:
   - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
@@ -120,23 +121,23 @@
   - `docs/design/99_prepare_ip_behavior_aggregates_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_probing_sequence_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_mixed_baseline_scanner_split_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_module_split_round2_summary.md` 작성
   - prepare/stage dry-run regression strict 통과 유지
 - 최근 완료:
-  - `src/prepare/mixed_baseline_scanner.py` 추가
-  - `build_mixed_baseline_scanner_row_context`, `finalize_mixed_baseline_scanner_bucket`, `build_mixed_baseline_scanner_summaries` 이동 완료
-  - `src/prepare_llm_input.py`에는 기존 함수명을 유지하는 wrapper 유지
-  - `MIXED_BASELINE_SCANNER_*` constants는 이동하지 않음
-  - expected/test fixture 수정 없음
-  - Stage2 reporter 수정 없음
-  - 기준 커밋 `447779f94041c47713ad3bf68a31d7125a223675`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
-  - mixed scanner context만으로 침해/노출/성공을 단정하지 않는 해석 제한 유지
-- 다음 작업:
-  - `docs/design/99_prepare_module_split_round2_summary.md` 작성
-  - round2 완료 모듈 3개 정리
+  - round2 summary에서 완료 모듈 3개 정리
+    - `src/prepare/ip_behavior.py`
+    - `src/prepare/probing_sequence.py`
+    - `src/prepare/mixed_baseline_scanner.py`
   - 각 모듈 이동 함수 목록 정리
   - constants 이동 없음, wrapper 유지, fixture/expected/Stage2 reporter 수정 없음 정리
   - prepare/stage dry-run regression 결과 정리
-  - 다음 후보 결정 기준 정리
+  - 남은 보류 후보와 다음 후보 결정 기준 정리
+- 다음 작업:
+  - `docs/design/99_prepare_constants_ownership_map.md` 작성
+  - constants 이름, 현재 위치, 사용 함수, 예상 owner module 정리
+  - 공유 여부와 이동 가능 여부 정리
+  - import 방향 원칙과 이동 금지/보류 이유 정리
+  - 바로 constants.py 대량 분리로 진행하지 않음
 - 보류 후보:
   - `constants.py` 대량 분리
   - SQLi hints
@@ -148,6 +149,7 @@
   - prepare regression, stage dry-run regression, py_compile 통과 유지
   - 기존 behavior 변경 없이 구조 분리 우선
   - Apache logs-only 해석 한계 유지
+  - evidence boundary가 민감한 hint 계열은 후보 비교 문서를 먼저 작성
 
 ## P5. docs 유지보수
 
