@@ -1,8 +1,9 @@
 # 99_prepare_method_behavior_constants_move_plan
 
-- 문서 상태: method behavior constants mini-move plan
+- 문서 상태: method behavior constants mini-move 완료 기록
 - 기준 시점: 2026-05-04
-- 목적: `METHOD_BEHAVIOR_*` 및 method family constants grep 결과를 바탕으로, 실제 module-local constants 이동 가능 범위와 보류 범위, 금지사항, 검증 기준을 고정한다.
+- 기준 커밋: `6bfa68e599501b27154181b8048f0362ce059e6b`
+- 목적: method behavior constants 5개를 `src/prepare/method_summaries.py`로 이동하고, `STANDARD_HTTP_METHODS`를 보류한 완료 범위와 검증 결과를 기록한다.
 
 관련 문서:
 
@@ -13,38 +14,43 @@
 - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md)
 - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
 
-## 1. 결론
+## 1. 완료 결론
 
-method behavior constants는 **부분 이동 후보**로 검토한다.
+method behavior constants의 부분 이동은 완료했다.
 
-이동 후보:
+이동한 constants:
 
 ```text
-METHOD_BEHAVIOR_WINDOW_SEC
-METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT
-METHOD_RISKY_FAMILIES
-METHOD_BASELINE_FAMILIES
-METHOD_DESTRUCTIVE_FAMILIES
+METHOD_BEHAVIOR_WINDOW_SEC = 300
+METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
+METHOD_RISKY_FAMILIES = ("OPTIONS", "TRACE", "PUT", "DELETE", "PATCH")
+METHOD_BASELINE_FAMILIES = ("GET", "HEAD")
+METHOD_DESTRUCTIVE_FAMILIES = {"PUT", "DELETE", "PATCH"}
 ```
 
-권장 owner module:
+owner module:
 
 ```text
 src/prepare/method_summaries.py
 ```
 
-보류할 constant:
+보류한 constant:
 
 ```text
 STANDARD_HTTP_METHODS
 ```
 
-보류 이유:
+보류 위치:
 
 ```text
-- `STANDARD_HTTP_METHODS`는 method behavior뿐 아니라 protocol anomaly / malformed method 판단에도 사용된다.
-- `src/prepare/method_summaries.py` 단독 owner로 보기 어렵다.
-- 이번 mini-move에서 이동하면 `method_summaries.py`와 `protocol_anomalies.py` 사이의 공유 경계를 흐릴 수 있다.
+src/prepare_llm_input.py
+```
+
+수정 파일:
+
+```text
+src/prepare/method_summaries.py
+src/prepare_llm_input.py
 ```
 
 이번 작업의 성격:
@@ -59,68 +65,24 @@ STANDARD_HTTP_METHODS
 - Stage2 reporter 수정 없음
 - candidate/scoring/filtering 변경 없음
 - supporting_events 생성/연결 로직 변경 없음
+- protocol anomaly 로직 변경 없음
+- constants.py 생성 없음
+- 다른 constants group 이동 없음
 ```
 
-## 2. grep 확인 결과
+## 2. 적용 내용
 
-확인 명령:
-
-```bash
-grep -n "METHOD_BEHAVIOR_\|METHOD_RISKY_FAMILIES\|METHOD_BASELINE_FAMILIES\|METHOD_DESTRUCTIVE_FAMILIES\|STANDARD_HTTP_METHODS" src/prepare_llm_input.py src/prepare/*.py
-```
-
-확인 결과:
+적용한 변경:
 
 ```text
-src/prepare_llm_input.py:418:METHOD_BEHAVIOR_WINDOW_SEC = 300
-src/prepare_llm_input.py:419:METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
-src/prepare_llm_input.py:420:METHOD_RISKY_FAMILIES = ("OPTIONS", "TRACE", "PUT", "DELETE", "PATCH")
-src/prepare_llm_input.py:421:METHOD_BASELINE_FAMILIES = ("GET", "HEAD")
-src/prepare_llm_input.py:422:METHOD_DESTRUCTIVE_FAMILIES = {"PUT", "DELETE", "PATCH"}
-src/prepare_llm_input.py:423:STANDARD_HTTP_METHODS = {
-src/prepare_llm_input.py:1647:    if normalized in METHOD_RISKY_FAMILIES:
-src/prepare_llm_input.py:1649:    if normalized in METHOD_BASELINE_FAMILIES:
-src/prepare_llm_input.py:1651:    if normalized not in STANDARD_HTTP_METHODS:
-src/prepare_llm_input.py:1716:    if not method or method == "-" or method not in STANDARD_HTTP_METHODS or not re.fullmatch(r"[A-Z!#$%&'*+.^_`|~-]{1,32}", method):
-src/prepare_llm_input.py:1757:        standard_http_methods=STANDARD_HTTP_METHODS,
-src/prepare_llm_input.py:1769:        method_destructive_families=METHOD_DESTRUCTIVE_FAMILIES,
-src/prepare_llm_input.py:1770:        method_risky_families=METHOD_RISKY_FAMILIES,
-src/prepare_llm_input.py:1771:        method_baseline_families=METHOD_BASELINE_FAMILIES,
-src/prepare_llm_input.py:1772:        standard_http_methods=STANDARD_HTTP_METHODS,
-src/prepare_llm_input.py:1778:    window_sec: int = METHOD_BEHAVIOR_WINDOW_SEC,
-src/prepare_llm_input.py:1783:        sample_request_limit=METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
-src/prepare_llm_input.py:1784:        method_risky_families=METHOD_RISKY_FAMILIES,
-src/prepare_llm_input.py:1785:        method_baseline_families=METHOD_BASELINE_FAMILIES,
-src/prepare_llm_input.py:1786:        method_destructive_families=METHOD_DESTRUCTIVE_FAMILIES,
-src/prepare_llm_input.py:1787:        standard_http_methods=STANDARD_HTTP_METHODS,
-src/prepare_llm_input.py:1800:        standard_http_methods=STANDARD_HTTP_METHODS,
-src/prepare_llm_input.py:1813:        standard_http_methods=STANDARD_HTTP_METHODS,
-src/prepare_llm_input.py:4167:                "method_behavior_window_sec": METHOD_BEHAVIOR_WINDOW_SEC,
+- `src/prepare/method_summaries.py`에 method behavior constants 5개 추가
+- `src/prepare_llm_input.py`의 동일 constants 정의 5개 제거
+- `src/prepare_llm_input.py`의 `method_summaries` try/except import 블록 양쪽에 constants 5개 import 추가
+- 내부 참조 이름 `METHOD_*`는 그대로 유지
+- `STANDARD_HTTP_METHODS`는 `src/prepare_llm_input.py`에 그대로 유지
 ```
 
-해석:
-
-```text
-- method behavior 전용 window/sample/family constants는 `method_summaries.py` owner 후보로 볼 수 있다.
-- `STANDARD_HTTP_METHODS`는 method behavior wrapper뿐 아니라 protocol anomaly 성격의 malformed method 판단에도 사용된다.
-- 따라서 이번 mini-move는 `STANDARD_HTTP_METHODS`를 제외한 partial move로 제한한다.
-```
-
-## 3. 현재 구조 추정
-
-현재 `src/prepare_llm_input.py`에는 method behavior wrapper 계열이 남아 있고, 실제 구현 함수는 이미 `src/prepare/method_summaries.py`로 분리되어 있다.
-
-사용 지점 유형:
-
-```text
-- method family classification
-- method behavior summary builder 기본 window
-- method behavior summary builder 호출 인자
-- policy_notes 메타 값
-- protocol anomaly / malformed method 판단에서 standard method set 사용
-```
-
-이동 후에도 아래 값 의미는 유지해야 한다.
+유지한 값:
 
 ```text
 method_behavior_window_sec = 300
@@ -130,90 +92,35 @@ method_baseline_families = ("GET", "HEAD")
 method_destructive_families = {"PUT", "DELETE", "PATCH"}
 ```
 
-`STANDARD_HTTP_METHODS`는 이번 이동에서 유지한다.
-
-## 4. 이동 방식
-
-권장 방식:
+`STANDARD_HTTP_METHODS` 보류 이유:
 
 ```text
-1. `src/prepare/method_summaries.py`에 이동 후보 constants 5개를 정의한다.
-2. `src/prepare_llm_input.py`의 동일 constants 정의 5개를 제거한다.
-3. `src/prepare_llm_input.py` import 블록에서 이동한 constants 5개를 함께 import한다.
-4. `STANDARD_HTTP_METHODS`는 `src/prepare_llm_input.py`에 그대로 둔다.
-5. 기존 wrapper 기본값과 policy_notes 참조는 동일한 constant 이름을 사용하게 한다.
-6. 함수 호출 인자, output key, policy_notes key는 변경하지 않는다.
+- method behavior뿐 아니라 protocol anomaly / malformed method 판단에도 사용된다.
+- `src/prepare/method_summaries.py` 단독 owner로 보기 어렵다.
+- method_summaries.py와 protocol_anomalies.py 사이의 공유 경계를 흐리지 않기 위해 이번 mini-move에서 제외했다.
 ```
 
-권장 import 예시:
+## 3. 이동하지 않은 것
 
-```python
-try:
-    from src.prepare.method_summaries import (
-        METHOD_BASELINE_FAMILIES,
-        METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
-        METHOD_BEHAVIOR_WINDOW_SEC,
-        METHOD_DESTRUCTIVE_FAMILIES,
-        METHOD_RISKY_FAMILIES,
-        build_method_behavior_reason_hints_for_row as _build_method_behavior_reason_hints_for_row,
-        build_method_behavior_summaries as _build_method_behavior_summaries,
-        build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
-    )
-except ImportError:
-    from prepare.method_summaries import (
-        METHOD_BASELINE_FAMILIES,
-        METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
-        METHOD_BEHAVIOR_WINDOW_SEC,
-        METHOD_DESTRUCTIVE_FAMILIES,
-        METHOD_RISKY_FAMILIES,
-        build_method_behavior_reason_hints_for_row as _build_method_behavior_reason_hints_for_row,
-        build_method_behavior_summaries as _build_method_behavior_summaries,
-        build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
-    )
-```
-
-주의:
+이번 커밋에서 아래 항목은 이동하거나 수정하지 않았다.
 
 ```text
-- import alias를 새로 만들 필요는 없다.
-- 기존 코드에서 `METHOD_*` 이름을 그대로 참조할 수 있게 import한다.
-- `STANDARD_HTTP_METHODS`는 import하지 않는다.
-- `STANDARD_HTTP_METHODS` 정의와 참조는 `src/prepare_llm_input.py`에 유지한다.
+- STANDARD_HTTP_METHODS
+- build_method_behavior_reason_hints_for_row
+- build_method_behavior_summaries
+- build_method_behavior_summary_contexts
+- method classification 로직
+- protocol anomaly 로직
+- candidate/scoring/filtering 로직
+- supporting_events 생성/연결 로직
+- Stage2 reporter
+- expected/test fixture
+- policy wording
+- output key
+- 다른 constants group
 ```
 
-## 5. 허용 범위
-
-허용되는 변경:
-
-```text
-- `src/prepare/method_summaries.py`에 method behavior constants 5개 추가
-- `src/prepare_llm_input.py`에서 동일 constants 정의 5개 제거
-- `src/prepare_llm_input.py` import 블록에 constants 5개 import 추가
-- `STANDARD_HTTP_METHODS`는 `src/prepare_llm_input.py`에 유지
-- py_compile / regression 통과를 위한 import 정렬 수준의 최소 수정
-```
-
-허용되지 않는 변경:
-
-```text
-- `STANDARD_HTTP_METHODS` 이동
-- method behavior helper/function 추가 이동
-- method classification 로직 변경
-- sample request limit 값 변경
-- window sec 값 변경
-- risky/baseline/destructive family 값 변경
-- output key 변경
-- policy_notes key 또는 wording 변경
-- expected/test fixture 수정
-- Stage2 reporter 수정
-- candidate/scoring/filtering 변경
-- supporting_events 생성/연결 로직 변경
-- protocol anomaly 로직 변경
-- constants.py 생성
-- 다른 constants group 이동
-```
-
-## 6. Apache logs-only 해석 원칙
+## 4. Apache logs-only 해석 원칙
 
 이번 constants 이동 이후에도 아래 해석 제한은 유지한다.
 
@@ -236,41 +143,30 @@ except ImportError:
 - destructive method caused state change
 ```
 
-## 7. 검증 계획
+## 5. 검증 결과
 
-이동 전:
-
-```bash
-python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
-python3 scripts/check_prepare_regression.py --strict
-python3 scripts/check_stage_dryrun_regression.py --strict
-```
-
-이동 후:
-
-```bash
-python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
-python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py
-python3 scripts/check_prepare_regression.py --strict
-python3 scripts/check_stage_dryrun_regression.py --strict
-```
-
-성공 기준:
+기준 커밋 `6bfa68e599501b27154181b8048f0362ce059e6b`에서 아래 검증을 통과했다.
 
 ```text
-prepare regression: pass=18 warn=0 fail=0
-stage dry-run regression: pass=12 warn=0 fail=0
-output key 의미 변경 없음
-policy_notes 의미 변경 없음
-expected/test fixture 수정 없음
-Stage2 reporter 수정 없음
-candidate/scoring/filtering 변경 없음
-protocol anomaly behavior 변화 없음
+python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py: 통과
+python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py: 통과
+python3 scripts/check_prepare_regression.py --strict: pass=18 warn=0 fail=0
+python3 scripts/check_stage_dryrun_regression.py --strict: pass=12 warn=0 fail=0
 ```
 
-## 8. 실패 시 롤백 기준
+수정하지 않은 영역:
 
-아래 중 하나라도 발생하면 constants 이동 커밋을 수정하거나 롤백한다.
+```text
+- tests/fixtures
+- tests/expected
+- src/llm_stage2_reporter.py
+- src/llm_stage1_classifier.py
+- src/run_analysis_pipeline.py
+```
+
+## 6. 롤백 기준
+
+향후 관련 추가 이동에서 아래 중 하나라도 발생하면 해당 커밋을 수정하거나 롤백한다.
 
 ```text
 - import cycle 발생
@@ -285,46 +181,30 @@ protocol anomaly behavior 변화 없음
 - supporting_events 변화
 - output key 이름 변경
 - method family 값 변경
+- STANDARD_HTTP_METHODS 이동 또는 의미 변경
 - PUT/DELETE/TRACE/OPTIONS 성공 단정 문구 발생
 ```
 
-## 9. 완료 후 문서 반영
+## 7. 다음 작업
 
-이동 완료 후 아래 문서를 갱신한다.
+method behavior constants 부분 이동은 완료했다.
 
-```text
-docs/design/99_prepare_method_behavior_constants_move_plan.md
-docs/planning/99_비교실험_후속개선_TODO.md
+`99_prepare_constants_mini_move_candidate_review.md` 기준 다음 후보는 static baseline constants다. 다만 static constants는 crawler baseline, mixed scanner, health-like path 해석과 경계가 있을 수 있으므로, 먼저 grep 확인과 move plan 작성 여부를 판단한다.
+
+권장 확인 명령:
+
+```bash
+grep -n "STATIC_BASELINE_\|STATIC_EXTENSIONS\|STATIC_PREFIXES\|HEALTH_LIKE_PATHS" src/prepare_llm_input.py src/prepare/*.py
 ```
 
-완료 기록에 포함할 항목:
+다음 후보 문서:
 
 ```text
-- 이동한 constants 5개
-- 보류한 `STANDARD_HTTP_METHODS`
-- 기준 커밋
-- `src/prepare/method_summaries.py`에 constants 정의 추가
-- `src/prepare_llm_input.py`에서 constants import 사용
-- helper/function 추가 이동 없음
-- expected/test fixture 수정 없음
-- Stage2 reporter 수정 없음
-- py_compile / prepare regression / stage dry-run regression 결과
+docs/design/99_prepare_static_baseline_constants_move_plan.md
 ```
 
-## 10. 다음 작업
-
-문서 작성 후 다음 작업은 Codex에 method behavior constants 5개 이동을 맡기는 것이다.
-
-권장 커밋 순서:
+문서 전용 커밋 후보:
 
 ```text
-1. docs: plan method behavior constants move
-2. refactor: move method behavior constants
-3. docs: record method behavior constants move
-```
-
-코드 이동 커밋 후보 메시지:
-
-```text
-refactor: move method behavior constants
+docs: record method behavior constants move
 ```
