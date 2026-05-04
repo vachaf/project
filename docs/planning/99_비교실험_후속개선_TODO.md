@@ -38,7 +38,9 @@
   - `src/prepare/decoders.py` 분리 완료
   - `src/prepare/l3_hints.py` 분리 완료
   - `src/prepare/models.py` 분리 완료
+  - `src/prepare/method_summaries.py` 분리 완료
   - `Candidate` / `NoiseAggregate` dataclass 이동 완료
+  - `method_behavior_summaries` helper 이동 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -96,21 +98,26 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — 1차 진행 완료, 다음 후보 재검토
+## P4. prepare 모듈 분리 — 1차 진행 완료, protocol 후보 검토
 
 - 완료:
   - `decoders.py` 분리 완료
   - `l3_hints.py` 분리 완료
   - `models.py` 분리 완료
+  - `method_summaries.py` 분리 완료
   - `Candidate` / `NoiseAggregate` dataclass 이동 완료
+  - `method_behavior_summaries` helper 이동 완료
   - `docs/design/99_prepare_module_split_plan.md` 최신화
   - `docs/design/99_prepare_llm_input_inventory.md` 작성
+  - `docs/design/99_prepare_context_summary_contract.md` 작성
+  - `docs/design/99_prepare_context_summary_split_candidate.md` 작성
+  - `docs/design/99_prepare_method_summary_split_plan.md` 작성 및 완료 상태 반영
   - prepare/stage dry-run regression strict 통과 유지
 - 다음 후보:
-  - 바로 `constants.py`, `sqli_hints.py`, `xss_hints.py`, `file_disclosure_hints.py`, `context_summaries.py`로 이어가지 않는다.
-  - 남은 책임을 다시 보고 가장 낮은 위험 후보를 하나만 고른다.
-  - constants 분리는 문자열/regex/score/window 값이 섞여 있으므로 대량 이동 금지.
-  - context summary 분리는 Stage2 input 구조와 결합되어 있으므로 contract 문서화 전까지 보류.
+  - `protocol_anomaly_summaries` 계열 검토
+  - 바로 코드 분리하지 말고 `docs/design/99_prepare_protocol_anomaly_split_plan.md` 같은 좁은 계획 문서를 먼저 작성한다.
+  - protocol anomaly는 error/access/security surface, long path threshold, malformed request 해석과 연결되므로 method보다 더 보수적으로 본다.
+  - `constants.py`, `sqli_hints.py`, `xss_hints.py`, `file_disclosure_hints.py`, 전체 `context_summaries.py` 분리는 아직 보류한다.
 - 조건:
   - 전면 리팩터링 금지
   - 작은 커밋 유지
