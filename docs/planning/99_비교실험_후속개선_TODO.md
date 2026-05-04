@@ -22,7 +22,7 @@
 - Stage1/Stage2 `lab-*` / experiment-like User-Agent wording guard 1차 보강 완료
   - Stage1 prompt guard 추가
   - Stage2 `stage1_carryover_rule` 추가
-  - `e_r2_php_wrapper.expected.json` guard 확인 rule 보강 완료
+  - `e_r2_php_wrapper.expected.json` 보강
 - prepare regression 18 fixtures, stage dry-run regression 12 fixtures 모두 strict 기준 통과
   - `python3 scripts/check_prepare_regression.py --strict`
   - `python3 scripts/check_stage_dryrun_regression.py --strict`
@@ -53,6 +53,11 @@
   - `docs/design/99_prepare_probing_sequence_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_mixed_baseline_scanner_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_module_split_round2_summary.md` 작성 완료
+- prepare constants ownership / mini-move 문서 정리 진행
+  - `docs/design/99_prepare_constants_ownership_map.md` 작성 완료
+  - `docs/design/99_prepare_constants_mini_move_candidate_review.md` 작성 완료
+  - `docs/design/99_prepare_protocol_anomaly_constants_move_plan.md` 작성 및 완료 반영
+  - `PROTOCOL_ANOMALY_*` constants 3개를 `src/prepare/protocol_anomalies.py`로 이동 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -110,36 +115,35 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — constants ownership map 작성 대기
+## P4. prepare 모듈 분리 — IP behavior constants 검토 대기
 
 - 완료:
   - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
   - round2: `ip_behavior.py`, `probing_sequence.py`, `mixed_baseline_scanner.py`
-  - 관련 design 문서와 split plan 갱신
-  - `docs/design/99_prepare_module_split_round1_summary.md` 작성
-  - `docs/design/99_prepare_module_split_round2_candidate_review.md` 작성
-  - `docs/design/99_prepare_ip_behavior_aggregates_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_probing_sequence_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_mixed_baseline_scanner_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_module_split_round2_summary.md` 작성
+  - constants ownership map / mini-move candidate review 작성
+  - `PROTOCOL_ANOMALY_*` constants 3개 이동 완료
+  - `docs/design/99_prepare_protocol_anomaly_constants_move_plan.md` 작성 및 완료 반영
   - prepare/stage dry-run regression strict 통과 유지
 - 최근 완료:
-  - round2 summary에서 완료 모듈 3개 정리
-    - `src/prepare/ip_behavior.py`
-    - `src/prepare/probing_sequence.py`
-    - `src/prepare/mixed_baseline_scanner.py`
-  - 각 모듈 이동 함수 목록 정리
-  - constants 이동 없음, wrapper 유지, fixture/expected/Stage2 reporter 수정 없음 정리
-  - prepare/stage dry-run regression 결과 정리
-  - 남은 보류 후보와 다음 후보 결정 기준 정리
+  - `PROTOCOL_ANOMALY_WINDOW_SEC`, `PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT`, `PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN` 이동 완료
+  - `src/prepare/protocol_anomalies.py`에 constants 정의 추가
+  - `src/prepare_llm_input.py`에서는 constants import 사용
+  - helper/function 추가 이동 없음
+  - expected/test fixture 수정 없음
+  - Stage2 reporter 수정 없음
+  - 기준 커밋 `b81db3f449b06fccd7815dae30c7c4db6f30aa57`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
 - 다음 작업:
-  - `docs/design/99_prepare_constants_ownership_map.md` 작성
-  - constants 이름, 현재 위치, 사용 함수, 예상 owner module 정리
-  - 공유 여부와 이동 가능 여부 정리
-  - import 방향 원칙과 이동 금지/보류 이유 정리
+  - `grep -n "IP_BEHAVIOR_" src/prepare_llm_input.py src/prepare/*.py` 확인
+  - `IP_BEHAVIOR_*` constants move plan 작성 여부 결정
+  - `IP_BEHAVIOR_SENSITIVE_PATH_LIMIT`가 sensitive path/probing 계열과 경계가 겹치는지 확인
   - 바로 constants.py 대량 분리로 진행하지 않음
 - 보류 후보:
   - `constants.py` 대량 분리
+  - `METHOD_BEHAVIOR_*` / method constants
+  - `STATIC_BASELINE_*` / static constants
+  - `PROBING_SEQUENCE_*`
+  - `SENSITIVE_PATH_PROBE_*` / `DIR_PROBE_*`
+  - `MIXED_BASELINE_SCANNER_*`
   - SQLi hints
   - XSS hints
   - file_disclosure hints
