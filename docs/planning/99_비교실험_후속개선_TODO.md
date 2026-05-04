@@ -34,7 +34,7 @@
   - `tests/test_cleanup_outputs.py`
   - 삭제 기능 없음, `--apply` 미구현
   - 단위 테스트 15개 통과
-- prepare module split 진행
+- prepare module split 1차 진행 완료
   - `src/prepare/decoders.py` 분리 완료
   - `src/prepare/l3_hints.py` 분리 완료
   - `src/prepare/models.py` 분리 완료
@@ -42,11 +42,7 @@
   - `src/prepare/protocol_anomalies.py` 분리 완료
   - `src/prepare/auth_behavior.py` 분리 완료
   - `src/prepare/static_baseline.py` 분리 완료
-  - `Candidate` / `NoiseAggregate` dataclass 이동 완료
-  - `method_behavior_summaries` helper 이동 완료
-  - `protocol_anomaly_summaries` helper 이동 완료
-  - `auth_behavior_summaries` helper 이동 완료
-  - `static_baseline_summaries` helper 이동 완료
+  - `src/prepare/crawler_baseline.py` 분리 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -104,35 +100,24 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — 1차 진행 완료, crawler baseline 후보 검토
+## P4. prepare 모듈 분리 — 1차 완료, sensitive path probe 문서 검토
 
 - 완료:
-  - `decoders.py` 분리 완료
-  - `l3_hints.py` 분리 완료
-  - `models.py` 분리 완료
-  - `method_summaries.py` 분리 완료
-  - `protocol_anomalies.py` 분리 완료
-  - `auth_behavior.py` 분리 완료
-  - `static_baseline.py` 분리 완료
-  - `Candidate` / `NoiseAggregate` dataclass 이동 완료
-  - `method_behavior_summaries` helper 이동 완료
-  - `protocol_anomaly_summaries` helper 이동 완료
-  - `auth_behavior_summaries` helper 이동 완료
-  - `static_baseline_summaries` helper 이동 완료
-  - `docs/design/99_prepare_module_split_plan.md` 최신화
-  - `docs/design/99_prepare_llm_input_inventory.md` 작성
-  - `docs/design/99_prepare_context_summary_contract.md` 작성
-  - `docs/design/99_prepare_context_summary_split_candidate.md` 작성
-  - `docs/design/99_prepare_method_summary_split_plan.md` 작성 및 완료 상태 반영
-  - `docs/design/99_prepare_protocol_anomaly_split_plan.md` 작성 및 완료 상태 반영
-  - `docs/design/99_prepare_auth_behavior_split_plan.md` 작성 및 완료 상태 반영
-  - `docs/design/99_prepare_static_baseline_split_plan.md` 작성 및 완료 상태 반영
+  - `decoders.py`
+  - `l3_hints.py`
+  - `models.py`
+  - `method_summaries.py`
+  - `protocol_anomalies.py`
+  - `auth_behavior.py`
+  - `static_baseline.py`
+  - `crawler_baseline.py`
+  - 관련 design 문서와 split plan 갱신
   - prepare/stage dry-run regression strict 통과 유지
 - 다음 후보:
-  - `crawler_baseline_summaries` 계열 검토
-  - 바로 코드 분리하지 말고 `docs/design/99_prepare_crawler_baseline_split_plan.md` 같은 좁은 계획 문서를 먼저 작성한다.
-  - crawler baseline은 user-agent 해석, browser-like/crawler-like family, product/category/list/browse path 존재 여부 단정 금지와 연결되므로 static baseline보다 더 보수적으로 본다.
-  - `constants.py`, `sqli_hints.py`, `xss_hints.py`, `file_disclosure_hints.py`, 전체 `context_summaries.py` 분리는 아직 보류한다.
+  - `sensitive_path_probe_summaries` 계열을 문서로만 검토
+  - 바로 코드 분리하지 말고 `docs/design/99_prepare_sensitive_path_probe_split_plan.md` 같은 좁은 계획 문서를 먼저 작성한다.
+  - sensitive path probe는 `.env`, `.git`, `phpinfo`, `server-status`, backup/config 경로와 연결되며 file exposure 단정 금지가 중요하다.
+  - `ip_behavior_aggregates`, `probing_sequence_summaries`, `mixed_baseline_scanner_summaries`, `constants.py`, SQLi/XSS/file disclosure 분리는 아직 보류한다.
 - 조건:
   - 전면 리팩터링 금지
   - 작은 커밋 유지
