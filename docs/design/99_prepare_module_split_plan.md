@@ -32,6 +32,7 @@
 src/prepare/__init__.py
 src/prepare/decoders.py
 src/prepare/l3_hints.py
+src/prepare/models.py
 ```
 
 `src/prepare/decoders.py`는 다음 역할을 담당한다.
@@ -49,7 +50,12 @@ src/prepare/l3_hints.py
 - webshell-like path/parameter hint
 - L3 query pair extraction helper
 
-따라서 과거 계획의 Step 1-A `decoders.py` 분리와 Step 1-B `l3_hints.py` 분리는 완료된 상태다.
+`src/prepare/models.py`는 다음 역할을 담당한다.
+
+- `Candidate` dataclass
+- `NoiseAggregate` dataclass
+
+따라서 과거 계획의 Step 1-A `decoders.py` 분리, Step 1-B `l3_hints.py` 분리, 그리고 data shape 1차 분리는 완료된 상태다.
 
 ### 2.2 현재 회귀 안전장치
 
@@ -141,6 +147,35 @@ src/prepare/l3_hints.py
 - 새 L3 패턴 추가와 module split을 같은 커밋에 섞지 않음
 - 기존 L3 fixture의 `reason_hints` 변화 금지
 
+### Step 1-C: `models.py` 분리 — 완료
+
+완료 상태:
+
+```text
+src/prepare/models.py
+```
+
+현재 역할:
+
+- `Candidate`
+- `NoiseAggregate`
+
+유지해야 할 조건:
+
+- dataclass field 이름 변경 금지
+- dataclass field 순서 불필요 변경 금지
+- dataclass 기본값 변경 금지
+- `asdict()` 기반 output JSON shape 변경 금지
+- score / candidate / filtering / reason_hints 로직 변경 금지
+
+검증 상태:
+
+```text
+py_compile 통과
+prepare regression: pass=18 warn=0 fail=0
+stage dry-run regression: pass=12 warn=0 fail=0
+```
+
 ## 5. 현재 하면 안 되는 분리
 
 ### SQLi / XSS hint 분리 보류
@@ -188,30 +223,9 @@ src/prepare/l3_hints.py
 
 ## 6. 다음 2차 분리 후보
 
-2차 분리는 바로 코드부터 하지 않는다. 먼저 `prepare_llm_input.py` 책임 영역 inventory를 작성하고, 그 결과를 보고 하나만 선택한다.
+다음 분리는 바로 코드부터 하지 않는다. `models.py` 분리 이후 남은 책임을 다시 보고 하나만 고른다.
 
-### 후보 A: `prepare/models.py` 또는 `prepare/types.py`
-
-성격:
-
-- dataclass, TypedDict, constants, enum-like string set 등 구조 정의 중심
-
-장점:
-
-- behavior 변경 위험이 상대적으로 낮음
-- 이후 summary builder나 hint module 분리의 기반이 될 수 있음
-
-위험:
-
-- import 변경 범위가 넓어질 수 있음
-- 지금 코드가 dict 중심이면 억지 타입화가 오히려 복잡도를 키울 수 있음
-
-판단:
-
-- 다음 실제 코드 분리 후보로는 가장 안전한 편이다.
-- 단, 먼저 `prepare_llm_input.py` 안의 data shape와 constants inventory가 필요하다.
-
-### 후보 B: `prepare/constants.py`
+### 후보 A: `prepare/constants.py`
 
 성격:
 
@@ -219,20 +233,20 @@ src/prepare/l3_hints.py
 
 장점:
 
-- behavior risk 낮음
 - 문자열 오타 방지 가능
+- 일부 pure constant는 behavior risk가 낮음
 
 위험:
 
-- 단순 이동만으로 구조적 이득이 작을 수 있음
-- 너무 많이 옮기면 diff가 넓어짐
+- 현재 상수에는 regex, score weight, category string, window size가 섞여 있음
+- 대량 이동 시 diff가 커지고 회귀 실패 원인 추적이 어려워짐
 
 판단:
 
-- 작은 단위로 하면 안전하다.
-- 단, candidate/filtering 기준 문자열은 output과 expected에 연결되므로 이름 변경 금지.
+- 당장 대량 분리는 하지 않는다.
+- 한다면 pure string/window constant부터 아주 작게 분리한다.
 
-### 후보 C: `prepare/file_disclosure_hints.py`
+### 후보 B: `prepare/file_disclosure_hints.py`
 
 성격:
 
@@ -252,7 +266,7 @@ src/prepare/l3_hints.py
 - 당장 하지 않음.
 - E R2B 실제 LLM 재검증 또는 추가 fixture가 필요할 때 다시 검토.
 
-### 후보 D: `prepare/context_summaries.py`
+### 후보 C: `prepare/context_summaries.py`
 
 성격:
 
@@ -271,74 +285,63 @@ src/prepare/l3_hints.py
 판단:
 
 - 구조상 효과는 크지만 아직 위험이 크다.
-- 먼저 summary builder inventory가 필요하다.
+- 먼저 summary builder contract 문서화가 필요하다.
 
 ## 7. 다음 작업 순서
 
 ### P4-A. 문서 최신화 — 완료
-
-이 문서가 현재 상태를 반영한다.
 
 반영 내용:
 
 - regression 기준을 18 / 12 fixtures로 갱신
 - `decoders.py` 분리 완료 상태 반영
 - `l3_hints.py` 분리 완료 상태 반영
-- 다음 후보를 2차 분리 검토로 재정의
+- `models.py` 분리 완료 상태 반영
 
-### P4-B. `prepare_llm_input.py` 책임 영역 inventory 작성 — 다음 단계
+### P4-B. `prepare_llm_input.py` 책임 영역 inventory 작성 — 완료
 
-목표:
-
-- 지금 남아 있는 함수/상수/책임을 분류한다.
-- 코드 이동 없이 문서만 작성한다.
-- 다음 실제 분리 후보를 1개만 고른다.
-
-추천 문서:
+문서:
 
 ```text
 docs/design/99_prepare_llm_input_inventory.md
 ```
 
-inventory 항목 예:
+결론:
+
+- 다음 실제 분리 후보로 `models.py`를 선택했다.
+- `Candidate` / `NoiseAggregate`만 이동 대상으로 제한했다.
+- SQLi/XSS/file disclosure/context summary는 보류했다.
+
+### P4-C. `models.py` 분리 — 완료
+
+완료 내용:
 
 ```text
-- decoded/text analysis helper
-- SQLi hint logic
-- XSS hint logic
-- traversal/HPP/file disclosure hint logic
-- false positive review logic
-- candidate scoring/filtering logic
-- supporting_events builder
-- context summary builders
-- output JSON shaping
-- CLI/file IO
-- constants/category strings
+src/prepare/models.py 생성
+Candidate / NoiseAggregate 이동
+src/prepare_llm_input.py import 경로 조정
+src/prepare/__init__.py export 추가
 ```
 
-### P4-C. 다음 실제 분리 후보 결정
-
-P4-B 이후 아래 중 하나만 고른다.
-
-권장 우선순위:
+검증:
 
 ```text
-1. constants/models 성격의 낮은 위험 분리
-2. file disclosure hints inventory 보강
-3. context summary builder 분리 검토
+py_compile 통과
+prepare regression: pass=18 warn=0 fail=0
+stage dry-run regression: pass=12 warn=0 fail=0
 ```
 
-SQLi/XSS/file disclosure/context summary를 바로 분리하지 않는다.
+### P4-D. 다음 후보 재검토 — 다음 단계
 
-### P4-D. 실제 코드 분리
+바로 다음 코드 분리를 진행하지 않는다.
 
-조건:
+검토 대상:
 
-- inventory 문서 작성 완료
-- 다음 후보 1개 선정 완료
-- `git status` clean
-- prepare/stage dry-run strict pass
-- py_compile pass
+```text
+- constants.py를 아주 작게 분리할 수 있는지
+- context summary builder contract 문서화가 먼저 필요한지
+- file disclosure hint 분리를 더 늦출지
+```
 
 ## 8. 장기 목표 구조
 
@@ -350,14 +353,14 @@ src/
 │   ├── __init__.py
 │   ├── decoders.py
 │   ├── l3_hints.py
-│   ├── constants.py          # possible next
-│   ├── models.py             # possible next
+│   ├── models.py
+│   ├── constants.py          # possible future
 │   ├── sqli_hints.py         # future
-│   ├── xss_hints.py          # future
-│   ├── file_disclosure.py    # future
-│   ├── context_summaries.py  # future
-│   ├── ip_behavior.py        # future
-│   └── probing.py            # future
+│   ├── xss_hints.py         # future
+│   ├── file_disclosure.py   # future
+│   ├── context_summaries.py # future
+│   ├── ip_behavior.py       # future
+│   └── probing.py           # future
 └── prepare_llm_input.py
 ```
 
@@ -375,35 +378,27 @@ src/
 ```bash
 git commit -m "Extract prepare decoders"
 git commit -m "Extract L3 prepare hints"
+git commit -m "refactor: extract prepare models"
 ```
 
-### 다음 문서 커밋
+### 다음 문서/검토 커밋 후보
 
 ```bash
-git commit -m "docs: add prepare input inventory"
+git commit -m "docs: review next prepare split candidate"
 ```
 
 내용:
 
-- `docs/design/99_prepare_llm_input_inventory.md` 추가
+- 다음 후보를 하나로 좁히기 위한 검토
 - 코드 변경 없음
-- 다음 실제 분리 후보 1개 선정
 
 ### 이후 코드 커밋 후보
 
-```bash
-git commit -m "Extract prepare constants"
-```
-
-또는
-
-```bash
-git commit -m "Extract prepare models"
-```
+아직 확정하지 않는다.
 
 조건:
 
-- inventory에서 낮은 위험 후보로 확인된 경우만 진행
+- 낮은 위험 후보 1개만 선택
 - 동작 변경 없음
 - regression strict pass
 
@@ -448,8 +443,7 @@ git commit -m "Extract prepare models"
 
 ## 12. 현재 결론
 
-- P4로 넘어가는 것은 맞다.
-- 다만 바로 SQLi/XSS/file disclosure/context summary 분리를 시작하지 않는다.
-- `decoders.py`와 `l3_hints.py`는 이미 분리 완료 상태다.
-- 다음 작업은 `prepare_llm_input.py` 책임 영역 inventory를 작성하는 것이다.
-- 실제 코드 분리는 inventory 이후 가장 낮은 위험 후보 1개만 선택해서 진행한다.
+- P4는 `decoders.py`, `l3_hints.py`, `models.py`까지 1차 분리 완료 상태다.
+- `models.py` 분리는 mechanical refactor로 완료됐고 strict regression을 통과했다.
+- 바로 다음 코드 분리로 이어가지 않는다.
+- 다음 작업은 남은 책임 중 가장 낮은 위험 후보를 다시 고르는 것이다.
