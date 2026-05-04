@@ -58,8 +58,11 @@
   - `docs/design/99_prepare_constants_mini_move_candidate_review.md` 작성 완료
   - `docs/design/99_prepare_protocol_anomaly_constants_move_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_ip_behavior_constants_move_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_method_behavior_constants_move_plan.md` 작성 및 완료 반영
   - `PROTOCOL_ANOMALY_*` constants 3개를 `src/prepare/protocol_anomalies.py`로 이동 완료
   - `IP_BEHAVIOR_*` constants 3개를 `src/prepare/ip_behavior.py`로 이동 완료
+  - method behavior constants 5개를 `src/prepare/method_summaries.py`로 이동 완료
+  - `STANDARD_HTTP_METHODS`는 `src/prepare_llm_input.py`에 유지
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -117,7 +120,7 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — method behavior constants 검토 대기
+## P4. prepare 모듈 분리 — static baseline constants 검토 대기
 
 - 완료:
   - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
@@ -125,25 +128,28 @@
   - constants ownership map / mini-move candidate review 작성
   - `PROTOCOL_ANOMALY_*` constants 3개 이동 완료
   - `IP_BEHAVIOR_*` constants 3개 이동 완료
+  - method behavior constants 5개 이동 완료
+  - `STANDARD_HTTP_METHODS`는 `src/prepare_llm_input.py`에 유지
   - `docs/design/99_prepare_protocol_anomaly_constants_move_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_ip_behavior_constants_move_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_method_behavior_constants_move_plan.md` 작성 및 완료 반영
   - prepare/stage dry-run regression strict 통과 유지
 - 최근 완료:
-  - `IP_BEHAVIOR_WINDOW_SEC`, `IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT`, `IP_BEHAVIOR_SENSITIVE_PATH_LIMIT` 이동 완료
-  - `src/prepare/ip_behavior.py`에 constants 정의 추가
+  - `METHOD_BEHAVIOR_WINDOW_SEC`, `METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT`, `METHOD_RISKY_FAMILIES`, `METHOD_BASELINE_FAMILIES`, `METHOD_DESTRUCTIVE_FAMILIES` 이동 완료
+  - `src/prepare/method_summaries.py`에 constants 정의 추가
   - `src/prepare_llm_input.py`에서는 constants import 사용
+  - `STANDARD_HTTP_METHODS`는 `src/prepare_llm_input.py`에 유지
   - helper/function 추가 이동 없음
   - expected/test fixture 수정 없음
   - Stage2 reporter 수정 없음
-  - 기준 커밋 `66d46f419b88b01e69144be93edd59b60afd9dc0`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
+  - 기준 커밋 `6bfa68e599501b27154181b8048f0362ce059e6b`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
 - 다음 작업:
-  - `grep -n "METHOD_BEHAVIOR_\|METHOD_RISKY_FAMILIES\|METHOD_BASELINE_FAMILIES\|METHOD_DESTRUCTIVE_FAMILIES\|STANDARD_HTTP_METHODS" src/prepare_llm_input.py src/prepare/*.py` 확인
-  - method constants move plan 작성 여부 결정
-  - `STANDARD_HTTP_METHODS`가 protocol anomaly와 공유되는지 확인
+  - `grep -n "STATIC_BASELINE_\|STATIC_EXTENSIONS\|STATIC_PREFIXES\|HEALTH_LIKE_PATHS" src/prepare_llm_input.py src/prepare/*.py` 확인
+  - static baseline constants move plan 작성 여부 결정
+  - static constants가 crawler baseline, mixed scanner, health-like path 해석과 경계가 있는지 확인
   - 바로 constants.py 대량 분리로 진행하지 않음
 - 보류 후보:
   - `constants.py` 대량 분리
-  - `STATIC_BASELINE_*` / static constants
   - `PROBING_SEQUENCE_*`
   - `SENSITIVE_PATH_PROBE_*` / `DIR_PROBE_*`
   - `MIXED_BASELINE_SCANNER_*`
