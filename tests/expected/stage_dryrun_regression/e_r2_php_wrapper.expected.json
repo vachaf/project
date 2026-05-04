@@ -98,6 +98,20 @@
       "message": "stage1 system prompt keeps raw POST body visibility limit"
     },
     {
+      "op": "json_path_contains",
+      "file": "stage1_prompt_bundle",
+      "path": "user_payload.instructions",
+      "contains": "lab-* 또는 실험용으로 보이는 user_agent 값을 공격 근거나 탐지 근거로 삼지 말고",
+      "message": "stage1 instructions guard against lab-like user-agent as attack rationale"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage1_prompt_bundle",
+      "path": "user_payload.instructions",
+      "contains": "query_string, decoded payload, path, reason_hints, status_code, response_body_bytes, resp_content_type, timing, sequence context",
+      "message": "stage1 instructions prioritize generalizable Apache log signals over user-agent"
+    },
+    {
       "op": "json_path_exists",
       "file": "stage2_report_input",
       "path": "policy_notes.file_disclosure_policy",

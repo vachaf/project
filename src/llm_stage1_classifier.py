@@ -256,7 +256,9 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
         "PHP wrapper 관련 verdict 는 실제 파일 노출 성공이 아니라 source/config disclosure 시도로 표현하라. "
         "resp_content_type 이 text/html 이고 HTML fallback 정황이 있으면 시도 탐지와 실제 노출 여부를 분리해서 서술하라. "
         "동일 파라미터가 반복되면 HTTP Parameter Pollution(HPP) 가능성을 검토하라. "
-        "hpp_detected 가 true 이고 embedded_attack_hint 가 있으면, verdict 는 기존 SQLi/XSS 체계를 유지하되 reasoning_summary 와 evidence_fields 에 중복 파라미터(HPP) 문맥을 명시하라."
+        "hpp_detected 가 true 이고 embedded_attack_hint 가 있으면, verdict 는 기존 SQLi/XSS 체계를 유지하되 reasoning_summary 와 evidence_fields 에 중복 파라미터(HPP) 문맥을 명시하라. "
+        "User-Agent 값은 요청 식별 보조 정보 또는 trace aid 로만 사용하라. "
+        "lab-* 또는 실험용으로 보이는 User-Agent 값을 공격 근거로 삼지 말고, query_string, decoded payload, path, reason_hints, status_code, response_body_bytes, resp_content_type, timing, sequence context 같은 일반화 가능한 Apache 로그 표면 신호를 우선하라."
     )
 
     user_payload = {
@@ -348,6 +350,7 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
             "wrapper 구조 없이 /config.php 또는 /admin/config.php 만 직접 접근한 단발 요청은 high-confidence file disclosure 로 과승격하지 마라.",
             "status_code 가 200 이어도 resp_content_type 이 text/html 이고 likely_html_fallback_response 가 true 면 앱의 fallback HTML 반환 가능성을 우선 고려하라.",
             "response_body_bytes 와 resp_content_type 은 응답이 파일처럼 보이는지, HTML 페이지처럼 보이는지 판단하는 보조 근거로 사용하라.",
+            "user_agent 는 요청 식별 보조 정보 또는 trace aid 로만 사용하라. lab-* 또는 실험용으로 보이는 user_agent 값을 공격 근거나 탐지 근거로 삼지 말고, query_string, decoded payload, path, reason_hints, status_code, response_body_bytes, resp_content_type, timing, sequence context 같은 일반화 가능한 Apache 로그 표면 신호를 우선하라.",
             "reasoning_summary 는 한국어로 1~3문장 이내로 간결하게 작성하라.",
             "evidence_fields 는 중요한 필드명이나 핵심 힌트를 한국어 짧은 구절로 적고, 긴 원문을 그대로 복사하지 마라.",
             "enum 값이 아닌 자유서술은 모두 한국어로 작성하라.",
