@@ -33,7 +33,7 @@ import json
 import os
 import re
 from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict
 from datetime import datetime
 import hashlib
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -56,6 +56,7 @@ try:
         detect_webshell_hints as _detect_webshell_hints,
         extract_query_pairs_from_variants as _extract_query_pairs_from_variants,
     )
+    from src.prepare.models import Candidate, NoiseAggregate
 except ImportError:
     from prepare.decoders import (
         append_html_entity_variants as _append_html_entity_variants,
@@ -73,6 +74,7 @@ except ImportError:
         detect_webshell_hints as _detect_webshell_hints,
         extract_query_pairs_from_variants as _extract_query_pairs_from_variants,
     )
+    from prepare.models import Candidate, NoiseAggregate
 
 # ----------------------------
 # 패턴 정의
@@ -455,55 +457,6 @@ EDUCATIONAL_XSS_KEYWORDS = (
     "localstorage",
     "sessionstorage",
 )
-@dataclass
-class Candidate:
-    source_table: str
-    log_id: Optional[int]
-    log_time: Optional[str]
-    src_ip: str
-    method: str
-    uri: str
-    query_string: str
-    status_code: int
-    score: int
-    verdict_hint: str
-    reason_hints: List[str]
-    request_id: str
-    error_link_id: str
-    raw_request: str
-    user_agent: str
-    referer: str
-    duration_us: int
-    ttfb_us: int
-    raw_log: str
-    response_body_bytes: int
-    resp_content_type: str
-    raw_request_target: str
-    path_normalized_from_raw_request: bool
-    likely_html_fallback_response: bool
-    hpp_detected: bool
-    hpp_param_names: List[str]
-    embedded_attack_hint: str
-    incident_group_key: str = ""
-    merged_row_count: int = 1
-    merged_source_tables: List[str] = field(default_factory=list)
-    merged_log_ids: List[int] = field(default_factory=list)
-
-
-@dataclass
-class NoiseAggregate:
-    category: str
-    src_ip: str
-    uri: str
-    method: str
-    status_code: int
-    count: int
-    start: Optional[str]
-    end: Optional[str]
-    user_agent: str
-    note: str
-
-
 # ----------------------------
 # 공용 유틸
 # ----------------------------
