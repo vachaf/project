@@ -60,11 +60,16 @@
   - `docs/design/99_prepare_ip_behavior_constants_move_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_method_behavior_constants_move_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_static_baseline_constants_move_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_constants_mini_move_summary.md` 작성 완료
   - `PROTOCOL_ANOMALY_*` constants 3개를 `src/prepare/protocol_anomalies.py`로 이동 완료
   - `IP_BEHAVIOR_*` constants 3개를 `src/prepare/ip_behavior.py`로 이동 완료
   - method behavior constants 5개를 `src/prepare/method_summaries.py`로 이동 완료
   - static baseline constants 3개를 `src/prepare/static_baseline.py`로 이동 완료
-  - `STANDARD_HTTP_METHODS`, static path/classification constants는 `src/prepare_llm_input.py`에 유지
+- prepare hints split 검토 진행
+  - `docs/design/99_prepare_hints_split_candidate_review.md` 작성 완료
+  - `docs/design/99_prepare_sqli_hints_split_plan.md` 작성 및 완료 반영
+  - `src/prepare/sqli_hints.py` 분리 완료
+  - SQLi pattern/constants와 `detect_educational_sql_search_context` 이동 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -122,57 +127,43 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — constants mini-move summary 작성 대기
+## P4. prepare 모듈 분리 — XSS hints 검토 대기
 
 - 완료:
   - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
   - round2: `ip_behavior.py`, `probing_sequence.py`, `mixed_baseline_scanner.py`
-  - constants ownership map / mini-move candidate review 작성
-  - `PROTOCOL_ANOMALY_*` constants 3개 이동 완료
-  - `IP_BEHAVIOR_*` constants 3개 이동 완료
-  - method behavior constants 5개 이동 완료
-  - static baseline constants 3개 이동 완료
-  - `STANDARD_HTTP_METHODS`, static path/classification constants는 `src/prepare_llm_input.py`에 유지
-  - `docs/design/99_prepare_protocol_anomaly_constants_move_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_ip_behavior_constants_move_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_method_behavior_constants_move_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_static_baseline_constants_move_plan.md` 작성 및 완료 반영
+  - constants ownership / mini-move 정리 완료
+  - SQLi hints 1차 분리 완료
+  - `docs/design/99_prepare_hints_split_candidate_review.md` 작성
+  - `docs/design/99_prepare_sqli_hints_split_plan.md` 작성 및 완료 반영
   - prepare/stage dry-run regression strict 통과 유지
 - 최근 완료:
-  - `STATIC_BASELINE_WINDOW_SEC`, `STATIC_BASELINE_MIN_STATIC_PATHS`, `STATIC_BASELINE_SAMPLE_REQUEST_LIMIT` 이동 완료
-  - `src/prepare/static_baseline.py`에 constants 정의 추가
-  - `src/prepare_llm_input.py`에서는 constants import 사용
-  - `STATIC_EXTENSIONS`, `STATIC_PREFIXES`, `STATIC_BASELINE_IMAGE_EXTENSIONS`, `HEALTH_LIKE_PATHS`는 `src/prepare_llm_input.py`에 유지
-  - helper/function 추가 이동 없음
+  - `src/prepare/sqli_hints.py` 추가
+  - SQLi pattern/constants 이동 완료
+  - `detect_educational_sql_search_context` 이동 완료
+  - `src/prepare_llm_input.py`에는 기존 함수명을 유지하는 wrapper 유지
+  - `detect_decoded_attack_hints`, candidate scoring/filtering, `possible_false_positive_sql_keyword_search` verdict 결정 로직, supporting_events는 이동하지 않음
   - expected/test fixture 수정 없음
   - Stage2 reporter 수정 없음
-  - 기준 커밋 `f97164b8e5be89aa354c9ef575e1d7b45a56cf2e`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
+  - 기준 커밋 `4bf7ee08f9bc47aac4dfe905609f4b251ca6e9bd`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
 - 다음 작업:
-  - `docs/design/99_prepare_constants_mini_move_summary.md` 작성
-  - 완료된 mini-move 그룹 정리
-    - `PROTOCOL_ANOMALY_*`
-    - `IP_BEHAVIOR_*`
-    - method behavior constants 일부
-    - static baseline constants 일부
-  - 계속 보류할 constants 정리
-  - 다음 후보를 hints split candidate review로 전환할지 결정
+  - `grep -n "XSS_\|SCRIPT_TAG\|EVENT_HANDLER\|JAVASCRIPT_PROTOCOL\|BROWSER_DATA_ACCESS\|EXTERNAL_NAVIGATION\|EXTERNAL_URL\|EDUCATIONAL_XSS\|HTML_ENTITY_RE" src/prepare_llm_input.py src/prepare/*.py` 확인
+  - XSS hints split plan 작성 여부 결정
+  - decoded reconstruction과 browser execution evidence boundary를 명확히 확인
+  - 바로 shared attack/search policy module로 진행하지 않음
 - 보류 후보:
-  - `constants.py` 대량 분리
-  - `STANDARD_HTTP_METHODS`
-  - `STATIC_EXTENSIONS` / `STATIC_PREFIXES` / `STATIC_BASELINE_IMAGE_EXTENSIONS` / `HEALTH_LIKE_PATHS`
-  - `PROBING_SEQUENCE_*`
-  - `SENSITIVE_PATH_PROBE_*` / `DIR_PROBE_*`
-  - `MIXED_BASELINE_SCANNER_*`
-  - SQLi hints
   - XSS hints
   - file_disclosure hints
+  - traversal/CMDI/automation hints
+  - shared attack/search policy constants
+  - `constants.py` 대량 분리
 - 조건:
   - 전면 리팩터링 금지
   - 작은 커밋 유지
   - prepare regression, stage dry-run regression, py_compile 통과 유지
   - 기존 behavior 변경 없이 구조 분리 우선
   - Apache logs-only 해석 한계 유지
-  - evidence boundary가 민감한 hint 계열은 후보 비교 문서를 먼저 작성
+  - evidence boundary가 민감한 hint 계열은 split plan을 먼저 작성
 
 ## P5. docs 유지보수
 
