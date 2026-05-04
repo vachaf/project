@@ -34,7 +34,7 @@
   - `tests/test_cleanup_outputs.py`
   - 삭제 기능 없음, `--apply` 미구현
   - 단위 테스트 15개 통과
-- prepare module split 1차 진행 완료
+- prepare module split 1차/2차 진행 완료
   - `src/prepare/decoders.py` 분리 완료
   - `src/prepare/l3_hints.py` 분리 완료
   - `src/prepare/models.py` 분리 완료
@@ -46,11 +46,12 @@
   - `src/prepare/sensitive_path_probe.py` 분리 완료
   - `src/prepare/ip_behavior.py` 분리 완료
   - `src/prepare/probing_sequence.py` 분리 완료
+  - `src/prepare/mixed_baseline_scanner.py` 분리 완료
   - `docs/design/99_prepare_module_split_round1_summary.md` 작성 완료
   - `docs/design/99_prepare_module_split_round2_candidate_review.md` 작성 완료
   - `docs/design/99_prepare_ip_behavior_aggregates_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_probing_sequence_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_mixed_baseline_scanner_split_plan.md` 작성 완료
+  - `docs/design/99_prepare_mixed_baseline_scanner_split_plan.md` 작성 및 완료 반영
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -108,48 +109,34 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — mixed_baseline_scanner_summaries 코드 분리 대기
+## P4. prepare 모듈 분리 — round2 summary 작성 대기
 
 - 완료:
-  - `decoders.py`
-  - `l3_hints.py`
-  - `models.py`
-  - `method_summaries.py`
-  - `protocol_anomalies.py`
-  - `auth_behavior.py`
-  - `static_baseline.py`
-  - `crawler_baseline.py`
-  - `sensitive_path_probe.py`
-  - `ip_behavior.py`
-  - `probing_sequence.py`
+  - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
+  - round2: `ip_behavior.py`, `probing_sequence.py`, `mixed_baseline_scanner.py`
   - 관련 design 문서와 split plan 갱신
   - `docs/design/99_prepare_module_split_round1_summary.md` 작성
   - `docs/design/99_prepare_module_split_round2_candidate_review.md` 작성
   - `docs/design/99_prepare_ip_behavior_aggregates_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_probing_sequence_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_mixed_baseline_scanner_split_plan.md` 작성
+  - `docs/design/99_prepare_mixed_baseline_scanner_split_plan.md` 작성 및 완료 반영
   - prepare/stage dry-run regression strict 통과 유지
 - 최근 완료:
-  - `src/prepare/probing_sequence.py` 추가
-  - `finalize_probing_sequence_bucket`, `build_probing_sequence_summaries` 이동 완료
+  - `src/prepare/mixed_baseline_scanner.py` 추가
+  - `build_mixed_baseline_scanner_row_context`, `finalize_mixed_baseline_scanner_bucket`, `build_mixed_baseline_scanner_summaries` 이동 완료
   - `src/prepare_llm_input.py`에는 기존 함수명을 유지하는 wrapper 유지
-  - `PROBING_SEQUENCE_*` constants는 이동하지 않음
+  - `MIXED_BASELINE_SCANNER_*` constants는 이동하지 않음
   - expected/test fixture 수정 없음
   - Stage2 reporter 수정 없음
-  - 기준 커밋 `85a5508e5308d5bcdfc9f1fc14948ed233007f32`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
-  - 여러 경로 순회만으로 침해/노출/성공을 단정하지 않는 해석 제한 유지
-  - `mixed_baseline_scanner_summaries` split plan 작성 완료
+  - 기준 커밋 `447779f94041c47713ad3bf68a31d7125a223675`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
+  - mixed scanner context만으로 침해/노출/성공을 단정하지 않는 해석 제한 유지
 - 다음 작업:
-  - `build_mixed_baseline_scanner_summaries` 계열 함수명과 호출 위치 grep 확인
-  - `MIXED_BASELINE_SCANNER_*` constants 사용 위치 확인
-  - static/crawler/sensitive/probing/IP behavior context 경계 확인
-  - `src/prepare/mixed_baseline_scanner.py` 생성
-  - mixed baseline scanner summary builder와 전용 helper만 이동
-  - `src/prepare_llm_input.py`에는 기존 함수명 wrapper 유지
-  - constants 이동 없음
-  - expected/test fixture 수정 없음
-  - Stage2 reporter 수정 없음
-  - prepare/stage dry-run regression strict 통과 확인
+  - `docs/design/99_prepare_module_split_round2_summary.md` 작성
+  - round2 완료 모듈 3개 정리
+  - 각 모듈 이동 함수 목록 정리
+  - constants 이동 없음, wrapper 유지, fixture/expected/Stage2 reporter 수정 없음 정리
+  - prepare/stage dry-run regression 결과 정리
+  - 다음 후보 결정 기준 정리
 - 보류 후보:
   - `constants.py` 대량 분리
   - SQLi hints
@@ -161,7 +148,6 @@
   - prepare regression, stage dry-run regression, py_compile 통과 유지
   - 기존 behavior 변경 없이 구조 분리 우선
   - Apache logs-only 해석 한계 유지
-  - mixed scanner context만으로 침해/노출/성공을 단정하지 않음
 
 ## P5. docs 유지보수
 
