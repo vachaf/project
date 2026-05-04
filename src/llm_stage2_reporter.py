@@ -1490,6 +1490,7 @@ def build_report_input(
                 "default_action": "User-Agent 는 보조 evidence 로만 사용",
                 "generalization_rule": "lab-* 같은 실험 prefix 자체를 탐지 근거로 사용하지 않고, 비브라우저성 UA, 반복적 UA 패턴, 자동화 또는 테스트성 UA 가능성처럼 일반화해서 설명",
                 "evidence_rule": "raw evidence 로 실제 user_agent 값을 표시할 수는 있지만 prefix 자체에 공격 의미를 과도하게 부여하지 않음",
+                "stage1_carryover_rule": "Stage1 의 evidence_fields 또는 reasoning_summary 에 lab-* 또는 실험용 User-Agent 관련 표현이 남아 있어도 이를 공격 증거로 재해석하거나 severity 상향 근거로 사용하지 않음",
                 "known_asset_rule": "known asset IP 와 결합되면 내부 테스트 또는 운영 점검 가능성을 함께 병기",
             },
             "file_disclosure_policy": {
@@ -1792,6 +1793,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "Apache 로그 표면에서는 response body 원문, request body 원문, 서버 내부 상태를 확인할 수 없으므로 protocol anomaly outcome 은 시도/관찰 문맥으로만 해석하라.",
             "User-Agent 값은 raw evidence 로 표시할 수 있지만 lab-* 같은 실험 prefix 자체를 공격 근거로 삼지 마라.",
             "User-Agent 해석은 비브라우저성 UA, 반복적 UA 패턴, 자동화 또는 테스트성 UA 가능성처럼 일반화하라.",
+            "top_incidents.reasoning_summary 또는 evidence_fields 에 lab-* 또는 실험용 User-Agent 관련 표현이 남아 있어도 그것만으로 공격 근거나 severity 상향 근거로 승격하지 말고, query_string, raw_request_target, reason_hints, status_code, response_body_bytes, resp_content_type, timing, sequence context 같은 일반화 가능한 Apache 로그 표면 신호가 있을 때만 보조적으로 취급하라.",
             "known_asset IP 와 결합된 비브라우저성 또는 자동화성 UA 는 내부 테스트 또는 운영 점검 가능성을 함께 병기하라.",
             "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, 별도 '후보 밖 탐색성 요청' 섹션에서 설명하라.",
             "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라.",

@@ -132,6 +132,26 @@
       "message": "stage2 system prompt keeps raw POST body visibility limit"
     },
     {
+      "op": "json_path_exists",
+      "file": "stage2_report_input",
+      "path": "policy_notes.user_agent_interpretation_policy.stage1_carryover_rule",
+      "message": "stage2 report input includes stage1 carry-over user-agent policy"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "user_payload.instructions",
+      "contains": "top_incidents.reasoning_summary 또는 evidence_fields",
+      "message": "stage2 system prompt includes stage1 carry-over user-agent guard"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "user_payload.instructions",
+      "contains": "severity 상향 근거로 승격하지 말고",
+      "message": "stage2 system prompt blocks user-agent carry-over severity escalation"
+    },
+    {
       "op": "file_contains",
       "file": "stage2_report_md",
       "contains": "PHP wrapper 문맥",
