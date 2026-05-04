@@ -16,6 +16,7 @@
   - [99_prepare_protocol_anomaly_split_plan.md](./99_prepare_protocol_anomaly_split_plan.md): protocol anomaly summary 분리 전 함수·출력·fixture 검토
   - [99_prepare_auth_behavior_split_plan.md](./99_prepare_auth_behavior_split_plan.md): auth behavior summary 분리 전 함수·출력·fixture 검토
   - [99_prepare_static_baseline_split_plan.md](./99_prepare_static_baseline_split_plan.md): static baseline summary 분리 전 함수·출력·fixture 검토
+  - [99_prepare_crawler_baseline_split_plan.md](./99_prepare_crawler_baseline_split_plan.md): crawler baseline summary 분리 전 함수·출력·fixture 검토
   - [99_prepare_regression_fixture_설계.md](./99_prepare_regression_fixture_설계.md): prepare regression fixture 설계
   - [99_stage_dryrun_regression_설계.md](./99_stage_dryrun_regression_설계.md): Stage dry-run regression 설계
   - [99_output_cleanup_script_설계.md](./99_output_cleanup_script_설계.md): output cleanup script 안전 설계 기준
