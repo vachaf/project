@@ -56,6 +56,11 @@ try:
         detect_webshell_hints as _detect_webshell_hints,
         extract_query_pairs_from_variants as _extract_query_pairs_from_variants,
     )
+    from src.prepare.method_summaries import (
+        build_method_behavior_reason_hints_for_row as _build_method_behavior_reason_hints_for_row,
+        build_method_behavior_summaries as _build_method_behavior_summaries,
+        build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
+    )
     from src.prepare.models import Candidate, NoiseAggregate
 except ImportError:
     from prepare.decoders import (
@@ -73,6 +78,11 @@ except ImportError:
         detect_ssti_hints as _detect_ssti_hints,
         detect_webshell_hints as _detect_webshell_hints,
         extract_query_pairs_from_variants as _extract_query_pairs_from_variants,
+    )
+    from prepare.method_summaries import (
+        build_method_behavior_reason_hints_for_row as _build_method_behavior_reason_hints_for_row,
+        build_method_behavior_summaries as _build_method_behavior_summaries,
+        build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
     )
     from prepare.models import Candidate, NoiseAggregate
 
@@ -2170,181 +2180,29 @@ def build_method_behavior_reason_hints_for_row(
     *,
     include_inference_limit: bool = False,
 ) -> List[str]:
-    method = get_method(row)
-    family = classify_method_behavior_family(method)
-    hints: List[str] = []
-    normalized_method = normalize_text(method).upper()
-
-    if family == "risky":
-        method_hint = {
-            "OPTIONS": "method_probe:options",
-            "TRACE": "method_probe:trace",
-            "PUT": "method_probe:put",
-            "DELETE": "method_probe:delete",
-            "PATCH": "method_probe:patch",
-        }.get(normalized_method)
-        if method_hint:
-            append_unique_hint(hints, method_hint)
-        if normalized_method in METHOD_DESTRUCTIVE_FAMILIES:
-            append_unique_hint(hints, "method_probe:destructive_method")
-    elif family == "baseline":
-        baseline_hint = {
-            "HEAD": "baseline:normal_head",
-            "GET": "baseline:normal_get",
-        }.get(normalized_method)
-        if baseline_hint:
-            append_unique_hint(hints, baseline_hint)
-    elif family == "unknown" or has_method_protocol_anomaly(row, normalized_method):
-        append_unique_hint(hints, "method_probe:unsupported_method")
-
-    if include_inference_limit and hints:
-        append_unique_hint(hints, "method_probe:no_method_success_inference")
-    return hints
-
-
-def finalize_method_behavior_bucket(
-    items: List[Dict[str, Any]],
-    window_sec: int,
-) -> Optional[Dict[str, Any]]:
-    if not items:
-        return None
-
-    sorted_items = sorted(items, key=lambda item: item["dt"])
-    method_counts = Counter(normalize_text(item.get("method")).upper() or "-" for item in sorted_items)
-    status_counts = Counter(str(safe_int(item.get("status_code"), 0)) for item in sorted_items)
-
-    risky_methods_observed: List[str] = []
-    baseline_methods_observed: List[str] = []
-    sample_request_ids: List[str] = []
-    unsupported_method_observed = False
-    protocol_anomaly_observed = False
-
-    for item in sorted_items:
-        method = normalize_text(item.get("method")).upper() or "-"
-        family = raw_text(item.get("method_family"))
-        if family == "risky":
-            append_unique_hint(risky_methods_observed, method)
-        elif family == "baseline":
-            append_unique_hint(baseline_methods_observed, method)
-        elif family == "unknown":
-            unsupported_method_observed = True
-
-        if bool(item.get("protocol_anomaly")):
-            protocol_anomaly_observed = True
-
-        sample_request_id = normalize_text(item.get("sample_request_id"))
-        if sample_request_id and len(sample_request_ids) < METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT:
-            append_unique_hint(sample_request_ids, sample_request_id)
-
-    should_emit = any(
-        (
-            len(risky_methods_observed) >= 2,
-            bool(risky_methods_observed) and bool(baseline_methods_observed),
-            unsupported_method_observed,
-            protocol_anomaly_observed,
-        )
+    return _build_method_behavior_reason_hints_for_row(
+        row,
+        include_inference_limit=include_inference_limit,
+        method_destructive_families=METHOD_DESTRUCTIVE_FAMILIES,
+        method_risky_families=METHOD_RISKY_FAMILIES,
+        method_baseline_families=METHOD_BASELINE_FAMILIES,
+        standard_http_methods=STANDARD_HTTP_METHODS,
     )
-    if not should_emit:
-        return None
-
-    reason_hints: List[str] = []
-    for item in sorted_items:
-        extend_unique_hints(
-            reason_hints,
-            build_method_behavior_reason_hints_for_row(item, include_inference_limit=False),
-        )
-    if len(method_counts) >= 2:
-        append_unique_hint(reason_hints, "method_probe:mixed_method_sequence")
-    append_unique_hint(reason_hints, "method_probe:no_method_success_inference")
-
-    return {
-        "context_role": "method_behavior_context",
-        "aggregate_scope": "same_src_ip_method_time_window",
-        "should_promote_to_candidate": False,
-        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
-        "window_start": normalize_text(sorted_items[0].get("log_time")),
-        "window_end": normalize_text(sorted_items[-1].get("log_time")),
-        "burst_window_sec": window_sec,
-        "request_count": len(sorted_items),
-        "method_counts": dict(sorted(method_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
-        "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
-        "risky_methods_observed": risky_methods_observed,
-        "baseline_methods_observed": baseline_methods_observed,
-        "sample_request_ids": sample_request_ids,
-        "reason_hints": reason_hints,
-        "interpretation_limit": "no_method_success_inference_from_apache_logs",
-    }
 
 
 def build_method_behavior_summaries(
     rows: List[Dict[str, Any]],
     window_sec: int = METHOD_BEHAVIOR_WINDOW_SEC,
 ) -> List[Dict[str, Any]]:
-    rows_by_ip: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    for row in rows:
-        src_ip = get_src_ip(row)
-        if not src_ip or src_ip == "-":
-            continue
-
-        log_time = choose_best_time(row)
-        dt = parse_flexible_iso_dt(log_time or "")
-        if dt is None:
-            continue
-
-        method = get_method(row)
-        method_family = classify_method_behavior_family(method)
-        protocol_anomaly = has_method_protocol_anomaly(row, method)
-        if method_family == "other" and not protocol_anomaly:
-            continue
-
-        rows_by_ip[src_ip].append(
-            {
-                "src_ip": src_ip,
-                "log_time": log_time,
-                "dt": dt,
-                "method": method,
-                "method_family": method_family,
-                "status_code": get_status_code(row),
-                "sample_request_id": get_sample_request_id(row),
-                "protocol_anomaly": protocol_anomaly,
-            }
-        )
-
-    summaries: List[Dict[str, Any]] = []
-    for items in rows_by_ip.values():
-        sorted_items = sorted(items, key=lambda item: item["dt"])
-        bucket: List[Dict[str, Any]] = []
-        bucket_start: Optional[datetime] = None
-        for item in sorted_items:
-            if not bucket:
-                bucket = [item]
-                bucket_start = item["dt"]
-                continue
-
-            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
-                bucket.append(item)
-                continue
-
-            summary = finalize_method_behavior_bucket(bucket, window_sec=window_sec)
-            if summary:
-                summaries.append(summary)
-            bucket = [item]
-            bucket_start = item["dt"]
-
-        summary = finalize_method_behavior_bucket(bucket, window_sec=window_sec)
-        if summary:
-            summaries.append(summary)
-
-    summaries.sort(
-        key=lambda item: (
-            safe_int(item.get("request_count"), 0),
-            len(item.get("risky_methods_observed") or []),
-            len(item.get("baseline_methods_observed") or []),
-            normalize_text(item.get("window_start")),
-        ),
-        reverse=True,
+    return _build_method_behavior_summaries(
+        rows,
+        window_sec=window_sec,
+        sample_request_limit=METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
+        method_risky_families=METHOD_RISKY_FAMILIES,
+        method_baseline_families=METHOD_BASELINE_FAMILIES,
+        method_destructive_families=METHOD_DESTRUCTIVE_FAMILIES,
+        standard_http_methods=STANDARD_HTTP_METHODS,
     )
-    return summaries
 
 
 def finalize_protocol_anomaly_bucket(
@@ -2467,23 +2325,7 @@ def build_protocol_anomaly_summaries(
 def build_method_behavior_summary_contexts(
     method_behavior_summaries: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    contexts: List[Dict[str, Any]] = []
-    for summary in method_behavior_summaries:
-        src_ip = normalize_text(summary.get("src_ip"))
-        window_start = normalize_text(summary.get("window_start"))
-        window_end = normalize_text(summary.get("window_end"))
-        start_dt = parse_flexible_iso_dt(window_start)
-        end_dt = parse_flexible_iso_dt(window_end)
-        if not src_ip or start_dt is None or end_dt is None:
-            continue
-        contexts.append(
-            {
-                "src_ip": src_ip,
-                "start_dt": start_dt,
-                "end_dt": end_dt,
-            }
-        )
-    return contexts
+    return _build_method_behavior_summary_contexts(method_behavior_summaries)
 
 
 def build_protocol_anomaly_summary_contexts(
