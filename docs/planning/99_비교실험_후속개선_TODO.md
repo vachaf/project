@@ -43,6 +43,7 @@
   - `src/prepare/auth_behavior.py` 분리 완료
   - `src/prepare/static_baseline.py` 분리 완료
   - `src/prepare/crawler_baseline.py` 분리 완료
+  - `src/prepare/sensitive_path_probe.py` 분리 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -100,7 +101,7 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — 1차 완료, sensitive path probe 문서 검토
+## P4. prepare 모듈 분리 — round1 정리 단계
 
 - 완료:
   - `decoders.py`
@@ -111,18 +112,36 @@
   - `auth_behavior.py`
   - `static_baseline.py`
   - `crawler_baseline.py`
+  - `sensitive_path_probe.py`
   - 관련 design 문서와 split plan 갱신
   - prepare/stage dry-run regression strict 통과 유지
-- 다음 후보:
-  - `sensitive_path_probe_summaries` 계열을 문서로만 검토
-  - 바로 코드 분리하지 말고 `docs/design/99_prepare_sensitive_path_probe_split_plan.md` 같은 좁은 계획 문서를 먼저 작성한다.
-  - sensitive path probe는 `.env`, `.git`, `phpinfo`, `server-status`, backup/config 경로와 연결되며 file exposure 단정 금지가 중요하다.
-  - `ip_behavior_aggregates`, `probing_sequence_summaries`, `mixed_baseline_scanner_summaries`, `constants.py`, SQLi/XSS/file disclosure 분리는 아직 보류한다.
+- 최근 완료:
+  - `src/prepare/sensitive_path_probe.py` 추가
+  - `classify_sensitive_path_probe_category`, `finalize_sensitive_path_probe_bucket`, `build_sensitive_path_probe_summaries`, `build_sensitive_path_probe_summary_contexts` 이동 완료
+  - `src/prepare_llm_input.py`에는 기존 함수명을 유지하는 wrapper 유지
+  - supporting event 관련 함수와 생성/연결 로직은 이동하지 않음
+  - sensitive path/probing sequence 관련 constants는 이동하지 않음
+  - expected/test fixture 수정 없음
+  - Stage2 reporter 수정 없음
+  - 기준 커밋 `113c97f24843d0d044e5e1eed3785fac83d43071`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass, import check 통과
+- 다음 작업:
+  - `docs/design/99_prepare_module_split_round1_summary.md` 작성
+  - round1 완료 모듈, regression 결과, 보류 영역을 한 번 정리
+  - 그 summary를 기준으로 mixed/probing/ip/constants 중 다음 후보를 다시 결정
+- 보류 후보:
+  - `mixed_baseline_scanner_summaries`
+  - `probing_sequence_summaries`
+  - `ip_behavior_aggregates`
+  - `constants.py` 대량 분리
+  - SQLi hints
+  - XSS hints
+  - file_disclosure hints
 - 조건:
   - 전면 리팩터링 금지
   - 작은 커밋 유지
   - prepare regression, stage dry-run regression, py_compile 통과 유지
   - 기존 behavior 변경 없이 구조 분리 우선
+  - Apache logs-only 해석 한계 유지
 
 ## P5. docs 유지보수
 
