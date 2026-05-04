@@ -45,6 +45,8 @@
   - `src/prepare/crawler_baseline.py` 분리 완료
   - `src/prepare/sensitive_path_probe.py` 분리 완료
   - `docs/design/99_prepare_module_split_round1_summary.md` 작성 완료
+  - `docs/design/99_prepare_module_split_round2_candidate_review.md` 작성 완료
+  - `docs/design/99_prepare_ip_behavior_aggregates_split_plan.md` 작성 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -102,7 +104,7 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — round2 후보 검토 단계
+## P4. prepare 모듈 분리 — ip_behavior_aggregates 코드 분리 대기
 
 - 완료:
   - `decoders.py`
@@ -116,6 +118,8 @@
   - `sensitive_path_probe.py`
   - 관련 design 문서와 split plan 갱신
   - `docs/design/99_prepare_module_split_round1_summary.md` 작성
+  - `docs/design/99_prepare_module_split_round2_candidate_review.md` 작성
+  - `docs/design/99_prepare_ip_behavior_aggregates_split_plan.md` 작성
   - prepare/stage dry-run regression strict 통과 유지
 - 최근 완료:
   - `src/prepare/sensitive_path_probe.py` 추가
@@ -127,15 +131,20 @@
   - Stage2 reporter 수정 없음
   - 기준 커밋 `113c97f24843d0d044e5e1eed3785fac83d43071`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass, import check 통과
   - round1 summary에서 완료 모듈 9개, regression 결과, 보류 영역, round2 후보 결정 기준 정리 완료
+  - round2 후보 비교에서 다음 코드 분리 후보를 `ip_behavior_aggregates`로 결정
+  - `ip_behavior_aggregates` split plan 작성 완료
 - 다음 작업:
-  - `docs/design/99_prepare_module_split_round2_candidate_review.md` 작성
-  - mixed/probing/ip/constants 후보별 함수명과 호출 위치 확인
-  - output key, pipeline_counts, supporting_events, constants 의존성, expected fixture 영향 비교
-  - 그 결과를 기준으로 다음 split plan 후보를 하나만 선택
+  - `build_ip_behavior_aggregates` 계열 함수명과 호출 위치 grep 확인
+  - `src/prepare/ip_behavior.py` 생성
+  - IP behavior aggregate builder와 전용 helper만 이동
+  - `src/prepare_llm_input.py`에는 기존 함수명 wrapper 유지
+  - constants 이동 없음
+  - expected/test fixture 수정 없음
+  - Stage2 reporter 수정 없음
+  - prepare/stage dry-run regression strict 통과 확인
 - 보류 후보:
-  - `mixed_baseline_scanner_summaries`
   - `probing_sequence_summaries`
-  - `ip_behavior_aggregates`
+  - `mixed_baseline_scanner_summaries`
   - `constants.py` 대량 분리
   - SQLi hints
   - XSS hints
@@ -146,6 +155,7 @@
   - prepare regression, stage dry-run regression, py_compile 통과 유지
   - 기존 behavior 변경 없이 구조 분리 우선
   - Apache logs-only 해석 한계 유지
+  - IP를 attacker identity로 단정하지 않음
 
 ## P5. docs 유지보수
 
