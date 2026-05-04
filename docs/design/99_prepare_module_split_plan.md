@@ -2,59 +2,88 @@
 
 ## 1. 배경
 
-`src/prepare_llm_input.py`는 현재 전처리 파이프라인의 핵심 역할을 한 파일에 많이 모아두고 있다. 기능이 안정화되는 동안에는 한 파일에 유지하는 편이 변경 추적에 유리했지만, 이제는 책임이 커져 장기 유지보수성이 떨어지는 구간에 들어왔다.
+`src/prepare_llm_input.py`는 전처리 파이프라인의 핵심 오케스트레이션 파일이다. 기능 안정화 초기에는 한 파일에 유지하는 편이 변경 추적에 유리했지만, 현재는 다음 책임이 한 파일에 많이 남아 있다.
 
-현재 이 파일이 포함하는 대표 책임은 아래와 같다.
-
-- URL decode depth 1/2
-- HTML entity decode
-- SQLi / XSS / traversal / HPP / file disclosure hint 생성
-- L3 hint: Log4Shell, SSRF, SSTI, webshell
-- false positive review
+- decoded variants 조합과 분석 텍스트 구성
+- SQLi / XSS / traversal / HPP / file disclosure hint 생성과 score 반영
+- false positive review 후보 분리
 - `supporting_events`
 - `probing_sequence_summaries`
 - `ip_behavior_aggregates`
-- output JSON 생성
-- CLI
+- `auth_behavior_summaries`
+- `method_behavior_summaries`
+- `protocol_anomaly_summaries`
+- `static_baseline_summaries`
+- `crawler_baseline_summaries`
+- `sensitive_path_probe_summaries`
+- `mixed_baseline_scanner_summaries`
+- Stage1/Stage2 입력용 output JSON 생성
+- CLI와 파일 입출력
 
-현재 regression이 안정화되어 있으므로 모듈 분리를 검토할 수 있는 시점은 맞다. 다만 지금 한 번에 많은 파일을 동시에 분리하면 regression 실패 시 원인 추적 범위가 너무 넓어지고, mechanical refactor인지 동작 변경인지 구분하기 어려워진다.
+이 문서의 목적은 전면 리팩터링 계획이 아니라, 회귀 안전성을 유지하는 점진적 모듈 분리 계획을 최신 상태로 정리하는 것이다.
 
-이 문서의 목적은 전면 리팩터링 계획이 아니라, 회귀 안전성을 유지하는 점진적 모듈 분리 계획을 정리하는 것이다.
+## 2. 현재 상태
 
-## 2. 현재 안전장치
+### 2.1 이미 완료된 1차 분리
 
-현재 prepare 관련 안전장치는 이미 갖춰져 있다.
+아래 모듈은 이미 분리되어 있다.
 
-- prepare regression
-  - `python3 scripts/check_prepare_regression.py`
-  - `python3 scripts/check_prepare_regression.py --strict`
-  - 현재 11 fixtures / 0 fail
+```text
+src/prepare/__init__.py
+src/prepare/decoders.py
+src/prepare/l3_hints.py
+```
 
-- stage dry-run regression
-  - `python3 scripts/check_stage_dryrun_regression.py`
-  - `python3 scripts/check_stage_dryrun_regression.py --strict`
-  - 현재 5 fixtures / 0 fail
+`src/prepare/decoders.py`는 다음 역할을 담당한다.
 
-- py_compile
-  - `src/prepare_llm_input.py`
-  - `scripts/check_prepare_regression.py`
-  - `scripts/check_stage_dryrun_regression.py`
-  - `src/llm_stage1_classifier.py`
-  - `src/llm_stage2_reporter.py`
-  - `src/run_analysis_pipeline.py`
+- URL decode depth 1/2
+- HTML entity decode
+- decoded variant 생성
+- HTML entity variant 추가
 
-이 상태 덕분에 “작게 나누고, 매 단계마다 회귀를 통과시키는 방식”의 분리가 가능하다.
+`src/prepare/l3_hints.py`는 다음 역할을 담당한다.
+
+- Log4Shell-style JNDI lookup hint
+- SSRF-like URL/internal/metadata target hint
+- SSTI expression hint
+- webshell-like path/parameter hint
+- L3 query pair extraction helper
+
+따라서 과거 계획의 Step 1-A `decoders.py` 분리와 Step 1-B `l3_hints.py` 분리는 완료된 상태다.
+
+### 2.2 현재 회귀 안전장치
+
+현재 prepare / stage dry-run 관련 안전장치는 아래 기준으로 본다.
+
+```bash
+python3 scripts/check_prepare_regression.py --strict
+python3 scripts/check_stage_dryrun_regression.py --strict
+```
+
+현재 기준:
+
+```text
+prepare regression: 18 fixtures, warn=0 fail=0
+stage dry-run regression: 12 fixtures, warn=0 fail=0
+```
+
+추가 확인 후보:
+
+```bash
+python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
+python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py
+```
 
 ## 3. 핵심 원칙
 
 - 동작 변경 없는 mechanical refactor 우선
-- 한 번에 한 모듈만 분리
+- 한 번에 한 책임만 분리
 - 분리와 기능 개선을 같은 커밋에 섞지 않음
-- regression 실패 시 원인 범위가 1개 모듈로 좁혀져야 함
+- regression 실패 시 원인 범위가 1개 변경 단위로 좁혀져야 함
 - output JSON 의미와 key 구조를 바꾸지 않음
 - `reason_hints` 이름을 바꾸지 않음
 - score / candidate / filtering 기준을 바꾸지 않음
-- Stage1 / Stage2 prompt나 schema는 이번 분리와 무관하게 유지
+- Stage1 / Stage2 prompt나 schema는 module split과 별도로 관리
 - Apache logs-only 원칙 유지
 - response body 원문, DB 결과, 브라우저 실행 여부 사용 금지
 - `status_code=200`, `text/html`, `response_body_bytes`만으로 성공 단정 금지
@@ -62,139 +91,66 @@
   - `lab-*` User-Agent
   - 특정 IP
   - 특정 response size
-  - OpenCart / Juice Shop 이름
+  - 특정 제품명
   - 특정 route 문자열
 
-## 4. 잘못된 접근: 5개 파일 동시 분리
+## 4. 완료된 단계
 
-아래 구조는 장기 목표로는 자연스럽지만, 1차 작업으로는 위험하다.
+### Step 1-A: `decoders.py` 분리 — 완료
 
-```text
-src/prepare/
-├── decoders.py
-├── l3_hints.py
-├── sqli_hints.py
-├── xss_hints.py
-└── file_disclosure_hints.py
-```
-
-문제는 다음과 같다.
-
-- regression 실패 시 원인 추적이 어려움
-- import 변경 범위가 큼
-- circular import 가능성 증가
-- SQLi / XSS / file disclosure는 scoring / candidate 판정과 강하게 결합되어 있음
-- 함수만 옮기면 구조적 이득은 작고 위험만 커질 수 있음
-
-결론적으로 “개념적으로 예쁜 구조”와 “지금 안전하게 할 수 있는 구조”는 다르다. 현재는 후자를 우선해야 한다.
-
-## 5. 권장 접근: 2개 모듈 순차 분리
-
-### Step 1-A: `decoders.py` 분리
-
-목표는 decoded variant 생성 관련 순수 함수만 먼저 떼어내는 것이다.
-
-예상 파일:
+완료 상태:
 
 ```text
-src/prepare/__init__.py
 src/prepare/decoders.py
 ```
 
-분리 대상 예:
+현재 역할:
 
-- URL decode 1회
-- URL decode 2회
-- HTML entity decode
-- decoded variants 생성 보조 함수
+- `build_decoded_variants()`
+- `build_html_entity_decoded_variant()`
+- `build_html_entity_variants()`
+- `append_html_entity_variants()`
 
-이 단계의 원칙:
+유지해야 할 조건:
 
-- 로직 변경 금지
-- decode 결과가 기존과 byte-for-byte 또는 JSON-equivalent로 같아야 함
-- exception 처리 방식도 기존과 동일해야 함
-- lowercase 변환, plus 처리 변경, empty string 처리 변경 같은 부수 개선 금지
+- URL decode 동작 변경 금지
+- `+` 처리 방식 변경 금지
+- HTML entity decode 결과 변경 금지
+- truncation 기준 변경 금지
+- decoded variant depth 의미 변경 금지
 
-검증:
+### Step 1-B: `l3_hints.py` 분리 — 완료
 
-- `python3 scripts/check_prepare_regression.py --strict`
-- `python3 scripts/check_stage_dryrun_regression.py --strict`
-- `python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py`
-- 가능하면 output JSON diff 확인
-
-성공 기준:
-
-- prepare regression 11개 pass
-- stage dry-run regression 5개 pass
-- 기존 fixture의 `reason_hints` 변화 없음
-
-### Step 1-B: `l3_hints.py` 분리
-
-전제:
-
-- Step 1-A가 별도 커밋으로 완료되어 있어야 함
-- regression이 모두 통과해야 함
-
-목표는 Log4Shell / SSRF / SSTI / webshell L3 hint 로직만 별도 모듈로 분리하는 것이다.
-
-예상 파일:
+완료 상태:
 
 ```text
 src/prepare/l3_hints.py
 ```
 
-분리 대상:
+현재 역할:
 
-- `l3:log4shell`
-- `log4shell:jndi_lookup`
-- `log4shell:ldap_callback`
-- `log4shell:rmi_callback`
-- `log4shell:dns_callback`
-- `l3:ssrf`
-- `ssrf:url_parameter`
-- `ssrf:metadata_ip`
-- `ssrf:localhost_target`
-- `ssrf:internal_ip_target`
-- `ssrf:cloud_metadata_target`
-- `l3:ssti`
-- `ssti:template_expression`
-- `ssti:jinja_expression`
-- `ssti:freemarker_expression`
-- `l3:webshell_probe`
-- `webshell:script_filename`
-- `webshell:cmd_parameter`
-- `webshell:known_shell_name`
+- Log4Shell hint
+- SSRF hint
+- SSTI hint
+- webshell-like hint
 
-이 단계의 원칙:
+유지해야 할 조건:
 
 - L3 탐지 조건 변경 금지
-- 고신호 조건을 넓히지 않음
-- 새 L3 패턴 추가 금지
-- 기존 fixture `l3_log4shell_ssrf_context`, `l3_ssti_webshell_context`가 동일하게 통과해야 함
+- 고신호 조건 확대 금지
+- 새 L3 패턴 추가와 module split을 같은 커밋에 섞지 않음
+- 기존 L3 fixture의 `reason_hints` 변화 금지
 
-검증:
-
-- `python3 scripts/check_prepare_regression.py --strict`
-- `python3 scripts/check_stage_dryrun_regression.py --strict`
-- 특히 L3 fixture 2개와 stage dry-run L3 fixture 확인
-- `py_compile`
-
-성공 기준:
-
-- prepare regression 11개 pass
-- stage dry-run regression 5개 pass
-- L3 `reason_hints` 변화 없음
-
-## 6. 보류 대상
+## 5. 현재 하면 안 되는 분리
 
 ### SQLi / XSS hint 분리 보류
 
-이유:
+보류 이유:
 
 - scoring과 candidate 판정에 강하게 결합되어 있음
-- 단순 함수 이동만으로는 구조적 이득이 작음
-- 현재 SQLi quote / parenthesis / xclose hint가 막 안정화된 상태
-- educational SQL / XSS false positive 완화를 깨뜨릴 위험이 있음
+- xclose, quote termination, boolean hint, educational SQL FP 분리 로직이 최근 안정화됨
+- HTML entity XSS, onerror/javascript/document.cookie, tutorial FP bait가 decoded variants와 결합되어 있음
+- 단순 함수 이동만으로는 구조적 이득이 작고, 회귀 위험은 큼
 
 향후 분리 조건:
 
@@ -202,34 +158,189 @@ src/prepare/l3_hints.py
 - hint scoring을 별도 rule engine으로 재설계할 때
 - FP rule과 attack structure rule을 명확히 분리할 때
 
-### file_disclosure hint 분리 보류
+### file disclosure hint 분리 보류
 
-이유:
+보류 이유:
 
-- `suspicious_file_disclosure` Stage1 verdict와 Stage2 설명 보강이 최근 완료됨
+- `suspicious_file_disclosure` Stage1 verdict와 Stage2 wording guard가 최근 보강됨
 - direct config path와 PHP wrapper candidate 구분이 중요함
 - 지금 분리하면 과승격 / 과소탐지 회귀 위험이 있음
 
 향후 분리 조건:
 
-- file disclosure rule set을 source disclosure / local file read / direct sensitive path로 나눌 때
+- source disclosure / local file read / direct sensitive path rule을 명확히 나눌 때
+- PHP wrapper와 direct sensitive path의 input/output contract를 먼저 정의한 뒤
 
-### ip_behavior / probing / supporting_events 분리 보류
+### context summary / supporting_events 분리 보류
 
-이유:
+보류 이유:
 
-- 메인 candidate / `supporting_events` 구조와 의존성이 큼
-- context-only 원칙이 중요함
-- aggregation 결과가 Stage2 문맥에도 연결되어 있음
-- 분리 전 candidate 구조 표준화가 필요함
+- Stage2 report input 구조와 직접 연결됨
+- candidate / support / filtered_out 구조와 의존성이 큼
+- context-only 원칙이 분석 품질에 직접 영향을 줌
+- summary별 정책 문구와 Stage2 guard가 같이 움직임
 
 향후 분리 조건:
 
 - candidate data model을 표준화한 뒤
-- `ip_behavior_aggregates`가 더 안정화된 뒤
-- `probing_sequence_summaries`와 `supporting_events` 입력 / 출력을 명확히 정의한 뒤
+- context summary builder의 입력/출력 contract를 먼저 문서화한 뒤
+- 각 summary type별 fixture가 충분히 고정된 뒤
 
-## 7. 권장 최종 구조
+## 6. 다음 2차 분리 후보
+
+2차 분리는 바로 코드부터 하지 않는다. 먼저 `prepare_llm_input.py` 책임 영역 inventory를 작성하고, 그 결과를 보고 하나만 선택한다.
+
+### 후보 A: `prepare/models.py` 또는 `prepare/types.py`
+
+성격:
+
+- dataclass, TypedDict, constants, enum-like string set 등 구조 정의 중심
+
+장점:
+
+- behavior 변경 위험이 상대적으로 낮음
+- 이후 summary builder나 hint module 분리의 기반이 될 수 있음
+
+위험:
+
+- import 변경 범위가 넓어질 수 있음
+- 지금 코드가 dict 중심이면 억지 타입화가 오히려 복잡도를 키울 수 있음
+
+판단:
+
+- 다음 실제 코드 분리 후보로는 가장 안전한 편이다.
+- 단, 먼저 `prepare_llm_input.py` 안의 data shape와 constants inventory가 필요하다.
+
+### 후보 B: `prepare/constants.py`
+
+성격:
+
+- 반복되는 marker, category name, policy string, protected key 이름 등을 분리
+
+장점:
+
+- behavior risk 낮음
+- 문자열 오타 방지 가능
+
+위험:
+
+- 단순 이동만으로 구조적 이득이 작을 수 있음
+- 너무 많이 옮기면 diff가 넓어짐
+
+판단:
+
+- 작은 단위로 하면 안전하다.
+- 단, candidate/filtering 기준 문자열은 output과 expected에 연결되므로 이름 변경 금지.
+
+### 후보 C: `prepare/file_disclosure_hints.py`
+
+성격:
+
+- PHP wrapper, direct config path, source disclosure intent 관련 hint 추출
+
+장점:
+
+- E R2B와 file disclosure taxonomy를 독립적으로 관리 가능
+
+위험:
+
+- 최근 변경된 `suspicious_file_disclosure`, Stage1/Stage2 UA guard, E R2B expected와 결합됨
+- PHP wrapper candidate와 direct path filtered/context 구분을 깨뜨릴 수 있음
+
+판단:
+
+- 당장 하지 않음.
+- E R2B 실제 LLM 재검증 또는 추가 fixture가 필요할 때 다시 검토.
+
+### 후보 D: `prepare/context_summaries.py`
+
+성격:
+
+- auth/method/protocol/static/crawler/sensitive/mixed summaries 생성 로직 분리
+
+장점:
+
+- 현재 `prepare_llm_input.py`의 큰 책임을 줄일 수 있음
+- Stage2 context-only 입력 구조를 더 명확하게 할 수 있음
+
+위험:
+
+- Stage2 report input 구조와 직접 연결됨
+- summary count, policy, interpretation_hint가 expected에 강하게 묶여 있음
+
+판단:
+
+- 구조상 효과는 크지만 아직 위험이 크다.
+- 먼저 summary builder inventory가 필요하다.
+
+## 7. 다음 작업 순서
+
+### P4-A. 문서 최신화 — 완료
+
+이 문서가 현재 상태를 반영한다.
+
+반영 내용:
+
+- regression 기준을 18 / 12 fixtures로 갱신
+- `decoders.py` 분리 완료 상태 반영
+- `l3_hints.py` 분리 완료 상태 반영
+- 다음 후보를 2차 분리 검토로 재정의
+
+### P4-B. `prepare_llm_input.py` 책임 영역 inventory 작성 — 다음 단계
+
+목표:
+
+- 지금 남아 있는 함수/상수/책임을 분류한다.
+- 코드 이동 없이 문서만 작성한다.
+- 다음 실제 분리 후보를 1개만 고른다.
+
+추천 문서:
+
+```text
+docs/design/99_prepare_llm_input_inventory.md
+```
+
+inventory 항목 예:
+
+```text
+- decoded/text analysis helper
+- SQLi hint logic
+- XSS hint logic
+- traversal/HPP/file disclosure hint logic
+- false positive review logic
+- candidate scoring/filtering logic
+- supporting_events builder
+- context summary builders
+- output JSON shaping
+- CLI/file IO
+- constants/category strings
+```
+
+### P4-C. 다음 실제 분리 후보 결정
+
+P4-B 이후 아래 중 하나만 고른다.
+
+권장 우선순위:
+
+```text
+1. constants/models 성격의 낮은 위험 분리
+2. file disclosure hints inventory 보강
+3. context summary builder 분리 검토
+```
+
+SQLi/XSS/file disclosure/context summary를 바로 분리하지 않는다.
+
+### P4-D. 실제 코드 분리
+
+조건:
+
+- inventory 문서 작성 완료
+- 다음 후보 1개 선정 완료
+- `git status` clean
+- prepare/stage dry-run strict pass
+- py_compile pass
+
+## 8. 장기 목표 구조
 
 아래는 장기 목표일 뿐이며, 지금 당장 모두 구현하는 계획이 아니다.
 
@@ -239,12 +350,14 @@ src/
 │   ├── __init__.py
 │   ├── decoders.py
 │   ├── l3_hints.py
-│   ├── sqli_hints.py        # future
-│   ├── xss_hints.py         # future
-│   ├── file_disclosure.py   # future
-│   ├── ip_behavior.py       # future
-│   ├── probing.py           # future
-│   └── models.py            # future, optional
+│   ├── constants.py          # possible next
+│   ├── models.py             # possible next
+│   ├── sqli_hints.py         # future
+│   ├── xss_hints.py          # future
+│   ├── file_disclosure.py    # future
+│   ├── context_summaries.py  # future
+│   ├── ip_behavior.py        # future
+│   └── probing.py            # future
 └── prepare_llm_input.py
 ```
 
@@ -255,60 +368,46 @@ src/
 - pipeline orchestration
 - backwards-compatible output format 유지
 
-## 8. 단계별 커밋 계획
+## 9. 단계별 커밋 계획
 
-### Commit 1
-
-```bash
-git commit -m "Add prepare module split plan"
-```
-
-내용:
-
-- `docs/design/99_prepare_module_split_plan.md`만 추가
-- 코드 변경 없음
-
-### Commit 2
+### 완료된 커밋 계열
 
 ```bash
 git commit -m "Extract prepare decoders"
-```
-
-내용:
-
-- `src/prepare/__init__.py`
-- `src/prepare/decoders.py`
-- `prepare_llm_input.py` import / call site 최소 수정
-- 동작 변경 없음
-
-검증:
-
-- prepare regression strict pass
-- stage dry-run strict pass
-- `py_compile`
-- 가능하면 output JSON diff
-
-### Commit 3
-
-```bash
 git commit -m "Extract L3 prepare hints"
 ```
 
+### 다음 문서 커밋
+
+```bash
+git commit -m "docs: add prepare input inventory"
+```
+
 내용:
 
-- `src/prepare/l3_hints.py`
-- `prepare_llm_input.py` import / call site 최소 수정
+- `docs/design/99_prepare_llm_input_inventory.md` 추가
+- 코드 변경 없음
+- 다음 실제 분리 후보 1개 선정
+
+### 이후 코드 커밋 후보
+
+```bash
+git commit -m "Extract prepare constants"
+```
+
+또는
+
+```bash
+git commit -m "Extract prepare models"
+```
+
+조건:
+
+- inventory에서 낮은 위험 후보로 확인된 경우만 진행
 - 동작 변경 없음
-- 2026-05-02 기준 Step 1-B 완료
+- regression strict pass
 
-검증:
-
-- prepare regression strict pass
-- stage dry-run strict pass
-- `py_compile`
-- L3 fixture `reason_hints` 동일
-
-## 9. 체크리스트
+## 10. 체크리스트
 
 ### 분리 전
 
@@ -316,14 +415,13 @@ git commit -m "Extract L3 prepare hints"
 - prepare regression strict pass
 - stage dry-run regression strict pass
 - `py_compile` pass
-- `docs/design/99_prepare_module_split_plan.md` 승인
-- feature branch 사용 권장
+- 분리 후보가 1개로 제한되어 있음
+- 기능 개선과 refactor가 섞이지 않음
 
 ### 각 분리 후
 
 - 새 파일 `py_compile` pass
 - import cycle 없음
-  - `python3 -c "from src.prepare import *"`
 - prepare regression strict pass
 - stage dry-run regression strict pass
 - 기존 output JSON 구조 변화 없음
@@ -331,7 +429,7 @@ git commit -m "Extract L3 prepare hints"
 - score / candidate count 변화 없음
 - 문서 업데이트는 최소화
 
-## 10. 실패 시 롤백 기준
+## 11. 실패 시 롤백 기준
 
 아래 중 하나라도 발생하면 해당 분리 커밋은 롤백 또는 수정해야 한다.
 
@@ -348,10 +446,10 @@ git commit -m "Extract L3 prepare hints"
 - import cycle 발생
 - CLI output filename 변화
 
-## 11. 다음 의사결정
+## 12. 현재 결론
 
-- 현재는 근본 리팩터링을 검토할 시점이 맞다.
-- 단, 전면 리팩터링이 아니라 회귀 안전성을 유지하는 점진적 분리가 맞다.
-- 첫 실제 구현은 `decoders.py` 분리부터 시작한다.
-- `l3_hints.py`는 `decoders.py` 분리 후 별도 커밋으로 진행한다.
-- SQLi / XSS / file disclosure / ip_behavior / probing 분리는 지금 하지 않는다.
+- P4로 넘어가는 것은 맞다.
+- 다만 바로 SQLi/XSS/file disclosure/context summary 분리를 시작하지 않는다.
+- `decoders.py`와 `l3_hints.py`는 이미 분리 완료 상태다.
+- 다음 작업은 `prepare_llm_input.py` 책임 영역 inventory를 작성하는 것이다.
+- 실제 코드 분리는 inventory 이후 가장 낮은 위험 후보 1개만 선택해서 진행한다.
