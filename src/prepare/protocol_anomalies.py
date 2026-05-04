@@ -6,6 +6,10 @@ from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 from urllib.parse import unquote_plus
 
+PROTOCOL_ANOMALY_WINDOW_SEC = 300
+PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT = 10
+PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN = 512
+
 
 def _normalize_text(value: Optional[Any]) -> str:
     if value is None:

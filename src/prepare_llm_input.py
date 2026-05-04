@@ -67,6 +67,9 @@ try:
         finalize_auth_behavior_bucket as _finalize_auth_behavior_bucket,
     )
     from src.prepare.protocol_anomalies import (
+        PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
+        PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT,
+        PROTOCOL_ANOMALY_WINDOW_SEC,
         build_protocol_anomaly_reason_hints_for_row as _build_protocol_anomaly_reason_hints_for_row,
         build_protocol_anomaly_summaries as _build_protocol_anomaly_summaries,
         build_protocol_anomaly_summary_contexts as _build_protocol_anomaly_summary_contexts,
@@ -135,6 +138,9 @@ except ImportError:
         finalize_auth_behavior_bucket as _finalize_auth_behavior_bucket,
     )
     from prepare.protocol_anomalies import (
+        PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
+        PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT,
+        PROTOCOL_ANOMALY_WINDOW_SEC,
         build_protocol_anomaly_reason_hints_for_row as _build_protocol_anomaly_reason_hints_for_row,
         build_protocol_anomaly_summaries as _build_protocol_anomaly_summaries,
         build_protocol_anomaly_summary_contexts as _build_protocol_anomaly_summary_contexts,
@@ -408,9 +414,6 @@ AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
 AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT = 3
 METHOD_BEHAVIOR_WINDOW_SEC = 300
 METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
-PROTOCOL_ANOMALY_WINDOW_SEC = 300
-PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT = 10
-PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN = 512
 METHOD_RISKY_FAMILIES = ("OPTIONS", "TRACE", "PUT", "DELETE", "PATCH")
 METHOD_BASELINE_FAMILIES = ("GET", "HEAD")
 METHOD_DESTRUCTIVE_FAMILIES = {"PUT", "DELETE", "PATCH"}
