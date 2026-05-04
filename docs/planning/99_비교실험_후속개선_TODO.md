@@ -34,6 +34,12 @@
   - `tests/test_cleanup_outputs.py`
   - 삭제 기능 없음, `--apply` 미구현
   - 단위 테스트 15개 통과
+- prepare module split 진행
+  - `src/prepare/decoders.py` 분리 완료
+  - `src/prepare/l3_hints.py` 분리 완료
+  - `src/prepare/models.py` 분리 완료
+  - `Candidate` / `NoiseAggregate` dataclass 이동 완료
+  - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
 
@@ -90,23 +96,26 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리
+## P4. prepare 모듈 분리 — 1차 진행 완료, 다음 후보 재검토
 
-- 목표:
-  - `prepare_llm_input.py`의 순수 함수부터 작은 단위로 분리한다.
-- 후보:
-  - decoders
-  - SQLi hints
-  - XSS hints
-  - file disclosure hints
-  - L3 hints
-  - context summary builders
+- 완료:
+  - `decoders.py` 분리 완료
+  - `l3_hints.py` 분리 완료
+  - `models.py` 분리 완료
+  - `Candidate` / `NoiseAggregate` dataclass 이동 완료
+  - `docs/design/99_prepare_module_split_plan.md` 최신화
+  - `docs/design/99_prepare_llm_input_inventory.md` 작성
+  - prepare/stage dry-run regression strict 통과 유지
+- 다음 후보:
+  - 바로 `constants.py`, `sqli_hints.py`, `xss_hints.py`, `file_disclosure_hints.py`, `context_summaries.py`로 이어가지 않는다.
+  - 남은 책임을 다시 보고 가장 낮은 위험 후보를 하나만 고른다.
+  - constants 분리는 문자열/regex/score/window 값이 섞여 있으므로 대량 이동 금지.
+  - context summary 분리는 Stage2 input 구조와 결합되어 있으므로 contract 문서화 전까지 보류.
 - 조건:
   - 전면 리팩터링 금지
   - 작은 커밋 유지
   - prepare regression, stage dry-run regression, py_compile 통과 유지
   - 기존 behavior 변경 없이 구조 분리 우선
-  - P3 list-only prototype 검토 이후 또는 별도 작업으로 분리 진행 가능
 
 ## P5. docs 유지보수
 
