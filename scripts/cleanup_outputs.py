@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -76,6 +77,15 @@ def matches_protected_path(normalized: str) -> Optional[str]:
     return None
 
 
+def get_repo_relative_protected_match(file_path: Path) -> Optional[str]:
+    try:
+        repo_relative = file_path.resolve().relative_to(REPO_ROOT)
+    except ValueError:
+        return None
+    normalized = normalize_rel_path(repo_relative)
+    return matches_protected_path(normalized)
+
+
 def is_stage_dryrun_root(root_path: Path) -> bool:
     resolved = root_path.resolve()
     normalized_root = resolved.as_posix().rstrip("/")
@@ -113,7 +123,17 @@ def is_tmp_temp_segment(segment: str) -> bool:
 
 
 def is_dryrun_segment(segment: str) -> bool:
-    return segment.lower() in {"dryrun", "dry-run", "dry_run"}
+    lowered = segment.lower()
+    if lowered in {"dryrun", "dry-run", "dry_run"}:
+        return True
+    return (
+        lowered.startswith("dryrun_")
+        or lowered.startswith("dryrun-")
+        or lowered.startswith("dry_run_")
+        or lowered.startswith("dry_run-")
+        or lowered.startswith("dry-run_")
+        or lowered.startswith("dry-run-")
+    )
 
 
 def matches_candidate_name(path: Path) -> Optional[str]:
@@ -145,6 +165,10 @@ def classify_path(root_path: Path, file_path: Path, is_dir: bool, is_symlink: bo
     protected = matches_protected_path(normalized)
     if protected:
         return "DO_NOT_AUTO_DELETE", f"protected path: {protected}"
+
+    repo_protected = get_repo_relative_protected_match(file_path)
+    if repo_protected:
+        return "DO_NOT_AUTO_DELETE", f"protected repo path: {repo_protected}"
 
     if matches_review_name(file_path.name.lower()):
         return "REVIEW", "error-related artifact; manual review required"
@@ -205,17 +229,16 @@ def should_skip_descendants(relative: Path) -> bool:
 
 def iter_scan_paths(root_path: Path) -> Iterable[Path]:
     yield root_path
-    for current_root, dirnames, filenames in root_path.walk(top_down=True, follow_symlinks=False):
-        next_dirs: List[str] = []
-        for dirname in dirnames:
-            dir_path = current_root / dirname
-            rel_dir = dir_path.relative_to(root_path)
-            next_dirs.append(dirname)
-            if should_skip_descendants(rel_dir):
-                continue
-        dirnames[:] = [name for name in dirnames if not should_skip_descendants((current_root / name).relative_to(root_path))]
+    for current_root_str, dirnames, filenames in os.walk(root_path, topdown=True, followlinks=False):
+        current_root = Path(current_root_str)
+        visible_dirs = list(dirnames)
+        dirnames[:] = [
+            name
+            for name in dirnames
+            if not should_skip_descendants((current_root / name).relative_to(root_path))
+        ]
 
-        for dirname in next_dirs:
+        for dirname in visible_dirs:
             yield current_root / dirname
         for filename in filenames:
             yield current_root / filename

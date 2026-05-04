@@ -18,6 +18,7 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 ## 관리 원칙
 
 - regression check, dry-run check, 요약 helper처럼 개발/검증 보조 스크립트를 둔다.
+- cleanup_outputs.py: output retention policy 기준의 list-only cleanup candidate inventory. 삭제 기능 없음, `--apply` 미구현.
 - 파이프라인 본체 코드는 `src/`에 둔다.
 - 실험 산출물은 `lab/`에 둔다.
 - expected fixture와 실제 출력의 차이는 코드 변경 의도와 함께 검토한다.
