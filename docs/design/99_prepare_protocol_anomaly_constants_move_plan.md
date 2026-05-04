@@ -1,8 +1,9 @@
 # 99_prepare_protocol_anomaly_constants_move_plan
 
-- 문서 상태: protocol anomaly constants mini-move plan
+- 문서 상태: protocol anomaly constants mini-move 완료 기록
 - 기준 시점: 2026-05-04
-- 목적: `99_prepare_constants_mini_move_candidate_review.md`에서 다음 후보로 잡은 `PROTOCOL_ANOMALY_*` constants 3개를 실제로 module-local constants로 이동할 수 있는지 범위, 금지사항, 검증 기준을 고정한다.
+- 기준 커밋: `b81db3f449b06fccd7815dae30c7c4db6f30aa57`
+- 목적: `PROTOCOL_ANOMALY_*` constants 3개를 `src/prepare/protocol_anomalies.py`로 이동한 완료 범위, 유지한 계약, 검증 결과를 기록한다.
 
 관련 문서:
 
@@ -12,22 +13,29 @@
 - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md)
 - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
 
-## 1. 결론
+## 1. 완료 결론
 
-`PROTOCOL_ANOMALY_*` constants는 소규모 이동 후보로 적합하다.
+`PROTOCOL_ANOMALY_*` constants 3개의 module-local 이동은 완료했다.
 
-이동 후보:
+이동한 constants:
 
 ```text
-PROTOCOL_ANOMALY_WINDOW_SEC
-PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT
-PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN
+PROTOCOL_ANOMALY_WINDOW_SEC = 300
+PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT = 10
+PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN = 512
 ```
 
-권장 owner module:
+owner module:
 
 ```text
 src/prepare/protocol_anomalies.py
+```
+
+수정 파일:
+
+```text
+src/prepare/protocol_anomalies.py
+src/prepare_llm_input.py
 ```
 
 이번 작업의 성격:
@@ -42,48 +50,30 @@ src/prepare/protocol_anomalies.py
 - Stage2 reporter 수정 없음
 - candidate/scoring/filtering 변경 없음
 - supporting_events 생성/연결 로직 변경 없음
+- constants.py 생성 없음
+- 다른 constants group 이동 없음
 ```
 
-## 2. grep 확인 결과
+## 2. 적용 내용
 
-확인 명령:
-
-```bash
-grep -n "PROTOCOL_ANOMALY_" src/prepare_llm_input.py src/prepare/*.py
-```
-
-확인 결과:
+적용한 변경:
 
 ```text
-src/prepare_llm_input.py:411:PROTOCOL_ANOMALY_WINDOW_SEC = 300
-src/prepare_llm_input.py:412:PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT = 10
-src/prepare_llm_input.py:413:PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN = 512
-src/prepare_llm_input.py:1736:    if len(request_path) >= PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN:
-src/prepare_llm_input.py:1750:        long_path_min_len=PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
-src/prepare_llm_input.py:1792:        sample_request_limit=PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT,
-src/prepare_llm_input.py:1793:        long_path_min_len=PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
-src/prepare_llm_input.py:1800:    window_sec: int = PROTOCOL_ANOMALY_WINDOW_SEC,
-src/prepare_llm_input.py:1805:        sample_request_limit=PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT,
-src/prepare_llm_input.py:1806:        long_path_min_len=PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
-src/prepare_llm_input.py:4162:                "protocol_anomaly_window_sec": PROTOCOL_ANOMALY_WINDOW_SEC,
-src/prepare_llm_input.py:4163:                "protocol_anomaly_long_path_min_len": PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
+- `src/prepare/protocol_anomalies.py`에 `PROTOCOL_ANOMALY_*` constants 3개 추가
+- `src/prepare_llm_input.py`의 동일 constants 정의 3개 제거
+- `src/prepare_llm_input.py`의 `protocol_anomalies` try/except import 블록 양쪽에 constants 3개 import 추가
+- 내부 참조 이름 `PROTOCOL_ANOMALY_*`는 그대로 유지
 ```
 
-해석:
+유지한 값:
 
 ```text
-- `PROTOCOL_ANOMALY_*` 참조는 현재 `src/prepare_llm_input.py` 안에만 있다.
-- `src/prepare/protocol_anomalies.py` 또는 다른 `src/prepare/*.py`에서 직접 참조하는 결과는 보이지 않는다.
-- 따라서 module-local constants 이동은 비교적 단순할 가능성이 높다.
+protocol_anomaly_window_sec = 300
+protocol_anomaly_sample_request_limit = 10
+protocol_anomaly_long_path_min_len = 512
 ```
 
-## 3. 현재 구조 추정
-
-현재 `src/prepare_llm_input.py`에는 protocol anomaly wrapper 계열이 남아 있고, 실제 구현 함수는 이미 `src/prepare/protocol_anomalies.py`로 분리되어 있다.
-
-현재 constants는 wrapper 기본값과 wrapper 호출 인자로 사용된다.
-
-사용 지점 유형:
+유지한 사용 지점 유형:
 
 ```text
 - long path 판단 기준
@@ -93,89 +83,26 @@ src/prepare_llm_input.py:4163:                "protocol_anomaly_long_path_min_le
 - policy_notes 메타 값
 ```
 
-따라서 이동 후에도 아래 값 의미는 유지해야 한다.
+## 3. 이동하지 않은 것
+
+이번 커밋에서 아래 항목은 이동하거나 수정하지 않았다.
 
 ```text
-protocol_anomaly_window_sec = 300
-protocol_anomaly_sample_request_limit = 10
-protocol_anomaly_long_path_min_len = 512
+- build_protocol_anomaly_reason_hints_for_row
+- build_protocol_anomaly_summaries
+- build_protocol_anomaly_summary_contexts
+- finalize_protocol_anomaly_bucket
+- protocol anomaly detection 로직
+- candidate/scoring/filtering 로직
+- supporting_events 생성/연결 로직
+- Stage2 reporter
+- expected/test fixture
+- policy wording
+- output key
+- 다른 constants group
 ```
 
-## 4. 이동 방식
-
-권장 방식:
-
-```text
-1. `src/prepare/protocol_anomalies.py`에 constants 3개를 정의한다.
-2. `src/prepare_llm_input.py`의 constants 정의 3개를 제거한다.
-3. `src/prepare_llm_input.py` import 블록에서 constants도 함께 import한다.
-4. 기존 wrapper 기본값과 policy_notes 참조는 동일한 constant 이름을 사용하게 한다.
-5. 함수 호출 인자, output key, policy_notes key는 변경하지 않는다.
-```
-
-권장 import 예시:
-
-```python
-try:
-    from src.prepare.protocol_anomalies import (
-        PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
-        PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT,
-        PROTOCOL_ANOMALY_WINDOW_SEC,
-        build_protocol_anomaly_reason_hints_for_row as _build_protocol_anomaly_reason_hints_for_row,
-        build_protocol_anomaly_summaries as _build_protocol_anomaly_summaries,
-        build_protocol_anomaly_summary_contexts as _build_protocol_anomaly_summary_contexts,
-        finalize_protocol_anomaly_bucket as _finalize_protocol_anomaly_bucket,
-    )
-except ImportError:
-    from prepare.protocol_anomalies import (
-        PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
-        PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT,
-        PROTOCOL_ANOMALY_WINDOW_SEC,
-        build_protocol_anomaly_reason_hints_for_row as _build_protocol_anomaly_reason_hints_for_row,
-        build_protocol_anomaly_summaries as _build_protocol_anomaly_summaries,
-        build_protocol_anomaly_summary_contexts as _build_protocol_anomaly_summary_contexts,
-        finalize_protocol_anomaly_bucket as _finalize_protocol_anomaly_bucket,
-    )
-```
-
-주의:
-
-```text
-- import alias를 새로 만들 필요는 없다.
-- 기존 코드에서 `PROTOCOL_ANOMALY_*` 이름을 그대로 참조할 수 있게 import한다.
-- wrapper 기본 인자와 policy_notes 값이 같은 constant 이름을 쓰게 유지한다.
-```
-
-## 5. 허용 범위
-
-허용되는 변경:
-
-```text
-- `src/prepare/protocol_anomalies.py`에 `PROTOCOL_ANOMALY_*` constants 3개 추가
-- `src/prepare_llm_input.py`에서 동일 constants 정의 제거
-- `src/prepare_llm_input.py` import 블록에 constants import 추가
-- py_compile / regression 통과를 위한 import 정렬 수준의 최소 수정
-```
-
-허용되지 않는 변경:
-
-```text
-- protocol anomaly helper/function 추가 이동
-- protocol anomaly detection 로직 변경
-- long path threshold 값 변경
-- sample request limit 값 변경
-- window sec 값 변경
-- output key 변경
-- policy_notes key 또는 wording 변경
-- expected/test fixture 수정
-- Stage2 reporter 수정
-- candidate/scoring/filtering 변경
-- supporting_events 생성/연결 로직 변경
-- constants.py 생성
-- 다른 constants group 이동
-```
-
-## 6. Apache logs-only 해석 원칙
+## 4. Apache logs-only 해석 원칙
 
 이번 constants 이동 이후에도 아래 해석 제한은 유지한다.
 
@@ -196,40 +123,30 @@ except ImportError:
 - exploit success confirmed by status code
 ```
 
-## 7. 검증 계획
+## 5. 검증 결과
 
-이동 전:
-
-```bash
-python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
-python3 scripts/check_prepare_regression.py --strict
-python3 scripts/check_stage_dryrun_regression.py --strict
-```
-
-이동 후:
-
-```bash
-python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
-python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py
-python3 scripts/check_prepare_regression.py --strict
-python3 scripts/check_stage_dryrun_regression.py --strict
-```
-
-성공 기준:
+기준 커밋 `b81db3f449b06fccd7815dae30c7c4db6f30aa57`에서 아래 검증을 통과했다.
 
 ```text
-prepare regression: pass=18 warn=0 fail=0
-stage dry-run regression: pass=12 warn=0 fail=0
-output key 의미 변경 없음
-policy_notes 의미 변경 없음
-expected/test fixture 수정 없음
-Stage2 reporter 수정 없음
-candidate/scoring/filtering 변경 없음
+python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py: 통과
+python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py: 통과
+python3 scripts/check_prepare_regression.py --strict: pass=18 warn=0 fail=0
+python3 scripts/check_stage_dryrun_regression.py --strict: pass=12 warn=0 fail=0
 ```
 
-## 8. 실패 시 롤백 기준
+수정하지 않은 영역:
 
-아래 중 하나라도 발생하면 constants 이동 커밋을 수정하거나 롤백한다.
+```text
+- tests/fixtures
+- tests/expected
+- src/llm_stage2_reporter.py
+- src/llm_stage1_classifier.py
+- src/run_analysis_pipeline.py
+```
+
+## 6. 롤백 기준
+
+향후 관련 추가 이동에서 아래 중 하나라도 발생하면 해당 커밋을 수정하거나 롤백한다.
 
 ```text
 - import cycle 발생
@@ -246,42 +163,26 @@ candidate/scoring/filtering 변경 없음
 - protocol bypass / malformed exploit / server compromise 성공 단정 문구 발생
 ```
 
-## 9. 완료 후 문서 반영
+## 7. 다음 작업
 
-이동 완료 후 아래 문서를 갱신한다.
+`PROTOCOL_ANOMALY_*` constants 이동은 완료했다.
 
-```text
-docs/design/99_prepare_protocol_anomaly_constants_move_plan.md
-docs/planning/99_비교실험_후속개선_TODO.md
+`99_prepare_constants_mini_move_candidate_review.md` 기준 다음 후보는 `IP_BEHAVIOR_*` constants다. 다만 `IP_BEHAVIOR_SENSITIVE_PATH_LIMIT`는 sensitive path/probing 계열과 의미 경계가 겹칠 수 있으므로, 먼저 grep 확인과 move plan 문서 작성 여부를 판단한다.
+
+권장 확인 명령:
+
+```bash
+grep -n "IP_BEHAVIOR_" src/prepare_llm_input.py src/prepare/*.py
 ```
 
-완료 기록에 포함할 항목:
+다음 후보 문서:
 
 ```text
-- 이동한 constants 3개
-- 기준 커밋
-- `src/prepare/protocol_anomalies.py`에 constants 정의 추가
-- `src/prepare_llm_input.py`에서 constants import 사용
-- helper/function 추가 이동 없음
-- expected/test fixture 수정 없음
-- Stage2 reporter 수정 없음
-- py_compile / prepare regression / stage dry-run regression 결과
+docs/design/99_prepare_ip_behavior_constants_move_plan.md
 ```
 
-## 10. 다음 작업
-
-문서 작성 후 다음 작업은 Codex에 constants 3개 이동을 맡기는 것이다.
-
-권장 커밋 순서:
+문서 전용 커밋 후보:
 
 ```text
-1. docs: plan protocol anomaly constants move
-2. refactor: move protocol anomaly constants
-3. docs: record protocol anomaly constants move
-```
-
-코드 이동 커밋 후보 메시지:
-
-```text
-refactor: move protocol anomaly constants
+docs: record protocol anomaly constants move
 ```
