@@ -5,6 +5,12 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
+METHOD_BEHAVIOR_WINDOW_SEC = 300
+METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
+METHOD_RISKY_FAMILIES = ("OPTIONS", "TRACE", "PUT", "DELETE", "PATCH")
+METHOD_BASELINE_FAMILIES = ("GET", "HEAD")
+METHOD_DESTRUCTIVE_FAMILIES = {"PUT", "DELETE", "PATCH"}
+
 
 def _normalize_text(value: Optional[Any]) -> str:
     if value is None:

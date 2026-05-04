@@ -57,6 +57,11 @@ try:
         extract_query_pairs_from_variants as _extract_query_pairs_from_variants,
     )
     from src.prepare.method_summaries import (
+        METHOD_BASELINE_FAMILIES,
+        METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
+        METHOD_BEHAVIOR_WINDOW_SEC,
+        METHOD_DESTRUCTIVE_FAMILIES,
+        METHOD_RISKY_FAMILIES,
         build_method_behavior_reason_hints_for_row as _build_method_behavior_reason_hints_for_row,
         build_method_behavior_summaries as _build_method_behavior_summaries,
         build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
@@ -131,6 +136,11 @@ except ImportError:
         extract_query_pairs_from_variants as _extract_query_pairs_from_variants,
     )
     from prepare.method_summaries import (
+        METHOD_BASELINE_FAMILIES,
+        METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
+        METHOD_BEHAVIOR_WINDOW_SEC,
+        METHOD_DESTRUCTIVE_FAMILIES,
+        METHOD_RISKY_FAMILIES,
         build_method_behavior_reason_hints_for_row as _build_method_behavior_reason_hints_for_row,
         build_method_behavior_summaries as _build_method_behavior_summaries,
         build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
@@ -415,11 +425,6 @@ AUTH_BEHAVIOR_WINDOW_SEC = 300
 AUTH_BEHAVIOR_RAPID_WINDOW_SEC = 60
 AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
 AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT = 3
-METHOD_BEHAVIOR_WINDOW_SEC = 300
-METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
-METHOD_RISKY_FAMILIES = ("OPTIONS", "TRACE", "PUT", "DELETE", "PATCH")
-METHOD_BASELINE_FAMILIES = ("GET", "HEAD")
-METHOD_DESTRUCTIVE_FAMILIES = {"PUT", "DELETE", "PATCH"}
 STANDARD_HTTP_METHODS = {
     "GET",
     "HEAD",
