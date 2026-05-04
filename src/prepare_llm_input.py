@@ -61,6 +61,12 @@ try:
         build_method_behavior_summaries as _build_method_behavior_summaries,
         build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
     )
+    from src.prepare.protocol_anomalies import (
+        build_protocol_anomaly_reason_hints_for_row as _build_protocol_anomaly_reason_hints_for_row,
+        build_protocol_anomaly_summaries as _build_protocol_anomaly_summaries,
+        build_protocol_anomaly_summary_contexts as _build_protocol_anomaly_summary_contexts,
+        finalize_protocol_anomaly_bucket as _finalize_protocol_anomaly_bucket,
+    )
     from src.prepare.models import Candidate, NoiseAggregate
 except ImportError:
     from prepare.decoders import (
@@ -83,6 +89,12 @@ except ImportError:
         build_method_behavior_reason_hints_for_row as _build_method_behavior_reason_hints_for_row,
         build_method_behavior_summaries as _build_method_behavior_summaries,
         build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
+    )
+    from prepare.protocol_anomalies import (
+        build_protocol_anomaly_reason_hints_for_row as _build_protocol_anomaly_reason_hints_for_row,
+        build_protocol_anomaly_summaries as _build_protocol_anomaly_summaries,
+        build_protocol_anomaly_summary_contexts as _build_protocol_anomaly_summary_contexts,
+        finalize_protocol_anomaly_bucket as _finalize_protocol_anomaly_bucket,
     )
     from prepare.models import Candidate, NoiseAggregate
 
@@ -2141,38 +2153,12 @@ def build_protocol_anomaly_reason_hints_for_row(
     *,
     include_inference_limit: bool = False,
 ) -> List[str]:
-    anomaly_types = get_protocol_anomaly_types_for_row(row)
-    if not anomaly_types:
-        return []
-
-    hints: List[str] = []
-    status_code = get_status_code(row)
-
-    for anomaly_type in anomaly_types:
-        if anomaly_type == "unsupported_method":
-            append_unique_hint(hints, "method_probe:unsupported_method")
-            append_unique_hint(hints, "protocol_anomaly:unsupported_method")
-        elif anomaly_type == "http10_request":
-            append_unique_hint(hints, "protocol_anomaly:http10_request")
-            append_unique_hint(hints, "protocol_anomaly:legacy_protocol_observation")
-        elif anomaly_type == "bad_protocol_version":
-            append_unique_hint(hints, "protocol_anomaly:bad_protocol_version")
-        elif anomaly_type == "missing_host":
-            append_unique_hint(hints, "protocol_anomaly:missing_host")
-        elif anomaly_type == "odd_host":
-            append_unique_hint(hints, "protocol_anomaly:odd_host")
-        elif anomaly_type == "long_path":
-            append_unique_hint(hints, "protocol_anomaly:long_path")
-
-    if (
-        status_code in {400, 408, 414, 501, 505}
-        and any(anomaly in {"missing_host", "bad_protocol_version", "unsupported_method", "long_path"} for anomaly in anomaly_types)
-    ):
-        append_unique_hint(hints, "protocol_anomaly:malformed_request")
-
-    if include_inference_limit:
-        append_unique_hint(hints, "protocol_anomaly:no_success_inference")
-    return hints
+    return _build_protocol_anomaly_reason_hints_for_row(
+        row,
+        include_inference_limit=include_inference_limit,
+        long_path_min_len=PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
+        standard_http_methods=STANDARD_HTTP_METHODS,
+    )
 
 
 def build_method_behavior_reason_hints_for_row(
@@ -2209,117 +2195,26 @@ def finalize_protocol_anomaly_bucket(
     items: List[Dict[str, Any]],
     window_sec: int,
 ) -> Optional[Dict[str, Any]]:
-    if not items:
-        return None
-
-    sorted_items = sorted(items, key=lambda item: item["dt"])
-    method_counts = Counter(normalize_text(item.get("method")).upper() or "-" for item in sorted_items)
-    status_counts = Counter(str(safe_int(item.get("status_code"), 0)) for item in sorted_items)
-    anomaly_types_observed: List[str] = []
-    sample_request_ids: List[str] = []
-    reason_hints: List[str] = []
-
-    for item in sorted_items:
-        extend_unique_hints(anomaly_types_observed, item.get("anomaly_types") or [])
-        extend_unique_hints(
-            reason_hints,
-            build_protocol_anomaly_reason_hints_for_row(item, include_inference_limit=False),
-        )
-        sample_request_id = normalize_text(item.get("sample_request_id"))
-        if sample_request_id and len(sample_request_ids) < PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT:
-            append_unique_hint(sample_request_ids, sample_request_id)
-
-    if not anomaly_types_observed:
-        return None
-
-    append_unique_hint(reason_hints, "protocol_anomaly:no_success_inference")
-    return {
-        "context_role": "protocol_anomaly_context",
-        "aggregate_scope": "same_src_ip_protocol_anomaly_time_window",
-        "should_promote_to_candidate": False,
-        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
-        "window_start": normalize_text(sorted_items[0].get("log_time")),
-        "window_end": normalize_text(sorted_items[-1].get("log_time")),
-        "burst_window_sec": window_sec,
-        "request_count": len(sorted_items),
-        "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (safe_int(kv[0], 0), kv[0]))),
-        "method_counts": dict(sorted(method_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
-        "anomaly_types_observed": anomaly_types_observed,
-        "sample_request_ids": sample_request_ids,
-        "reason_hints": reason_hints,
-        "interpretation_limit": "protocol_anomaly_context_only_no_success_inference",
-    }
+    return _finalize_protocol_anomaly_bucket(
+        items,
+        window_sec=window_sec,
+        sample_request_limit=PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT,
+        long_path_min_len=PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
+        standard_http_methods=STANDARD_HTTP_METHODS,
+    )
 
 
 def build_protocol_anomaly_summaries(
     rows: List[Dict[str, Any]],
     window_sec: int = PROTOCOL_ANOMALY_WINDOW_SEC,
 ) -> List[Dict[str, Any]]:
-    rows_by_ip: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    for row in rows:
-        src_ip = get_src_ip(row)
-        if not src_ip or src_ip == "-":
-            continue
-
-        log_time = choose_best_time(row)
-        dt = parse_flexible_iso_dt(log_time or "")
-        if dt is None:
-            continue
-
-        anomaly_types = get_protocol_anomaly_types_for_row(row)
-        if not anomaly_types:
-            continue
-
-        rows_by_ip[src_ip].append(
-            {
-                "src_ip": src_ip,
-                "log_time": log_time,
-                "dt": dt,
-                "method": get_method(row),
-                "status_code": get_status_code(row),
-                "sample_request_id": get_sample_request_id(row),
-                "anomaly_types": anomaly_types,
-                "protocol": get_row_protocol_value(row),
-                "host": get_row_host_value(row),
-                "uri": get_uri(row),
-                "raw_request": raw_text(row.get("raw_request")),
-            }
-        )
-
-    summaries: List[Dict[str, Any]] = []
-    for items in rows_by_ip.values():
-        sorted_items = sorted(items, key=lambda item: item["dt"])
-        bucket: List[Dict[str, Any]] = []
-        bucket_start: Optional[datetime] = None
-        for item in sorted_items:
-            if not bucket:
-                bucket = [item]
-                bucket_start = item["dt"]
-                continue
-
-            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
-                bucket.append(item)
-                continue
-
-            summary = finalize_protocol_anomaly_bucket(bucket, window_sec=window_sec)
-            if summary:
-                summaries.append(summary)
-            bucket = [item]
-            bucket_start = item["dt"]
-
-        summary = finalize_protocol_anomaly_bucket(bucket, window_sec=window_sec)
-        if summary:
-            summaries.append(summary)
-
-    summaries.sort(
-        key=lambda item: (
-            safe_int(item.get("request_count"), 0),
-            len(item.get("anomaly_types_observed") or []),
-            normalize_text(item.get("window_start")),
-        ),
-        reverse=True,
+    return _build_protocol_anomaly_summaries(
+        rows,
+        window_sec=window_sec,
+        sample_request_limit=PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT,
+        long_path_min_len=PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN,
+        standard_http_methods=STANDARD_HTTP_METHODS,
     )
-    return summaries
 
 
 def build_method_behavior_summary_contexts(
@@ -2331,23 +2226,7 @@ def build_method_behavior_summary_contexts(
 def build_protocol_anomaly_summary_contexts(
     protocol_anomaly_summaries: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    contexts: List[Dict[str, Any]] = []
-    for summary in protocol_anomaly_summaries:
-        src_ip = normalize_text(summary.get("src_ip"))
-        window_start = normalize_text(summary.get("window_start"))
-        window_end = normalize_text(summary.get("window_end"))
-        start_dt = parse_flexible_iso_dt(window_start)
-        end_dt = parse_flexible_iso_dt(window_end)
-        if not src_ip or start_dt is None or end_dt is None:
-            continue
-        contexts.append(
-            {
-                "src_ip": src_ip,
-                "start_dt": start_dt,
-                "end_dt": end_dt,
-            }
-        )
-    return contexts
+    return _build_protocol_anomaly_summary_contexts(protocol_anomaly_summaries)
 
 
 def row_is_covered_by_protocol_anomaly_context(
