@@ -22,6 +22,7 @@
   - [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md): 로그 표준과 DB 구조
   - [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md): 로그 적재와 운영
   - [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md): export와 LLM 분석 전략
+  - [99_output_retention_policy.md](./99_output_retention_policy.md): 산출물 보존/정리 기준
 
 ## 읽는 순서
 
@@ -32,6 +33,7 @@
 5. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
 6. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
 7. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
+8. [99_output_retention_policy.md](./99_output_retention_policy.md)
 
 ## 관리 원칙
 
