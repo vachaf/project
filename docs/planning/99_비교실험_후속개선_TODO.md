@@ -48,6 +48,7 @@
   - `docs/design/99_prepare_module_split_round1_summary.md` 작성 완료
   - `docs/design/99_prepare_module_split_round2_candidate_review.md` 작성 완료
   - `docs/design/99_prepare_ip_behavior_aggregates_split_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_probing_sequence_split_plan.md` 작성 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -105,7 +106,7 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — probing_sequence_summaries split plan 대기
+## P4. prepare 모듈 분리 — probing_sequence_summaries 코드 분리 대기
 
 - 완료:
   - `decoders.py`
@@ -122,6 +123,7 @@
   - `docs/design/99_prepare_module_split_round1_summary.md` 작성
   - `docs/design/99_prepare_module_split_round2_candidate_review.md` 작성
   - `docs/design/99_prepare_ip_behavior_aggregates_split_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_probing_sequence_split_plan.md` 작성
   - prepare/stage dry-run regression strict 통과 유지
 - 최근 완료:
   - `src/prepare/ip_behavior.py` 추가
@@ -132,12 +134,17 @@
   - Stage2 reporter 수정 없음
   - 기준 커밋 `30ac7d6e3fec31c6777dc124f295780b52bdb321`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
   - IP를 attacker identity로 단정하지 않는 해석 제한 유지
+  - `probing_sequence_summaries` split plan 작성 완료
 - 다음 작업:
-  - `docs/design/99_prepare_probing_sequence_split_plan.md` 작성
   - `build_probing_sequence_summaries` 계열 함수명과 호출 위치 grep 확인
   - `PROBING_SEQUENCE_*` constants 사용 위치와 sensitive path probe 경계 확인
-  - probing sequence context가 candidate로 과승격되지 않도록 해석 제한 명시
-  - constants 이동 없이 wrapper 전달 가능성 검토
+  - `src/prepare/probing_sequence.py` 생성
+  - probing sequence summary builder와 전용 helper만 이동
+  - `src/prepare_llm_input.py`에는 기존 함수명 wrapper 유지
+  - constants 이동 없음
+  - expected/test fixture 수정 없음
+  - Stage2 reporter 수정 없음
+  - prepare/stage dry-run regression strict 통과 확인
 - 보류 후보:
   - `mixed_baseline_scanner_summaries`
   - `constants.py` 대량 분리
