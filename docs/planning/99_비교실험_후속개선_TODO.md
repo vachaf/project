@@ -41,10 +41,12 @@
   - `src/prepare/method_summaries.py` 분리 완료
   - `src/prepare/protocol_anomalies.py` 분리 완료
   - `src/prepare/auth_behavior.py` 분리 완료
+  - `src/prepare/static_baseline.py` 분리 완료
   - `Candidate` / `NoiseAggregate` dataclass 이동 완료
   - `method_behavior_summaries` helper 이동 완료
   - `protocol_anomaly_summaries` helper 이동 완료
   - `auth_behavior_summaries` helper 이동 완료
+  - `static_baseline_summaries` helper 이동 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -102,7 +104,7 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — 1차 진행 완료, static baseline 후보 검토
+## P4. prepare 모듈 분리 — 1차 진행 완료, crawler baseline 후보 검토
 
 - 완료:
   - `decoders.py` 분리 완료
@@ -111,10 +113,12 @@
   - `method_summaries.py` 분리 완료
   - `protocol_anomalies.py` 분리 완료
   - `auth_behavior.py` 분리 완료
+  - `static_baseline.py` 분리 완료
   - `Candidate` / `NoiseAggregate` dataclass 이동 완료
   - `method_behavior_summaries` helper 이동 완료
   - `protocol_anomaly_summaries` helper 이동 완료
   - `auth_behavior_summaries` helper 이동 완료
+  - `static_baseline_summaries` helper 이동 완료
   - `docs/design/99_prepare_module_split_plan.md` 최신화
   - `docs/design/99_prepare_llm_input_inventory.md` 작성
   - `docs/design/99_prepare_context_summary_contract.md` 작성
@@ -122,11 +126,12 @@
   - `docs/design/99_prepare_method_summary_split_plan.md` 작성 및 완료 상태 반영
   - `docs/design/99_prepare_protocol_anomaly_split_plan.md` 작성 및 완료 상태 반영
   - `docs/design/99_prepare_auth_behavior_split_plan.md` 작성 및 완료 상태 반영
+  - `docs/design/99_prepare_static_baseline_split_plan.md` 작성 및 완료 상태 반영
   - prepare/stage dry-run regression strict 통과 유지
 - 다음 후보:
-  - `static_baseline_summaries` 계열 검토
-  - 바로 코드 분리하지 말고 `docs/design/99_prepare_static_baseline_split_plan.md` 같은 좁은 계획 문서를 먼저 작성한다.
-  - static baseline은 fallback HTML, health-like path, static file 존재/내용 정상 여부 단정 금지와 연결되므로 crawler baseline과의 경계도 함께 본다.
+  - `crawler_baseline_summaries` 계열 검토
+  - 바로 코드 분리하지 말고 `docs/design/99_prepare_crawler_baseline_split_plan.md` 같은 좁은 계획 문서를 먼저 작성한다.
+  - crawler baseline은 user-agent 해석, browser-like/crawler-like family, product/category/list/browse path 존재 여부 단정 금지와 연결되므로 static baseline보다 더 보수적으로 본다.
   - `constants.py`, `sqli_hints.py`, `xss_hints.py`, `file_disclosure_hints.py`, 전체 `context_summaries.py` 분리는 아직 보류한다.
 - 조건:
   - 전면 리팩터링 금지
