@@ -61,6 +61,11 @@ try:
         build_method_behavior_summaries as _build_method_behavior_summaries,
         build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
     )
+    from src.prepare.auth_behavior import (
+        build_auth_behavior_summaries as _build_auth_behavior_summaries,
+        build_auth_behavior_summary_contexts as _build_auth_behavior_summary_contexts,
+        finalize_auth_behavior_bucket as _finalize_auth_behavior_bucket,
+    )
     from src.prepare.protocol_anomalies import (
         build_protocol_anomaly_reason_hints_for_row as _build_protocol_anomaly_reason_hints_for_row,
         build_protocol_anomaly_summaries as _build_protocol_anomaly_summaries,
@@ -89,6 +94,11 @@ except ImportError:
         build_method_behavior_reason_hints_for_row as _build_method_behavior_reason_hints_for_row,
         build_method_behavior_summaries as _build_method_behavior_summaries,
         build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
+    )
+    from prepare.auth_behavior import (
+        build_auth_behavior_summaries as _build_auth_behavior_summaries,
+        build_auth_behavior_summary_contexts as _build_auth_behavior_summary_contexts,
+        finalize_auth_behavior_bucket as _finalize_auth_behavior_bucket,
     )
     from prepare.protocol_anomalies import (
         build_protocol_anomaly_reason_hints_for_row as _build_protocol_anomaly_reason_hints_for_row,
@@ -1881,94 +1891,12 @@ def finalize_auth_behavior_bucket(
     window_sec: int,
     rapid_window_sec: int,
 ) -> Optional[Dict[str, Any]]:
-    if not items:
-        return None
-
-    sorted_items = sorted(items, key=lambda item: item["dt"])
-    request_count = len(sorted_items)
-    status_counts = Counter(str(safe_int(item.get("status_code"), 0)) for item in sorted_items)
-    status_401_count = safe_int(status_counts.get("401"), 0)
-    status_4xx_count = sum(count for code, count in status_counts.items() if 400 <= safe_int(code, 0) < 500)
-    status_2xx_count = sum(count for code, count in status_counts.items() if 200 <= safe_int(code, 0) < 300)
-    max_requests_rapid = max_bucket_size_within_window(sorted_items, rapid_window_sec)
-    max_401_rapid = max_bucket_size_within_window(
-        sorted_items,
-        rapid_window_sec,
-        status_predicate=lambda status_code: status_code == 401,
+    return _finalize_auth_behavior_bucket(
+        items,
+        window_sec=window_sec,
+        rapid_window_sec=rapid_window_sec,
+        sample_request_limit=AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
     )
-
-    has_repeated_401 = status_401_count >= 3
-    has_rapid_burst = max_requests_rapid >= 10
-    has_mixed_401_200 = status_401_count > 0 and status_2xx_count > 0
-    has_single_200_only = request_count == 1 and status_2xx_count == 1 and status_4xx_count == 0
-    has_normal_session_like_baseline = (
-        request_count <= 2 and status_2xx_count >= 1 and status_4xx_count == 0 and not has_mixed_401_200
-    )
-
-    should_emit = any(
-        (
-            request_count >= 3,
-            has_repeated_401,
-            has_mixed_401_200,
-            has_rapid_burst,
-            has_single_200_only,
-        )
-    )
-    if not should_emit:
-        return None
-
-    distinct_user_agents = {
-        normalize_text(item.get("user_agent"))
-        for item in sorted_items
-        if normalize_text(item.get("user_agent"))
-    }
-    sample_request_ids: List[str] = []
-    for item in sorted_items:
-        request_id = normalize_text(item.get("sample_request_id"))
-        if request_id and request_id not in sample_request_ids:
-            sample_request_ids.append(request_id)
-        if len(sample_request_ids) >= AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT:
-            break
-
-    reason_hints: List[str] = []
-    if request_count >= 3:
-        append_unique_hint(reason_hints, "auth_abuse:repeated_auth_endpoint")
-    if has_repeated_401:
-        append_unique_hint(reason_hints, "auth_abuse:repeated_401")
-    if has_rapid_burst and (max_401_rapid >= 3 or status_4xx_count >= status_2xx_count):
-        append_unique_hint(reason_hints, "auth_abuse:rapid_fail_burst")
-    if has_mixed_401_200:
-        append_unique_hint(reason_hints, "auth_abuse:mixed_401_200_sequence")
-    if has_single_200_only:
-        append_unique_hint(reason_hints, "auth_abuse:single_200_baseline")
-    elif has_normal_session_like_baseline:
-        append_unique_hint(reason_hints, "auth_abuse:normal_session_like_baseline")
-    append_unique_hint(reason_hints, "auth_abuse:post_body_not_visible")
-    append_unique_hint(reason_hints, "auth_abuse:no_auth_success_inference")
-
-    return {
-        "context_role": "auth_behavior_context",
-        "aggregate_scope": "same_src_ip_auth_endpoint_time_window",
-        "should_promote_to_candidate": False,
-        "src_ip": normalize_text(sorted_items[0].get("src_ip")) or "-",
-        "window_start": normalize_text(sorted_items[0].get("log_time")),
-        "window_end": normalize_text(sorted_items[-1].get("log_time")),
-        "burst_window_sec": window_sec,
-        "endpoint_family": normalize_text(sorted_items[0].get("endpoint_family")) or "auth_endpoint",
-        "request_count": request_count,
-        "auth_request_count": request_count,
-        "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (safe_int(kv[0], 0), kv[0]))),
-        "status_4xx_count": status_4xx_count,
-        "status_2xx_count": status_2xx_count,
-        "has_repeated_401": has_repeated_401,
-        "has_rapid_burst": has_rapid_burst,
-        "has_mixed_401_200": has_mixed_401_200,
-        "has_single_200_only": has_single_200_only,
-        "distinct_user_agents": len(distinct_user_agents),
-        "sample_request_ids": sample_request_ids,
-        "reason_hints": reason_hints,
-        "interpretation_limit": "post_body_not_visible_no_auth_success_inference",
-    }
 
 
 def build_auth_behavior_summaries(
@@ -1976,71 +1904,13 @@ def build_auth_behavior_summaries(
     window_sec: int = AUTH_BEHAVIOR_WINDOW_SEC,
     rapid_window_sec: int = AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
 ) -> List[Dict[str, Any]]:
-    rows_by_group: Dict[Tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
-    for row in rows:
-        src_ip = get_src_ip(row)
-        if not src_ip or src_ip == "-":
-            continue
-
-        log_time = choose_best_time(row)
-        dt = parse_flexible_iso_dt(log_time or "")
-        if dt is None:
-            continue
-
-        method = get_method(row)
-        uri = get_uri(row)
-        raw_request_target = extract_raw_request_target(raw_text(row.get("raw_request")))
-        endpoint_family = get_auth_endpoint_family(method, uri, raw_request_target=raw_request_target)
-        if not endpoint_family:
-            continue
-
-        rows_by_group[(src_ip, endpoint_family)].append(
-            {
-                "src_ip": src_ip,
-                "log_time": log_time,
-                "dt": dt,
-                "status_code": get_status_code(row),
-                "user_agent": get_user_agent(row),
-                "sample_request_id": get_sample_request_id(row),
-                "endpoint_family": endpoint_family,
-            }
-        )
-
-    summaries: List[Dict[str, Any]] = []
-    for _, items in rows_by_group.items():
-        sorted_items = sorted(items, key=lambda item: item["dt"])
-        bucket: List[Dict[str, Any]] = []
-        bucket_start: Optional[datetime] = None
-        for item in sorted_items:
-            if not bucket:
-                bucket = [item]
-                bucket_start = item["dt"]
-                continue
-
-            if bucket_start is not None and (item["dt"] - bucket_start).total_seconds() <= window_sec:
-                bucket.append(item)
-                continue
-
-            summary = finalize_auth_behavior_bucket(bucket, window_sec=window_sec, rapid_window_sec=rapid_window_sec)
-            if summary:
-                summaries.append(summary)
-            bucket = [item]
-            bucket_start = item["dt"]
-
-        summary = finalize_auth_behavior_bucket(bucket, window_sec=window_sec, rapid_window_sec=rapid_window_sec)
-        if summary:
-            summaries.append(summary)
-
-    summaries.sort(
-        key=lambda item: (
-            safe_int(item.get("request_count"), 0),
-            safe_int(item.get("status_4xx_count"), 0),
-            safe_int(item.get("status_2xx_count"), 0),
-            normalize_text(item.get("window_start")),
-        ),
-        reverse=True,
+    return _build_auth_behavior_summaries(
+        rows,
+        window_sec=window_sec,
+        rapid_window_sec=rapid_window_sec,
+        sample_request_limit=AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
+        auth_endpoint_family_patterns=AUTH_ENDPOINT_FAMILY_PATTERNS,
     )
-    return summaries
 
 
 def classify_method_behavior_family(method: str) -> str:
@@ -2280,31 +2150,7 @@ def row_is_covered_by_method_behavior_context(
 def build_auth_behavior_summary_contexts(
     auth_behavior_summaries: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    contexts: List[Dict[str, Any]] = []
-    for summary in auth_behavior_summaries:
-        if not bool(summary.get("has_repeated_401")):
-            continue
-        src_ip = normalize_text(summary.get("src_ip"))
-        endpoint_family = normalize_text(summary.get("endpoint_family"))
-        window_start = normalize_text(summary.get("window_start"))
-        window_end = normalize_text(summary.get("window_end"))
-        start_dt = parse_flexible_iso_dt(window_start)
-        end_dt = parse_flexible_iso_dt(window_end)
-        if not src_ip or not endpoint_family or start_dt is None or end_dt is None:
-            continue
-        contexts.append(
-            {
-                "summary": summary,
-                "src_ip": src_ip,
-                "endpoint_family": endpoint_family,
-                "window_start": window_start,
-                "window_end": window_end,
-                "start_dt": start_dt,
-                "end_dt": end_dt,
-                "summary_key": "|".join([src_ip, endpoint_family, window_start, window_end]),
-            }
-        )
-    return contexts
+    return _build_auth_behavior_summary_contexts(auth_behavior_summaries)
 
 
 def build_auth_behavior_support_reason_hints(summary: Dict[str, Any]) -> List[str]:
