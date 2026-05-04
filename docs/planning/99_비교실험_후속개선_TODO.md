@@ -29,6 +29,11 @@
 - retention/output cleanup 정책과 cleanup script 설계 문서 작성 완료
   - `docs/operations/99_output_retention_policy.md`
   - `docs/design/99_output_cleanup_script_설계.md`
+- cleanup output inventory list-only prototype 추가 완료
+  - `scripts/cleanup_outputs.py`
+  - `tests/test_cleanup_outputs.py`
+  - 삭제 기능 없음, `--apply` 미구현
+  - 단위 테스트 15개 통과
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
 
@@ -61,19 +66,27 @@
   - status/bytes/content-type만으로 성공을 단정하지 않는다.
   - `lab-*` UA를 공격 근거로 일반화하지 않는다.
 
-## P3. retention / output cleanup — 정책·설계 완료, list-only prototype 검토
+## P3. retention / output cleanup — list-only prototype 완료
 
 - 완료:
   - output retention policy 작성
   - cleanup script 설계 문서 작성
   - dry-run 기본, `--apply`에서만 삭제, 보호 경로 제외 원칙 문서화
-- 다음 후보:
-  - 삭제 기능 없는 list-only prototype 검토
-  - 후보 파일을 `KEEP` / `REVIEW` / `CLEANUP_CANDIDATE` / `DO_NOT_AUTO_DELETE`로 분류하는 출력만 먼저 확인
-  - `/tmp` 또는 명시적 임시 output 대상부터 시작
+  - `scripts/cleanup_outputs.py` list-only inventory prototype 추가
+  - `tests/test_cleanup_outputs.py` 단위 테스트 추가
+  - `scripts/README.md` 인덱스 반영
+- 현재 동작:
+  - 삭제 기능 없음
+  - `--apply`는 NOT IMPLEMENTED로 종료
+  - `KEEP` / `REVIEW` / `CLEANUP_CANDIDATE` / `DO_NOT_AUTO_DELETE` 분류 출력
+  - `lab/`, `docs/`, `src/`, `tests/fixtures`, `tests/expected`, `.git` 보호
+  - `/tmp/stage-dryrun-regression` 하위는 cleanup 후보로 분류
+- 남은 후보:
+  - 실제 필요 시점에만 JSONL 로그 출력 검토
+  - 실제 필요 시점에만 `--kind temp-dryrun`, `--older-than-days` 필터 검토
+  - `--apply` 또는 실제 삭제 기능은 별도 승인 전까지 보류
 - 주의:
   - 실제 삭제 기능은 아직 구현하지 않는다.
-  - `--apply`는 초기 prototype 범위에서 제외한다.
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
