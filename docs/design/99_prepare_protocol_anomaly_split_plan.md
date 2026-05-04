@@ -1,8 +1,8 @@
 # 99_prepare_protocol_anomaly_split_plan
 
-- 문서 상태: protocol anomaly split plan
+- 문서 상태: protocol anomaly split plan / 1차 분리 완료
 - 기준 시점: 2026-05-04
-- 목적: `protocol_anomaly_summaries` 계열을 실제 코드 분리 후보로 좁히기 전에 함수명, 호출 위치, 출력 key, 사용 상수, fixture 기준을 정리한다.
+- 목적: `protocol_anomaly_summaries` 계열의 분리 범위, 출력 key, 사용 상수, fixture 기준을 정리한다.
 
 관련 문서:
 
@@ -13,75 +13,79 @@
 
 ## 1. 현재 결론
 
-`protocol_anomaly_summaries`는 `method_behavior_summaries` 이후의 다음 코드 분리 후보로 볼 수 있다.
+`protocol_anomaly_summaries` 계열 1차 분리는 완료됐다.
 
-다만 바로 분리하지 않고, 1차 분리 범위를 아래로 제한한다.
-
-```text
-- protocol_anomaly_summaries builder 함수
-- protocol anomaly 전용 helper
-- protocol anomaly summary context builder
-```
-
-1차 분리에서 하지 않을 것:
-
-```text
-- protocol/method 관련 constants 이동
-- method summary 이동
-- auth/static/crawler/sensitive/mixed summary 이동
-- candidate/scoring/filtering 변경
-- Stage2 policy 문구 변경
-- expected fixture 수정
-```
-
-권장 신규 모듈 후보:
+완료된 신규 모듈:
 
 ```text
 src/prepare/protocol_anomalies.py
 ```
 
-`prepare/context_summaries.py` 전체를 바로 만들지 않는 이유:
-
-- context summary 전체를 한 번에 옮기면 diff가 커진다.
-- protocol anomaly는 method summary와 일부 helper/상수 개념이 가까울 수 있으나 error/access/security surface 해석과 long path threshold가 별도 위험을 가진다.
-- 첫 단계는 protocol anomaly 계열만 좁게 검증하는 편이 안전하다.
-
-## 2. 현재 함수/호출 위치 후보
-
-현재 `protocol_anomaly_summaries` 관련 로직은 `src/prepare_llm_input.py` 안에 있다.
-
-실제 분리 전 확인해야 할 후보 함수명:
+이동된 실제 구현 함수:
 
 ```text
+build_protocol_anomaly_reason_hints_for_row
 finalize_protocol_anomaly_bucket
 build_protocol_anomaly_summaries
 build_protocol_anomaly_summary_contexts
 ```
 
-실제 코드 작업 전에는 아래를 확인한다.
+`src/prepare_llm_input.py`에는 기존 함수명과 기본값 의미를 유지하는 wrapper를 남겼다.
+
+유지한 원칙:
+
+```text
+- protocol/method 관련 constants 이동 없음
+- method summary 이동 없음
+- auth/static/crawler/sensitive/mixed summary 이동 없음
+- candidate/scoring/filtering 변경 없음
+- Stage2 policy 문구 변경 없음
+- expected fixture 수정 없음
+```
+
+검증 상태:
+
+```text
+py_compile 통과
+prepare regression: pass=18 warn=0 fail=0
+stage dry-run regression: pass=12 warn=0 fail=0
+```
+
+## 2. 최종 함수/호출 위치
+
+분리 전 확인 명령:
 
 ```bash
 grep -n "protocol_anomaly_summaries\|build_protocol_anomaly\|finalize_protocol_anomaly\|PROTOCOL_ANOMALY" src/prepare_llm_input.py
 ```
 
-확인할 항목:
+확인된 주요 위치:
 
 ```text
-- builder 함수명
-- finalize 함수명
-- summary context 함수명
-- builder 호출 위치
-- builder가 받는 rows/candidates/filtered 구조
-- main payload에 protocol_anomaly_summaries를 넣는 위치
-- pipeline_counts.protocol_anomaly_summary_count를 계산하는 위치
-- protocol anomaly policy_notes와 연결되는 Stage2 입력 위치
+PROTOCOL_ANOMALY_WINDOW_SEC
+PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT
+PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN
+build_protocol_anomaly_reason_hints_for_row wrapper
+finalize_protocol_anomaly_bucket wrapper 또는 import 연결
+build_protocol_anomaly_summaries wrapper
+build_protocol_anomaly_summary_contexts wrapper
+protocol_anomaly_summaries 생성 위치
+protocol_anomaly_contexts 생성 위치
+pipeline_counts / payload wiring 위치
 ```
 
-주의:
+최종 구조:
 
-- 이 문서는 함수명이 위 후보와 같을 가능성을 기준으로 한다.
-- 실제 코드에서 이름이 다르면 코드 이름을 우선한다.
-- 이름 변경을 위한 refactor는 이번 분리와 섞지 않는다.
+```text
+src/prepare/protocol_anomalies.py
+  - 실제 protocol anomaly summary 구현
+
+src/prepare_llm_input.py
+  - PROTOCOL_ANOMALY_* constants 유지
+  - STANDARD_HTTP_METHODS 등 공유 상수 유지
+  - 기존 함수명 wrapper 유지
+  - payload wiring 유지
+```
 
 ## 3. 입력 계약
 
@@ -179,7 +183,7 @@ Stage2 policy 쪽 핵심 문구:
 
 ## 5. 사용하는 constants
 
-protocol anomaly summary와 연결된 주요 상수 후보:
+protocol anomaly summary와 연결된 주요 상수:
 
 ```text
 PROTOCOL_ANOMALY_WINDOW_SEC
@@ -188,12 +192,12 @@ PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN
 STANDARD_HTTP_METHODS
 ```
 
-1차 분리 원칙:
+1차 분리 결과:
 
 ```text
-- 위 constants는 1차 분리에서 이동하지 않는다.
-- protocol_anomalies.py가 필요하면 prepare_llm_input.py wrapper에서 값을 인자로 넘긴다.
-- constants 이동은 별도 커밋에서 검토한다.
+- 위 constants는 이동하지 않았다.
+- src/prepare_llm_input.py wrapper가 constants를 새 모듈 함수 인자로 넘긴다.
+- constants 이동은 별도 커밋으로 보류한다.
 ```
 
 이유:
@@ -202,32 +206,27 @@ STANDARD_HTTP_METHODS
 - long path threshold는 output에 직접 영향을 줄 수 있다.
 - constants 이동까지 같이 하면 regression 실패 시 원인 추적이 어려워진다.
 
-## 6. 사용하는 helper 후보
+## 6. helper 처리 결과
 
-분리 전 실제 사용 여부를 확인할 helper 후보:
+`src/prepare/protocol_anomalies.py`에는 protocol anomaly 전용 helper가 함께 들어갔다.
+
+대표 helper:
 
 ```text
-raw_text / normalize_text
-safe_int
-parse_flexible_iso_dt 또는 timestamp helper
-get_src_ip
-get_method
-get_status_code
-get_sample_request_id
-choose_best_time
-path length / raw_request_target length helper
-host/protocol anomaly classifier
-counter/status distribution helper
+normalize/raw text helper
+safe int helper
+flexible datetime parse helper
+src_ip / method / status / request_id 추출 helper
+protocol/host/path anomaly 판정 helper
+bucket finalize helper
 ```
 
-1차 분리 원칙:
+판단:
 
 ```text
-- protocol anomaly 전용 helper만 함께 이동한다.
-- method summary와 공유되는 helper는 복제 또는 인자화 중 더 작은 diff를 선택한다.
-- shared helper module을 새로 만들지 않는다.
-- helper behavior 변경 금지
-- helper 이름 변경 금지
+- helper 일부는 prepare_llm_input.py 또는 method_summaries.py와 유사할 수 있지만 protocol 전용 복제로 유지한다.
+- shared helper를 새로 만들지 않아 import cycle 위험을 줄였다.
+- 향후 shared utils 분리는 별도 판단으로 둔다.
 ```
 
 ## 7. 회귀 fixture 기준
@@ -295,9 +294,9 @@ MUST_NOT 기준:
 - virtual host bypass 성공 단정 금지
 ```
 
-## 8. 분리 가능 범위
+## 8. 완료된 분리 범위
 
-1차 코드 분리에서 허용되는 변경:
+1차 코드 분리에서 수행한 변경:
 
 ```text
 - src/prepare/protocol_anomalies.py 생성
@@ -306,29 +305,21 @@ MUST_NOT 기준:
 - src/prepare_llm_input.py에서 import / wrapper 추가
 ```
 
-1차 코드 분리에서 금지되는 변경:
+1차 코드 분리에서 하지 않은 변경:
 
 ```text
-- constants 이동
-- method behavior summary 이동
-- auth/static/crawler/sensitive/mixed summary 이동
-- output key 변경
-- policy 문구 변경
-- expected fixture 변경
-- scoring/filtering/candidate logic 변경
+- constants 이동 없음
+- method behavior summary 이동 없음
+- auth/static/crawler/sensitive/mixed summary 이동 없음
+- output key 변경 없음
+- policy 문구 변경 없음
+- expected fixture 변경 없음
+- scoring/filtering/candidate logic 변경 없음
 ```
 
-## 9. 검증 계획
+## 9. 검증 계획과 결과
 
-분리 전:
-
-```bash
-python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
-python3 scripts/check_prepare_regression.py --strict
-python3 scripts/check_stage_dryrun_regression.py --strict
-```
-
-분리 후:
+검증 명령:
 
 ```bash
 python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
@@ -337,11 +328,17 @@ python3 scripts/check_prepare_regression.py --strict
 python3 scripts/check_stage_dryrun_regression.py --strict
 ```
 
-성공 기준:
+검증 결과:
 
 ```text
+py_compile 통과
 prepare regression: pass=18 warn=0 fail=0
 stage dry-run regression: pass=12 warn=0 fail=0
+```
+
+성공 기준 유지:
+
+```text
 protocol_anomaly_summary_count == 1 유지
 candidate_rows == 0 유지
 g_r2_protocol_anomaly_context expected 수정 없음
@@ -367,19 +364,22 @@ g_r2_protocol_anomaly_context expected 수정 없음
 
 ## 11. 현재 결론
 
-`protocol_anomaly_summaries`는 method summary 이후의 다음 실제 코드 분리 후보로 검토 가능하다.
+`protocol_anomaly_summaries` 1차 분리는 완료됐다.
 
-다만 실제 코드 분리 전에 아래 명령으로 함수명과 호출 위치를 먼저 확정한다.
-
-```bash
-grep -n "protocol_anomaly_summaries\|build_protocol_anomaly\|finalize_protocol_anomaly\|PROTOCOL_ANOMALY" src/prepare_llm_input.py
-```
-
-그 결과가 명확하면 다음 코드는 아래 범위로 진행한다.
+현재 상태:
 
 ```text
-src/prepare/protocol_anomalies.py 생성
-protocol anomaly summary builder만 이동
-constants는 이동하지 않음
-expected는 수정하지 않음
+src/prepare/protocol_anomalies.py 생성 완료
+prepare_llm_input.py wrapper 유지
+constants 이동 없음
+expected 수정 없음
+strict regression 통과
 ```
+
+다음 후보:
+
+```text
+auth_behavior_summaries 계열 검토
+```
+
+단, auth behavior는 POST body visibility, account existence, lockout, credential stuffing success 단정 금지와 연결되므로 바로 코드 분리하지 않는다. 먼저 `docs/design/99_prepare_auth_behavior_split_plan.md` 같은 좁은 계획 문서를 작성한 뒤 실제 분리 여부를 판단한다.
