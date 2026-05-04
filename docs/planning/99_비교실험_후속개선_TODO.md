@@ -8,42 +8,54 @@
 
 - A~H 실험 문서, operations/design/reviews/standards/planning 문서 구조 정리 완료
 - 폴더별 README와 루트 README 정비 완료
-- prepare regression: 18 fixtures, `warn=0 fail=0`
-- stage dry-run regression: 12 fixtures, `warn=0 fail=0`
 - A~H 실험 세트의 주요 context-only 문맥은 현재 regression/docs 기준에 반영 완료
+- 실제 LLM 샘플 검증 1차 완료
+  - F/G/H 5개 샘플 수동 리뷰 완료
+  - B/C/E 3개 샘플 수동 리뷰 완료
+  - 누적 8개 샘플, 72/80 = 90%
+- 분석 품질 기준 문서 추가 완료
+  - `docs/standards/99_analysis_quality_criteria.md`
+- file disclosure verdict taxonomy 검토 완료
+  - `suspicious_file_disclosure` verdict는 이미 존재하며 새 verdict 추가는 현재 필요 없음
+- Stage1/Stage2 `lab-*` / experiment-like User-Agent wording guard 1차 보강 완료
+  - Stage1 prompt guard 추가
+  - Stage2 `stage1_carryover_rule` 추가
+  - `e_r2_php_wrapper.expected.json` guard 확인 rule 보강 완료
+- prepare regression 18 fixtures, stage dry-run regression 12 fixtures 모두 strict 기준 통과
+  - `python3 scripts/check_prepare_regression.py --strict`
+  - `python3 scripts/check_stage_dryrun_regression.py --strict`
 
-## P1. 실제 LLM 샘플 검증 체계 정리
+## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
 
-- 목표:
-  - dry-run regression과 실제 LLM 품질 검증을 분리해서 운영한다.
-  - 고정 샘플 기반 수동 리뷰 절차를 정리한다.
-- 할 일:
-  - 샘플 선정 기준 정리
-  - provider별 비교 기준 정리
-  - Stage2 narrative 품질 체크 항목 정리
-  - 비용/비결정성 관리 기준 정리
-- 주의:
-  - 실제 LLM 샘플 검증은 regression 통과 여부와 같은 의미가 아니다.
+- 완료:
+  - F/G/H 5개 샘플 수동 리뷰 완료
+  - B/C/E 3개 샘플 수동 리뷰 완료
+  - 누적 8개 샘플, 72/80 = 90%
+  - dry-run regression과 실제 LLM 품질 검증을 분리해서 문서화
+  - 분석 품질 기준 문서 추가
+- 남은 관리:
+  - 새 샘플은 반복 문제나 발표/보고 필요 시점에만 추가
+  - provider별 비교는 필요할 때만 선택 수행
+  - 실제 LLM 샘플 검증은 regression 통과 여부와 같은 의미가 아님
 
-## P2. Stage2 narrative 튜닝
+## P2. Stage1/Stage2 wording/taxonomy guard 관리 — 일부 완료
 
-- 대상:
-  - auth behavior
-  - method behavior
-  - protocol anomaly
-  - static baseline
-  - crawler baseline
-  - sensitive path probe
-  - mixed baseline/scanner context
-- 할 일:
-  - 실제 LLM 출력에서 context-only 문맥이 과승격되지 않는지 점검
-  - 성공/침해/노출 단정 표현이 다시 나타나지 않는지 점검
-  - 여러 context summary가 하나의 성공 공격처럼 합쳐지지 않는지 점검
+- 완료:
+  - `suspicious_file_disclosure` taxonomy 검토
+  - Stage1 `lab-*` / experiment-like UA guard 추가
+  - Stage2 `stage1_carryover_rule` 추가
+  - `e_r2_php_wrapper.expected.json` 보강
+  - prepare/stage dry-run regression strict 통과
+- 남은 후보:
+  - 실제 LLM 출력에서 context-only 문맥이 과승격되는지 계속 관찰
+  - 반복 wording 문제가 다시 나오면 report lint 검토
+  - `suspicious_file_disclosure` 실제 LLM 재검증은 필요 시점에만 수행
 - 주의:
   - Apache logs-only 한계를 유지한다.
   - status/bytes/content-type만으로 성공을 단정하지 않는다.
+  - `lab-*` UA를 공격 근거로 일반화하지 않는다.
 
-## P3. retention / output cleanup 정책
+## P3. retention / output cleanup 정책 — 다음 우선순위
 
 - 목표:
   - raw export, processed JSON, reports, manifest, lab 산출물 보관 기준을 정한다.
@@ -54,6 +66,9 @@
   - `lab/` 산출물은 기본 보존 원칙 유지
 - 주의:
   - 삭제 자동화는 가장 나중에 적용한다.
+  - 먼저 문서 기준부터 작성한다.
+- 추천 다음 문서:
+  - `docs/operations/99_output_retention_policy.md`
 
 ## P4. prepare 모듈 분리
 
@@ -71,6 +86,7 @@
   - 작은 커밋 유지
   - prepare regression, stage dry-run regression, py_compile 통과 유지
   - 기존 behavior 변경 없이 구조 분리 우선
+  - P3 이후 또는 별도 작업으로 분리 진행 가능
 
 ## P5. docs 유지보수
 
