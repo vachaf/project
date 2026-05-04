@@ -13,6 +13,7 @@
   - [99_prepare_context_summary_contract.md](./99_prepare_context_summary_contract.md): context summary builder 분리 전 input/output 불변조건
   - [99_prepare_context_summary_split_candidate.md](./99_prepare_context_summary_split_candidate.md): context summary builder 후보별 분리 우선순위 검토
   - [99_prepare_method_summary_split_plan.md](./99_prepare_method_summary_split_plan.md): method behavior summary 분리 전 함수·출력·fixture 검토
+  - [99_prepare_protocol_anomaly_split_plan.md](./99_prepare_protocol_anomaly_split_plan.md): protocol anomaly summary 분리 전 함수·출력·fixture 검토
   - [99_prepare_regression_fixture_설계.md](./99_prepare_regression_fixture_설계.md): prepare regression fixture 설계
   - [99_stage_dryrun_regression_설계.md](./99_stage_dryrun_regression_설계.md): Stage dry-run regression 설계
   - [99_output_cleanup_script_설계.md](./99_output_cleanup_script_설계.md): output cleanup script 안전 설계 기준
