@@ -11,13 +11,15 @@
 - [98_비교_실험_요청_세트_표준.md](./98_비교_실험_요청_세트_표준.md): 비교 실험 절차, 시간 구간, provider 비교, 산출물 보관 기준
 - [99_비교_실험_결과_기록_템플릿.md](./99_비교_실험_결과_기록_템플릿.md): 실험 후 결과 기록 양식
 - [99_analysis_quality_criteria.md](./99_analysis_quality_criteria.md): Apache logs-only 분석 신뢰성 평가 기준과 좋은 분석의 정의
+- [99_LLM분석_품질평가_체크리스트.md](./99_LLM분석_품질평가_체크리스트.md): LLM 분석 결과 수동 평가용 10점 체크리스트
 
 ## 읽는 순서
 
 1. [98_비교_실험_요청_세트_표준.md](./98_비교_실험_요청_세트_표준.md)
 2. [99_비교_실험_결과_기록_템플릿.md](./99_비교_실험_결과_기록_템플릿.md)
 3. [99_analysis_quality_criteria.md](./99_analysis_quality_criteria.md)
-4. [../experiments/README.md](../experiments/README.md)와 세트별 문서
+4. [99_LLM분석_품질평가_체크리스트.md](./99_LLM분석_품질평가_체크리스트.md)
+5. [../experiments/README.md](../experiments/README.md)와 세트별 문서
 
 ## 관리 원칙
 
