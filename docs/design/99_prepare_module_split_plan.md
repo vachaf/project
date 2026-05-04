@@ -1,6 +1,6 @@
 # 99_prepare_module_split_plan
 
-- 문서 상태: P4 prepare module split 진행 계획 / 1차 분리 현황
+- 문서 상태: P4 prepare module split 진행 계획 / 1차 분리 완료 현황
 - 기준 시점: 2026-05-04
 - 목적: `src/prepare_llm_input.py`의 책임을 회귀 안전성을 유지하면서 점진적으로 분리한다.
 
@@ -238,7 +238,43 @@ stage dry-run regression: 12 fixtures, warn=0 fail=0
 - 실제 crawler 정체, robots/sitemap 내용, site structure, page existence, attack success 단정 금지
 ```
 
-## 5. 아직 분리하지 않을 영역
+분리 방식:
+
+```text
+- prepare_llm_input.py에는 기존 함수명 wrapper 유지
+- constants 이동 없음
+- static/sensitive/mixed summary 이동 없음
+- expected fixture 수정 없음
+```
+
+## 5. 1차 분리 완료 판단
+
+현재까지의 분리는 `prepare_llm_input.py`에서 비교적 독립적인 summary builder와 dataclass/helper를 이동한 1차 mechanical refactor로 본다.
+
+완료 범위:
+
+```text
+decoders.py
+l3_hints.py
+models.py
+method_summaries.py
+protocol_anomalies.py
+auth_behavior.py
+static_baseline.py
+crawler_baseline.py
+```
+
+현재 상태:
+
+```text
+- prepare/stage dry-run strict regression 통과 유지
+- constants 대량 이동 없음
+- Stage1/Stage2 prompt/schema 변경 없음
+- expected fixture 수정 없음
+- candidate/supporting/filtering coordination은 prepare_llm_input.py에 유지
+```
+
+## 6. 아직 분리하지 않을 영역
 
 아래는 현재 보류한다.
 
@@ -262,7 +298,7 @@ stage dry-run regression: 12 fixtures, warn=0 fail=0
 - constants에는 regex, score weight, category string, window size가 섞여 있어 대량 이동 시 위험함
 ```
 
-## 6. 다음 후보
+## 7. 다음 후보
 
 다음 후보는 `sensitive_path_probe_summaries` 계열 검토다.
 
@@ -283,7 +319,7 @@ docs/design/99_prepare_sensitive_path_probe_split_plan.md
 - file disclosure / sensitive path category 판단과 일부 겹칠 수 있음
 ```
 
-## 7. 장기 목표 구조
+## 8. 장기 목표 구조
 
 ```text
 src/
@@ -299,7 +335,7 @@ src/
 │   ├── crawler_baseline.py
 │   ├── constants.py          # future, small slices only
 │   ├── sqli_hints.py         # future
-│   ├── xss_hints.py          # future
+│   ├── xss_hints.py         # future
 │   ├── file_disclosure.py    # future
 │   ├── sensitive_path_probe.py # future
 │   ├── mixed_baseline_scanner.py # future
@@ -318,7 +354,7 @@ src/
 - candidate/supporting/filtering coordination
 ```
 
-## 8. 실패 시 롤백 기준
+## 9. 실패 시 롤백 기준
 
 아래 중 하나라도 발생하면 해당 분리 커밋은 수정 또는 롤백한다.
 
@@ -336,7 +372,7 @@ src/
 - import cycle 발생
 ```
 
-## 9. 현재 결론
+## 10. 현재 결론
 
 P4는 현재 아래까지 1차 분리 완료 상태다.
 
