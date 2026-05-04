@@ -1,6 +1,6 @@
 # 99_prepare_method_summary_split_plan
 
-- 문서 상태: method summary split plan
+- 문서 상태: method summary split plan / 1차 분리 완료
 - 기준 시점: 2026-05-04
 - 목적: `method_behavior_summaries` 계열을 실제 코드 분리 후보로 좁히기 전에 함수명, 호출 위치, 출력 key, 사용 상수, fixture 기준을 정리한다.
 
@@ -13,74 +13,80 @@
 
 ## 1. 현재 결론
 
-`method_behavior_summaries`는 context summary 계열 중 첫 코드 분리 후보로 볼 수 있다.
+`method_behavior_summaries` 계열 1차 분리는 완료됐다.
 
-단, 바로 대량 분리하지 않는다. 1차 분리 범위는 아래로 제한한다.
-
-```text
-- method_behavior_summaries builder 함수
-- method summary 전용 helper
-```
-
-1차 분리에서 하지 않을 것:
-
-```text
-- method 관련 constants 이동
-- protocol anomaly summary 이동
-- auth/static/crawler summary 이동
-- candidate/scoring/filtering 변경
-- Stage2 policy 문구 변경
-- expected fixture 수정
-```
-
-권장 신규 모듈 후보:
+완료된 신규 모듈:
 
 ```text
 src/prepare/method_summaries.py
 ```
 
-`prepare/context_summaries.py`를 바로 만들지 않는 이유:
-
-- context summary 전체를 한 번에 옮기면 diff가 커진다.
-- method/protocol/auth/static/crawler/sensitive/mixed summary의 risk profile이 다르다.
-- 첫 분리는 method 계열만 좁게 검증하는 편이 안전하다.
-
-## 2. 현재 함수/호출 위치 후보
-
-현재 `method_behavior_summaries` 관련 로직은 `src/prepare_llm_input.py` 안에 있다.
-
-실제 분리 전 확인해야 할 후보 함수명:
+이동된 실제 구현 함수:
 
 ```text
+build_method_behavior_reason_hints_for_row
 build_method_behavior_summaries
+build_method_behavior_summary_contexts
 ```
 
-실제 코드 작업 전에는 아래를 확인한다.
+`src/prepare_llm_input.py`에는 기존 함수명과 기본값 의미를 유지하는 wrapper를 남겼다.
+
+유지한 원칙:
+
+```text
+- method 관련 constants 이동 없음
+- protocol anomaly summary 이동 없음
+- auth/static/crawler summary 이동 없음
+- candidate/scoring/filtering 변경 없음
+- Stage2 policy 문구 변경 없음
+- expected fixture 수정 없음
+```
+
+검증 상태:
+
+```text
+py_compile 통과
+prepare regression: pass=18 warn=0 fail=0
+stage dry-run regression: pass=12 warn=0 fail=0
+```
+
+## 2. 최종 함수/호출 위치
+
+분리 전 확인 명령:
 
 ```bash
 grep -n "method_behavior_summaries\|build_method_behavior\|METHOD_BEHAVIOR" src/prepare_llm_input.py
 ```
 
-확인할 항목:
+확인된 주요 위치:
 
 ```text
-- builder 함수명
-- builder 호출 위치
-- builder가 받는 rows/candidates/filtered_out 구조
-- main payload에 method_behavior_summaries를 넣는 위치
-- pipeline_counts.method_behavior_summary_count를 계산하는 위치
-- method summary policy_notes와 연결되는 Stage2 입력 위치
+METHOD_BEHAVIOR_WINDOW_SEC
+METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT
+build_method_behavior_reason_hints_for_row wrapper
+build_method_behavior_summaries wrapper
+build_method_behavior_summary_contexts wrapper
+method_behavior_summaries 생성 위치
+method_behavior_contexts 생성 위치
+pipeline_counts / payload wiring 위치
 ```
 
-주의:
+최종 구조:
 
-- 이 문서는 함수명이 `build_method_behavior_summaries`일 가능성을 기준으로 한다.
-- 실제 코드에서 이름이 다르면 코드 이름을 우선한다.
-- 이름 변경을 위한 refactor는 이번 분리와 섞지 않는다.
+```text
+src/prepare/method_summaries.py
+  - 실제 method summary 구현
+
+src/prepare_llm_input.py
+  - METHOD_BEHAVIOR_* constants 유지
+  - method family constants 유지
+  - 기존 함수명 wrapper 유지
+  - payload wiring 유지
+```
 
 ## 3. 입력 계약
 
-method summary builder가 소비하는 입력 범주는 아래로 제한되어야 한다.
+method summary builder가 소비하는 입력 범주는 아래로 제한한다.
 
 ```text
 - normalized rows 또는 source rows
@@ -169,7 +175,7 @@ method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점을 �
 
 ## 5. 사용하는 constants
 
-method summary와 연결된 주요 상수 후보:
+method summary와 연결된 주요 상수:
 
 ```text
 METHOD_BEHAVIOR_WINDOW_SEC
@@ -180,12 +186,12 @@ METHOD_DESTRUCTIVE_FAMILIES
 STANDARD_HTTP_METHODS
 ```
 
-1차 분리 원칙:
+1차 분리 결과:
 
 ```text
-- 위 constants는 1차 분리에서 이동하지 않는다.
-- method_summaries.py가 필요하면 기존 prepare_llm_input.py에서 import하거나, 분리 범위를 다시 줄인다.
-- constants 이동은 별도 커밋에서 검토한다.
+- 위 constants는 이동하지 않았다.
+- src/prepare_llm_input.py wrapper가 constants를 새 모듈 함수 인자로 넘긴다.
+- constants 이동은 별도 커밋으로 보류한다.
 ```
 
 이유:
@@ -194,26 +200,31 @@ STANDARD_HTTP_METHODS
 - method summary와 protocol anomaly가 일부 constants를 공유할 가능성이 있다.
 - constants 이동까지 같이 하면 regression 실패 시 원인 추적이 어려워진다.
 
-## 6. 사용하는 helper 후보
+## 6. helper 처리 결과
 
-분리 전 실제 사용 여부를 확인할 helper 후보:
+`src/prepare/method_summaries.py`에는 method summary 전용 helper가 함께 들어갔다.
+
+대표 helper:
 
 ```text
-raw_text
-safe_int
-parse_log_time 또는 timestamp parsing helper
-get_effective_request_path 또는 path normalization helper
-sample request formatting helper
-counter/status distribution helper
+_normalize_text
+_safe_int
+_parse_flexible_iso_dt
+_classify_method_behavior_family
+_has_method_protocol_anomaly
+_get_src_ip
+_get_status_code
+_get_method
+_get_sample_request_id
+_choose_best_time
 ```
 
-1차 분리 원칙:
+판단:
 
 ```text
-- method 전용 helper만 함께 이동한다.
-- 여러 summary가 공유하는 helper는 이동하지 않는다.
-- shared helper가 필요하면 prepare_llm_input.py에 남겨두고 import한다.
-- helper 이름 변경은 하지 않는다.
+- helper 일부는 prepare_llm_input.py 기존 helper와 유사하지만 method 전용 복제로 유지한다.
+- shared helper를 강제로 이동하지 않아 import cycle 위험을 줄였다.
+- 향후 shared utils 분리는 별도 판단으로 둔다.
 ```
 
 ## 7. 회귀 fixture 기준
@@ -281,41 +292,32 @@ MUST_NOT 기준:
 - CORS 취약점 성공 단정 금지
 ```
 
-## 8. 분리 가능 범위
+## 8. 완료된 분리 범위
 
-1차 코드 분리에서 허용되는 변경:
+1차 코드 분리에서 수행한 변경:
 
 ```text
 - src/prepare/method_summaries.py 생성
 - method summary builder 함수 이동
 - method 전용 helper 이동
-- src/prepare_llm_input.py에서 import / call site 최소 수정
-- src/prepare/__init__.py export는 필요할 때만 최소 추가
+- src/prepare_llm_input.py에서 import / wrapper 추가
 ```
 
-1차 코드 분리에서 금지되는 변경:
+1차 코드 분리에서 하지 않은 변경:
 
 ```text
-- constants 이동
-- protocol anomaly summary 이동
-- auth/static/crawler summary 이동
-- output key 변경
-- policy 문구 변경
-- expected fixture 변경
-- scoring/filtering/candidate logic 변경
+- constants 이동 없음
+- protocol anomaly summary 이동 없음
+- auth/static/crawler summary 이동 없음
+- output key 변경 없음
+- policy 문구 변경 없음
+- expected fixture 변경 없음
+- scoring/filtering/candidate logic 변경 없음
 ```
 
-## 9. 검증 계획
+## 9. 검증 계획과 결과
 
-분리 전:
-
-```bash
-python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
-python3 scripts/check_prepare_regression.py --strict
-python3 scripts/check_stage_dryrun_regression.py --strict
-```
-
-분리 후:
+검증 명령:
 
 ```bash
 python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
@@ -324,11 +326,17 @@ python3 scripts/check_prepare_regression.py --strict
 python3 scripts/check_stage_dryrun_regression.py --strict
 ```
 
-성공 기준:
+검증 결과:
 
 ```text
+py_compile 통과
 prepare regression: pass=18 warn=0 fail=0
 stage dry-run regression: pass=12 warn=0 fail=0
+```
+
+성공 기준 유지:
+
+```text
 method_behavior_summary_count == 1 유지
 candidate_rows == 0 유지
 g_r1_method_behavior_context expected 수정 없음
@@ -353,19 +361,22 @@ g_r1_method_behavior_context expected 수정 없음
 
 ## 11. 현재 결론
 
-`method_behavior_summaries`는 다음 실제 코드 분리 후보로 적절하다.
+`method_behavior_summaries` 1차 분리는 완료됐다.
 
-다만 실제 코드 분리 전에 아래 명령으로 함수명과 호출 위치를 먼저 확정한다.
-
-```bash
-grep -n "method_behavior_summaries\|build_method_behavior\|METHOD_BEHAVIOR" src/prepare_llm_input.py
-```
-
-그 결과가 명확하면 다음 코드는 아래 범위로 진행한다.
+현재 상태:
 
 ```text
-src/prepare/method_summaries.py 생성
-method summary builder만 이동
-constants는 이동하지 않음
-expected는 수정하지 않음
+src/prepare/method_summaries.py 생성 완료
+prepare_llm_input.py wrapper 유지
+constants 이동 없음
+expected 수정 없음
+strict regression 통과
 ```
+
+다음 후보:
+
+```text
+protocol_anomaly_summaries 계열 검토
+```
+
+단, protocol anomaly는 error/access/security surface 해석과 long path threshold가 연결되므로 바로 코드 분리하지 않는다. 먼저 `docs/design/99_prepare_protocol_anomaly_split_plan.md` 같은 좁은 계획 문서를 작성한 뒤 실제 분리 여부를 판단한다.
