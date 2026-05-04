@@ -22,7 +22,6 @@
 
 이 문서의 비범위:
 
-- 실제 cleanup script 구현
 - 실제 파일 삭제
 - `lab/` 산출물 이동 또는 정리
 - 민감 정보 자동 탐지 또는 자동 삭제
@@ -84,27 +83,31 @@ cleanup script가 기본적으로 다루면 안 되는 대상:
 
 ## 4. 권장 CLI 설계
 
-예상 명령 형태:
+초기 list-only prototype 기준 명령 형태:
 
 ```bash
 python3 scripts/cleanup_outputs.py --root . --dry-run
-python3 scripts/cleanup_outputs.py --root . --kind temp-dryrun --dry-run
-python3 scripts/cleanup_outputs.py --root . --kind error-dump --older-than-days 30 --dry-run
-python3 scripts/cleanup_outputs.py --root . --kind temp-dryrun --apply
+python3 scripts/cleanup_outputs.py --root /tmp/stage-dryrun-regression --dry-run
+python3 scripts/cleanup_outputs.py --root . --dry-run --json
+python3 scripts/cleanup_outputs.py --root . --dry-run --verbose
+python3 scripts/cleanup_outputs.py --root . --apply
 ```
 
-옵션 후보:
+현재 prototype 상태:
+
+- `--dry-run`은 기본 동작이다.
+- `--apply`는 NOT IMPLEMENTED로 종료하며 실제 삭제를 수행하지 않는다.
+- `--json`은 summary와 entries를 구조화해 출력한다.
+- `--verbose`는 REVIEW 항목까지 출력한다.
+
+후속 옵션 후보:
 
 ```text
---root
 --kind
 --older-than-days
 --include
 --exclude
---dry-run
---apply
 --write-log
---json
 ```
 
 CLI 설계 주의:
@@ -113,7 +116,7 @@ CLI 설계 주의:
 - `--apply`가 없으면 삭제를 수행하면 안 된다.
 - `--include lab` 같은 위험 옵션은 초기 버전에서 제공하지 않는 편이 안전하다.
 - 초기 버전의 `--kind`는 `temp-dryrun`처럼 범위를 강하게 제한한 값부터 시작하는 편이 안전하다.
-- `--root`는 repo root 기준으로 해석하고, repo 밖 경로는 허용하지 않는다.
+- 실제 삭제 기능을 열기 전에는 repo-root 보호 판정, symlink 처리, `/tmp/stage-dryrun-regression` 후보 분류를 테스트로 고정해야 한다.
 
 ## 5. 삭제 후보 판정 기준
 
@@ -141,11 +144,20 @@ DO_NOT_DELETE:
 - pipeline_manifest.json
 ```
 
+현재 prototype의 실제 분류:
+
+```text
+KEEP
+REVIEW
+CLEANUP_CANDIDATE
+DO_NOT_AUTO_DELETE
+```
+
 판정 기준 해석:
 
 - `CLEANUP_CANDIDATE`는 바로 삭제하지 않고 dry-run 목록에 먼저 표시한다.
 - `REVIEW`는 자동 삭제가 아니라 사람이 별도 판단해야 하는 영역이다.
-- `DO_NOT_DELETE`는 초기 버전 cleanup script의 기본 보호 영역이다.
+- `DO_NOT_AUTO_DELETE`는 초기 버전 cleanup script의 기본 보호 영역이다.
 
 ## 6. 안전장치
 
@@ -161,6 +173,17 @@ DO_NOT_DELETE:
 - --apply 사용 시에도 2단계 확인 또는 explicit flag 검토
 ```
 
+현재 list-only prototype에 반영된 안전장치:
+
+- 삭제 기능 없음
+- `--apply` 미구현 및 exit(1)
+- symlink는 `DO_NOT_AUTO_DELETE`
+- `lab`, `docs`, `src`, `tests/fixtures`, `tests/expected`, `.git` 보호
+- root-relative 보호 판정과 repo-root 기준 보호 판정을 함께 사용
+- `/tmp/stage-dryrun-regression` 계열 경로는 cleanup 후보로 분류
+- `tmp` / `temp` / `dryrun` 계열은 명시적 segment 또는 prefix 중심으로만 후보 처리
+- `template`, `attempt`, `timestamp`, `nondryrun`, `mydryrunfile` 같은 substring 오탐을 테스트로 방지
+
 적용 후보 예:
 
 ```text
@@ -174,7 +197,7 @@ DO_NOT_DELETE:
 
 현재 설계 방향:
 
-- 초기 list-only 또는 dry-run scanner 단계에서는 실제 삭제 경로를 열지 않는다.
+- 초기 list-only 단계에서는 실제 삭제 경로를 열지 않는다.
 - `--apply` 지원을 나중에 추가하더라도 symlink, 상대경로, repo 밖 대상, 보호 디렉터리 매칭을 먼저 차단해야 한다.
 - allowlist보다 denylist를 우선하는 이유는 초기 버전에서 "보호해야 할 영역"이 더 명확하기 때문이다.
 
@@ -188,21 +211,21 @@ dry-run 출력 예시:
 [SKIP] tests/expected/stage_dryrun_regression/e_r2_php_wrapper.expected.json reason=protected regression expected
 ```
 
-출력 원칙:
+현재 prototype 출력 원칙:
 
-- dry-run에서도 분류 결과와 reason을 같이 보여준다.
-- `SKIP` 항목은 왜 보호되었는지 명시한다.
-- `REVIEW` 항목은 자동 삭제하지 않고 검토 필요 표시를 분리한다.
-- 사람이 읽는 텍스트 출력 외에 JSON output 후보도 고려한다.
+- summary와 `CLEANUP_CANDIDATE` 목록을 기본 출력한다.
+- `--verbose`일 때 REVIEW 항목도 출력한다.
+- `--json`일 때 summary와 entries를 JSON으로 출력한다.
+- 출력 문구는 `safe to delete` 같은 승인 표현을 쓰지 않고 `candidate only; manual review required`로 제한한다.
 
 JSON output 후보:
 
-- `--json` 사용 시 candidate 목록, skip 목록, review 목록, reason, size, mtime를 구조화해 출력
-- 이후 JSONL 로그와 연계 가능하도록 entry 단위를 단순하게 유지
+- 현재 `--json`은 candidate 목록뿐 아니라 전체 entries를 출력한다.
+- 이후 JSONL 로그와 연계 가능하도록 entry 단위를 단순하게 유지한다.
 
 ## 8. 구현 순서 제안
 
-script 구현은 나중에 한다. 향후 구현한다면 순서는 아래를 권장한다.
+기존 설계상 구현 순서:
 
 ```text
 1. list-only prototype
@@ -213,11 +236,18 @@ script 구현은 나중에 한다. 향후 구현한다면 순서는 아래를 �
 6. --apply 지원
 ```
 
-이 순서를 권장하는 이유:
+현재 상태:
 
-- 먼저 "무엇을 보여줄지"를 안정화해야 한다.
-- 다음으로 "무엇을 보호할지"를 테스트 가능하게 만들어야 한다.
-- 실제 삭제는 가장 마지막에 도입해야 한다.
+- 1단계 list-only prototype 완료
+- 단위 테스트 15개 추가 완료
+- 기존 prepare/stage dry-run regression 통과 유지
+
+이후 권장 순서:
+
+1. 실제 필요 시점에 JSONL log output 검토
+2. 실제 필요 시점에 `--kind temp-dryrun` 필터 검토
+3. 실제 필요 시점에 `--older-than-days` 필터 검토
+4. `--apply`와 실제 삭제 기능은 별도 승인 전까지 보류
 
 ## 9. 보류할 것
 
@@ -244,18 +274,21 @@ script 구현은 나중에 한다. 향후 구현한다면 순서는 아래를 �
 - [../planning/99_비교실험_후속개선_TODO.md](../planning/99_비교실험_후속개선_TODO.md)
 - [../operations/06_통합_스크립트_설명_정리본.md](../operations/06_통합_스크립트_설명_정리본.md)
 - [../../scripts/README.md](../../scripts/README.md)
+- [../../scripts/cleanup_outputs.py](../../scripts/cleanup_outputs.py)
 - [../../lab/README.md](../../lab/README.md)
 
 ## 11. 다음 단계 제안
 
-다음 단계는 cleanup script 구현이 아니라, 아래 범위의 list-only prototype 검토다.
+현재 list-only prototype은 추가된 상태다.
 
-1. `temp-dryrun`만 대상으로 후보 스캔 범위를 좁힐 수 있는지 검토
-2. 보호 경로 denylist를 먼저 문서 기준으로 확정
-3. dry-run 출력 포맷과 JSONL 로그 스키마 초안 검토
+다음 단계는 실제 삭제 구현이 아니라, 필요 시점에 아래 보강을 검토하는 것이다.
 
-구현 착수 전 확인 항목:
+1. JSONL 로그 출력이 필요한지 검토
+2. `--kind temp-dryrun` 필터가 필요한지 검토
+3. `--older-than-days` 필터가 필요한지 검토
 
-- `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`, `.git` 보호 규칙을 먼저 고정했는가
+실제 삭제 기능 착수 전 확인 항목:
+
+- `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`, `.git` 보호 규칙이 테스트로 유지되는가
 - sample review와 regression 재현에 필요한 산출물 예시를 더 보강할 필요가 없는가
 - `--apply` 외에 추가 확인 플래그가 필요한가
