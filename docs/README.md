@@ -20,16 +20,17 @@
 3. 실험 세트 문서는 `experiments/` 아래의 `A_set/` ~ `H_set/`을 본다.
 4. 실험 표준과 결과 기록 양식은 `standards/`를 본다.
 5. 설계, 회귀 검증, 해석 한계, 보류 결정은 `design/`을 본다.
-6. prepare 모듈 분리, constants mini-move, hints evidence boundary, Stage2 prompt 정리는 [design/README.md](./design/README.md)의 해당 묶음을 본다.
-7. 중간정리, 샘플 리뷰, post-refactor spot check, wording 품질 검토는 `reviews/`를 본다.
-8. 환경 구축, 로그 구조, 실행 가이드, 운영 메모는 `operations/`를 본다.
-9. 후속 작업 계획과 TODO는 `planning/`을 본다.
+6. prepare 모듈 분리, constants mini-move, hints evidence boundary, Stage2 prompt/lint 정리는 [design/README.md](./design/README.md)의 해당 묶음을 본다.
+7. prepare 하위 모듈의 실제 역할은 [../src/prepare/README.md](../src/prepare/README.md)를 본다.
+8. 중간정리, 샘플 리뷰, post-refactor spot check, wording 품질 검토는 `reviews/`를 본다.
+9. 환경 구축, 로그 구조, 실행 가이드, 운영 메모는 `operations/`를 본다.
+10. 후속 작업 계획과 TODO는 `planning/`을 본다.
 
 ## 3. 문서 분류 기준
 
 - `standards/`: 실험 문서 작성 표준, 공통 템플릿, naming rule, 분석 품질 기준
 - `experiments/`: A~H 세트별 설계 문서, 실행 요청 문서, 라운드별 세부 문서
-- `design/`: 파이프라인 구조 설계, regression 설계, `prepare` module split 계획, constants ownership, hints evidence boundary, Stage2 prompt 정리, 해석 한계와 설계 결정
+- `design/`: 파이프라인 구조 설계, regression 설계, `prepare` module split 계획, constants ownership, hints evidence boundary, Stage2 prompt/lint 정리, 해석 한계와 설계 결정
 - `reviews/`: 중간정리, LLM 샘플 검증, post-refactor dry-run/actual LLM spot check, Stage2 wording 품질 검토, 완료·평가성 문서
 - `operations/`: 실행 가이드, 운영 기준, 로컬 실험 환경 기준, 로그 구조, 구축 문서
 - `planning/`: 후속 작업 계획, TODO, 우선순위 관리
@@ -56,7 +57,7 @@ docs/
 │   └── H_set/
 ├── design/
 │   ├── README.md
-│   └── 파이프라인 구조, regression 설계, prepare split, constants ownership, hints evidence boundary, Stage2 prompt 정리
+│   └── 파이프라인 구조, regression 설계, prepare split, constants ownership, hints evidence boundary, Stage2 prompt/lint 정리
 ├── reviews/
 │   ├── README.md
 │   └── 중간정리, LLM 샘플 검증, post-refactor spot check, Stage2 wording 품질 검토
@@ -76,10 +77,11 @@ docs/
 
 - [experiments/README.md](./experiments/README.md): A~H 세트 실험 문서 인덱스
 - [standards/README.md](./standards/README.md): 공통 표준, 품질 기준, 결과 기록 템플릿 인덱스
-- [design/README.md](./design/README.md): 설계, 회귀 검증, prepare split, constants/hints evidence boundary, Stage2 prompt 문서 인덱스
+- [design/README.md](./design/README.md): 설계, 회귀 검증, prepare split, constants/hints evidence boundary, Stage2 prompt/lint 문서 인덱스
 - [reviews/README.md](./reviews/README.md): 평가, 품질 검토, 샘플 리뷰, post-refactor spot check 문서 인덱스
 - [operations/README.md](./operations/README.md): 운영, 환경 구축, 로그 구조 문서 인덱스
 - [planning/README.md](./planning/README.md): TODO와 우선순위 문서 인덱스
+- [../src/prepare/README.md](../src/prepare/README.md): prepare 하위 모듈 역할과 분리 원칙
 
 ## 6. 현재 주요 문서 목록
 
@@ -128,10 +130,13 @@ docs/
 - [99_prepare_constants_mini_move_summary.md](./design/99_prepare_constants_mini_move_summary.md)
 - [99_prepare_hints_split_summary.md](./design/99_prepare_hints_split_summary.md)
 - [99_stage2_prompt_compaction_plan.md](./design/99_stage2_prompt_compaction_plan.md)
+- [99_stage2_report_quality_lint_candidate_review.md](./design/99_stage2_report_quality_lint_candidate_review.md)
+- [99_stage2_report_quality_lint_tuning_plan.md](./design/99_stage2_report_quality_lint_tuning_plan.md)
 
 ### prepare split / evidence boundary
 
-- 전체 인덱스: [design/README.md](./design/README.md)
+- prepare 모듈 인덱스: [../src/prepare/README.md](../src/prepare/README.md)
+- 전체 설계 인덱스: [design/README.md](./design/README.md)
 - constants ownership: [99_prepare_constants_ownership_map.md](./design/99_prepare_constants_ownership_map.md)
 - hints 후보 검토: [99_prepare_hints_split_candidate_review.md](./design/99_prepare_hints_split_candidate_review.md)
 - shared attack policy boundary: [99_prepare_shared_attack_policy_boundary_review.md](./design/99_prepare_shared_attack_policy_boundary_review.md)
@@ -185,6 +190,6 @@ docs/
 
 주요 문서의 1차 폴더 정리와 폴더별 README 추가는 완료된 상태다.
 
-최근 prepare module split, constants mini-move, hints split / evidence boundary, Stage2 prompt compaction, post-refactor spot check 문서는 `docs/design/README.md`, `docs/reviews/README.md`, 이 문서에 반영되어 있다.
+최근 prepare module split, constants mini-move, hints split / evidence boundary, Stage2 prompt compaction, Stage2 report quality lint, post-refactor spot check 문서는 `docs/design/README.md`, `docs/reviews/README.md`, 이 문서에 반영되어 있다.
 
 남은 작업은 archive 후보 분류, 절대 경로 링크의 단계적 상대 경로 전환, 필요 시 세트별 README 추가다.
