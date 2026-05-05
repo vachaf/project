@@ -1,0 +1,132 @@
+{
+  "meta": {
+    "generated_at": "2026-05-05T11:58:34.636+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.1",
+      "192.168.56.105",
+      "192.168.56.109",
+      "192.168.56.110",
+      "192.168.56.111"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_01ed8c127bb6d1d50169f95ccb4a4c819791637acdddaf3fc7",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/lab/04-30_E세트R2B_산출물/data/processed/openai-e_r2b-check_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/lab/04-30_E세트R2B_산출물/data/processed/openai-e_r2b-check_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 로그 2차 분석 요약: known asset IP에서 관찰된 PHP wrapper 기반 파일 공개 시도",
+    "overall_assessment": "이번 구간에서는 192.168.56.109에서 짧은 시간 안에 /index.php 및 인접 민감 경로를 대상으로 한 PHP wrapper 기반 파일/소스 공개 시도가 연속적으로 관찰되었습니다. 다만 Apache 로그만으로 실제 파일 내용 노출이나 침해 성공은 확인되지 않았고, 응답은 주로 HTML 404/200으로 나타나 탐지된 시도와 실제 유출을 분리해서 봐야 합니다. 또한 해당 IP는 known asset 목록과 일치하므로 내부 테스트, 자체 호출, 운영 점검 가능성을 함께 고려해야 합니다.",
+    "executive_summary": [
+      "분석 시간대는 2026-04-30 13:55~13:56(KST)이며, 192.168.56.109에서 4건의 중복되지 않은 후보 incident가 확인되었습니다.",
+      "핵심 패턴은 `php://filter/convert.base64-encode/resource=...` 형태의 PHP wrapper 기반 source/config disclosure 시도입니다.",
+      "`/config.php`, `/admin/config.php` 직접 접근은 민감 설정 경로 probing 맥락으로 보는 것이 적절하며, 응답 본문 원문이 없어 실제 노출 성공은 단정할 수 없습니다.",
+      "같은 IP에서 짧은 시간 동안 `/index.php`, `/config.php`, `/admin/config.php`가 함께 보여 reconnaissance/dir probing 흐름도 동반됩니다.",
+      "known asset IP와 일치하므로 악의적 외부 공격으로 단정하기보다 내부 테스트/점검 가능성을 반드시 병기해야 합니다."
+    ],
+    "key_findings": [
+      {
+        "title": "PHP wrapper 기반 파일/소스 공개 시도 4건",
+        "detail": "모든 top incident가 `php://filter`를 사용한 파일 공개 시도였습니다. 특히 `convert.base64-encode/resource=admin/config.php`와 `resource=config.php` 조합은 PHP stream wrapper를 이용해 설정/소스 파일을 읽어보려는 시도로 해석하는 것이 타당합니다. 다만 Apache 로그만으로 실제 파일 내용이 반환되었는지는 확인되지 않았고, 200 또는 404 응답만으로 유출 성공을 단정할 수는 없습니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "같은 출발지에서 민감 경로 probing 흐름 동반",
+        "detail": "probing_sequence_summary와 sensitive_path_probe_summary에 따르면 동일 출발지에서 `/index.php`, `/config.php`, `/admin/config.php`가 짧은 시간에 함께 관찰되었습니다. 이는 민감 경로를 훑는 reconnaissance 또는 directory probing 문맥으로 볼 수 있지만, 개별 경로의 존재나 파일 내용 노출 성공을 의미하지는 않습니다.",
+        "severity": "low"
+      },
+      {
+        "title": "known asset IP로 확인되어 내부 점검 가능성 존재",
+        "detail": "출발지 IP 192.168.56.109는 known asset 목록과 일치합니다. 따라서 외부 공격자로 단정하기보다는 내부 테스트, 자체 호출, 운영 점검 트래픽일 가능성을 함께 고려해야 합니다.",
+        "severity": "info"
+      },
+      {
+        "title": "후보 밖 탐색성 요청이 일부 필터링됨",
+        "detail": "filtered_out_breakdown에 `low_signal_dir_probe` 2건이 보존되어 있습니다. 즉, 일부 경미한 디렉터리 탐색성 요청은 후보 밖으로 정리되었고, 현재 보고서는 상대적으로 신뢰도 높은 PHP wrapper 기반 파일 공개 시도 중심으로 요약됩니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:afLgyRmT0DpdHXxqXheyewAAAAQ|table:security|log_id:1593|candidate:0",
+        "request_id": "afLgyRmT0DpdHXxqXheyewAAAAQ",
+        "src_ip": "192.168.56.109",
+        "verdict": "suspicious_file_disclosure",
+        "severity": "medium",
+        "why_it_matters": "쿼리에 `php://filter/resource=config.php`가 포함되어 있어 PHP wrapper를 이용한 설정 파일/소스 공개 시도로 보는 것이 적절합니다. 다만 응답은 404이고 text/html이어서 실제 파일 내용 노출 성공은 확인되지 않았습니다."
+      },
+      {
+        "incident_ref": "request_id:afLgxOeAB9en9-liEbFkQAAAAAM|table:security|log_id:1592|candidate:1",
+        "request_id": "afLgxOeAB9en9-liEbFkQAAAAAM",
+        "src_ip": "192.168.56.109",
+        "verdict": "suspicious_file_disclosure",
+        "severity": "medium",
+        "why_it_matters": "`php://filter/resource=config.php` 조합은 민감한 설정 파일 조회 시도로 해석하는 것이 타당합니다. 다만 404 응답만으로 실제 유출 성공을 확인할 수는 없으며, 시도 탐지 수준으로 보는 것이 안전합니다."
+      },
+      {
+        "incident_ref": "request_id:afLgwWSoHnmpSRvjKFzotAAAAAA|table:security|log_id:1591|candidate:2",
+        "request_id": "afLgwWSoHnmpSRvjKFzotAAAAAA",
+        "src_ip": "192.168.56.109",
+        "verdict": "suspicious_file_disclosure",
+        "severity": "medium",
+        "why_it_matters": "`php://filter/convert.base64-encode/resource=admin/config.php`는 PHP wrapper를 이용한 소스/설정 파일 조회 시도입니다. 응답이 200 text/html이지만 Apache 로그만으로 실제 파일 내용 노출이나 base64 기반 유출 성공은 확인되지 않습니다."
+      },
+      {
+        "incident_ref": "request_id:afLgvZHt9hGyqryjyhdXXwAAAAE|table:security|log_id:1590|candidate:3",
+        "request_id": "afLgvZHt9hGyqryjyhdXXwAAAAE",
+        "src_ip": "192.168.56.109",
+        "verdict": "suspicious_file_disclosure",
+        "severity": "medium",
+        "why_it_matters": "`file=php://filter/convert.base64-encode/resource=config.php`는 PHP wrapper 기반 소스/설정 파일 조회 시도입니다. 200 text/html 응답만으로는 실제 파일 내용이 노출되었는지 판단할 수 없습니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.109",
+        "reason": "4건의 후보 incident가 모두 이 IP에서 발생했고, 짧은 시간 안에 `/index.php`, `/config.php`, `/admin/config.php`가 함께 관찰되었습니다. known asset과도 일치하므로 내부 테스트/운영 점검 가능성을 함께 고려해야 합니다."
+      }
+    ],
+    "noise_interpretation": "후보 밖 분포는 `low_signal_dir_probe` 2건으로 정리되어 있습니다. 이는 상대적으로 신호가 약한 디렉터리 탐색성 요청이 별도로 존재했음을 의미하며, 본 보고서의 핵심 incident와는 분리해 해석해야 합니다. 다만 noise가 적다고 해서 다른 요청의 의미가 약해지는 것은 아니며, 현재 핵심은 PHP wrapper 기반 파일 공개 시도입니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "192.168.56.109의 요청 원문과 인접 시간대 로그를 추가 대조해 동일 주체의 테스트/운영 점검인지 확인하고, 예상되지 않은 활동이면 네트워크 주체를 식별하라.",
+        "why": "known asset IP이므로 내부 테스트 가능성이 있으나, 실제 운영 트래픽인지 악성 시도인지 구분이 필요합니다."
+      },
+      {
+        "priority": "P1",
+        "action": "`php://filter` 및 `resource=config.php`, `resource=admin/config.php` 패턴을 WAF/탐지 룰에 반영하고, 동일 패턴 반복 시 알림 기준을 강화하라.",
+        "why": "현재 관찰된 핵심 행위가 PHP wrapper 기반 파일 공개 시도이므로 재발 탐지가 중요합니다."
+      },
+      {
+        "priority": "P2",
+        "action": "/config.php, /admin/config.php, /index.php 파라미터 처리 경로를 점검하고, 민감 설정 파일이 웹 루트 또는 취약한 include 경로로 노출되지 않도록 검토하라.",
+        "why": "응답 성공 여부와 무관하게 민감 경로 probing이 있었기 때문에 경로 설계를 점검할 필요가 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "동일 IP에서의 연속 요청을 시간축으로 재구성해 probing_sequence_summary와 top incident가 같은 작업 세션인지 확인하라.",
+        "why": "짧은 시간 내 연속 probing과 file disclosure 시도가 함께 보이므로 세션 단위 상관분석이 유용합니다."
+      },
+      {
+        "priority": "P3",
+        "action": "탐지된 404/200 HTML 응답에 대해 서버 측 라우팅과 fallback 동작을 검토해, 실제 파일 접근 실패와 일반 HTML 응답을 구분할 수 있게 하라.",
+        "why": "현재는 Apache 로그만으로 유출 성공을 확정할 수 없으므로 응답 의미를 더 명확히 해야 합니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "신뢰도는 중간 수준입니다. `php://filter` 패턴과 민감 경로 지정은 비교적 명확하지만, Apache 로그만으로 실제 파일 내용 노출 성공은 확인할 수 없습니다.",
+      "`200 text/html` 응답은 정상 라우팅, fallback HTML, 빈 PHP 출력 등 여러 해석이 가능하므로 유출 성공 근거로 사용하지 않았습니다.",
+      "`404 text/html` 역시 탐지 실패 또는 잘못된 경로 접근일 수 있어, 공격 성공이나 침해 성공으로 확대 해석하지 않았습니다.",
+      "해당 IP는 known asset과 일치하므로 내부 테스트, 자체 호출, 운영 점검 가능성을 배제하지 않았습니다.",
+      "raw POST body가 없는 환경이므로 body 내부 payload 성공/실패 여부는 확인하지 않았습니다."
+    ],
+    "presentation_takeaway": "이번 구간의 핵심은 192.168.56.109에서 관찰된 PHP wrapper 기반 설정/소스 공개 시도입니다. 다만 이는 시도 탐지로 보는 것이 적절하며, 실제 유출이나 침해 성공은 확인되지 않았습니다. known asset IP라는 점을 감안해 내부 테스트 가능성까지 함께 검토하는 것이 가장 실용적입니다."
+  }
+}
