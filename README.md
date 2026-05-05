@@ -12,6 +12,7 @@ Apache 웹 로그를 MariaDB에 적재한 뒤 `export -> prepare -> stage1 -> st
 - `src/prepare/` 하위 모듈에서 decoder, hint, context summary, constants owner 일부를 분리 관리
 - `llm_stage1_classifier.py`에서 후보별 1차 분류
 - `llm_stage2_reporter.py`에서 Markdown / JSON 보고서 생성
+- `scripts/check_stage2_report_quality.py`로 Stage2 report JSON wording risk를 warning-only lint
 - `run_analysis_pipeline.py --dry-run`으로 실제 LLM API 호출 없이 구조 검증 가능
 - 문서 허브는 [docs/README.md](docs/README.md)에서 관리
 
@@ -26,6 +27,7 @@ Apache logs
   -> llm_stage1_classifier.py
   -> llm_stage2_reporter.py
   -> run_analysis_pipeline.py
+  -> optional: check_stage2_report_quality.py
 ```
 
 ## Supported Signals
@@ -62,7 +64,7 @@ Apache logs
 
 ## Prepare Module Structure
 
-`src/prepare_llm_input.py`는 여전히 prepare 단계의 coordinator 역할을 유지합니다. 세부 helper와 pattern/context builder는 아래 모듈로 분리되어 있습니다.
+`src/prepare_llm_input.py`는 여전히 prepare 단계의 coordinator 역할을 유지합니다. 세부 helper와 pattern/context builder는 `src/prepare/` 하위 모듈로 분리되어 있습니다.
 
 ```text
 src/prepare/decoders.py
@@ -83,6 +85,8 @@ src/prepare/file_disclosure_hints.py
 src/prepare/traversal_cmdi_hints.py
 ```
 
+세부 역할과 분리 원칙은 [src/prepare/README.md](src/prepare/README.md)를 기준으로 확인합니다.
+
 분리 원칙:
 
 - mechanical refactor 우선
@@ -99,8 +103,10 @@ src/prepare/traversal_cmdi_hints.py
 - constants mini-move 1차 완료
 - SQLi/XSS/file disclosure/traversal-CMDI hint split 완료
 - Stage2 prompt compaction 완료
+- Stage2 report quality lint 추가 및 tuning 완료
 - B/C/E/H dry-run spot check 통과
 - H R4, E R2B actual LLM spot check 통과
+- 최신 actual report 2건 quality lint PASS
 - 추가 코드 분리는 보류하고 실제 LLM 출력 관찰 중심으로 관리
 
 ## Regression Checks
@@ -110,12 +116,14 @@ python3 scripts/check_prepare_regression.py
 python3 scripts/check_prepare_regression.py --strict
 python3 scripts/check_stage_dryrun_regression.py
 python3 scripts/check_stage_dryrun_regression.py --strict
+python3 scripts/check_stage2_report_quality.py --input path/to/stage2_report.json --pretty
 ```
 
 현재 기준:
 
 - prepare regression: 18 fixtures, `warn=0 fail=0`
 - stage dry-run regression: 12 fixtures, `warn=0 fail=0`
+- Stage2 quality lint tests: 14 passed
 - 주요 Python 파일 `py_compile` 통과
 
 최신 상태는 [docs/진행상황.md](docs/진행상황.md)를 기준으로 확인합니다.
@@ -145,11 +153,12 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 
 - `docs/README.md`: 전체 문서 허브
 - `src/`: 분석 파이프라인의 주요 Python 코드
-- `scripts/`: 회귀 검증, dry-run 검증, 보조 점검 스크립트
+- `src/prepare/README.md`: prepare 하위 모듈 역할과 분리 원칙
+- `scripts/`: 회귀 검증, dry-run 검증, Stage2 quality lint, 보조 점검 스크립트
 - `docs/operations/`: 실행 가이드, 환경 구축, 로그 구조, `export/prepare/stage1/stage2` 운영 문서
 - `docs/standards/`: 비교 실험 표준, 결과 기록 템플릿, 품질 기준
 - `docs/experiments/`: A~H 세트별 실험 설계/실행 요청 문서
-- `docs/design/`: 파이프라인 설계, regression 설계, prepare split, constants/hints evidence boundary, Stage2 prompt 설계 문서
+- `docs/design/`: 파이프라인 설계, regression 설계, prepare split, constants/hints evidence boundary, Stage2 prompt/lint 설계 문서
 - `docs/reviews/`: 중간정리, LLM 샘플 검증, post-refactor dry-run/actual LLM spot check
 - `docs/planning/`: 후속 작업 TODO와 우선순위
 - `lab/`: 실험 산출물, 비교 결과, 실행 결과 보관
@@ -164,6 +173,7 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 - 전체 흐름: [docs/operations/00_전체_흐름_요약_가이드.md](docs/operations/00_전체_흐름_요약_가이드.md)
 - 실험 표준: [docs/standards/98_비교_실험_요청_세트_표준.md](docs/standards/98_비교_실험_요청_세트_표준.md)
 - 회귀 검증 설계: [docs/design/99_prepare_regression_fixture_설계.md](docs/design/99_prepare_regression_fixture_설계.md), [docs/design/99_stage_dryrun_regression_설계.md](docs/design/99_stage_dryrun_regression_설계.md)
-- prepare split 인덱스: [docs/design/README.md](docs/design/README.md)
+- prepare split 인덱스: [docs/design/README.md](docs/design/README.md), [src/prepare/README.md](src/prepare/README.md)
+- Stage2 prompt/lint 설계: [docs/design/99_stage2_prompt_compaction_plan.md](docs/design/99_stage2_prompt_compaction_plan.md), [docs/design/99_stage2_report_quality_lint_candidate_review.md](docs/design/99_stage2_report_quality_lint_candidate_review.md), [docs/design/99_stage2_report_quality_lint_tuning_plan.md](docs/design/99_stage2_report_quality_lint_tuning_plan.md)
 - post-refactor actual LLM spot check: [docs/reviews/99_post_refactor_LLM_output_spot_check.md](docs/reviews/99_post_refactor_LLM_output_spot_check.md)
 - 후속 작업: [docs/planning/99_비교실험_후속개선_TODO.md](docs/planning/99_비교실험_후속개선_TODO.md)
