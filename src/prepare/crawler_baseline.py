@@ -5,6 +5,20 @@ from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional
 from urllib.parse import unquote_plus
 
+BROWSER_UA_HINTS = (
+    "mozilla/",
+    "chrome/",
+    "safari/",
+    "firefox/",
+    "edg/",
+    "applewebkit/",
+)
+CRAWLER_BASELINE_WINDOW_SEC = 300
+CRAWLER_BASELINE_SAMPLE_REQUEST_LIMIT = 10
+CRAWLER_BROWSE_PRODUCT_SEGMENTS = {"product", "products"}
+CRAWLER_BROWSE_CATEGORY_SEGMENTS = {"category", "categories"}
+CRAWLER_BROWSE_GENERIC_SEGMENTS = {"list", "browse"}
+
 
 def _normalize_text(value: Optional[Any]) -> str:
     if value is None:

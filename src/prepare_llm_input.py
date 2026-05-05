@@ -136,6 +136,12 @@ try:
         finalize_static_baseline_bucket as _finalize_static_baseline_bucket,
     )
     from src.prepare.crawler_baseline import (
+        BROWSER_UA_HINTS,
+        CRAWLER_BASELINE_SAMPLE_REQUEST_LIMIT,
+        CRAWLER_BASELINE_WINDOW_SEC,
+        CRAWLER_BROWSE_CATEGORY_SEGMENTS,
+        CRAWLER_BROWSE_GENERIC_SEGMENTS,
+        CRAWLER_BROWSE_PRODUCT_SEGMENTS,
         build_crawler_baseline_reason_hints_for_row as _build_crawler_baseline_reason_hints_for_row,
         build_crawler_baseline_summaries as _build_crawler_baseline_summaries,
         build_crawler_baseline_summary_contexts as _build_crawler_baseline_summary_contexts,
@@ -264,6 +270,12 @@ except ImportError:
         finalize_static_baseline_bucket as _finalize_static_baseline_bucket,
     )
     from prepare.crawler_baseline import (
+        BROWSER_UA_HINTS,
+        CRAWLER_BASELINE_SAMPLE_REQUEST_LIMIT,
+        CRAWLER_BASELINE_WINDOW_SEC,
+        CRAWLER_BROWSE_CATEGORY_SEGMENTS,
+        CRAWLER_BROWSE_GENERIC_SEGMENTS,
+        CRAWLER_BROWSE_PRODUCT_SEGMENTS,
         build_crawler_baseline_reason_hints_for_row as _build_crawler_baseline_reason_hints_for_row,
         build_crawler_baseline_summaries as _build_crawler_baseline_summaries,
         build_crawler_baseline_summary_contexts as _build_crawler_baseline_summary_contexts,
@@ -422,10 +434,6 @@ STATIC_PREFIXES = (
     "/assets/", "/frontend/", "/dist/", "/public/", "/img/", "/images/", "/fonts/", "/static/",
 )
 
-BROWSER_UA_HINTS = (
-    "mozilla/", "chrome/", "safari/", "firefox/", "edg/", "applewebkit/",
-)
-
 SOURCE_PRIORITY = {"security": 3, "access": 2, "error": 1}
 SOURCE_ORDER = ["security", "access", "error"]
 DECODE_VARIANT_MAX_CHARS = 4096
@@ -435,8 +443,6 @@ PROBING_SEQUENCE_WINDOW_SEC = 120
 PROBING_SEQUENCE_MIN_REQUESTS = 3
 PROBING_SEQUENCE_MIN_DISTINCT_PATHS = 3
 PROBING_SEQUENCE_SAMPLE_PATH_LIMIT = 10
-CRAWLER_BASELINE_WINDOW_SEC = 300
-CRAWLER_BASELINE_SAMPLE_REQUEST_LIMIT = 10
 SENSITIVE_PATH_PROBE_WINDOW_SEC = 300
 SENSITIVE_PATH_PROBE_SAMPLE_REQUEST_LIMIT = 10
 SENSITIVE_PATH_PROBE_REPRESENTATIVE_CANDIDATE_LIMIT = 1
@@ -461,9 +467,6 @@ HEALTH_LIKE_PATHS = {
     "/status",
     "/ping",
 }
-CRAWLER_BROWSE_PRODUCT_SEGMENTS = {"product", "products"}
-CRAWLER_BROWSE_CATEGORY_SEGMENTS = {"category", "categories"}
-CRAWLER_BROWSE_GENERIC_SEGMENTS = {"list", "browse"}
 SEARCH_PARAM_NAMES = {"q", "query", "search", "keyword", "term", "s"}
 NORMAL_SEARCH_VALUE_RE = re.compile(r"(?i)^[a-z0-9][a-z0-9 _-]{0,63}$")
 STRONG_ATTACK_HINT_PREFIXES = (
