@@ -12,6 +12,8 @@
 - [99_prepare_ip_behavior_constants_move_plan.md](./99_prepare_ip_behavior_constants_move_plan.md)
 - [99_prepare_method_behavior_constants_move_plan.md](./99_prepare_method_behavior_constants_move_plan.md)
 - [99_prepare_static_baseline_constants_move_plan.md](./99_prepare_static_baseline_constants_move_plan.md)
+- [99_prepare_auth_behavior_constants_move_plan.md](./99_prepare_auth_behavior_constants_move_plan.md)
+- [99_prepare_crawler_baseline_constants_move_plan.md](./99_prepare_crawler_baseline_constants_move_plan.md)
 - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md)
 - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
 
@@ -28,6 +30,8 @@ PROTOCOL_ANOMALY_* constants -> src/prepare/protocol_anomalies.py
 IP_BEHAVIOR_* constants -> src/prepare/ip_behavior.py
 METHOD_BEHAVIOR_* / method family constants 일부 -> src/prepare/method_summaries.py
 STATIC_BASELINE_* constants 일부 -> src/prepare/static_baseline.py
+AUTH_* / LOGIN_URI / AUTH_ENDPOINT family constants -> src/prepare/auth_behavior.py
+CRAWLER_BASELINE_* / BROWSER_UA / CRAWLER_BROWSE constants -> src/prepare/crawler_baseline.py
 ```
 
 공통 원칙:
@@ -335,6 +339,137 @@ python3 scripts/check_stage_dryrun_regression.py --strict: pass=12 warn=0 fail=0
 - response bytes/content-type만으로 file exposure 단정 금지
 ```
 
+### 2.5 auth behavior constants/patterns
+
+기준 커밋:
+
+```text
+735d7eba0cb22835716a5098be75cded6c61b4ec
+refactor: move auth behavior constants
+```
+
+이동한 constants/patterns:
+
+```text
+AUTH_SUCCESS_ATTACK_HINT_PATTERN
+LOGIN_URI_HINTS
+AUTH_ENDPOINT_FAMILY_PATTERNS
+AUTH_BEHAVIOR_WINDOW_SEC = 300
+AUTH_BEHAVIOR_RAPID_WINDOW_SEC = 60
+AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
+AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT = 3
+```
+
+owner module:
+
+```text
+src/prepare/auth_behavior.py
+```
+
+수정 파일:
+
+```text
+src/prepare/auth_behavior.py
+src/prepare_llm_input.py
+```
+
+유지한 계약:
+
+```text
+- helper/function 추가 이동 없음
+- auth endpoint classification 로직 변경 없음
+- login endpoint detection 로직 변경 없음
+- auth attack-word hint 로직 변경 없음
+- representative candidate reduction 의미 변경 없음
+- auth behavior summary output key 변경 없음
+- policy_notes 의미 변경 없음
+```
+
+검증 결과:
+
+```text
+python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py: 통과
+python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py: 통과
+python3 scripts/check_prepare_regression.py --strict: pass=18 warn=0 fail=0
+python3 scripts/check_stage_dryrun_regression.py --strict: pass=12 warn=0 fail=0
+```
+
+해석 제한:
+
+```text
+- 로그인 성공 단정 금지
+- 계정 탈취 단정 금지
+- credential stuffing 성공 단정 금지
+- lockout 발동 단정 금지
+- auth bypass 성공 단정 금지
+- auth behavior summary는 context이지 success proof가 아님
+```
+
+### 2.6 crawler baseline constants/patterns
+
+기준 커밋:
+
+```text
+0787a859088c90160d54510fcc7a29f33070dcea
+refactor: move crawler baseline constants
+```
+
+이동한 constants/patterns:
+
+```text
+BROWSER_UA_HINTS
+CRAWLER_BASELINE_WINDOW_SEC = 300
+CRAWLER_BASELINE_SAMPLE_REQUEST_LIMIT = 10
+CRAWLER_BROWSE_PRODUCT_SEGMENTS = {"product", "products"}
+CRAWLER_BROWSE_CATEGORY_SEGMENTS = {"category", "categories"}
+CRAWLER_BROWSE_GENERIC_SEGMENTS = {"list", "browse"}
+```
+
+owner module:
+
+```text
+src/prepare/crawler_baseline.py
+```
+
+수정 파일:
+
+```text
+src/prepare/crawler_baseline.py
+src/prepare_llm_input.py
+```
+
+유지한 계약:
+
+```text
+- helper/function 추가 이동 없음
+- crawler-like UA classifier 로직 변경 없음
+- crawler browse path classifier 로직 변경 없음
+- crawler baseline summary output key 변경 없음
+- policy_notes 의미 변경 없음
+- expected/test fixture 수정 없음
+- Stage2 reporter 수정 없음
+```
+
+검증 결과:
+
+```text
+python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py: 통과
+python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py: 통과
+python3 scripts/check_prepare_regression.py --strict: pass=18 warn=0 fail=0
+python3 scripts/check_stage_dryrun_regression.py --strict: pass=12 warn=0 fail=0
+```
+
+해석 제한:
+
+```text
+- 실제 crawler identity 단정 금지
+- User-Agent가 Googlebot-like여도 실제 Googlebot 여부 단정 금지
+- robots.txt 또는 sitemap.xml 내용 단정 금지
+- site structure 단정 금지
+- product/category page existence 단정 금지
+- crawler baseline summary는 context이지 crawler authenticity 또는 site mapping proof가 아님
+```
+
 ## 3. 계속 보류할 constants
 
 이번 mini-move 이후에도 아래 constants는 계속 보류한다.
@@ -387,29 +522,24 @@ MIXED_BASELINE_SCANNER_*
 - context-only summary를 candidate/incident로 과승격하지 않도록 경계를 유지해야 함
 ```
 
-### 3.4 hint patterns / generic attack policy constants
+### 3.4 automation / shared attack policy / decoded hints
 
 ```text
-SQLI_* patterns
-XSS_* patterns
-FILE_DISCLOSURE_* patterns
-TRAVERSAL_* patterns
-CMDI_* patterns
-AUTOMATION_UA_* patterns
+AUTOMATION_UA_PATTERNS
 STRONG_ATTACK_* constants
 ATTACK_ENCODED_PAYLOAD_RE
 NORMAL_SEARCH_ATTACK_TEXT_RE
 SEARCH_PARAM_NAMES
 NORMAL_SEARCH_VALUE_RE
+detect_decoded_attack_hints
 ```
 
 보류 이유:
 
 ```text
 - candidate selection, false positive suppression, supporting context와 연결될 수 있음
-- SQLi는 DB 결과를 볼 수 없음
-- XSS는 브라우저 실행 여부를 볼 수 없음
-- file disclosure는 response body 원문/파일 내용/실제 노출 여부를 볼 수 없음
+- automation/tool UA는 lab-* / experiment-like UA guard와 연결됨
+- decoded attack hints는 SQLi/XSS/file disclosure/traversal/CMDI와 모두 연결됨
 - evidence boundary 문서 없이 이동하면 의미 변경 위험이 큼
 ```
 
@@ -428,7 +558,7 @@ NORMAL_SEARCH_VALUE_RE
 - output key 변경
 - candidate/scoring/filtering 변경
 - supporting_events 생성/연결 로직 변경
-- SQLi/XSS/file disclosure hint patterns 이동
+- automation UA / shared attack policy / decoded hint 이동
 ```
 
 제외 이유:
@@ -446,7 +576,7 @@ NORMAL_SEARCH_VALUE_RE
 이유:
 
 ```text
-- owner가 비교적 명확한 constants group은 1차로 정리했음
+- owner가 비교적 명확한 constants group은 정리 완료됨
 - 남은 constants는 공유 경계 또는 evidence boundary가 더 민감함
 - 추가 이동은 constants 이동보다 후보 비교/경계 문서가 먼저 필요함
 ```
@@ -458,44 +588,33 @@ NORMAL_SEARCH_VALUE_RE
 - PROBING_SEQUENCE_* 이동
 - SENSITIVE_PATH_PROBE_* / DIR_PROBE_* 이동
 - MIXED_BASELINE_SCANNER_* 이동
-- SQLi/XSS/file_disclosure patterns 이동
+- AUTOMATION_UA_PATTERNS 이동
+- shared attack/search policy constants 이동
+- detect_decoded_attack_hints 이동
 ```
 
 ## 6. 권장 다음 작업
 
-다음 작업은 constants 추가 이동이 아니라 hints split candidate review다.
+다음 작업은 추가 constants 이동이 아니라 안정화/관찰 단계다.
 
-권장 신규 문서:
+권장:
 
 ```text
-docs/design/99_prepare_hints_split_candidate_review.md
+1. 전체 regression / py_compile 재확인
+2. B/C/E/H dry-run spot check 유지
+3. 실제 LLM output spot check가 필요하면 대표 1~2개만 수행
+4. 반복 wording 문제가 확인될 때만 report lint 또는 Stage2 wording 보강 검토
 ```
 
-비교 대상:
+관련 문서:
 
 ```text
-SQLi hints
-XSS hints
-file_disclosure hints
-traversal/cmdi/automation hints
-shared attack/search policy constants
-```
-
-이 문서에서 확인할 항목:
-
-```text
-- 후보별 함수명과 constants/patterns
-- candidate selection 영향
-- false positive suppression 영향
-- supporting_events 영향
-- Stage1/Stage2 wording 영향
-- Apache logs-only evidence boundary
-- 다음 코드 분리 후보를 고를 수 있는지 여부
+../reviews/99_post_refactor_dry_run_spot_check.md
 ```
 
 ## 7. 커밋/검증 메모
 
-이 문서는 constants mini-move summary 기록용이다.
+이 문서는 constants mini-move summary 갱신용이다.
 
 문서 작성 시 기대 변경 범위:
 
@@ -508,5 +627,5 @@ docs/design/99_prepare_constants_mini_move_summary.md
 문서 전용 커밋 후보:
 
 ```text
-docs: summarize prepare constants mini moves
+docs: update prepare constants mini move summary
 ```
