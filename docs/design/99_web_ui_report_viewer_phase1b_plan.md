@@ -42,6 +42,9 @@ Phase 1B에서 하지 않는다.
 - DB/SQLite
 - alert/dashboard
 - 외부 네트워크 노출
+- 모바일 전용 UX 고도화
+- 화려한 애니메이션
+- 다크모드/라이트모드 전환
 - `src/`, `scripts/`, `tests/`, `lab/` 수정
 
 Phase 1B는 기존 Stage2 report JSON과 quality lint 결과를 **비교·시각화**할 뿐이다.
@@ -63,6 +66,8 @@ Phase 1B는 기존 Stage2 report JSON과 quality lint 결과를 **비교·시각
 - severity badge
 - incident count / high severity / verdict type / key finding count 비교 bar
 - compact metric summary
+- missing provider panel을 흐리게 처리하는 시각적 표현
+- 좁은 화면에서 좌우 panel이 위아래로 쌓이는 responsive stack
 
 가져오지 않을 요소:
 
@@ -91,6 +96,7 @@ Phase 1B는 기존 Stage2 report JSON과 quality lint 결과를 **비교·시각
 - recommended actions 비교
 - Stage2 quality lint verdict/count 비교
 - missing pair 처리
+- narrow viewport에서 compare panel stack 처리
 
 제외:
 
@@ -151,21 +157,24 @@ hashlib.sha256(f"{scenario}|{timeframe}".encode("utf-8")).hexdigest()[:16]
     "openai": Optional[ReportDetail],
     "anthropic": Optional[ReportDetail],
     "metrics": {
-        "incident_count": {"openai": int, "anthropic": int},
-        "high_severity_count": {"openai": int, "anthropic": int},
-        "severity_counts": {"openai": dict, "anthropic": dict},
-        "verdict_counts": {"openai": dict, "anthropic": dict},
-        "key_finding_count": {"openai": int, "anthropic": int},
-        "recommended_action_count": {"openai": int, "anthropic": int},
-        "lint": {"openai": LintSummary, "anthropic": LintSummary},
+        "incident_count": {"openai": Optional[int], "anthropic": Optional[int]},
+        "high_severity_count": {"openai": Optional[int], "anthropic": Optional[int]},
+        "severity_counts": {"openai": Optional[dict], "anthropic": Optional[dict]},
+        "verdict_counts": {"openai": Optional[dict], "anthropic": Optional[dict]},
+        "key_finding_count": {"openai": Optional[int], "anthropic": Optional[int]},
+        "recommended_action_count": {"openai": Optional[int], "anthropic": Optional[int]},
+        "lint": {"openai": Optional[LintSummary], "anthropic": Optional[LintSummary]},
     },
     "differences": {
         "severity_delta": list,
         "verdict_delta": list,
         "lint_delta": list,
+        "missing_provider": list,
     }
 }
 ```
+
+Missing provider의 metric은 `0`이 아니라 `None`/`N/A`로 취급한다. 보고서 부재는 incident 0건이 아니라 **해당 provider report가 없는 상태**다.
 
 ---
 
@@ -188,8 +197,12 @@ GET /compare/{timeframe_id}
 pair가 없을 때:
 
 - 한쪽 provider만 있어도 page는 렌더링한다.
-- 없는 provider panel에는 `No report for this provider` 표시.
-- `has_both=false` badge 표시.
+- 없는 provider panel은 삭제하지 않고 비어 있는 panel로 유지한다.
+- 없는 provider panel에는 `Missing report` 또는 `No report for this provider`를 표시한다.
+- panel은 muted/grayscale/opacity/dashed border 스타일을 사용한다.
+- `has_both=false` badge를 표시한다.
+- missing provider를 incident 0건, severity 0건, verdict 0건으로 해석하지 않는다.
+- 비교 bar에서는 missing provider 값을 `N/A`로 표시한다.
 
 ### 6.2 Optional JSON route
 
@@ -202,6 +215,7 @@ GET /api/compare/{timeframe_id}
 - raw full report JSON 그대로 반환하지 않음
 - absolute filesystem path 미노출
 - IP metadata 마스킹
+- missing provider는 `null` 또는 명시적 `missing=true`로 표현
 
 ---
 
@@ -218,6 +232,7 @@ anthropic.notable_incidents count
 
 - count 차이는 모델 출력 차이일 뿐, 실제 사건 수 차이로 단정하지 않는다.
 - UI label은 `Reported incident count` 또는 `Report incident count`로 둔다.
+- provider report가 없으면 `0`이 아니라 `N/A`로 표시한다.
 
 ### 7.2 Severity distribution
 
@@ -237,6 +252,7 @@ critical / high / medium / low / info / unknown
 
 - severity 차이를 “어느 모델이 맞다”로 표현하지 않는다.
 - label은 `Severity distribution in report`를 사용한다.
+- provider report가 없으면 빈 bar가 아니라 muted `N/A` 상태로 표시한다.
 
 ### 7.3 Verdict distribution
 
@@ -330,6 +346,15 @@ critical / high / medium / low / info / unknown
 - key findings list
 - recommended actions list
 
+Missing provider panel:
+
+- panel 자체는 유지한다.
+- provider 색상 테마는 유지하되 opacity를 낮춘다.
+- dashed border 또는 muted background를 사용한다.
+- `Missing report` badge를 표시한다.
+- detail link는 표시하지 않는다.
+- metrics는 `N/A`로 표시한다.
+
 중앙/하단 compare area:
 
 - incident count compare bar
@@ -350,6 +375,7 @@ critical / high / medium / low / info / unknown
   - Anthropic: orange
 - severity badge는 Phase 1A class를 재사용한다.
 - lint badge도 Phase 1A class를 재사용한다.
+- missing provider panel은 opacity/dashed border/muted tone으로 처리한다.
 
 새 class 후보:
 
@@ -358,6 +384,7 @@ critical / high / medium / low / info / unknown
 .compare-panel
 .compare-panel-openai
 .compare-panel-anthropic
+.compare-panel-missing
 .compare-metrics
 .compare-bar
 .compare-bar-row
@@ -365,13 +392,59 @@ critical / high / medium / low / info / unknown
 .compare-bar-track
 .compare-bar-fill-openai
 .compare-bar-fill-anthropic
+.compare-bar-value-na
 .compare-delta-table
 .compare-empty-panel
+.badge-missing-report
 ```
 
 ---
 
-## 9. Sidebar / navigation
+## 9. Responsive / narrow viewport behavior
+
+Phase 1B는 완전한 모바일 전용 UX를 목표로 하지 않는다. 하지만 좁은 브라우저에서 좌우 비교 layout이 깨지지 않도록 기본 responsive stack은 포함한다.
+
+기본 CSS contract:
+
+```css
+.compare-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.compare-panel {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .compare-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.compare-metrics,
+.compare-table,
+.compare-bar {
+  min-width: 0;
+}
+
+.table-wrapper,
+.compare-table-wrapper {
+  overflow-x: auto;
+}
+```
+
+후순위:
+
+- 모바일 전용 navigation
+- touch gesture
+- animation-heavy transitions
+- dark/light theme toggle
+
+---
+
+## 10. Sidebar / navigation
 
 Phase 1B에서는 목록 화면에서 compare link를 추가한다.
 
@@ -379,7 +452,7 @@ Phase 1B에서는 목록 화면에서 compare link를 추가한다.
 
 - `Detail` link for each report
 - `Compare` link if `has_both=true`
-- `Compare unavailable` if pair missing
+- `Compare unavailable` 또는 `Missing pair` if pair missing
 
 선택 사항:
 
@@ -388,7 +461,7 @@ Phase 1B에서는 목록 화면에서 compare link를 추가한다.
 
 ---
 
-## 10. Apache logs-only UI guard
+## 11. Apache logs-only UI guard
 
 Phase 1B도 새 분석기가 아니다.
 
@@ -400,6 +473,7 @@ Phase 1B도 새 분석기가 아니다.
 - “real crawler” badge
 - `200`, `bytes`, `content-type` 기반 success badge
 - 모델 간 차이를 실제 사건 차이로 단정
+- missing provider를 `0 incidents`로 단정
 
 허용:
 
@@ -407,11 +481,12 @@ Phase 1B도 새 분석기가 아니다.
 - “Anthropic report has fewer notable incidents”
 - “Verdict labels differ”
 - “Lint warning count differs”
+- “Provider report missing”
 - “Needs manual review”
 
 ---
 
-## 11. Implementation touch points
+## 12. Implementation touch points
 
 예상 수정 파일:
 
@@ -444,7 +519,7 @@ config/
 
 ---
 
-## 12. Verification plan
+## 13. Verification plan
 
 문법/기본 검증:
 
@@ -499,22 +574,25 @@ http://127.0.0.1:8000/compare/{timeframe_id}
 
 ---
 
-## 13. Completion criteria
+## 14. Completion criteria
 
 Phase 1B 완료 기준:
 
 - `index.html`에서 pair가 있는 timeframe에 compare link가 표시된다.
+- pair가 없는 timeframe은 missing pair 상태가 직관적으로 보인다.
 - `/compare/{timeframe_id}`가 렌더링된다.
 - OpenAI / Anthropic report가 좌우 또는 명확한 두 panel로 표시된다.
+- 한쪽 provider가 없어도 muted missing panel로 표시되고 page가 깨지지 않는다.
 - incident count / severity / verdict / key finding / recommended action / lint count 차이가 보인다.
-- 한쪽 provider만 있어도 page가 깨지지 않는다.
+- missing provider metric은 `0`이 아니라 `N/A`로 표시된다.
+- 좁은 화면에서 compare panel이 위아래로 stack된다.
 - UI가 새 security conclusion을 만들지 않는다.
 - IP/metadata 마스킹 원칙을 유지한다.
 - `src/`, `scripts/`, `tests/`, `lab/`는 변경하지 않는다.
 
 ---
 
-## 14. Phase 2로 넘길 항목
+## 15. Phase 2로 넘길 항목
 
 Phase 1B 이후로 넘긴다.
 
@@ -527,3 +605,6 @@ Phase 1B 이후로 넘긴다.
 - SQLite history
 - alert/dashboard
 - comparison history trend
+- 모바일 전용 UX
+- 화려한 애니메이션
+- dark/light theme toggle
