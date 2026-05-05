@@ -1,0 +1,306 @@
+{
+  "meta": {
+    "generated_at": "2026-05-05T10:41:17.839+09:00",
+    "mode": "routine",
+    "selected_model": "dry-run-placeholder",
+    "dry_run": true,
+    "source_prepared_at": "2026-05-05T10:41:17.782+09:00",
+    "source_exported_at": "2026-04-25T22:15:37.587+09:00",
+    "source_query_timezone": "Asia/Seoul",
+    "source_window": {
+      "start": "2026-04-25T21:30:00.000+09:00",
+      "end_exclusive": "2026-04-25T21:33:00.000+09:00"
+    },
+    "source_counts": {
+      "total_exported_rows": 10,
+      "selected_source_rows": 10,
+      "filtered_out_rows": 1,
+      "filtered_out_non_aggregated_rows": 1,
+      "noise_group_count": 0,
+      "candidate_rows_before_auth_behavior_reduction": 9,
+      "auth_behavior_demoted_candidate_rows": 0,
+      "candidate_rows_before_dedup": 9,
+      "candidate_rows": 9,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 9,
+      "supporting_events": 1,
+      "false_positive_review_candidates": 1,
+      "probing_sequence_summaries": 0,
+      "static_baseline_summaries": 0,
+      "crawler_baseline_summaries": 0,
+      "sensitive_path_probe_summaries": 0,
+      "mixed_baseline_scanner_summaries": 0,
+      "ip_behavior_aggregates": 1,
+      "auth_behavior_summaries": 0,
+      "method_behavior_summaries": 0,
+      "protocol_anomaly_summaries": 0
+    },
+    "processed_candidate_count": 9,
+    "success_count": 9,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "request_id": "aey0EXHCi27Md-UoFOnpMwAAAEg",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9566,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T21:31:13.419 09:00",
+      "status_code": 500,
+      "score": 16,
+      "verdict": "likely_xss",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "xss:script_tag(+5)",
+        "xss:document_cookie(+4)",
+        "encoding:double_decoded_payload",
+        "encoding:decoded_depth_2",
+        "xss:script_tag",
+        "xss:browser_data_access",
+        "xss:document_cookie",
+        "xss:external_navigation"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 1,
+      "request_id": "aeyz-HHCi27Md-UoFOnpMQAAAEQ",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9563,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T21:30:48.258 09:00",
+      "status_code": 200,
+      "score": 16,
+      "verdict": "likely_xss",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "xss:script_tag(+5)",
+        "xss:alert_call(+3)",
+        "xss:document_cookie(+4)",
+        "encoding:double_decoded_payload",
+        "encoding:decoded_depth_2",
+        "xss:browser_data_access",
+        "xss:document_cookie",
+        "xss:script_tag"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 2,
+      "request_id": "aeyz73HCi27Md-UoFOnpMAAAAEM",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9562,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T21:30:39.968 09:00",
+      "status_code": 500,
+      "score": 15,
+      "verdict": "likely_xss",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "xss:script_tag(+5)",
+        "xss:alert_call(+3)",
+        "encoding:url_encoded_payload",
+        "xss:script_tag",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 3,
+      "request_id": "aey0PXHCi27Md-UoFOnpNAAAAEk",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9567,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T21:31:57.298 09:00",
+      "status_code": 500,
+      "score": 13,
+      "verdict": "likely_xss",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "xss:javascript_uri(+4)",
+        "xss:alert_call(+3)",
+        "encoding:url_encoded_payload",
+        "xss:javascript_protocol",
+        "special_char_ratio_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 4,
+      "request_id": "aey0THHCi27Md-UoFOnpNgAAAEw",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9569,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T21:32:12.294 09:00",
+      "status_code": 200,
+      "score": 12,
+      "verdict": "likely_xss",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "xss:script_tag(+5)",
+        "xss:alert_call(+3)",
+        "encoding:url_encoded_payload",
+        "encoding:html_entity_payload",
+        "encoding:html_entity_decoded",
+        "encoding:html_entity_decoded_xss",
+        "xss:script_tag",
+        "xss:html_entity_decoded_script"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 5,
+      "request_id": "aeyz__U0ZgNjgUQucSRN3AAAAAw",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9564,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T21:30:55.458 09:00",
+      "status_code": 200,
+      "score": 9,
+      "verdict": "likely_xss",
+      "severity": "medium",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "xss:event_handler(+3)",
+        "xss:alert_call(+3)",
+        "encoding:url_encoded_payload",
+        "xss:event_handler",
+        "xss:event_handler:onerror",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 6,
+      "request_id": "aey0RHHCi27Md-UoFOnpNQAAAEo",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9568,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T21:32:04.824 09:00",
+      "status_code": 200,
+      "score": 8,
+      "verdict": "likely_xss",
+      "severity": "medium",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "xss:script_tag(+5)",
+        "encoding:url_encoded_payload",
+        "xss:script_tag",
+        "xss:mixed_case_script_tag",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 7,
+      "request_id": "aey0U_U0ZgNjgUQucSRN3QAAAA4",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9570,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T21:32:19.028 09:00",
+      "status_code": 200,
+      "score": 4,
+      "verdict": "inconclusive",
+      "severity": "low",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "xss:script_tag(+5)",
+        "encoding:url_encoded_payload",
+        "xss:script_tag",
+        "long_query(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "context:educational_xss_search",
+        "context:natural_language_query",
+        "no_event_handler_assignment"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 8,
+      "request_id": "aey0CHHCi27Md-UoFOnpMgAAAEY",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9565,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T21:31:04.307 09:00",
+      "status_code": 200,
+      "score": 4,
+      "verdict": "suspicious_scan",
+      "severity": "low",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    }
+  ]
+}
