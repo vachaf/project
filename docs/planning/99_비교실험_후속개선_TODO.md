@@ -69,10 +69,13 @@
   - `docs/design/99_prepare_hints_split_candidate_review.md` 작성 완료
   - `docs/design/99_prepare_sqli_hints_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_xss_hints_split_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_file_disclosure_hints_split_plan.md` 작성 및 완료 반영
   - `src/prepare/sqli_hints.py` 분리 완료
   - `src/prepare/xss_hints.py` 분리 완료
+  - `src/prepare/file_disclosure_hints.py` 분리 완료
   - SQLi pattern/constants와 `detect_educational_sql_search_context` 이동 완료
   - XSS 전용 pattern/constants 이동 완료
+  - file disclosure pattern/constants와 `detect_file_disclosure_hints` 이동 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -130,7 +133,7 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — file disclosure hints 검토 대기
+## P4. prepare 모듈 분리 — hints split summary 작성 대기
 
 - 완료:
   - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
@@ -138,26 +141,27 @@
   - constants ownership / mini-move 정리 완료
   - SQLi hints 1차 분리 완료
   - XSS hints 1차 분리 완료
+  - file disclosure hints 1차 분리 완료
   - `docs/design/99_prepare_hints_split_candidate_review.md` 작성
   - `docs/design/99_prepare_sqli_hints_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_xss_hints_split_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_file_disclosure_hints_split_plan.md` 작성 및 완료 반영
   - prepare/stage dry-run regression strict 통과 유지
 - 최근 완료:
-  - `src/prepare/xss_hints.py` 추가
-  - XSS 전용 pattern/constants 이동 완료
-  - `HTML_ENTITY_RE`는 `src/prepare_llm_input.py`에 유지
-  - `src/prepare/decoders.py`의 `HTML_ENTITY_RE` 변경 없음
-  - `detect_decoded_attack_hints`, decoded variants/helper, candidate scoring/filtering, browser execution/impact verdict, supporting_events는 이동하지 않음
-  - expected/test fixture 수정 없음
-  - Stage2 reporter 수정 없음
-  - 기준 커밋 `de89a90df2e4f6bdecc21a06c62f0dfaf284b7f7`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
+  - `src/prepare/file_disclosure_hints.py` 추가
+  - `FILE_DISCLOSURE_PATTERNS`, `PHP_FILTER_CANONICAL_PATTERN` 이동 완료
+  - `detect_file_disclosure_hints` 이동 완료
+  - `src/prepare_llm_input.py`에는 기존 함수명을 유지하는 wrapper 유지
+  - `suspicious_file_disclosure` verdict 결정 로직은 이동하지 않음
+  - candidate scoring/filtering, supporting_events, Stage2 reporter, expected/test fixture는 이동/수정하지 않음
+  - 기준 커밋 `2981dd11d96bd93e0973f0c0b8fa228092c2f0f4`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
 - 다음 작업:
-  - `grep -n "FILE_DISCLOSURE_\|PHP_FILTER_CANONICAL_PATTERN\|suspicious_file_disclosure\|file_disclosure" src/prepare_llm_input.py src/prepare/*.py src/llm_stage2_reporter.py tests/expected -R` 확인
-  - file disclosure hints split plan 작성 여부 결정
-  - suspicious_file_disclosure verdict, sensitive path probe, response bytes/content-type/status 해석 경계를 확인
-  - 바로 shared attack/search policy module로 진행하지 않음
+  - `docs/design/99_prepare_hints_split_summary.md` 작성
+  - SQLi/XSS/file disclosure 완료 모듈 정리
+  - 각 모듈 이동 항목 정리
+  - 보류한 shared logic과 traversal/CMDI/automation 후보 정리
+  - 다음 후보를 코드 분리로 진행할지, 후보 비교 문서로 먼저 갈지 결정
 - 보류 후보:
-  - file_disclosure hints
   - traversal/CMDI/automation hints
   - shared attack/search policy constants
   - `constants.py` 대량 분리
