@@ -59,12 +59,34 @@ a {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.9rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 0.75rem;
+  min-width: 0;
+}
+
+.card-grid > * {
+  min-width: 0;
+}
+
+.report-title,
+.report-filename,
+.report-path,
+.repo-path,
+.card strong,
+.report-card strong,
+.meta-grid > div,
+.issue-path,
+.card p {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .table-wrapper {
