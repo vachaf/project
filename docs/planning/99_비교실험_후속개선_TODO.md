@@ -48,37 +48,24 @@
   - `src/prepare/probing_sequence.py` 분리 완료
   - `src/prepare/mixed_baseline_scanner.py` 분리 완료
   - `docs/design/99_prepare_module_split_round1_summary.md` 작성 완료
-  - `docs/design/99_prepare_module_split_round2_candidate_review.md` 작성 완료
-  - `docs/design/99_prepare_ip_behavior_aggregates_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_probing_sequence_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_mixed_baseline_scanner_split_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_module_split_round2_summary.md` 작성 완료
-- prepare constants ownership / mini-move 문서 정리 진행
+- prepare constants ownership / mini-move 정리 완료
   - `docs/design/99_prepare_constants_ownership_map.md` 작성 완료
   - `docs/design/99_prepare_constants_mini_move_candidate_review.md` 작성 완료
-  - `docs/design/99_prepare_protocol_anomaly_constants_move_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_ip_behavior_constants_move_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_method_behavior_constants_move_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_static_baseline_constants_move_plan.md` 작성 및 완료 반영
   - `docs/design/99_prepare_constants_mini_move_summary.md` 작성 완료
   - `PROTOCOL_ANOMALY_*` constants 3개를 `src/prepare/protocol_anomalies.py`로 이동 완료
   - `IP_BEHAVIOR_*` constants 3개를 `src/prepare/ip_behavior.py`로 이동 완료
   - method behavior constants 5개를 `src/prepare/method_summaries.py`로 이동 완료
   - static baseline constants 3개를 `src/prepare/static_baseline.py`로 이동 완료
-- prepare hints split 검토 진행
+- prepare hints split 1차 정리 완료
   - `docs/design/99_prepare_hints_split_candidate_review.md` 작성 완료
-  - `docs/design/99_prepare_sqli_hints_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_xss_hints_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_file_disclosure_hints_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_traversal_cmdi_hints_split_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_hints_split_summary.md` 작성 및 traversal/CMDI까지 갱신 완료
+  - `docs/design/99_prepare_shared_attack_policy_boundary_review.md` 작성 완료
   - `src/prepare/sqli_hints.py` 분리 완료
   - `src/prepare/xss_hints.py` 분리 완료
   - `src/prepare/file_disclosure_hints.py` 분리 완료
   - `src/prepare/traversal_cmdi_hints.py` 분리 완료
-  - SQLi pattern/constants와 `detect_educational_sql_search_context` 이동 완료
-  - XSS 전용 pattern/constants 이동 완료
-  - file disclosure pattern/constants와 `detect_file_disclosure_hints` 이동 완료
-  - traversal/CMDI pattern constants 이동 완료
+  - shared attack/search policy, automation UA, decoded attack hints는 보류로 고정
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -136,47 +123,35 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — hints split summary 갱신 대기
+## P4. prepare 모듈 분리 — 1차/2차 및 hints split 정리 완료
 
 - 완료:
   - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
   - round2: `ip_behavior.py`, `probing_sequence.py`, `mixed_baseline_scanner.py`
-  - constants ownership / mini-move 정리 완료
-  - SQLi hints 1차 분리 완료
-  - XSS hints 1차 분리 완료
-  - file disclosure hints 1차 분리 완료
-  - traversal/CMDI hints 1차 분리 완료
-  - `docs/design/99_prepare_hints_split_candidate_review.md` 작성
-  - `docs/design/99_prepare_sqli_hints_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_xss_hints_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_file_disclosure_hints_split_plan.md` 작성 및 완료 반영
-  - `docs/design/99_prepare_traversal_cmdi_hints_split_plan.md` 작성 및 완료 반영
+  - constants mini-move: protocol anomaly, IP behavior, method behavior 일부, static baseline 일부
+  - hints split: SQLi, XSS, file disclosure, traversal/CMDI
+  - shared attack/search policy boundary review 작성 완료
   - prepare/stage dry-run regression strict 통과 유지
-- 최근 완료:
-  - `src/prepare/traversal_cmdi_hints.py` 추가
-  - `TRAVERSAL_PATTERNS`, `CMDI_PATTERNS` 이동 완료
-  - `AUTOMATION_UA_PATTERNS`는 이동하지 않음
-  - `detect_decoded_attack_hints`, decoded variants/helper, candidate scoring/filtering, normal search false-positive handling, attack category extraction, supporting_events는 이동하지 않음
-  - expected/test fixture 수정 없음
-  - Stage2 reporter 수정 없음
-  - 기준 커밋 `fdedb2ec1627cb9ef0a6d5feb115c6d6fc965a95`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
-- 다음 작업:
-  - `docs/design/99_prepare_hints_split_summary.md` 갱신
-  - traversal/CMDI 완료 모듈과 이동 항목 추가
-  - 남은 후보를 `AUTOMATION_UA_PATTERNS`, shared attack/search policy constants, `detect_decoded_attack_hints`로 축소
-  - 다음 후보를 코드 분리로 진행할지, 후보 비교 문서로 먼저 갈지 결정
-- 보류 후보:
+- 보류:
   - `AUTOMATION_UA_PATTERNS`
   - `detect_decoded_attack_hints`
   - shared attack/search policy constants
+  - normal search false-positive handling
+  - candidate preservation/scoring/filtering
+  - supporting_events 생성/연결 로직
+  - Stage1/Stage2 reporter 변경
+  - expected/test fixture 변경
   - `constants.py` 대량 분리
+- 다음 후보:
+  - 바로 추가 코드 분리하지 않음
+  - 필요 시 실제 LLM 출력 관찰 후 반복 문제에 맞춰 report lint, Stage2 wording, 또는 보류 후보 재검토
+  - 문서 인덱스/README 동기화 우선
 - 조건:
   - 전면 리팩터링 금지
   - 작은 커밋 유지
   - prepare regression, stage dry-run regression, py_compile 통과 유지
   - 기존 behavior 변경 없이 구조 분리 우선
   - Apache logs-only 해석 한계 유지
-  - evidence boundary가 민감한 hint 계열은 split plan을 먼저 작성
 
 ## P5. docs 유지보수
 
@@ -185,7 +160,9 @@
   - operations 문서가 코드 옵션과 어긋나지 않는지 주기적으로 확인
   - 새 standards/reviews 문서가 생기면 해당 README 인덱스를 먼저 갱신
   - 오래된 문서는 archive 후보로 검토하되, 직접 참조 중인 문서는 이동하지 않음
-- 현재 별도 후보:
+- 현재 우선 후보:
+  - `docs/design/README.md` 동기화
+  - `docs/README.md` 또는 루트 README에 설계 문서 흐름이 어긋난 부분이 있는지 확인
   - archive 후보 조사
   - 절대 경로 링크의 단계적 상대 경로 전환
 
