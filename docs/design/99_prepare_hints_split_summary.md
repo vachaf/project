@@ -2,14 +2,16 @@
 
 - 문서 상태: prepare hints split 완료 요약
 - 기준 시점: 2026-05-04
-- 목적: SQLi, XSS, file disclosure hint 계열 1차 분리 결과를 정리하고, 계속 보류할 shared logic과 다음 후보를 고정한다.
+- 목적: SQLi, XSS, file disclosure, traversal/CMDI hint 계열 1차 분리 결과를 정리하고, 계속 보류할 shared logic과 다음 후보를 고정한다.
 
 관련 문서:
 
 - [99_prepare_hints_split_candidate_review.md](./99_prepare_hints_split_candidate_review.md)
+- [99_prepare_attack_hints_shared_policy_candidate_review.md](./99_prepare_attack_hints_shared_policy_candidate_review.md)
 - [99_prepare_sqli_hints_split_plan.md](./99_prepare_sqli_hints_split_plan.md)
 - [99_prepare_xss_hints_split_plan.md](./99_prepare_xss_hints_split_plan.md)
 - [99_prepare_file_disclosure_hints_split_plan.md](./99_prepare_file_disclosure_hints_split_plan.md)
+- [99_prepare_traversal_cmdi_hints_split_plan.md](./99_prepare_traversal_cmdi_hints_split_plan.md)
 - [99_file_disclosure_verdict_taxonomy_검토.md](./99_file_disclosure_verdict_taxonomy_검토.md)
 - [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)
 - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md)
@@ -25,6 +27,7 @@ prepare hints split 1차는 완료 상태로 본다.
 src/prepare/sqli_hints.py
 src/prepare/xss_hints.py
 src/prepare/file_disclosure_hints.py
+src/prepare/traversal_cmdi_hints.py
 ```
 
 이번 1차 hints split의 공통 원칙:
@@ -42,9 +45,15 @@ src/prepare/file_disclosure_hints.py
 - Apache logs-only evidence boundary 유지
 ```
 
-현재 시점에서는 바로 traversal/CMDI/automation hint 분리로 들어가기보다, 남은 shared boundary를 별도 후보 비교 문서로 먼저 검토하는 편이 안전하다.
+현재 시점에서는 바로 automation UA, shared attack/search policy, decoded attack hint logic을 코드 분리하지 않는다. 남은 영역은 candidate preservation, false positive suppression, Stage1/Stage2 wording guard와 직접 맞물릴 수 있으므로 별도 boundary 검토가 필요하다.
 
 권장 다음 문서:
+
+```text
+docs/design/99_prepare_automation_shared_policy_split_candidate_review.md
+```
+
+또는 기존 후보 검토 문서인 아래 문서를 갱신한다.
 
 ```text
 docs/design/99_prepare_attack_hints_shared_policy_candidate_review.md
@@ -306,20 +315,91 @@ python3 scripts/check_prepare_regression.py --strict: pass=18 warn=0 fail=0
 python3 scripts/check_stage_dryrun_regression.py --strict: pass=12 warn=0 fail=0
 ```
 
+### 2.4 traversal/CMDI hints
+
+기준 커밋:
+
+```text
+fdedb2ec1627cb9ef0a6d5feb115c6d6fc965a95
+refactor: extract traversal CMDI hint patterns
+```
+
+생성 파일:
+
+```text
+src/prepare/traversal_cmdi_hints.py
+```
+
+수정 파일:
+
+```text
+src/prepare_llm_input.py
+```
+
+이동한 pattern/constants:
+
+```text
+TRAVERSAL_PATTERNS
+CMDI_PATTERNS
+```
+
+보류한 영역:
+
+```text
+AUTOMATION_UA_PATTERNS
+detect_decoded_attack_hints
+decoded variants helper/decoder 계열
+candidate scoring/filtering 로직
+normal search false-positive handling
+attack category extraction 로직
+reason_hints category normalization 로직
+supporting_events 생성/연결 로직
+Stage1/Stage2 reporter
+expected/test fixture
+shared attack/search policy constants
+SQLi/XSS/file disclosure patterns
+```
+
+유지한 evidence boundary:
+
+```text
+- path traversal 성공 단정 금지
+- 파일 읽기 성공 단정 금지
+- /etc/passwd 또는 win.ini 내용 노출 단정 금지
+- filesystem 존재 여부 단정 금지
+- response body 원문 추정 금지
+- command execution 성공 단정 금지
+- whoami/id/cat/uname/curl/wget/bash/sh 실행 단정 금지
+- shell access 또는 server compromise 단정 금지
+- status_code=200, content-type, response_body_bytes만으로 file exposure 또는 command execution success 확정 금지
+```
+
+검증 결과:
+
+```text
+python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py: 통과
+python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py: 통과
+python3 scripts/check_prepare_regression.py --strict: pass=18 warn=0 fail=0
+python3 scripts/check_stage_dryrun_regression.py --strict: pass=12 warn=0 fail=0
+```
+
 ## 3. 공통으로 보류한 shared logic
 
-아래 영역은 세 hint split에서 공통으로 보류했다.
+아래 영역은 hint split 전반에서 공통으로 보류했다.
 
 ```text
 detect_decoded_attack_hints
 decoded variants helper/decoder 계열
 candidate scoring/filtering 로직
 false positive verdict 결정 로직
+normal search false-positive handling
+attack category extraction 로직
+reason_hints category normalization 로직
 supporting_events 생성/연결 로직
-Stage2 reporter
+Stage1/Stage2 reporter
 expected/test fixture
 shared attack/search policy constants
-traversal/CMDI/automation patterns
+AUTOMATION_UA_PATTERNS
 ```
 
 보류 이유:
@@ -328,7 +408,8 @@ traversal/CMDI/automation patterns
 - 여러 hint 계열이 공유한다.
 - false positive suppression과 candidate preservation의 경계에 있다.
 - candidate scoring/filtering과 supporting_events는 behavior 변경 위험이 크다.
-- Stage2 reporter와 expected fixture는 policy wording과 결과 계약을 고정한다.
+- Stage1/Stage2 reporter와 expected fixture는 policy wording과 결과 계약을 고정한다.
+- automation/tool UA는 lab-* / experiment-like UA guard와 직접 연결된다.
 - shared module을 만들기 전에 import 방향과 ownership을 먼저 검토해야 한다.
 ```
 
@@ -359,27 +440,45 @@ DO_NOT_MOVE_YET
 - shared policy module을 별도로 검토하기 전에는 이동하지 않음
 ```
 
-### 4.2 traversal/CMDI/automation patterns
+### 4.2 automation UA patterns
 
 ```text
-TRAVERSAL_PATTERNS
-CMDI_PATTERNS
 AUTOMATION_UA_PATTERNS
 ```
 
 현재 판단:
 
 ```text
-CANDIDATE_REVIEW_FIRST
+KEEP_FOR_NOW
 ```
 
 이유:
 
 ```text
-- traversal/CMDI는 candidate scoring과 직접 연결될 수 있음
-- command execution 성공이나 filesystem read 성공을 단정하면 안 됨
-- automation UA는 lab-* / tool UA 과해석 금지와 연결됨
-- topic별 module로 나눌지 shared attack_hints.py로 둘지 먼저 결정해야 함
+- tool/lab UA 과해석 금지와 직접 연결됨
+- sqlmap/nikto/nmap/curl/wget/python-requests UA는 trace aid일 수 있지만 성공 증거가 아님
+- Stage1/Stage2 wording guard와 함께 관리해야 함
+```
+
+### 4.3 decoded attack hints
+
+```text
+detect_decoded_attack_hints
+```
+
+현재 판단:
+
+```text
+DO_NOT_MOVE_YET
+```
+
+이유:
+
+```text
+- SQLi, XSS, file disclosure, traversal, CMDI와 모두 연결됨
+- decoders.py의 decoded variants와도 연결됨
+- encoding descriptors와 hint generation을 동시에 다룸
+- topic-specific module로 옮기면 경계가 흐려짐
 ```
 
 ## 5. 현재 상태 평가
@@ -389,39 +488,37 @@ CANDIDATE_REVIEW_FIRST
 이유:
 
 ```text
-- SQLi/XSS/file disclosure처럼 evidence boundary가 가장 큰 3개 영역의 pattern 분리는 완료함
-- 남은 traversal/CMDI/automation은 topic별 module과 shared attack policy 경계가 아직 불명확함
-- shared attack/search policy constants는 여러 hint 계열이 공유하므로 바로 이동하면 import/coupling 위험이 큼
-- 추가 코드 분리는 후보 비교 문서를 먼저 작성해야 함
+- 주요 topic-specific pattern 모듈은 분리 완료됨
+- 남은 항목은 shared policy, decoded reconstruction, automation UA wording guard처럼 behavior boundary가 더 민감함
+- 추가 코드 분리는 새 shared module 설계나 Stage1/Stage2 wording guard 검토를 요구할 수 있음
 ```
 
 바로 진행하지 않을 것:
 
 ```text
-- traversal/CMDI/automation hints 코드 분리
+- AUTOMATION_UA_PATTERNS 코드 분리
 - shared attack/search policy constants 이동
 - detect_decoded_attack_hints 이동
 - candidate scoring/filtering 이동
+- false positive verdict 결정 로직 이동
 - supporting_events 생성/연결 로직 이동
-- Stage2 reporter 변경
+- Stage1/Stage2 reporter 변경
 - expected/test fixture 변경
 ```
 
 ## 6. 권장 다음 작업
 
-다음 작업은 traversal/CMDI/automation과 shared attack/search policy의 경계를 비교하는 후보 검토 문서다.
+다음 작업은 추가 코드 분리가 아니라 shared boundary를 정리하는 후보 검토다.
 
 권장 신규 문서:
 
 ```text
-docs/design/99_prepare_attack_hints_shared_policy_candidate_review.md
+docs/design/99_prepare_shared_attack_policy_boundary_review.md
 ```
 
-비교 대상:
+검토 대상:
 
 ```text
-TRAVERSAL_PATTERNS
-CMDI_PATTERNS
 AUTOMATION_UA_PATTERNS
 SEARCH_PARAM_NAMES
 NORMAL_SEARCH_VALUE_RE
@@ -430,23 +527,25 @@ STRONG_ATTACK_HINT_PREFIXES
 STRONG_ATTACK_HINTS
 ATTACK_ENCODED_PAYLOAD_RE
 detect_decoded_attack_hints
+normal search false-positive handling
+candidate preservation logic
 ```
 
 검토할 항목:
 
 ```text
-- topic-specific module로 나눌 수 있는지
-- shared attack_hints.py 또는 shared policy module이 필요한지
-- candidate scoring과 분리 가능한지
+- shared module을 만들 필요가 있는지
+- shared module 없이 prepare_llm_input.py에 유지하는 편이 나은지
+- Stage1/Stage2 lab-* / tool UA wording guard와 연결되는지
+- candidate scoring/filtering과 분리 가능한지
 - false positive suppression과 분리 가능한지
-- supporting_events와 분리 가능한지
 - decoded variants와의 의존 방향
 - Apache logs-only evidence boundary
 ```
 
 ## 7. 커밋/검증 메모
 
-이 문서는 hints split summary 기록용이다.
+이 문서는 hints split summary 갱신용이다.
 
 문서 작성 시 기대 변경 범위:
 
@@ -459,5 +558,5 @@ docs/design/99_prepare_hints_split_summary.md
 문서 전용 커밋 후보:
 
 ```text
-docs: summarize prepare hint splits
+docs: update prepare hint split summary
 ```
