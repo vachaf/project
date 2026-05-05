@@ -58,6 +58,7 @@
   - method behavior constants 5개를 `src/prepare/method_summaries.py`로 이동 완료
   - static baseline constants 3개를 `src/prepare/static_baseline.py`로 이동 완료
   - auth behavior constants/patterns 7개를 `src/prepare/auth_behavior.py`로 이동 완료
+  - crawler baseline constants/patterns 6개를 `src/prepare/crawler_baseline.py`로 이동 완료
 - prepare hints split 1차 정리 완료
   - `docs/design/99_prepare_hints_split_candidate_review.md` 작성 완료
   - `docs/design/99_prepare_hints_split_summary.md` 작성 및 traversal/CMDI까지 갱신 완료
@@ -124,28 +125,16 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — crawler baseline constants 검토 대기
+## P4. prepare 모듈 분리 — stable / 추가 코드 분리 보류
 
 - 완료:
   - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
   - round2: `ip_behavior.py`, `probing_sequence.py`, `mixed_baseline_scanner.py`
-  - constants mini-move: protocol anomaly, IP behavior, method behavior 일부, static baseline 일부, auth behavior
+  - constants mini-move: protocol anomaly, IP behavior, method behavior 일부, static baseline 일부, auth behavior, crawler baseline
   - hints split: SQLi, XSS, file disclosure, traversal/CMDI
   - shared attack/search policy boundary review 작성 완료
+  - dry-run spot check: B R2B, C, E R2B, H R4 통과
   - prepare/stage dry-run regression strict 통과 유지
-- 최근 완료:
-  - `AUTH_SUCCESS_ATTACK_HINT_PATTERN`, `LOGIN_URI_HINTS`, `AUTH_ENDPOINT_FAMILY_PATTERNS`, `AUTH_BEHAVIOR_*` constants 이동 완료
-  - `src/prepare/auth_behavior.py`에 constants/patterns 정의 추가
-  - `src/prepare_llm_input.py`에서는 constants/patterns import 사용
-  - helper/function 추가 이동 없음
-  - expected/test fixture 수정 없음
-  - Stage2 reporter 수정 없음
-  - 기준 커밋 `735d7eba0cb22835716a5098be75cded6c61b4ec`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
-- 다음 작업:
-  - `grep -n "CRAWLER_BASELINE_\|BROWSER_UA_HINTS\|CRAWLER_BROWSE_PRODUCT_SEGMENTS\|CRAWLER_BROWSE_CATEGORY_SEGMENTS\|CRAWLER_BROWSE_GENERIC_SEGMENTS" src/prepare_llm_input.py src/prepare/*.py` 확인
-  - crawler baseline constants move plan 작성 여부 결정
-  - 실제 crawler identity, robots/sitemap 내용, site structure, product/category existence 해석 경계 확인
-  - 바로 constants.py 대량 분리로 진행하지 않음
 - 보류:
   - `AUTOMATION_UA_PATTERNS`
   - `detect_decoded_attack_hints`
@@ -156,6 +145,10 @@
   - Stage1/Stage2 reporter 변경
   - expected/test fixture 변경
   - `constants.py` 대량 분리
+- 다음 후보:
+  - 바로 추가 코드 분리하지 않음
+  - 실제 LLM 출력 관찰 후 반복 문제에 맞춰 report lint, Stage2 wording, 또는 보류 후보 재검토
+  - 필요 시 `docs/reviews/99_post_refactor_LLM_output_spot_check.md` 작성
 - 조건:
   - 전면 리팩터링 금지
   - 작은 커밋 유지
@@ -171,6 +164,8 @@
   - 새 standards/reviews 문서가 생기면 해당 README 인덱스를 먼저 갱신
   - 오래된 문서는 archive 후보로 검토하되, 직접 참조 중인 문서는 이동하지 않음
 - 현재 우선 후보:
+  - `docs/design/99_prepare_constants_mini_move_summary.md`에 crawler baseline constants 이동 완료 반영
+  - `docs/README.md`, `docs/design/README.md`, `docs/진행상황.md`가 최신 상태인지 필요 시 점검
   - archive 후보 조사
   - 절대 경로 링크의 단계적 상대 경로 전환
 
