@@ -86,6 +86,10 @@ try:
         XSS_QUOTE_BREAKOUT_PATTERN,
         XSS_TAG_INJECTION_PATTERN,
     )
+    from src.prepare.traversal_cmdi_hints import (
+        CMDI_PATTERNS,
+        TRAVERSAL_PATTERNS,
+    )
     from src.prepare.file_disclosure_hints import (
         FILE_DISCLOSURE_PATTERNS,
         PHP_FILTER_CANONICAL_PATTERN,
@@ -203,6 +207,10 @@ except ImportError:
         XSS_QUOTE_BREAKOUT_PATTERN,
         XSS_TAG_INJECTION_PATTERN,
     )
+    from prepare.traversal_cmdi_hints import (
+        CMDI_PATTERNS,
+        TRAVERSAL_PATTERNS,
+    )
     from prepare.file_disclosure_hints import (
         FILE_DISCLOSURE_PATTERNS,
         PHP_FILTER_CANONICAL_PATTERN,
@@ -277,17 +285,6 @@ except ImportError:
 # ----------------------------
 # 패턴 정의
 # ----------------------------
-TRAVERSAL_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
-    ("dotdot_slash", re.compile(r"(?i)(?:\.\./|\.\.\\\\|%2e%2e%2f|%2e%2e/|\.\.%2f|%252e%252e%252f)"), 4),
-    ("etc_passwd", re.compile(r"(?i)/etc/passwd|win\.ini"), 5),
-]
-
-CMDI_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
-    ("pipe_exec", re.compile(r"(?i)\|\s*(?:whoami|id|cat|uname|ls|pwd)\b"), 4),
-    ("semicolon_exec", re.compile(r"(?i);\s*(?:cat|id|whoami|uname|curl|wget|bash|sh)\b"), 4),
-    ("subshell", re.compile(r"(?i)(?:\$\((?:id|whoami|uname|cat)|`(?:id|whoami|uname|cat))"), 4),
-]
-
 AUTOMATION_UA_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
     ("sqlmap", re.compile(r"(?i)sqlmap"), 4),
     ("nikto", re.compile(r"(?i)nikto"), 4),
