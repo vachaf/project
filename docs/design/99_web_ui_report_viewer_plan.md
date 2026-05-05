@@ -1,7 +1,7 @@
 # Apache 웹 로그 분석 플랫폼 — Stage2 보고서 뷰어 구축 계획서 (수정)
 
 > **작성일**: 2026-05-05  
-> **문서 위치**: `docs/design/99_web_ui_report_viewer_plan_v2.md`  
+> **문서 위치**: `docs/design/99_web_ui_report_viewer_plan.md`  
 > **대상**: 현재 LLM 서버 환경에서 로컬 웹 뷰어 구축  
 > **범위**: Phase 1A (보고서 조회 + QA 표시) / Phase 1B (모델 비교)
 
@@ -15,7 +15,7 @@
 |---|--------|---------|-----------|
 | 1 | 보고서 경로 고정 | `/opt/web_log_analysis/reports` 단일값 | `REPORT_GLOBS` (glob 기반 다중 경로) |
 | 2 | URL 파일 경로 충돌 | `/report/{filename}` | `report_id` (hash 기반 안전 ID) |
-| 3 | QA 스크립트 | `run_qa_check_production_v4.py` | `scripts/check_stage2_report_quality.py` |
+| 3 | QA 스크립트 | 가정 기반 별도 QA 스크립트 | `scripts/check_stage2_report_quality.py` |
 | 4 | CSS 의존성 | Tailwind CDN | Plain CSS (오프라인 대응) |
 
 **추가 설계**: Phase 1을 1A(조회+QA) / 1B(비교)로 쪼개 더 안전하고 점진적이게 진행
@@ -88,12 +88,13 @@ REPORT_GLOBS = [
 
 # 사용 시
 from pathlib import Path
-import glob
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def scan_all_reports():
     all_reports = []
     for glob_pattern in REPORT_GLOBS:
-        matched = Path(".").glob(glob_pattern)
+        matched = PROJECT_ROOT.glob(glob_pattern)
         all_reports.extend(matched)
     return sorted(all_reports)
 ```
@@ -115,25 +116,26 @@ def scan_all_reports():
 #      경로가 없으면 404 (ambiguous)
 ```
 
-**수정된 방식 (해시 기반 report_id):**
+**수정된 방식 (repo-relative hash 기반 report_id):**
 ```python
-# services/report_loader.py
+# web/services/report_loader.py
 import hashlib
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+def make_report_id(file_path: Path) -> str:
+    try:
+        relative_path = file_path.resolve().relative_to(PROJECT_ROOT)
+    except ValueError:
+        relative_path = file_path.resolve()
+    return hashlib.sha256(str(relative_path).encode("utf-8")).hexdigest()[:16]
 
 class Report:
     def __init__(self, file_path: Path):
         self.file_path = file_path
         self.filename = file_path.name
-        self.full_path = str(file_path.resolve())
-        
-        # 풀 경로를 안전한 ID로 변환
-        self.report_id = hashlib.sha256(
-            str(file_path.resolve()).encode()
-        ).hexdigest()[:16]  # 16자 축약
-        
-        # 파일명에서 provider/timeframe 추출
-        self.provider = "openai" if filename.startswith("op-") else "anthropic"
-        self.timeframe = self._extract_timeframe(filename)
+        self.report_id = make_report_id(file_path)
         # ...
 
 # app.py
@@ -153,17 +155,11 @@ async def get_report(report_id: str):
 **효과:**
 - ✅ 중복 파일명 충돌 방지
 - ✅ 실제 파일시스템 경로 노출 안 함
-- ✅ 파일 이동해도 ID 일관성 유지
+- ✅ 서버 설치 절대 경로 변경 시에도 ID 안정성 유지
 
 ---
 
-### 2.3 [개선 3] QA 점수 스크립트 — 실제 존재하는 것 사용
-
-**이전 방식 (오류):**
-```python
-# Phase 3에서 run_qa_check_production_v4.py 실행
-# → 이 파일이 현재 repo에 없음 (가상의 파일명)
-```
+### 2.3 [개선 3] QA 점수 스크립트 — 실제 CLI 기준으로 연동
 
 **수정된 방식 (실제 파일 기준):**
 ```python
@@ -174,42 +170,28 @@ import subprocess
 QA_CHECK_SCRIPT = Path("scripts/check_stage2_report_quality.py")
 
 def run_qa_check(report_path: Path) -> dict:
-    """현재 repo의 실제 check 스크립트 실행"""
+    """사람이 터미널에서 확인할 때 (--pretty)"""
     result = subprocess.run(
         [
             "python3",
             str(QA_CHECK_SCRIPT),
-            "--report", str(report_path),
-            "--json",  # JSON 출력
+            "--input", str(report_path),
+            "--pretty",
         ],
         capture_output=True,
         text=True,
     )
-    
-    if result.returncode == 0:
-        qa_data = json.loads(result.stdout)
-        return {
-            "verdict": qa_data.get("verdict"),
-            "blocker_count": qa_data.get("blocker_count", 0),
-            "warning_count": qa_data.get("warning_count", 0),
-            "info_count": qa_data.get("info_count", 0),
-            "details": qa_data.get("details", []),
-        }
-    else:
-        return {
-            "verdict": "error",
-            "blocker_count": 0,
-            "warning_count": 0,
-            "info_count": 0,
-            "details": [{"msg": result.stderr}],
-        }
-
-# UI 표시 (report detail page)
-# ▸ QA Check Results
-#   Verdict: ✅ PASS (또는 ⚠️ WARNING / 🔴 BLOCKER)
-#   Blockers: 0 | Warnings: 2 | Info: 1
-#   Details: [...list of issues...]
 ```
+
+UI 내부 파싱 기본값은 stdout 파싱이 아니라 `--output` JSON 파일 사용:
+
+```bash
+python3 scripts/check_stage2_report_quality.py \
+  --input path/to/stage2_report.json \
+  --output /tmp/stage2_quality_lint/<report_id>.json
+```
+
+`--fail-on-blocker`는 기본으로 넣지 않는다. 이 옵션을 명시한 경우에만 blocker 시 non-zero exit를 사용한다.
 
 **효과:**
 - ✅ 현재 repo의 실제 스크립트와 연동
@@ -332,6 +314,8 @@ Phase 2: 파이프라인 실행 연동 (Phase 1B 안정 후)
 ```python
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
 # 보고서 경로 — 글로브 패턴으로 다중 경로 지원
 REPORT_GLOBS = [
     "reports/*_stage2_report.json",
@@ -344,9 +328,12 @@ PORT = 8000
 DEBUG = False
 
 # QA 검증 스크립트
-QA_SCRIPT_PATH = Path("scripts/check_stage2_report_quality.py")
+QA_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "check_stage2_report_quality.py"
+QA_OUTPUT_DIR = Path("/tmp/stage2_quality_lint")
 QA_TIMEOUT_SEC = 30
 ```
+
+보고서 스캔은 `PROJECT_ROOT.glob(pattern)` 기준으로 수행한다.
 
 ### 4.3 report_loader.py (140줄)
 
@@ -356,7 +343,15 @@ from typing import List, Dict, Optional
 import json
 import re
 import hashlib
-from datetime import datetime
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+def make_report_id(file_path: Path) -> str:
+    try:
+        relative_path = file_path.resolve().relative_to(PROJECT_ROOT)
+    except ValueError:
+        relative_path = file_path.resolve()
+    return hashlib.sha256(str(relative_path).encode("utf-8")).hexdigest()[:16]
 
 class Report:
     """Stage2 JSON 보고서를 메모리에 로드"""
@@ -365,10 +360,8 @@ class Report:
         self.file_path = file_path
         self.filename = file_path.name
         
-        # 안전한 ID 생성 (풀 경로 기반)
-        self.report_id = hashlib.sha256(
-            str(file_path.resolve()).encode()
-        ).hexdigest()[:16]
+        # 안전한 ID 생성 (repo-relative 경로 기반)
+        self.report_id = make_report_id(file_path)
         
         # 파일명에서 정보 추출
         self.provider = "openai" if self.filename.startswith("op-") else "anthropic"
@@ -431,11 +424,9 @@ class ReportLoader:
     
     def scan(self):
         """glob 패턴으로 모든 보고서 스캔"""
-        from pathlib import Path
-        
         found_files = set()
         for pattern in self.glob_patterns:
-            matched = Path(".").glob(pattern)
+            matched = PROJECT_ROOT.glob(pattern)
             found_files.update(matched)
         
         for file_path in sorted(found_files):
@@ -481,46 +472,39 @@ class ReportLoader:
 import subprocess
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
 
 class QARunner:
     """QA 검증 스크립트 호출"""
     
-    def __init__(self, script_path: Path, timeout_sec: int = 30):
+    def __init__(self, script_path: Path, output_dir: Path, timeout_sec: int = 30):
         self.script_path = script_path
+        self.output_dir = output_dir
         self.timeout_sec = timeout_sec
     
-    def run(self, report_path: Path) -> Dict:
-        """
-        QA 점수 실행
-        
-        반환:
-        {
-            "verdict": "PASS" | "WARNING" | "BLOCKER",
-            "blocker_count": int,
-            "warning_count": int,
-            "info_count": int,
-            "details": [...],
-        }
-        """
+    def run(self, report_path: Path, report_id: str) -> Dict:
+        output_path = self.output_dir / f"{report_id}.json"
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
         try:
             result = subprocess.run(
                 [
                     "python3",
                     str(self.script_path),
-                    "--report", str(report_path),
-                    "--json",
+                    "--input", str(report_path),
+                    "--output", str(output_path),
                 ],
                 capture_output=True,
                 text=True,
                 timeout=self.timeout_sec,
             )
-            
-            if result.returncode == 0:
-                qa_data = json.loads(result.stdout)
-                return self._normalize_qa_output(qa_data)
-            else:
+
+            # 기본 모드에서는 blocker가 있어도 returncode=0이므로 JSON을 기준으로 판정한다.
+            if result.returncode != 0:
                 return self._error_response(f"QA script failed: {result.stderr}")
+
+            qa_data = json.loads(output_path.read_text(encoding="utf-8"))
+            return self._normalize_qa_output(qa_data)
         
         except subprocess.TimeoutExpired:
             return self._error_response(f"QA check timeout ({self.timeout_sec}s)")
@@ -531,22 +515,29 @@ class QARunner:
     
     def _normalize_qa_output(self, data: Dict) -> Dict:
         """QA 스크립트 출력을 UI 형식으로 정규화"""
+        summary = data.get("summary", {})
         return {
             "verdict": data.get("verdict", "UNKNOWN"),
-            "blocker_count": data.get("blocker_count", 0),
-            "warning_count": data.get("warning_count", 0),
-            "info_count": data.get("info_count", 0),
-            "details": data.get("details", []),
+            "checked_fields": summary.get("checked_fields", 0),
+            "blocker_count": summary.get("blocker_count", 0),
+            "warning_count": summary.get("warning_count", 0),
+            "info_count": summary.get("info_count", 0),
+            "blockers": data.get("blockers", []),
+            "warnings": data.get("warnings", []),
+            "info": data.get("info", []),
             "is_error": False,
         }
     
     def _error_response(self, msg: str) -> Dict:
         return {
             "verdict": "ERROR",
+            "checked_fields": 0,
             "blocker_count": 0,
             "warning_count": 0,
             "info_count": 0,
-            "details": [{"msg": msg}],
+            "blockers": [],
+            "warnings": [],
+            "info": [{"message": msg}],
             "is_error": True,
         }
 ```
@@ -560,18 +551,19 @@ from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
 
-from config import HOST, PORT, REPORT_GLOBS, QA_SCRIPT_PATH, QA_TIMEOUT_SEC
-from services.report_loader import ReportLoader
-from services.qa_runner import QARunner
+from web.config import HOST, PORT, REPORT_GLOBS, QA_SCRIPT_PATH, QA_OUTPUT_DIR, QA_TIMEOUT_SEC
+from web.services.report_loader import ReportLoader
+from web.services.qa_runner import QARunner
 
 # 초기화
 app = FastAPI(title="Security Intelligence — Report Viewer")
 report_loader = ReportLoader(REPORT_GLOBS)
-qa_runner = QARunner(QA_SCRIPT_PATH, QA_TIMEOUT_SEC)
+qa_runner = QARunner(QA_SCRIPT_PATH, QA_OUTPUT_DIR, QA_TIMEOUT_SEC)
 
 # 템플릿 + 정적 파일
-templates = Environment(loader=FileSystemLoader("templates"))
-app.mount("/static", StaticFiles(directory="static"), name="static")
+BASE_DIR = Path(__file__).resolve().parent
+templates = Environment(loader=FileSystemLoader(BASE_DIR / "templates"))
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -590,7 +582,7 @@ async def get_report(report_id: str):
         return "<h1>Report not found</h1>", 404
     
     # QA 실행
-    qa_result = qa_runner.run(report.file_path)
+    qa_result = qa_runner.run(report.file_path, report.report_id)
     
     template = templates.get_template("detail.html")
     return template.render(
@@ -604,7 +596,7 @@ async def get_report(report_id: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "app:app",
+        "web.app:app",
         host=HOST,
         port=PORT,
         reload=False,
@@ -702,11 +694,29 @@ if __name__ == "__main__":
             Info: {{ qa_result.info_count }}
         </p>
         
-        {% if qa_result.details %}
+        {% if qa_result.blockers %}
         <ul>
-            {% for detail in qa_result.details %}
-            <li class="severity-{{ detail.severity | default('info') }}">
-                {{ detail.msg }}
+            {% for item in qa_result.blockers %}
+            <li class="severity-high">
+                [BLOCKER] {{ item.message | default(item.path) }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if qa_result.warnings %}
+        <ul>
+            {% for item in qa_result.warnings %}
+            <li class="severity-medium">
+                [WARNING] {{ item.message | default(item.path) }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if qa_result.info %}
+        <ul>
+            {% for item in qa_result.info %}
+            <li class="severity-low">
+                [INFO] {{ item.message | default(item.path) }}
             </li>
             {% endfor %}
         </ul>
@@ -1032,10 +1042,34 @@ def analyze_comparison(op_report: Report, cl_report: Report) -> Dict:
 
 ### 7.2 보고서 해석 유지
 
-Stage2 보고서의 표현을 UI에서 바꾸지 않음:
+원칙:
+- Stage2 report 본문 문장은 원문을 유지한다.
+- UI가 보고서 문장의 의미를 바꾸거나 성공/침해/노출을 새로 판정하지 않는다.
+- 별도 UI metadata, source IP 요약, known asset 목록, raw JSON preview에서는 IP를 마스킹한다.
+- raw JSON 전체 보기 기능은 Phase 1A에서 기본 숨김 또는 로컬 전용 debug 영역으로 제한한다.
+- Phase 1A에서는 원문 report text를 그대로 표시하되, IP 목록/metadata 영역은 마스킹한다.
+
+예시:
 - "가능성이 있습니다" → "가능성이 있습니다" (그대로)
 - "침해 성공은 확인되지 않음" → "침해 성공은 확인되지 않음" (그대로)
 - severity "medium" → 배지로 "MEDIUM" (수정 금지)
+
+금지 badge/label:
+- `Confirmed Exposure`
+- `Attacker IP`
+- `Real Crawler`
+- `Successful Exploit`
+- `DB Leak`
+- `XSS Executed`
+
+권장 badge/label:
+- `Reported Verdict`
+- `Source IP`
+- `Known Asset`
+- `Crawler-like UA`
+- `Attempt Pattern`
+- `Needs Review`
+- `Lint PASS/WARN/FAIL`
 
 ---
 
@@ -1081,14 +1115,26 @@ QA 결과 바로 확인
 
 ### 9.1 Phase 1A/1B 범위
 
-**포함하지 않는 것:**
+포함(Phase 1A):
+- report list
+- report detail
+- Stage2 quality lint result display
+- defensive JSON parsing
+- localhost-only
+- read-only report access
+
+제외(Phase 1A):
 - ❌ 파이프라인 실행 버튼 (Phase 2)
 - ❌ 회귀 검증 버튼 (Phase 2)
 - ❌ 모델 선택 드롭다운 (Phase 2)
 - ❌ 보고서 업로드 (Phase 2)
 - ❌ 검색/필터 (Phase 2)
-- ❌ DB 또는 이력 저장 (Phase 3)
-- ❌ 알림/대시보드 (Phase 3+)
+- ❌ DB/SQLite
+- ❌ 알림/대시보드
+- ❌ 외부 네트워크 노출
+
+Phase 1B:
+- model compare만 확장 범위로 유지
 
 ### 9.2 파일 배치의 제약
 
@@ -1118,6 +1164,12 @@ QA 결과 바로 확인
 3. **check_stage2_report_quality.py 확인**
    ```bash
    python scripts/check_stage2_report_quality.py --help
+   python3 scripts/check_stage2_report_quality.py \
+     --input reports/op-security_..._stage2_report.json \
+     --pretty
+   python3 scripts/check_stage2_report_quality.py \
+     --input reports/op-security_..._stage2_report.json \
+     --output /tmp/stage2_quality_lint/sample.json
    ```
 
 4. **Phase 1A 코드 작성** (4.3~4.7)
@@ -1164,4 +1216,3 @@ QA 결과 바로 확인
 ---
 
 **작성 완료. Phase 1A 구현 준비 완료.**
-

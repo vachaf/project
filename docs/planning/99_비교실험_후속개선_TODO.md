@@ -173,6 +173,10 @@
 - known asset 운영 가이드 정리
 - Threat intelligence 연동 검토
 - 알림, 대시보드, 자동 대응 검토
+- optional next candidate: web UI report viewer Phase 1A
+  - scope: report list/detail + Stage2 quality lint display only
+  - do not modify pipeline core
+  - implementation gated by manual decision
 
 장기 후보 주의:
 
