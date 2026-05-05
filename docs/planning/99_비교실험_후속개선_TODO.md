@@ -68,8 +68,11 @@
 - prepare hints split 검토 진행
   - `docs/design/99_prepare_hints_split_candidate_review.md` 작성 완료
   - `docs/design/99_prepare_sqli_hints_split_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_xss_hints_split_plan.md` 작성 및 완료 반영
   - `src/prepare/sqli_hints.py` 분리 완료
+  - `src/prepare/xss_hints.py` 분리 완료
   - SQLi pattern/constants와 `detect_educational_sql_search_context` 이동 완료
+  - XSS 전용 pattern/constants 이동 완료
   - prepare/stage dry-run regression strict 통과 유지
 
 ## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
@@ -127,32 +130,33 @@
   - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
   - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
-## P4. prepare 모듈 분리 — XSS hints 검토 대기
+## P4. prepare 모듈 분리 — file disclosure hints 검토 대기
 
 - 완료:
   - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
   - round2: `ip_behavior.py`, `probing_sequence.py`, `mixed_baseline_scanner.py`
   - constants ownership / mini-move 정리 완료
   - SQLi hints 1차 분리 완료
+  - XSS hints 1차 분리 완료
   - `docs/design/99_prepare_hints_split_candidate_review.md` 작성
   - `docs/design/99_prepare_sqli_hints_split_plan.md` 작성 및 완료 반영
+  - `docs/design/99_prepare_xss_hints_split_plan.md` 작성 및 완료 반영
   - prepare/stage dry-run regression strict 통과 유지
 - 최근 완료:
-  - `src/prepare/sqli_hints.py` 추가
-  - SQLi pattern/constants 이동 완료
-  - `detect_educational_sql_search_context` 이동 완료
-  - `src/prepare_llm_input.py`에는 기존 함수명을 유지하는 wrapper 유지
-  - `detect_decoded_attack_hints`, candidate scoring/filtering, `possible_false_positive_sql_keyword_search` verdict 결정 로직, supporting_events는 이동하지 않음
+  - `src/prepare/xss_hints.py` 추가
+  - XSS 전용 pattern/constants 이동 완료
+  - `HTML_ENTITY_RE`는 `src/prepare_llm_input.py`에 유지
+  - `src/prepare/decoders.py`의 `HTML_ENTITY_RE` 변경 없음
+  - `detect_decoded_attack_hints`, decoded variants/helper, candidate scoring/filtering, browser execution/impact verdict, supporting_events는 이동하지 않음
   - expected/test fixture 수정 없음
   - Stage2 reporter 수정 없음
-  - 기준 커밋 `4bf7ee08f9bc47aac4dfe905609f4b251ca6e9bd`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
+  - 기준 커밋 `de89a90df2e4f6bdecc21a06c62f0dfaf284b7f7`에서 `py_compile`, prepare regression 18 pass, stage dry-run regression 12 pass 통과
 - 다음 작업:
-  - `grep -n "XSS_\|SCRIPT_TAG\|EVENT_HANDLER\|JAVASCRIPT_PROTOCOL\|BROWSER_DATA_ACCESS\|EXTERNAL_NAVIGATION\|EXTERNAL_URL\|EDUCATIONAL_XSS\|HTML_ENTITY_RE" src/prepare_llm_input.py src/prepare/*.py` 확인
-  - XSS hints split plan 작성 여부 결정
-  - decoded reconstruction과 browser execution evidence boundary를 명확히 확인
+  - `grep -n "FILE_DISCLOSURE_\|PHP_FILTER_CANONICAL_PATTERN\|suspicious_file_disclosure\|file_disclosure" src/prepare_llm_input.py src/prepare/*.py src/llm_stage2_reporter.py tests/expected -R` 확인
+  - file disclosure hints split plan 작성 여부 결정
+  - suspicious_file_disclosure verdict, sensitive path probe, response bytes/content-type/status 해석 경계를 확인
   - 바로 shared attack/search policy module로 진행하지 않음
 - 보류 후보:
-  - XSS hints
   - file_disclosure hints
   - traversal/CMDI/automation hints
   - shared attack/search policy constants
