@@ -52,6 +52,11 @@
   - `src/prepare/file_disclosure_hints.py` 분리 완료
   - `src/prepare/traversal_cmdi_hints.py` 분리 완료
   - shared attack/search policy, automation UA, decoded attack hints는 보류로 고정
+- Stage2 prompt compaction 완료
+  - `docs/design/99_stage2_prompt_compaction_plan.md` 작성 완료
+  - `src/llm_stage2_reporter.py`의 `build_messages()` system prompt를 섹션화/압축 완료
+  - output schema, report_input, Stage1/Stage2 구조, prepare logic 변경 없음
+  - final self-check 추가
 - post-refactor dry-run / actual LLM spot check 완료
   - `docs/reviews/99_post_refactor_dry_run_spot_check.md` 작성 완료
   - `docs/reviews/99_post_refactor_LLM_output_spot_check.md` 작성 완료
@@ -83,6 +88,7 @@
   - `suspicious_file_disclosure` taxonomy 검토
   - Stage1 `lab-*` / experiment-like UA guard 추가
   - Stage2 `stage1_carryover_rule` 추가
+  - Stage2 report prompt compaction 완료
   - `e_r2_php_wrapper.expected.json` 보강
   - H R4 actual LLM: context-only 과승격 없음
   - E R2B actual LLM: file disclosure 성공/유출 단정 없음
@@ -122,6 +128,7 @@
   - shared attack/search policy boundary review 작성 완료
   - dry-run spot check: B R2B, C, E R2B, H R4 통과
   - actual LLM spot check: H R4, E R2B 통과
+  - Stage2 prompt compaction 후 stage dry-run regression 통과
   - 최종 py_compile / prepare regression / stage dry-run regression 통과
 - 보류:
   - `AUTOMATION_UA_PATTERNS`
@@ -130,7 +137,7 @@
   - normal search false-positive handling
   - candidate preservation/scoring/filtering
   - supporting_events 생성/연결 로직
-  - Stage1/Stage2 reporter 변경
+  - Stage1/Stage2 reporter 구조 변경
   - expected/test fixture 변경
   - `constants.py` 대량 분리
 - 다음 후보:
