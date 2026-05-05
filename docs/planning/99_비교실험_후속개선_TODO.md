@@ -77,6 +77,22 @@
 - Web UI Report Viewer 문서/구현 흐름 반영 완료
   - Phase 1A plan/contract, Phase 1B plan 기준 구현 흐름 반영
   - UI polish 계획 문서 작성 완료: `docs/design/99_web_ui_report_viewer_ui_polish_plan.md`
+- 외부 Phase 1B 실행 가이드 3개 검토 완료
+  - 결론: 구현 전 기준 문서라 현재 repo 상태와 불일치 항목 다수 확인
+  - 그대로 공식 TODO/진행상황에 병합하지 않음
+  - 검증 관점 참고 자료로만 사용
+- Phase 1B 핵심 compare 구현 존재 확인 완료
+  - `compare.html` 존재
+  - compare CSS 클래스 존재
+  - index `Compare` / `Compare (partial)` link 존재
+  - `/compare/{timeframe_id}` route 존재
+  - `compare_reports()` 존재
+- Web/UI 관련 검증 완료
+  - `python3 -m py_compile web/config.py web/app.py web/services/report_loader.py web/services/qa_runner.py web/services/report_comparator.py` 통과
+  - Jinja2 template load 통과: `base.html`, `index.html`, `detail.html`, `compare.html`
+  - `python3 scripts/check_prepare_regression.py --strict`: pass=18 warn=0 fail=0
+  - `python3 scripts/check_stage_dryrun_regression.py --strict`: pass=12 warn=0 fail=0
+  - `python3 -m pytest tests/test_stage2_report_quality.py`: 14 passed
 
 ## P1. 실제 LLM 샘플 검증 체계 관리 — stable
 
@@ -173,6 +189,30 @@
   - archive 후보 조사
   - 절대 경로 링크의 단계적 상대 경로 전환
 
+## P6. Web UI Phase 1B 후속(검증/Polish 중심)
+
+- 현재 상태:
+  - Phase 1B compare view 핵심 구현은 이미 존재한다.
+  - 따라서 `compare.html 생성`, `compare CSS 추가`, `index compare link 추가`, `/compare route 추가`, `compare_reports() 생성`은 신규 TODO가 아니라 현존/확인 완료 항목이다.
+- 남은 TODO:
+  - 실제 브라우저에서 `/`, `/report/{report_id}`, `/compare/{timeframe_id}` 재확인
+  - `Compare` / `Compare (partial)` UX 흐름 확인
+  - missing provider 표시 정책 확인
+  - 기준: `Missing report`, `N/A`, detail link 없음
+  - responsive stack 동작 확인
+  - `docs/design/99_web_ui_report_viewer_ui_polish_plan.md` 기준 template/CSS 중심 개선
+  - provider panel 긴 section 접기 적용/조정
+  - `Compare Metrics` 위치/가독성 점검
+  - header compacting 점검
+  - badge/spacing/typography 조정
+  - Apache logs-only 원칙 유지 점검
+  - IP masking 유지 점검
+  - UI가 새 보안 판정을 생성하지 않는지 점검
+- 구현 제약:
+  - Python 로직 변경은 가급적 피한다.
+  - `FastAPI + Jinja2 + Plain CSS`를 유지한다.
+  - `React`/`npm`/`webpack`/`DB`/외부 CDN은 사용하지 않는다.
+
 ## 장기 후보
 
 - known asset 운영 가이드 정리
@@ -184,7 +224,7 @@
 
 ## 다음 실행 후보
 
-- UI polish 구현(template/CSS 중심)
+- Web UI 실브라우저 확인 + UI polish 구현(template/CSS 중심)
   - 우선 파일: `web/templates/index.html`, `web/templates/compare.html`, `web/templates/detail.html`, `web/static/style.css`
   - 원칙: Python logic 변경 최소화, report read-only 유지, Stage2 보안 판정 의미 변경 금지
 
