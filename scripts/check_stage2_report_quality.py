@@ -17,15 +17,35 @@ MIN_TEXT_WARNING_PATTERNS = (
     "차단 성공",
     "노출 실패",
 )
-CONSERVATIVE_PATTERNS = tuple(
+STRONG_NEGATION_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
         r"단정하지\s*않",
         r"단정할\s*수\s*없",
         r"확인되지\s*않",
         r"확인할\s*수\s*없",
+        r"확정하지\s*않",
+        r"확정할\s*수\s*없",
         r"근거가\s*부족",
         r"증거가\s*없",
+        r"증거[는가]?\s*제공되지\s*않",
+        r"해석하지\s*않",
+        r"해석할\s*수\s*없",
+        r"주장하지\s*않",
+        r"입증할\s*근거",
+        r"볼\s*근거는\s*부족",
+        r"본\s*보고서에서\s*주장하지\s*않",
+        r"의미하지(?:는)?\s*않",
+        r"증명하지(?:는)?\s*않",
+        r"확인하지\s*않",
+        r"not\s+confirmed",
+        r"not\s+evidence",
+        r"no\s+evidence",
+    )
+)
+WEAK_CONSERVATIVE_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
         r"가능성",
         r"시도",
         r"정황",
@@ -35,18 +55,39 @@ CONSERVATIVE_PATTERNS = tuple(
         r"context",
         r"추정",
         r"보수적",
-        r"확정하지\s*않",
-        r"확정할\s*수\s*없",
-        r"의미하지(?:는)?\s*않",
-        r"증명하지(?:는)?\s*않",
-        r"not\s+confirmed",
-        r"not\s+evidence",
-        r"no\s+evidence",
         r"attempt",
         r"observed",
         r"context-only",
-        r"확인\s*안\s*됐",
-        r"성공으로는\s*보지\s*말",
+        r"review\s*필요",
+        r"검토\s*필요",
+    )
+)
+SAFE_ACTION_CONTEXT_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"확인\s*필요",
+        r"확인[이가]?\s*필요",
+        r"검증\s*필요",
+        r"검증[이가]?\s*필요",
+        r"추가\s*확인",
+        r"추가\s*분석",
+        r"상관\s*분석",
+        r"교차\s*검증",
+        r"원시\s*로그",
+        r"raw\s*log",
+        r"애플리케이션\s*로그",
+        r"waf\s*로그",
+        r"네트워크\s*추적",
+        r"모니터링",
+    )
+)
+RECOMMENDED_ACTION_PATH_PATTERN = re.compile(r"^report\.recommended_actions\[\d+\]\.(?:action|why)$")
+RECOMMENDED_ACTION_STRONG_ASSERTION_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"데이터\s*탈취\s*성공",
+        r"명령\s*실행\s*성공",
+        r"파일\s*내용이\s*반환",
     )
 )
 KNOWN_ASSET_CAUTION_PATTERNS = tuple(
@@ -370,11 +411,27 @@ def clip_excerpt(text: str, start: int, end: int) -> str:
     return excerpt
 
 
-def has_conservative_context(text: str, start: int, end: int) -> bool:
+def classify_assertion_context(text: str, start: int, end: int) -> str:
     left = max(0, start - CONTEXT_WINDOW)
     right = min(len(text), end + CONTEXT_WINDOW)
     context = text[left:right]
-    return any(pattern.search(context) for pattern in CONSERVATIVE_PATTERNS)
+    if any(pattern.search(context) for pattern in STRONG_NEGATION_PATTERNS):
+        return "strong_negation"
+    if any(pattern.search(context) for pattern in WEAK_CONSERVATIVE_PATTERNS):
+        return "weak_conservative"
+    return "none"
+
+
+def is_recommended_action_path(path: str) -> bool:
+    return RECOMMENDED_ACTION_PATH_PATTERN.search(path) is not None
+
+
+def has_safe_action_context(text: str) -> bool:
+    return any(pattern.search(text) for pattern in SAFE_ACTION_CONTEXT_PATTERNS)
+
+
+def has_recommended_action_strong_assertion(text: str) -> bool:
+    return any(pattern.search(text) for pattern in RECOMMENDED_ACTION_STRONG_ASSERTION_PATTERNS)
 
 
 def iter_report_fields(report: Dict[str, Any]) -> Iterable[Tuple[str, str]]:
@@ -427,21 +484,33 @@ def detect_rule_issue(
     debug_rows: List[str],
 ) -> List[Tuple[str, Issue]]:
     issues: List[Tuple[str, Issue]] = []
+    recommended_action_path = is_recommended_action_path(path)
     for severity_name, patterns in (("blocker", spec.blocker_patterns), ("warning", spec.warning_patterns)):
         for pattern in patterns:
             match = pattern.search(text)
             if not match:
                 continue
             excerpt = clip_excerpt(text, match.start(), match.end())
-            conservative = has_conservative_context(text, match.start(), match.end())
+            context_class = classify_assertion_context(text, match.start(), match.end())
             effective_severity = severity_name
-            if severity_name == "blocker" and conservative:
-                effective_severity = "warning"
-            elif severity_name == "warning" and conservative:
+            if severity_name == "blocker" and context_class == "strong_negation":
                 effective_severity = "info"
+            elif severity_name == "blocker" and context_class == "weak_conservative":
+                effective_severity = "warning"
+            elif severity_name == "warning" and context_class in ("strong_negation", "weak_conservative"):
+                effective_severity = "info"
+            if (
+                recommended_action_path
+                and severity_name == "blocker"
+                and (context_class == "strong_negation" or has_safe_action_context(text))
+            ):
+                if has_recommended_action_strong_assertion(text):
+                    effective_severity = "warning"
+                else:
+                    effective_severity = "info"
             if debug_rows is not None:
                 debug_rows.append(
-                    f"{path}: rule={spec.name} severity={effective_severity} matched={match.group(0)!r} conservative={conservative}"
+                    f"{path}: rule={spec.name} severity={effective_severity} matched={match.group(0)!r} context={context_class}"
                 )
             issues.append(
                 (
@@ -465,11 +534,11 @@ def detect_context_only_escalation(path: str, text: str, *, debug_rows: List[str
         match = pattern.search(text)
         if not match:
             continue
-        conservative = has_conservative_context(text, match.start(), match.end())
-        severity_name = "info" if conservative else "warning"
+        context_class = classify_assertion_context(text, match.start(), match.end())
+        severity_name = "info" if context_class != "none" else "warning"
         if debug_rows is not None:
             debug_rows.append(
-                f"{path}: rule=context_only_escalation severity={severity_name} matched={match.group(0)!r} conservative={conservative}"
+                f"{path}: rule=context_only_escalation severity={severity_name} matched={match.group(0)!r} context={context_class}"
             )
         return [
             (
@@ -578,8 +647,8 @@ def analyze_stage2_report_data(data: Dict[str, Any], *, debug: bool = False) -> 
             index = lowered.find(token_lower)
             if index < 0:
                 continue
-            conservative = has_conservative_context(text, index, index + len(token))
-            severity_name = "info" if conservative else "warning"
+            context_class = classify_assertion_context(text, index, index + len(token))
+            severity_name = "info" if context_class != "none" else "warning"
             issue = Issue(
                 rule="context_only_escalation",
                 path=path,
@@ -591,7 +660,7 @@ def analyze_stage2_report_data(data: Dict[str, Any], *, debug: bool = False) -> 
             )
             if debug:
                 debug_rows.append(
-                    f"{path}: rule=context_only_escalation severity={severity_name} matched={token!r} conservative={conservative}"
+                    f"{path}: rule=context_only_escalation severity={severity_name} matched={token!r} context={context_class}"
                 )
             if severity_name == "warning":
                 warning_issues.append(issue)

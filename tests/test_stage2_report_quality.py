@@ -46,6 +46,8 @@ def make_minimal_report(text: str, *, field: str = "overall_assessment") -> dict
         report[field] = text
     elif field == "key_findings.detail":
         report["key_findings"][1]["detail"] = text
+    elif field == "recommended_actions.why":
+        report["recommended_actions"][0]["why"] = text
     else:
         raise ValueError(f"unsupported field: {field}")
     return report
@@ -60,11 +62,53 @@ def test_report_null_is_handled() -> None:
 
 
 def test_negated_file_disclosure_downgrades() -> None:
-    report = make_minimal_report("파일 내용 노출은 확인되지 않았다.")
+    report = make_minimal_report("파일 내용 노출 성공은 확인할 수 없습니다.")
     result = lint.analyze_stage2_report_data(wrap_report(report))
     assert result["summary"]["blocker_count"] == 0
-    assert result["summary"]["warning_count"] >= 0
+    assert result["summary"]["info_count"] >= 1
     assert any(issue["rule"] == "file_disclosure_success_assertion" for issue in result["warnings"] + result["info"])
+
+
+def test_safe_auth_negation_is_not_blocker() -> None:
+    report = make_minimal_report("로그인 성공은 확인되지 않았습니다")
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["blocker_count"] == 0
+    assert result["summary"]["warning_count"] == 0
+    assert result["summary"]["info_count"] >= 1
+
+
+def test_safe_account_takeover_negation_is_not_blocker() -> None:
+    report = make_minimal_report("계정 탈취로는 해석하지 않았습니다")
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["blocker_count"] == 0
+
+
+def test_safe_xss_negation_is_not_blocker() -> None:
+    report = make_minimal_report("XSS 실행 성공으로 해석할 수 있는 증거는 제공되지 않았습니다")
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["blocker_count"] == 0
+
+
+def test_report_level_non_assertion_claim_is_not_blocker() -> None:
+    report = make_minimal_report(
+        "후보 사건이 0건이므로 확정된 침해, 파일 노출, 인증 성공, 외부 전송 성공 등은 본 보고서에서 주장하지 않았습니다"
+    )
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["blocker_count"] == 0
+
+
+def test_weak_possibility_stays_warning() -> None:
+    report = make_minimal_report("HTTP 200 응답은 로그인 성공 가능성을 시사합니다")
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["blocker_count"] == 0
+    assert result["summary"]["warning_count"] >= 1
+
+
+def test_recommended_action_check_is_not_blocker() -> None:
+    report = make_minimal_report("브라우저 XSS 실행 여부 확인이 필요합니다", field="recommended_actions.why")
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["blocker_count"] == 0
+    assert result["summary"]["warning_count"] + result["summary"]["info_count"] >= 1
 
 
 def test_risky_file_disclosure_assertion_is_blocker() -> None:
