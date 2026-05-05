@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}{{ report.filename }} | Security Intelligence Console{% endblock %}
+
+{% block content %}
+<section class="section card {% if not report.is_valid %}is-invalid{% endif %}">
+  <h2>Report Detail</h2>
+  <div class="meta-grid">
+    <div><strong>filename</strong><br>{{ report.filename }}</div>
+    <div><strong>path</strong><br>{{ report.repo_relative_path }}</div>
+    <div><strong>provider</strong><br>{{ report.provider or 'unknown' }}</div>
+    <div><strong>model</strong><br>{{ report.model or 'unknown' }}</div>
+    <div><strong>generated_at</strong><br>{{ report.generated_at or 'unknown' }}</div>
+    <div><strong>report_id</strong><br>{{ report.report_id }}</div>
+    <div><strong>scenario</strong><br>{{ report.scenario or 'unknown' }}</div>
+    <div><strong>timeframe</strong><br>{{ report.timeframe or 'unknown' }}</div>
+  </div>
+
+  {% if report.known_asset_ips %}
+  <p>
+    <strong>Known Asset</strong>:
+    {% for ip in report.known_asset_ips %}
+      <span class="badge badge-muted">{{ ip }}</span>
+    {% endfor %}
+  </p>
+  {% endif %}
+
+  {% if not report.is_valid %}
+    <p class="is-muted">{{ report.error or 'Failed to parse report file' }}</p>
+  {% endif %}
+</section>
+
+<section class="section card">
+  <h3>Stage2 Quality Lint</h3>
+  <p>
+    Reported Verdict:
+    {% if qa_result.verdict|upper == 'PASS' %}
+      <span class="badge badge-lint-pass">PASS</span>
+    {% elif qa_result.verdict|upper == 'WARN' %}
+      <span class="badge badge-lint-warn">WARN</span>
+    {% elif qa_result.verdict|upper == 'FAIL' %}
+      <span class="badge badge-lint-fail">FAIL</span>
+    {% elif qa_result.verdict|upper == 'ERROR' %}
+      <span class="badge badge-lint-error">ERROR</span>
+    {% else %}
+      <span class="badge badge-muted">UNKNOWN</span>
+    {% endif %}
+  </p>
+
+  <p>
+    checked_fields={{ qa_result.checked_fields }} |
+    blocker={{ qa_result.blocker_count }} |
+    warning={{ qa_result.warning_count }} |
+    info={{ qa_result.info_count }}
+  </p>
+
+  {% if qa_result.is_error %}
+    <p class="is-invalid">QA execution error: {{ qa_result.error or 'unknown error' }}</p>
+  {% else %}
+    <div class="issue-list">
+      {% if qa_result.blockers %}
+        {% for issue in qa_result.blockers %}
+        <article class="card issue-blocker">
+          <p class="issue-rule">[{{ issue.rule }}]</p>
+          <p class="issue-path">{{ issue.path }}</p>
+          <p class="issue-excerpt">{{ issue.excerpt }}</p>
+          <p class="issue-suggestion">{{ issue.suggestion }}</p>
+        </article>
+        {% endfor %}
+      {% endif %}
+
+      {% if qa_result.warnings %}
+        {% for issue in qa_result.warnings %}
+        <article class="card issue-warning">
+          <p class="issue-rule">[{{ issue.rule }}]</p>
+          <p class="issue-path">{{ issue.path }}</p>
+          <p class="issue-excerpt">{{ issue.excerpt }}</p>
+          <p class="issue-suggestion">{{ issue.suggestion }}</p>
+        </article>
+        {% endfor %}
+      {% endif %}
+
+      {% if qa_result.info %}
+        {% for issue in qa_result.info %}
+        <article class="card issue-info">
+          <p class="issue-rule">[{{ issue.rule }}]</p>
+          <p class="issue-path">{{ issue.path }}</p>
+          <p class="issue-excerpt">{{ issue.excerpt }}</p>
+          <p class="issue-suggestion">{{ issue.suggestion }}</p>
+        </article>
+        {% endfor %}
+      {% endif %}
+
+      {% if not qa_result.blockers and not qa_result.warnings and not qa_result.info %}
+        <p class="is-empty">No lint issues reported.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>
+
+<section class="section card">
+  <h3>overall_assessment</h3>
+  <p>{{ report.report.get('overall_assessment') or 'N/A' }}</p>
+</section>
+
+<section class="section card">
+  <h3>executive_summary</h3>
+  {% if report.report.get('executive_summary') %}
+    <ul>
+      {% for row in report.report.get('executive_summary') %}
+      <li>{{ row }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="is-muted">N/A</p>
+  {% endif %}
+</section>
+
+<section class="section card">
+  <h3>key_findings</h3>
+  {% if key_findings %}
+    {% for finding in key_findings %}
+    <article class="card">
+      <p><strong>{{ finding.title or '-' }}</strong></p>
+      <p>{{ finding.detail or '-' }}</p>
+    </article>
+    {% endfor %}
+  {% else %}
+    <p class="is-muted">N/A</p>
+  {% endif %}
+</section>
+
+<section class="section card">
+  <h3>notable_incidents</h3>
+  <div class="table-wrapper">
+    <table class="table table-compact">
+      <thead>
+        <tr>
+          <th>severity</th>
+          <th>verdict</th>
+          <th>incident_ref</th>
+          <th>summary</th>
+          <th>why_it_matters</th>
+          <th>source_ip</th>
+          <th>request_count</th>
+          <th>recommended_action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if incidents %}
+          {% for row in incidents %}
+          <tr>
+            <td>{{ row.severity }}</td>
+            <td>{{ row.verdict }}</td>
+            <td>{{ row.incident_ref }}</td>
+            <td>{{ row.title }}</td>
+            <td>{{ row.why_it_matters }}</td>
+            <td>{{ row.source_ip }}</td>
+            <td>{{ row.request_count }}</td>
+            <td>{{ row.recommended_action }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="8" class="is-empty">N/A</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section card">
+  <h3>notable_source_ips</h3>
+  <div class="table-wrapper">
+    <table class="table table-compact">
+      <thead>
+        <tr>
+          <th>Source IP</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if source_ips %}
+          {% for row in source_ips %}
+          <tr>
+            <td>{{ row.source_ip }}</td>
+            <td>{{ row.reason }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="2" class="is-empty">N/A</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section card">
+  <h3>recommended_actions</h3>
+  <div class="table-wrapper">
+    <table class="table table-compact">
+      <thead>
+        <tr>
+          <th>priority</th>
+          <th>action</th>
+          <th>why</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if actions %}
+          {% for row in actions %}
+          <tr>
+            <td>{{ row.priority }}</td>
+            <td>{{ row.action }}</td>
+            <td>{{ row.why }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="3" class="is-empty">N/A</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section card">
+  <h3>confidence_and_limitations</h3>
+  <p>{{ report.report.get('confidence_and_limitations') or 'N/A' }}</p>
+</section>
+
+<section class="section card">
+  <h3>presentation_takeaway</h3>
+  <p>{{ report.report.get('presentation_takeaway') or 'N/A' }}</p>
+</section>
+{% endblock %}

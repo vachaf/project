@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Stage2 Reports | Security Intelligence Console{% endblock %}
+
+{% block content %}
+<section class="section card">
+  <h2>Stage2 Report Overview</h2>
+  <p class="is-muted">Reports: {{ summary.total_count }} | Timeframes: {{ summary.timeframe_count }}</p>
+  <div class="meta-grid">
+    <div><span class="badge badge-lint-pass">PASS</span> {{ summary.lint_aggregate.PASS }}</div>
+    <div><span class="badge badge-lint-warn">WARN</span> {{ summary.lint_aggregate.WARN }}</div>
+    <div><span class="badge badge-lint-fail">FAIL</span> {{ summary.lint_aggregate.FAIL }}</div>
+    <div><span class="badge badge-lint-error">ERROR</span> {{ summary.lint_aggregate.ERROR }}</div>
+  </div>
+</section>
+
+{% if summary.groups %}
+  {% for timeframe, group in summary.groups.items() %}
+  <section class="section">
+    <h3>{{ timeframe or 'unknown' }}</h3>
+    <div class="card-grid">
+      {% for report in group.reports %}
+      <article class="card {% if not report.is_valid %}is-invalid{% endif %}">
+        <p>
+          {% if report.provider == 'openai' %}
+            <span class="badge badge-provider-openai">openai</span>
+          {% elif report.provider == 'anthropic' %}
+            <span class="badge badge-provider-anthropic">anthropic</span>
+          {% else %}
+            <span class="badge badge-provider-unknown">unknown</span>
+          {% endif %}
+          <strong>{{ report.filename }}</strong>
+        </p>
+
+        <p class="is-muted">{{ report.repo_relative_path }}</p>
+        <p>model: {{ report.model or 'unknown' }}</p>
+        <p>generated_at: {{ report.generated_at or 'unknown' }}</p>
+        <p>scenario: {{ report.scenario or 'unknown' }}</p>
+        <p>incidents: {{ report.incident_count }}</p>
+
+        <p>
+          severity:
+          {% if report.severity_counts %}
+            {% for severity, count in report.severity_counts.items() %}
+              {% set severity_class = 'badge-severity-info' %}
+              {% if severity == 'high' %}
+                {% set severity_class = 'badge-severity-high' %}
+              {% elif severity == 'medium' %}
+                {% set severity_class = 'badge-severity-medium' %}
+              {% elif severity == 'low' %}
+                {% set severity_class = 'badge-severity-low' %}
+              {% elif severity == 'info' %}
+                {% set severity_class = 'badge-severity-info' %}
+              {% elif severity == 'context_only' %}
+                {% set severity_class = 'badge-context-only' %}
+              {% endif %}
+              <span class="badge {{ severity_class }}">{{ severity }}={{ count }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="badge badge-muted">none</span>
+          {% endif %}
+        </p>
+
+        <p>
+          lint:
+          {% set lint_verdict = report.lint.verdict|upper %}
+          {% if lint_verdict == 'PASS' %}
+            <span class="badge badge-lint-pass">PASS</span>
+          {% elif lint_verdict == 'WARN' %}
+            <span class="badge badge-lint-warn">WARN</span>
+          {% elif lint_verdict == 'FAIL' %}
+            <span class="badge badge-lint-fail">FAIL</span>
+          {% elif lint_verdict == 'ERROR' %}
+            <span class="badge badge-lint-error">ERROR</span>
+          {% else %}
+            <span class="badge badge-muted">UNKNOWN</span>
+          {% endif %}
+        </p>
+
+        {% if report.is_valid %}
+          <p><a href="/report/{{ report.report_id }}">Detail</a></p>
+        {% else %}
+          <p><span class="badge badge-lint-error">Invalid JSON</span></p>
+          <p class="is-muted">{{ report.error or 'Failed to parse report file' }}</p>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+{% else %}
+  <section class="section card is-empty">
+    <p>No Stage2 report files found.</p>
+  </section>
+{% endif %}
+{% endblock %}
