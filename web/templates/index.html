@@ -15,9 +15,23 @@
 </section>
 
 {% if summary.groups %}
-  {% for timeframe, group in summary.groups.items() %}
-  <section class="section">
-    <h3>{{ timeframe or 'unknown' }}</h3>
+  {% for group in summary.groups.values() %}
+  <section class="section card">
+    <p>
+      <strong>timeframe:</strong> {{ group.timeframe or 'unknown' }} |
+      <strong>scenario:</strong> {{ group.scenario or 'unknown' }}
+    </p>
+    <p>
+      {% if group.has_both %}
+        <span class="badge badge-lint-pass">Pair ready</span>
+        <a href="/compare/{{ group.timeframe_id }}">Compare</a>
+      {% else %}
+        <span class="badge badge-lint-warn">Missing pair</span>
+        <a href="/compare/{{ group.timeframe_id }}">Compare (partial)</a>
+      {% endif %}
+      <span class="is-muted">timeframe_id={{ group.timeframe_id }}</span>
+    </p>
+
     <div class="card-grid">
       {% for report in group.reports %}
       <article class="card {% if not report.is_valid %}is-invalid{% endif %}">
@@ -43,16 +57,12 @@
           {% if report.severity_counts %}
             {% for severity, count in report.severity_counts.items() %}
               {% set severity_class = 'badge-severity-info' %}
-              {% if severity == 'high' %}
+              {% if severity == 'critical' or severity == 'high' %}
                 {% set severity_class = 'badge-severity-high' %}
               {% elif severity == 'medium' %}
                 {% set severity_class = 'badge-severity-medium' %}
               {% elif severity == 'low' %}
                 {% set severity_class = 'badge-severity-low' %}
-              {% elif severity == 'info' %}
-                {% set severity_class = 'badge-severity-info' %}
-              {% elif severity == 'context_only' %}
-                {% set severity_class = 'badge-context-only' %}
               {% endif %}
               <span class="badge {{ severity_class }}">{{ severity }}={{ count }}</span>
             {% endfor %}

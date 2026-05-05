@@ -13,8 +13,9 @@ from web.config import PROJECT_ROOT, REPORT_GLOBS
 
 STAGE2_SUFFIX = "_stage2_report.json"
 TIMEFRAME_PATTERN = re.compile(
-    r"\d{4}-\d{2}-\d{2}_[0-9-]+_to_\d{4}-\d{2}-\d{2}_[0-9-]+(?:_[a-zA-Z0-9-]+)?"
+    r"\d{4}-\d{2}-\d{2}_[0-9-]+_to_\d{4}-\d{2}-\d{2}_[0-9-]+(?:_[a-zA-Z0-9-]+)*"
 )
+SEVERITY_BUCKETS = ("critical", "high", "medium", "low", "info", "unknown")
 
 
 @dataclass
@@ -26,7 +27,11 @@ class Report:
     provider: str
     model: str
     scenario: str
+    scenario_key: str
     timeframe: str
+    timeframe_key: str
+    timeframe_label: str
+    timeframe_id: str
     generated_at: str
     incident_count: int
     severity_counts: Dict[str, int]
@@ -45,7 +50,11 @@ class Report:
             "provider": self.provider,
             "model": self.model,
             "scenario": self.scenario,
+            "scenario_key": self.scenario_key,
             "timeframe": self.timeframe,
+            "timeframe_key": self.timeframe_key,
+            "timeframe_label": self.timeframe_label,
+            "timeframe_id": self.timeframe_id,
             "generated_at": self.generated_at,
             "incident_count": self.incident_count,
             "severity_counts": dict(self.severity_counts),
@@ -63,7 +72,11 @@ class Report:
             "provider": self.provider,
             "model": self.model,
             "scenario": self.scenario,
+            "scenario_key": self.scenario_key,
             "timeframe": self.timeframe,
+            "timeframe_key": self.timeframe_key,
+            "timeframe_label": self.timeframe_label,
+            "timeframe_id": self.timeframe_id,
             "generated_at": self.generated_at,
             "meta": dict(self.meta),
             "report": dict(self.report),
@@ -75,13 +88,14 @@ class Report:
 class ReportLoader:
     def __init__(
         self,
-        project_root: Path = PROJECT_ROOT,
         report_globs: Optional[List[str]] = None,
+        project_root: Path = PROJECT_ROOT,
     ) -> None:
         self.project_root = project_root
         self.report_globs = report_globs or list(REPORT_GLOBS)
         self._reports_by_id: Dict[str, Report] = {}
         self._ordered_ids: List[str] = []
+        self._groups_by_timeframe_id: Dict[str, Dict[str, Any]] = {}
 
     def scan(self) -> List[Report]:
         return self.scan_reports()
@@ -98,7 +112,7 @@ class ReportLoader:
         reports.sort(
             key=lambda item: (
                 item.timeframe == "unknown",
-                item.timeframe,
+                item.timeframe_key,
                 item.generated_at,
                 item.filename,
             ),
@@ -107,6 +121,7 @@ class ReportLoader:
 
         self._reports_by_id = reports_by_id
         self._ordered_ids = [report.report_id for report in reports]
+        self._groups_by_timeframe_id = self.group_by_timeframe(reports)
         return reports
 
     def get_report_by_id(self, report_id: str) -> Optional[Report]:
@@ -124,24 +139,63 @@ class ReportLoader:
         }
 
     def group_by_timeframe(self, reports: Optional[Iterable[Report]] = None) -> Dict[str, Dict[str, Any]]:
-        source_reports = list(reports) if reports is not None else [self._reports_by_id[idx] for idx in self._ordered_ids]
+        if reports is None:
+            if not self._ordered_ids:
+                self.scan_reports()
+            source_reports = [self._reports_by_id[idx] for idx in self._ordered_ids if idx in self._reports_by_id]
+        else:
+            source_reports = list(reports)
 
         grouped: Dict[str, List[Report]] = defaultdict(list)
         for report in source_reports:
-            grouped[report.timeframe].append(report)
+            grouped[report.timeframe_id].append(report)
+
+        sorted_group_items = sorted(
+            grouped.items(),
+            key=lambda item: (
+                item[1][0].timeframe_key == "unknown",
+                item[1][0].timeframe_key,
+                item[1][0].scenario_key,
+            ),
+            reverse=True,
+        )
 
         result: Dict[str, Dict[str, Any]] = {}
-        for timeframe, items in sorted(grouped.items(), key=lambda kv: kv[0], reverse=True):
-            openai_item = next((item for item in items if item.provider == "openai"), None)
-            anthropic_item = next((item for item in items if item.provider == "anthropic"), None)
-            result[timeframe] = {
-                "timeframe": timeframe,
-                "reports": [item.to_summary() for item in items],
+        for timeframe_id, items in sorted_group_items:
+            sorted_items = sorted(
+                items,
+                key=lambda item: (
+                    item.generated_at == "unknown",
+                    item.generated_at,
+                    item.filename,
+                ),
+                reverse=True,
+            )
+            openai_item = next((item for item in sorted_items if item.provider == "openai"), None)
+            anthropic_item = next((item for item in sorted_items if item.provider == "anthropic"), None)
+            unknown_items = [item for item in sorted_items if item.provider == "unknown"]
+
+            group_obj = {
+                "timeframe_id": timeframe_id,
+                "timeframe": sorted_items[0].timeframe_label if sorted_items else "unknown",
+                "scenario": sorted_items[0].scenario if sorted_items else "unknown",
+                "scenario_key": sorted_items[0].scenario_key if sorted_items else "unknown",
+                "timeframe_key": sorted_items[0].timeframe_key if sorted_items else "unknown",
                 "openai": openai_item.to_summary() if openai_item else None,
                 "anthropic": anthropic_item.to_summary() if anthropic_item else None,
+                "unknown_reports": [item.to_summary() for item in unknown_items],
+                "reports": [item.to_summary() for item in sorted_items],
                 "has_both": bool(openai_item and anthropic_item),
             }
+            result[timeframe_id] = group_obj
+
+        self._groups_by_timeframe_id = result
         return result
+
+    def get_group_by_timeframe_id(self, timeframe_id: str) -> Dict[str, Any] | None:
+        if timeframe_id not in self._groups_by_timeframe_id:
+            self.scan_reports()
+        return self._groups_by_timeframe_id.get(timeframe_id)
 
     def _iter_unique_report_paths(self) -> List[Path]:
         unique: Dict[Path, Path] = {}
@@ -157,7 +211,17 @@ class ReportLoader:
         report_id = make_report_id(file_path)
         filename = file_path.name
         repo_relative_path = to_repo_relative_path(file_path, self.project_root)
-        parsed_provider, scenario, timeframe = parse_filename_metadata(filename)
+
+        scenario_key, filename_timeframe_key = parse_filename_scenario_timeframe(filename)
+        timeframe_key = filename_timeframe_key
+        timeframe_label = filename_timeframe_key
+
+        if timeframe_key == "unknown":
+            timeframe_key = repo_relative_path
+            timeframe_label = filename
+
+        scenario_label = scenario_key if scenario_key != "unknown" else "unknown"
+        timeframe_id = make_timeframe_id(scenario_key, timeframe_key)
 
         default_lint = default_lint_summary()
         base_report = Report(
@@ -165,13 +229,17 @@ class ReportLoader:
             file_path=file_path,
             filename=filename,
             repo_relative_path=repo_relative_path,
-            provider=parsed_provider,
+            provider=resolve_provider(filename=filename, meta_provider=None),
             model="unknown",
-            scenario=scenario,
-            timeframe=timeframe,
+            scenario=scenario_label,
+            scenario_key=scenario_key,
+            timeframe=timeframe_label,
+            timeframe_key=timeframe_key,
+            timeframe_label=timeframe_label,
+            timeframe_id=timeframe_id,
             generated_at="unknown",
             incident_count=0,
-            severity_counts={},
+            severity_counts=zero_severity_counts(),
             verdict_counts={},
             lint=default_lint,
             is_valid=True,
@@ -206,25 +274,28 @@ class ReportLoader:
         base_report.report = report_payload
         base_report.model = str(meta.get("selected_model") or "unknown")
         base_report.generated_at = str(meta.get("generated_at") or "unknown")
+        base_report.provider = resolve_provider(filename=filename, meta_provider=meta.get("provider"))
 
-        provider_from_meta = normalize_provider(meta.get("provider"))
-        if provider_from_meta != "unknown":
-            base_report.provider = provider_from_meta
+        window_timeframe_key, window_timeframe_label = extract_timeframe_from_meta_window(meta)
+        if window_timeframe_key != "unknown":
+            base_report.timeframe_key = window_timeframe_key
+            base_report.timeframe = window_timeframe_label
+            base_report.timeframe_label = window_timeframe_label
 
-        if base_report.scenario == "unknown":
-            scenario_from_meta = str(meta.get("mode") or "").strip()
-            if scenario_from_meta:
-                base_report.scenario = scenario_from_meta
+        if base_report.scenario_key == "unknown":
+            base_report.scenario = "unknown"
 
-        if base_report.timeframe == "unknown":
-            timeframe_from_filename = extract_timeframe_from_string(repo_relative_path)
-            if timeframe_from_filename != "unknown":
-                base_report.timeframe = timeframe_from_filename
+        if base_report.timeframe_key == "unknown":
+            base_report.timeframe_key = repo_relative_path
+            base_report.timeframe = filename
+            base_report.timeframe_label = filename
+
+        base_report.timeframe_id = make_timeframe_id(base_report.scenario_key, base_report.timeframe_key)
 
         notable_incidents = report_payload.get("notable_incidents") or []
         base_report.incident_count = len(notable_incidents)
-        base_report.severity_counts = count_values(notable_incidents, "severity")
-        base_report.verdict_counts = count_values(notable_incidents, "verdict")
+        base_report.severity_counts = count_severity_values(notable_incidents, "severity")
+        base_report.verdict_counts = count_named_values(notable_incidents, "verdict")
 
         return base_report
 
@@ -235,6 +306,10 @@ def make_report_id(file_path: Path) -> str:
     except ValueError:
         relative_path = file_path.resolve()
     return hashlib.sha256(str(relative_path).encode("utf-8")).hexdigest()[:16]
+
+
+def make_timeframe_id(scenario: str, timeframe: str) -> str:
+    return hashlib.sha256(f"{scenario}|{timeframe}".encode("utf-8")).hexdigest()[:16]
 
 
 def default_lint_summary() -> Dict[str, Any]:
@@ -248,6 +323,10 @@ def default_lint_summary() -> Dict[str, Any]:
     }
 
 
+def zero_severity_counts() -> Dict[str, int]:
+    return {bucket: 0 for bucket in SEVERITY_BUCKETS}
+
+
 def to_repo_relative_path(file_path: Path, project_root: Path) -> str:
     try:
         relative = file_path.resolve().relative_to(project_root.resolve())
@@ -256,48 +335,81 @@ def to_repo_relative_path(file_path: Path, project_root: Path) -> str:
         return file_path.name
 
 
-def normalize_provider(value: Any) -> str:
-    text = str(value or "").strip().lower()
-    if text in {"openai", "op", "op-security"}:
+def resolve_provider(filename: str, meta_provider: Any) -> str:
+    lower = filename.lower()
+
+    # 1) filename prefix
+    if lower.startswith("op-") or lower.startswith("openai-"):
         return "openai"
-    if text in {"anthropic", "cl", "cl-security"}:
+    if lower.startswith("cl-") or lower.startswith("claude-"):
         return "anthropic"
+
+    # 2) meta.provider
+    meta_text = str(meta_provider or "").strip().lower()
+    if meta_text == "openai":
+        return "openai"
+    if meta_text in {"anthropic", "claude"}:
+        return "anthropic"
+
+    # 3) filename token
+    if "openai" in lower:
+        return "openai"
+    if "claude" in lower or "anthropic" in lower or "cl-" in lower:
+        return "anthropic"
+
     return "unknown"
 
 
-def parse_filename_metadata(filename: str) -> Tuple[str, str, str]:
-    provider = "unknown"
-    lower = filename.lower()
-    if lower.startswith("op-"):
-        provider = "openai"
-    elif lower.startswith("cl-"):
-        provider = "anthropic"
-    elif lower.startswith("openai-"):
-        provider = "openai"
-    elif lower.startswith("anthropic-"):
-        provider = "anthropic"
-
+def parse_filename_scenario_timeframe(filename: str) -> Tuple[str, str]:
     stem = filename
     if stem.endswith(STAGE2_SUFFIX):
         stem = stem[: -len(STAGE2_SUFFIX)]
 
-    timeframe = extract_timeframe_from_string(stem)
+    timeframe_key = extract_timeframe_from_string(stem)
 
-    scenario = "unknown"
     working = stem
-    for prefix in ("op-", "cl-", "openai-", "anthropic-"):
+    for prefix in ("op-", "openai-", "cl-", "claude-"):
         if working.lower().startswith(prefix):
             working = working[len(prefix) :]
             break
 
-    if timeframe != "unknown":
-        parts = working.split("_" + timeframe)
+    scenario = "unknown"
+    if timeframe_key != "unknown":
+        parts = working.split("_" + timeframe_key)
         if parts and parts[0].strip("_"):
             scenario = parts[0].strip("_")
     elif working.strip("_"):
         scenario = working.strip("_")
 
-    return provider, scenario or "unknown", timeframe
+    return scenario or "unknown", timeframe_key
+
+
+def extract_timeframe_from_meta_window(meta: Dict[str, Any]) -> Tuple[str, str]:
+    for key in ("source_window", "analysis_window", "window"):
+        raw_window = meta.get(key)
+        if not isinstance(raw_window, dict):
+            continue
+
+        start = first_non_empty(raw_window.get("start"), raw_window.get("start_inclusive"))
+        end = first_non_empty(
+            raw_window.get("end_exclusive"),
+            raw_window.get("end"),
+            raw_window.get("end_inclusive"),
+        )
+
+        if start and end:
+            timeframe = f"{start}_to_{end}"
+            return timeframe, timeframe
+
+    return "unknown", "unknown"
+
+
+def first_non_empty(*values: Any) -> str:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
 
 
 def extract_timeframe_from_string(text: str) -> str:
@@ -316,7 +428,19 @@ def normalize_report_payload(report_payload: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
-def count_values(rows: List[Any], field_name: str) -> Dict[str, int]:
+def count_severity_values(rows: List[Any], field_name: str) -> Dict[str, int]:
+    counts = zero_severity_counts()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        key = str(row.get(field_name) or "unknown").strip().lower()
+        if key not in counts:
+            key = "unknown"
+        counts[key] += 1
+    return counts
+
+
+def count_named_values(rows: List[Any], field_name: str) -> Dict[str, int]:
     counts: Dict[str, int] = {}
     for row in rows:
         if not isinstance(row, dict):

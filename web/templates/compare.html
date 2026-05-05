@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Compare | Security Intelligence Console{% endblock %}
+
+{% block content %}
+<section class="section card">
+  <h2>Provider Comparison</h2>
+  <p>
+    <strong>timeframe:</strong> {{ group.timeframe or 'unknown' }} |
+    <strong>scenario:</strong> {{ group.scenario or 'unknown' }} |
+    <strong>timeframe_id:</strong> {{ group.timeframe_id }}
+  </p>
+  <p>
+    {% if group.has_both %}
+      <span class="badge badge-lint-pass">has_both=true</span>
+    {% else %}
+      <span class="badge badge-lint-warn">has_both=false</span>
+    {% endif %}
+    <a href="/">Back to list</a>
+  </p>
+</section>
+
+<div class="compare-layout section">
+  {% for provider in ['openai', 'anthropic'] %}
+    {% set panel = panels[provider] %}
+    <section class="card compare-panel {% if provider == 'openai' %}compare-panel-openai{% else %}compare-panel-anthropic{% endif %} {% if panel.is_missing %}compare-panel-missing{% endif %}">
+      <p>
+        {% if provider == 'openai' %}
+          <span class="badge badge-provider-openai">openai</span>
+        {% else %}
+          <span class="badge badge-provider-anthropic">anthropic</span>
+        {% endif %}
+      </p>
+
+      {% if panel.report %}
+        <div class="meta-grid">
+          <div><strong>model</strong><br>{{ panel.report.model or 'unknown' }}</div>
+          <div><strong>generated_at</strong><br>{{ panel.report.generated_at or 'unknown' }}</div>
+          <div><strong>report_id</strong><br>{{ panel.report.report_id }}</div>
+          <div><strong>incidents</strong><br>{{ panel.incident_count }}</div>
+        </div>
+
+        <p><a href="/report/{{ panel.report.report_id }}">Detail</a></p>
+
+        <p>
+          lint:
+          {% if panel.lint %}
+            {% set lint_verdict = panel.lint.verdict|upper %}
+            {% if lint_verdict == 'PASS' %}
+              <span class="badge badge-lint-pass">PASS</span>
+            {% elif lint_verdict == 'WARN' %}
+              <span class="badge badge-lint-warn">WARN</span>
+            {% elif lint_verdict == 'FAIL' %}
+              <span class="badge badge-lint-fail">FAIL</span>
+            {% elif lint_verdict == 'ERROR' %}
+              <span class="badge badge-lint-error">ERROR</span>
+            {% else %}
+              <span class="badge badge-muted">UNKNOWN</span>
+            {% endif %}
+            <span class="is-muted">blocker={{ panel.lint.blocker_count }} warning={{ panel.lint.warning_count }} info={{ panel.lint.info_count }}</span>
+          {% else %}
+            <span class="badge badge-muted">N/A</span>
+          {% endif %}
+        </p>
+
+        <p>
+          severity:
+          {% if panel.severity_counts %}
+            {% for severity, count in panel.severity_counts.items() %}
+              <span class="badge badge-severity-info">{{ severity }}={{ count }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="badge badge-muted">N/A</span>
+          {% endif %}
+        </p>
+
+        <p>
+          verdict:
+          {% if panel.verdict_counts %}
+            {% for verdict, count in panel.verdict_counts.items() %}
+              <span class="badge badge-muted">{{ verdict }}={{ count }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="badge badge-muted">N/A</span>
+          {% endif %}
+        </p>
+
+        {% if panel.known_asset_ips %}
+        <p>
+          <strong>Known Asset</strong>:
+          {% for ip in panel.known_asset_ips %}
+            <span class="badge badge-muted">{{ ip }}</span>
+          {% endfor %}
+        </p>
+        {% endif %}
+
+        <h3>overall_assessment</h3>
+        <p>{{ panel.overall_assessment or 'N/A' }}</p>
+
+        <h3>key_findings</h3>
+        {% if panel.key_findings %}
+          <ul>
+            {% for row in panel.key_findings %}
+              <li>
+                <strong>{{ row.title or '-' }}</strong>
+                ({{ row.severity or 'unknown' }})
+                - {{ row.detail or '-' }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="is-muted">N/A</p>
+        {% endif %}
+
+        <h3>recommended_actions</h3>
+        {% if panel.recommended_actions %}
+          <ul>
+            {% for row in panel.recommended_actions %}
+              <li>[{{ row.priority or 'unknown' }}] {{ row.action or '-' }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="is-muted">N/A</p>
+        {% endif %}
+      {% else %}
+        <div class="compare-empty-panel">
+          <span class="badge badge-missing-report">Missing report</span>
+          <p class="is-muted">No report for this provider in this timeframe.</p>
+          <p class="compare-bar-value-na">Detail: N/A</p>
+          <p class="compare-bar-value-na">Metrics: N/A</p>
+        </div>
+      {% endif %}
+    </section>
+  {% endfor %}
+</div>
+
+<section class="section card compare-metrics">
+  <h3>Compare Metrics</h3>
+
+  {% for metric_key, metric_label in [
+    ('incident_count', 'Reported incident count'),
+    ('high_severity_count', 'High severity count (critical + high)'),
+    ('key_finding_count', 'Key finding count'),
+    ('recommended_action_count', 'Recommended action count'),
+    ('lint_blocker_count', 'Lint blocker count'),
+    ('lint_warning_count', 'Lint warning count'),
+    ('lint_info_count', 'Lint info count')
+  ] %}
+    {% set bar = comparison.metrics.bars[metric_key] %}
+    <div class="compare-bar-row">
+      <div class="compare-bar-label">{{ metric_label }}</div>
+      <div>
+        <div class="compare-bar">
+          <span class="badge badge-provider-openai">openai</span>
+          {% if bar.openai.width is none %}
+            <span class="compare-bar-value-na">N/A</span>
+          {% else %}
+            <div class="compare-bar-track">
+              <div class="compare-bar-fill-openai" style="width: {{ bar.openai.width }}%;"></div>
+            </div>
+            <span>{{ bar.openai.value }}</span>
+          {% endif %}
+        </div>
+        <div class="compare-bar">
+          <span class="badge badge-provider-anthropic">anthropic</span>
+          {% if bar.anthropic.width is none %}
+            <span class="compare-bar-value-na">N/A</span>
+          {% else %}
+            <div class="compare-bar-track">
+              <div class="compare-bar-fill-anthropic" style="width: {{ bar.anthropic.width }}%;"></div>
+            </div>
+            <span>{{ bar.anthropic.value }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</section>
+
+<section class="section card">
+  <h3>Severity Distribution</h3>
+  <div class="compare-table-wrapper">
+    <table class="table table-compact compare-delta-table">
+      <thead>
+        <tr>
+          <th>severity</th>
+          <th>openai</th>
+          <th>anthropic</th>
+          <th>delta (openai-anthropic)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if comparison.severity_rows %}
+          {% for row in comparison.severity_rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{% if row.openai is not none %}{{ row.openai }}{% else %}N/A{% endif %}</td>
+            <td>{% if row.anthropic is not none %}{{ row.anthropic }}{% else %}N/A{% endif %}</td>
+            <td>{% if row.delta is not none %}{{ row.delta }}{% else %}N/A{% endif %}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="4" class="is-empty">N/A</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section card">
+  <h3>Verdict Distribution</h3>
+  <div class="compare-table-wrapper">
+    <table class="table table-compact compare-delta-table">
+      <thead>
+        <tr>
+          <th>verdict</th>
+          <th>openai</th>
+          <th>anthropic</th>
+          <th>delta (openai-anthropic)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if comparison.verdict_rows %}
+          {% for row in comparison.verdict_rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{% if row.openai is not none %}{{ row.openai }}{% else %}N/A{% endif %}</td>
+            <td>{% if row.anthropic is not none %}{{ row.anthropic }}{% else %}N/A{% endif %}</td>
+            <td>{% if row.delta is not none %}{{ row.delta }}{% else %}N/A{% endif %}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="4" class="is-empty">N/A</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section card">
+  <h3>Comparison Notes</h3>
+  {% if comparison.differences.missing_provider %}
+    <p>
+      {% for provider in comparison.differences.missing_provider %}
+        <span class="badge badge-missing-report">{{ provider }} report missing</span>
+      {% endfor %}
+    </p>
+  {% else %}
+    <p><span class="badge badge-lint-pass">Both provider reports available</span></p>
+  {% endif %}
+  <p class="is-muted">Differences shown here are report output differences and may require manual review.</p>
+</section>
+{% endblock %}

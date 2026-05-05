@@ -5,8 +5,8 @@
   --muted: #5e6e85;
   --border: #d7dde6;
   --brand: #0d2b52;
-  --openai: #0f766e;
-  --anthropic: #7a3e00;
+  --openai: #1f4db8;
+  --anthropic: #b85d14;
   --unknown: #475569;
   --pass: #0f7a4f;
   --warn: #9a6800;
@@ -89,7 +89,8 @@ a {
   word-break: break-word;
 }
 
-.table-wrapper {
+.table-wrapper,
+.compare-table-wrapper {
   overflow-x: auto;
 }
 
@@ -134,12 +135,12 @@ a {
 }
 
 .badge-provider-openai {
-  background: #d3f4ef;
+  background: #dce9ff;
   color: var(--openai);
 }
 
 .badge-provider-anthropic {
-  background: #ffecd8;
+  background: #ffead8;
   color: var(--anthropic);
 }
 
@@ -193,6 +194,12 @@ a {
   color: #5c44a9;
 }
 
+.badge-missing-report {
+  background: #f3f4f6;
+  color: #4b5563;
+  border-color: #cdd3dc;
+}
+
 .issue-list {
   display: grid;
   gap: 0.5rem;
@@ -231,6 +238,86 @@ a {
   margin: 0.2rem 0 0;
 }
 
+.compare-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.compare-panel {
+  min-width: 0;
+}
+
+.compare-panel-openai {
+  border-top: 4px solid var(--openai);
+}
+
+.compare-panel-anthropic {
+  border-top: 4px solid var(--anthropic);
+}
+
+.compare-panel-missing {
+  opacity: 0.72;
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+.compare-empty-panel {
+  padding: 0.5rem 0;
+}
+
+.compare-metrics {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.compare-bar-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 0.7rem;
+  align-items: start;
+}
+
+.compare-bar-label {
+  font-weight: 600;
+}
+
+.compare-bar {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.compare-bar-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #e8edf5;
+  overflow: hidden;
+}
+
+.compare-bar-fill-openai {
+  height: 100%;
+  background: linear-gradient(90deg, #6ea4ff, #1f4db8);
+}
+
+.compare-bar-fill-anthropic {
+  height: 100%;
+  background: linear-gradient(90deg, #ffbe8c, #b85d14);
+}
+
+.compare-bar-value-na {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.compare-delta-table td,
+.compare-delta-table th {
+  white-space: nowrap;
+}
+
 .is-invalid {
   border-color: #d84040;
   background: #fff8f8;
@@ -248,8 +335,22 @@ a {
   display: none;
 }
 
+@media (max-width: 900px) {
+  .compare-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-bar-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 700px) {
   .container {
     width: 95vw;
+  }
+
+  .compare-bar {
+    grid-template-columns: 84px 1fr auto;
   }
 }

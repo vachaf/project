@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 
 from web.config import DEBUG, HOST, PORT
 from web.services.qa_runner import QARunner
+from web.services.report_comparator import compare_reports
 from web.services.report_loader import Report, ReportLoader
 
 
@@ -31,17 +32,7 @@ def index(request: Request):
     reports = loader.scan_reports()
 
     for report in reports:
-        if report.is_valid:
-            report.lint = qa_runner.lint_summary(report.report_id, report.file_path)
-        else:
-            report.lint = {
-                "verdict": "ERROR",
-                "checked_fields": 0,
-                "blocker_count": 0,
-                "warning_count": 0,
-                "info_count": 0,
-                "is_error": True,
-            }
+        report.lint = lint_for_report(report)
 
     groups = loader.group_by_timeframe(reports)
     summary = {
@@ -68,7 +59,7 @@ def report_detail(request: Request, report_id: str):
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    qa_result = qa_runner.run_quality_lint(report.report_id, report.file_path)
+    qa_result = lint_for_report(report)
 
     report_payload = report.report if isinstance(report.report, dict) else {}
     incidents = sanitize_incidents(report_payload.get("notable_incidents", []))
@@ -93,24 +84,44 @@ def report_detail(request: Request, report_id: str):
     )
 
 
+@app.get("/compare/{timeframe_id}")
+def compare_view(request: Request, timeframe_id: str):
+    group = loader.get_group_by_timeframe_id(timeframe_id)
+    if group is None:
+        raise HTTPException(status_code=404, detail="Timeframe group not found")
+
+    openai_report = resolve_group_report(group.get("openai"))
+    anthropic_report = resolve_group_report(group.get("anthropic"))
+
+    openai_lint = lint_for_report(openai_report) if openai_report else None
+    anthropic_lint = lint_for_report(anthropic_report) if anthropic_report else None
+
+    comparison = compare_reports(openai_report, anthropic_report, openai_lint, anthropic_lint)
+
+    panels = {
+        "openai": build_compare_panel("openai", openai_report, openai_lint),
+        "anthropic": build_compare_panel("anthropic", anthropic_report, anthropic_lint),
+    }
+
+    return templates.TemplateResponse(
+        request=request,
+        name="compare.html",
+        context={
+            "group": group,
+            "comparison": comparison,
+            "panels": panels,
+        },
+    )
+
+
 @app.get("/api/reports")
 def api_reports() -> JSONResponse:
     reports = loader.scan_reports()
     payload: List[Dict[str, Any]] = []
 
     for report in reports:
+        report.lint = lint_for_report(report)
         summary = report.to_summary()
-        if report.is_valid:
-            report.lint = qa_runner.lint_summary(report.report_id, report.file_path)
-        else:
-            report.lint = {
-                "verdict": "ERROR",
-                "checked_fields": 0,
-                "blocker_count": 0,
-                "warning_count": 0,
-                "info_count": 0,
-                "is_error": True,
-            }
         summary["lint"] = report.lint
         payload.append(summary)
 
@@ -129,7 +140,7 @@ def api_report_detail(report_id: str) -> JSONResponse:
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    qa_result = qa_runner.run_quality_lint(report.report_id, report.file_path)
+    qa_result = lint_for_report(report)
 
     report_payload = report.report if isinstance(report.report, dict) else {}
     detail = {
@@ -140,6 +151,7 @@ def api_report_detail(report_id: str) -> JSONResponse:
         "model": report.model,
         "scenario": report.scenario,
         "timeframe": report.timeframe,
+        "timeframe_id": report.timeframe_id,
         "generated_at": report.generated_at,
         "is_valid": report.is_valid,
         "error": report.error,
@@ -155,6 +167,115 @@ def api_report_detail(report_id: str) -> JSONResponse:
     }
 
     return JSONResponse({"report": detail, "qa_result": qa_result})
+
+
+@app.get("/api/compare/{timeframe_id}")
+def api_compare(timeframe_id: str) -> JSONResponse:
+    group = loader.get_group_by_timeframe_id(timeframe_id)
+    if group is None:
+        raise HTTPException(status_code=404, detail="Timeframe group not found")
+
+    openai_report = resolve_group_report(group.get("openai"))
+    anthropic_report = resolve_group_report(group.get("anthropic"))
+
+    openai_lint = lint_for_report(openai_report) if openai_report else None
+    anthropic_lint = lint_for_report(anthropic_report) if anthropic_report else None
+
+    comparison = compare_reports(openai_report, anthropic_report, openai_lint, anthropic_lint)
+
+    response = {
+        "group": {
+            "timeframe_id": group.get("timeframe_id"),
+            "timeframe": group.get("timeframe"),
+            "scenario": group.get("scenario"),
+            "has_both": bool(group.get("has_both")),
+        },
+        "providers": {
+            "openai": build_compare_panel("openai", openai_report, openai_lint),
+            "anthropic": build_compare_panel("anthropic", anthropic_report, anthropic_lint),
+        },
+        "comparison": comparison,
+    }
+    return JSONResponse(response)
+
+
+def lint_for_report(report: Optional[Report]) -> Optional[Dict[str, Any]]:
+    if report is None:
+        return None
+
+    if not report.is_valid:
+        return {
+            "verdict": "ERROR",
+            "checked_fields": 0,
+            "blocker_count": 0,
+            "warning_count": 0,
+            "info_count": 0,
+            "blockers": [],
+            "warnings": [],
+            "info": [],
+            "is_error": True,
+            "error": report.error or "Invalid report JSON",
+        }
+
+    return qa_runner.run_quality_lint(report.report_id, report.file_path)
+
+
+def resolve_group_report(summary: Any) -> Optional[Report]:
+    if not isinstance(summary, dict):
+        return None
+    report_id = str(summary.get("report_id") or "").strip()
+    if not report_id:
+        return None
+    return loader.get_report_by_id(report_id)
+
+
+def build_compare_panel(provider: str, report: Optional[Report], lint: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if report is None:
+        return {
+            "provider": provider,
+            "report": None,
+            "lint": None,
+            "incident_count": None,
+            "severity_counts": None,
+            "verdict_counts": None,
+            "overall_assessment": "N/A",
+            "key_findings": [],
+            "recommended_actions": [],
+            "known_asset_ips": [],
+            "source_ips": [],
+            "is_missing": True,
+        }
+
+    report_payload = report.report if isinstance(report.report, dict) else {}
+    incidents = sanitize_incidents(report_payload.get("notable_incidents", []))
+
+    return {
+        "provider": provider,
+        "report": {
+            "report_id": report.report_id,
+            "filename": report.filename,
+            "repo_relative_path": report.repo_relative_path,
+            "provider": report.provider,
+            "model": report.model,
+            "scenario": report.scenario,
+            "timeframe": report.timeframe,
+            "timeframe_id": report.timeframe_id,
+            "generated_at": report.generated_at,
+            "is_valid": report.is_valid,
+            "error": report.error,
+        },
+        "lint": lint,
+        "incident_count": report.incident_count,
+        "severity_counts": dict(report.severity_counts),
+        "verdict_counts": dict(report.verdict_counts),
+        "overall_assessment": report_payload.get("overall_assessment") or "N/A",
+        "key_findings": sanitize_finding_items(report_payload.get("key_findings", [])),
+        "recommended_actions": sanitize_action_items(report_payload.get("recommended_actions", [])),
+        "known_asset_ips": normalize_known_asset_ips(report.meta.get("known_asset_ips", [])),
+        "source_ips": sanitize_source_ip_items(report_payload.get("notable_source_ips", [])),
+        "incident_preview": incidents[:5],
+        "is_missing": False,
+    }
 
 
 def aggregate_lint_counts(reports: List[Report]) -> Dict[str, int]:
@@ -221,10 +342,11 @@ def sanitize_finding_items(rows: Any) -> List[Dict[str, str]]:
                 {
                     "title": str(row.get("title") or "-"),
                     "detail": str(row.get("detail") or "-"),
+                    "severity": str(row.get("severity") or "unknown"),
                 }
             )
         elif row is not None:
-            normalized.append({"title": "-", "detail": str(row)})
+            normalized.append({"title": "-", "detail": str(row), "severity": "unknown"})
     return normalized
 
 
