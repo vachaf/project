@@ -20,15 +20,16 @@
 3. 실험 세트 문서는 `experiments/` 아래의 `A_set/` ~ `H_set/`을 본다.
 4. 실험 표준과 결과 기록 양식은 `standards/`를 본다.
 5. 설계, 회귀 검증, 해석 한계, 보류 결정은 `design/`을 본다.
-6. 중간정리, 샘플 리뷰, wording 품질 검토는 `reviews/`를 본다.
-7. 환경 구축, 로그 구조, 실행 가이드, 운영 메모는 `operations/`를 본다.
-8. 후속 작업 계획과 TODO는 `planning/`을 본다.
+6. prepare 모듈 분리, constants mini-move, hints evidence boundary는 [design/README.md](./design/README.md)의 해당 묶음을 본다.
+7. 중간정리, 샘플 리뷰, wording 품질 검토는 `reviews/`를 본다.
+8. 환경 구축, 로그 구조, 실행 가이드, 운영 메모는 `operations/`를 본다.
+9. 후속 작업 계획과 TODO는 `planning/`을 본다.
 
 ## 3. 문서 분류 기준
 
-- `standards/`: 실험 문서 작성 표준, 공통 템플릿, naming rule
+- `standards/`: 실험 문서 작성 표준, 공통 템플릿, naming rule, 분석 품질 기준
 - `experiments/`: A~H 세트별 설계 문서, 실행 요청 문서, 라운드별 세부 문서
-- `design/`: 파이프라인 구조 설계, regression 설계, `prepare` module split 계획, context summary 설계, 해석 한계와 설계 결정
+- `design/`: 파이프라인 구조 설계, regression 설계, `prepare` module split 계획, constants ownership, hints evidence boundary, 해석 한계와 설계 결정
 - `reviews/`: 중간정리, LLM 샘플 검증, Stage2 wording 품질 검토, 완료·평가성 문서
 - `operations/`: 실행 가이드, 운영 기준, 로컬 실험 환경 기준, 로그 구조, 구축 문서
 - `planning/`: 후속 작업 계획, TODO, 우선순위 관리
@@ -42,7 +43,7 @@ docs/
 ├── 진행상황.md
 ├── standards/
 │   ├── README.md
-│   └── 실험 문서 작성 표준, 공통 템플릿, naming rule
+│   └── 실험 문서 작성 표준, 공통 템플릿, 품질 기준, naming rule
 ├── experiments/
 │   ├── README.md
 │   ├── A_set/
@@ -55,7 +56,7 @@ docs/
 │   └── H_set/
 ├── design/
 │   ├── README.md
-│   └── 파이프라인 구조, regression 설계, prepare/module split 계획, 해석 한계와 보류 결정
+│   └── 파이프라인 구조, regression 설계, prepare split, constants ownership, hints evidence boundary
 ├── reviews/
 │   ├── README.md
 │   └── 중간정리, LLM 샘플 검증, Stage2 wording 품질 검토
@@ -74,8 +75,8 @@ docs/
 ## 5. 폴더별 인덱스
 
 - [experiments/README.md](./experiments/README.md): A~H 세트 실험 문서 인덱스
-- [standards/README.md](./standards/README.md): 공통 표준과 결과 기록 템플릿 인덱스
-- [design/README.md](./design/README.md): 설계, 회귀 검증, 해석 한계 문서 인덱스
+- [standards/README.md](./standards/README.md): 공통 표준, 품질 기준, 결과 기록 템플릿 인덱스
+- [design/README.md](./design/README.md): 설계, 회귀 검증, prepare split, constants/hints evidence boundary 문서 인덱스
 - [reviews/README.md](./reviews/README.md): 평가, 품질 검토, 샘플 리뷰 문서 인덱스
 - [operations/README.md](./operations/README.md): 운영, 환경 구축, 로그 구조 문서 인덱스
 - [planning/README.md](./planning/README.md): TODO와 우선순위 문서 인덱스
@@ -103,6 +104,8 @@ docs/
 
 - [98_비교_실험_요청_세트_표준.md](./standards/98_비교_실험_요청_세트_표준.md)
 - [99_비교_실험_결과_기록_템플릿.md](./standards/99_비교_실험_결과_기록_템플릿.md)
+- [99_analysis_quality_criteria.md](./standards/99_analysis_quality_criteria.md)
+- [99_LLM분석_품질평가_체크리스트.md](./standards/99_LLM분석_품질평가_체크리스트.md)
 
 ### 실험 세트
 
@@ -120,18 +123,31 @@ docs/
 - [99_prepare_regression_fixture_설계.md](./design/99_prepare_regression_fixture_설계.md)
 - [99_stage_dryrun_regression_설계.md](./design/99_stage_dryrun_regression_설계.md)
 - [99_prepare_module_split_plan.md](./design/99_prepare_module_split_plan.md)
+- [99_prepare_module_split_round1_summary.md](./design/99_prepare_module_split_round1_summary.md)
+- [99_prepare_module_split_round2_summary.md](./design/99_prepare_module_split_round2_summary.md)
+- [99_prepare_constants_mini_move_summary.md](./design/99_prepare_constants_mini_move_summary.md)
+- [99_prepare_hints_split_summary.md](./design/99_prepare_hints_split_summary.md)
+
+### prepare split / evidence boundary
+
+- 전체 인덱스: [design/README.md](./design/README.md)
+- constants ownership: [99_prepare_constants_ownership_map.md](./design/99_prepare_constants_ownership_map.md)
+- hints 후보 검토: [99_prepare_hints_split_candidate_review.md](./design/99_prepare_hints_split_candidate_review.md)
+- shared attack policy boundary: [99_prepare_shared_attack_policy_boundary_review.md](./design/99_prepare_shared_attack_policy_boundary_review.md)
 
 ### 설계 결정/해석 한계
 
 - [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](./design/99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md)
 - [99_POST_body_visibility_한계와_해석_기준.md](./design/99_POST_body_visibility_한계와_해석_기준.md)
 - [99_sensitive_path_probe_context_category_검토.md](./design/99_sensitive_path_probe_context_category_검토.md)
+- [99_file_disclosure_verdict_taxonomy_검토.md](./design/99_file_disclosure_verdict_taxonomy_검토.md)
 
 ### 리뷰/품질
 
 - [99_A-H세트_중간정리.md](./reviews/99_A-H세트_중간정리.md)
 - [99_llm_sample_review_plan.md](./reviews/99_llm_sample_review_plan.md)
 - [99_stage2_wording_quality_review.md](./reviews/99_stage2_wording_quality_review.md)
+- [99_A-F세트_대표샘플_6선.md](./reviews/99_A-F세트_대표샘플_6선.md)
 
 ### 계획/TODO
 
@@ -166,4 +182,6 @@ docs/
 
 주요 문서의 1차 폴더 정리와 폴더별 README 추가는 완료된 상태다.
 
-남은 작업은 `docs/가상환경_구성_요약.txt` 민감 정보 검토, archive 후보 분류, 절대 경로 링크의 단계적 상대 경로 전환이다.
+최근 prepare module split, constants mini-move, hints split / evidence boundary 문서는 `docs/design/README.md`와 이 문서에 반영되어 있다.
+
+남은 작업은 archive 후보 분류, 절대 경로 링크의 단계적 상대 경로 전환, 필요 시 세트별 README 추가다.
