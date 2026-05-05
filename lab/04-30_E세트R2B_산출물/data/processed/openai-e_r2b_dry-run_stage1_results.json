@@ -1,0 +1,152 @@
+{
+  "meta": {
+    "generated_at": "2026-05-05T10:49:29.821+09:00",
+    "mode": "routine",
+    "selected_model": "dry-run-placeholder",
+    "dry_run": true,
+    "source_prepared_at": "2026-05-05T10:49:29.765+09:00",
+    "source_exported_at": "2026-04-30T13:59:38.607+09:00",
+    "source_query_timezone": "Asia/Seoul",
+    "source_window": {
+      "start": "2026-04-30T13:55:00.000+09:00",
+      "end_exclusive": "2026-04-30T13:56:00.000+09:00"
+    },
+    "source_counts": {
+      "total_exported_rows": 6,
+      "selected_source_rows": 6,
+      "filtered_out_rows": 2,
+      "filtered_out_non_aggregated_rows": 2,
+      "noise_group_count": 0,
+      "candidate_rows_before_auth_behavior_reduction": 4,
+      "auth_behavior_demoted_candidate_rows": 0,
+      "candidate_rows_before_dedup": 4,
+      "candidate_rows": 4,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 4,
+      "supporting_events": 0,
+      "false_positive_review_candidates": 0,
+      "probing_sequence_summaries": 1,
+      "static_baseline_summaries": 0,
+      "crawler_baseline_summaries": 0,
+      "sensitive_path_probe_summaries": 1,
+      "mixed_baseline_scanner_summaries": 0,
+      "ip_behavior_aggregates": 1,
+      "auth_behavior_summaries": 0,
+      "method_behavior_summaries": 0,
+      "protocol_anomaly_summaries": 0
+    },
+    "processed_candidate_count": 4,
+    "success_count": 4,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "request_id": "afLgyRmT0DpdHXxqXheyewAAAAQ",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 1593,
+      "src_ip": "192.168.56.109",
+      "uri": "/index.php",
+      "log_time": "2026-04-30T13:55:37.427 09:00",
+      "status_code": 404,
+      "score": 12,
+      "verdict": "inconclusive",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:resource_parameter",
+        "file_disclosure:sensitive_resource:config_php",
+        "error_status:404(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 1,
+      "request_id": "afLgxOeAB9en9-liEbFkQAAAAAM",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 1592,
+      "src_ip": "192.168.56.109",
+      "uri": "/index.php",
+      "log_time": "2026-04-30T13:55:32.987 09:00",
+      "status_code": 404,
+      "score": 12,
+      "verdict": "inconclusive",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:resource_parameter",
+        "file_disclosure:sensitive_resource:config_php",
+        "error_status:404(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 2,
+      "request_id": "afLgwWSoHnmpSRvjKFzotAAAAAA",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 1591,
+      "src_ip": "192.168.56.109",
+      "uri": "/index.php",
+      "log_time": "2026-04-30T13:55:29.540 09:00",
+      "status_code": 200,
+      "score": 12,
+      "verdict": "inconclusive",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:base64_source_intent",
+        "file_disclosure:resource_parameter",
+        "file_disclosure:sensitive_resource:admin_config_php",
+        "long_query(+1)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 3,
+      "request_id": "afLgvZHt9hGyqryjyhdXXwAAAAE",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 1590,
+      "src_ip": "192.168.56.109",
+      "uri": "/index.php",
+      "log_time": "2026-04-30T13:55:25.327 09:00",
+      "status_code": 200,
+      "score": 12,
+      "verdict": "inconclusive",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "file_disclosure:php_filter_wrapper",
+        "file_disclosure:base64_source_intent",
+        "file_disclosure:resource_parameter",
+        "file_disclosure:sensitive_resource:config_php",
+        "long_query(+1)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    }
+  ]
+}
