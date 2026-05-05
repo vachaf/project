@@ -13,11 +13,13 @@ python3 scripts/check_prepare_regression.py
 python3 scripts/check_prepare_regression.py --strict
 python3 scripts/check_stage_dryrun_regression.py
 python3 scripts/check_stage_dryrun_regression.py --strict
+python3 scripts/check_stage2_report_quality.py --input path/to/stage2_report.json --pretty
 ```
 
 ## 관리 원칙
 
 - regression check, dry-run check, 요약 helper처럼 개발/검증 보조 스크립트를 둔다.
+- check_stage2_report_quality.py: Stage2 report JSON wording risk를 Apache logs-only 기준으로 review-only lint 한다. 기본 모드는 warning-only이며 CI를 깨지 않는다.
 - cleanup_outputs.py: output retention policy 기준의 list-only cleanup candidate inventory. 삭제 기능 없음, `--apply` 미구현.
 - 파이프라인 본체 코드는 `src/`에 둔다.
 - 실험 산출물은 `lab/`에 둔다.
