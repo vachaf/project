@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "generated_at": "2026-05-05T11:52:12.572+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.1",
+      "192.168.56.105",
+      "192.168.56.109",
+      "192.168.56.110",
+      "192.168.56.111"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_0eca0941fac9a3ac0169f95b50da9481908d6e4aa41b131c47",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/lab/05-03_H세트R4_산출물/data/processed/openai-h_r4-check_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/lab/05-03_H세트R4_산출물/data/processed/openai-h_r4-check_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 로그 2차 분석 요약: 내부 자산 IP의 경량 정찰 및 민감 경로 탐색 정황",
+    "overall_assessment": "전체 분석 구간(2026-05-03 19:59:11 ~ 19:59:39 KST)에서 1건의 저위험 정찰성 incident와, 같은 출발지 IP에서 관찰된 후보 밖 탐색성 요청·기준선(baseline) 요청이 함께 보였습니다. 현재 근거만으로는 침해 성공이나 민감 정보 유출을 단정할 수 없고, known asset IP에서 발생했기 때문에 내부 테스트/운영 점검 가능성도 함께 열어두는 것이 적절합니다.",
+    "executive_summary": [
+      "분석 시간대에 192.168.56.1에서 `/server-status` 접근 시도 1건이 403으로 차단되었고, 정찰/탐색 성격으로 분류되었습니다.",
+      "같은 IP에서 `.env`, `backup.zip`, `wp-login.php` 등 민감 경로를 짧은 시간에 반복 조회한 정황이 있었지만, Apache 로그만으로 실제 파일 노출이나 로그인 성공은 확인되지 않았습니다.",
+      "또한 `/`, `/robots.txt`, `/favicon.ico`, `/assets/*`, `/sitemap.xml`, `/products/` 같은 일반/기준선 요청도 함께 보여, 정상 조회와 탐색성 요청이 섞인 혼합 문맥으로 보입니다.",
+      "출발지 IP가 known asset 목록과 일치하므로 외부 공격자 단정은 피하고, 내부 점검 또는 자동화된 테스트 가능성을 함께 고려해야 합니다."
+    ],
+    "key_findings": [
+      {
+        "title": "관리자성 경로(`/server-status`)에 대한 저위험 정찰 시도",
+        "detail": "`/server-status`에 대한 GET 요청이 403으로 차단되었고, 추가 페이로드나 후속 성공 증거는 보이지 않았습니다. 이는 접근 통제에 의해 막힌 정찰/탐색 정황으로 해석하는 것이 타당하며, 침해 성공으로 볼 근거는 부족합니다.",
+        "severity": "low"
+      },
+      {
+        "title": "같은 출발지에서 민감 경로 중심의 짧은 시간 탐색이 관찰됨",
+        "detail": "`.env`, `backup.zip`, `wp-login.php`, `server-status` 같은 민감/관리 경로가 같은 IP에서 연속적으로 관찰되었습니다. 다만 Apache 로그 표면에서는 본문 원문이 없고, 200 응답도 실제 파일 노출이나 앱 존재를 확정하지 않으므로 시도 수준으로 해석해야 합니다.",
+        "severity": "low"
+      },
+      {
+        "title": "기준선 요청과 탐색 요청이 혼재한 혼합 문맥",
+        "detail": "`/`, `/robots.txt`, `/favicon.ico`, `/assets/app.js`, `/assets/style.css`, `/sitemap.xml`, `/products/` 같은 정상/기준선성 요청이 동시에 보입니다. 이는 같은 IP의 동작을 단일 공격 체인으로 묶기보다 정상 조회와 탐색성 요청이 섞인 관찰 문맥으로 보는 것이 적절합니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:afcqk19TYrFq3zXDH9-VqQAAAM4|table:security|log_id:31740|candidate:0",
+        "request_id": "afcqk19TYrFq3zXDH9-VqQAAAM4",
+        "src_ip": "192.168.56.1",
+        "verdict": "suspicious_scan",
+        "severity": "low",
+        "why_it_matters": "`/server-status`는 일반적으로 관리자용 상태 페이지로, 외부에서 접근을 시도한 정황 자체가 정찰성 요청으로 볼 수 있습니다. 다만 403 차단이 확인되어 실제 노출이나 침해 성공으로 확대 해석할 근거는 없습니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.1",
+        "reason": "이 IP에서 유일한 top incident가 관찰되었고, 동시에 `.env`, `backup.zip`, `wp-login.php`, `/server-status` 등을 포함한 민감 경로 탐색과 일반 기준선 요청이 함께 보였습니다. known asset IP이므로 내부 테스트, 자체 호출, 운영 점검 가능성을 반드시 함께 고려해야 합니다."
+      }
+    ],
+    "noise_interpretation": "후보 밖으로 정리된 요청은 `benign_normal_search` 12건(정상/기준선 조회), `low_signal_dir_probe` 6건(민감 경로 존재 확인 수준의 탐색), `low_signal_fuzzing` 3건으로 분포합니다. 특히 `low_signal_dir_probe`는 `.env`, `backup.zip` 같은 민감 경로 반복 접근 정황을 보여 주지만, 성공 여부나 실제 파일 노출을 의미하지는 않습니다. `benign_normal_search`는 공격 징후가 아니라 같은 endpoint의 정상 비교군으로 보는 것이 맞습니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "192.168.56.1의 요청 시퀀스를 원시 로그와 함께 재검토하고, 해당 IP가 내부 테스트/운영 점검용인지 자산 관리 정보와 대조하라.",
+        "why": "known asset IP이므로 외부 공격 단정은 위험합니다. 내부 자동화, 스캐너, 운영 점검과 실제 탐색을 구분해야 합니다."
+      },
+      {
+        "priority": "P2",
+        "action": "`.env`, `backup.zip`, `wp-login.php`, `/server-status` 접근에 대한 접근 로그와 WAF/리버스 프록시 로그를 상관분석하여 반복성, 시간대, 동일 세션 여부를 확인하라.",
+        "why": "현재는 시도 정황만 보이며 성공 여부는 확인되지 않습니다. 추가 상관분석이 있어야 실제 위험도를 평가할 수 있습니다."
+      },
+      {
+        "priority": "P3",
+        "action": "관리자성 경로와 민감 파일 경로에 대한 외부 접근 차단 정책, 네트워크 ACL, 인증 요구 여부를 점검하라.",
+        "why": "정찰성 탐색이 반복될 경우, 차단 정책이 충분한지 사전 점검이 필요합니다."
+      },
+      {
+        "priority": "P3",
+        "action": "분석 대상 시간대의 `low_signal_dir_probe`와 `benign_normal_search`를 운영 점검 트래픽과 분리 기록해 두라.",
+        "why": "추후 동일 패턴이 재발했을 때 정상 점검과 탐색을 구분하는 기준선이 됩니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "Apache 로그 요약본만 사용했기 때문에 raw response body, 실제 파일 내용, 브라우저 실행 결과, 인증 성공 여부는 확인할 수 없습니다.",
+      "`200` 상태코드가 있더라도 본문 원문이 없으면 파일 노출 성공으로 볼 수 없고, 특히 `.env`/`backup.zip`/`wp-login.php` 접근은 탐색 시도 수준으로 해석해야 합니다.",
+      "출발지 IP가 known asset 목록과 일치하므로 내부 테스트/자체 호출 가능성을 배제할 수 없습니다.",
+      "top incident는 1건의 low severity 정찰성 요청이며, 이를 넘어선 medium/high 수준의 침해 증거는 현재 제공 자료에 없습니다."
+    ],
+    "presentation_takeaway": "이번 구간은 ‘침해 성공’보다 ‘내부 자산에서 관찰된 경량 정찰 및 민감 경로 탐색’으로 보는 것이 정확합니다. 핵심은 403으로 차단된 `/server-status` 접근과, 같은 IP에서 섞여 나온 민감 경로 탐색·정상 기준선 요청을 분리해 해석하는 것입니다."
+  }
+}
