@@ -72,6 +72,20 @@ try:
         SUPPORTING_SQL_KEYWORDS,
         detect_educational_sql_search_context as _detect_educational_sql_search_context,
     )
+    from src.prepare.xss_hints import (
+        BROWSER_DATA_ACCESS_RE,
+        EDUCATIONAL_XSS_KEYWORDS,
+        EDUCATIONAL_XSS_SEARCH_TERMS,
+        EVENT_HANDLER_ASSIGNMENT_RE,
+        EXTERNAL_NAVIGATION_RE,
+        EXTERNAL_URL_RE,
+        JAVASCRIPT_PROTOCOL_RE,
+        SCRIPT_TAG_CAPTURE_RE,
+        SCRIPT_TAG_PATTERN,
+        XSS_PATTERNS,
+        XSS_QUOTE_BREAKOUT_PATTERN,
+        XSS_TAG_INJECTION_PATTERN,
+    )
     from src.prepare.method_summaries import (
         METHOD_BASELINE_FAMILIES,
         METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
@@ -170,6 +184,20 @@ except ImportError:
         SUPPORTING_SQL_KEYWORDS,
         detect_educational_sql_search_context as _detect_educational_sql_search_context,
     )
+    from prepare.xss_hints import (
+        BROWSER_DATA_ACCESS_RE,
+        EDUCATIONAL_XSS_KEYWORDS,
+        EDUCATIONAL_XSS_SEARCH_TERMS,
+        EVENT_HANDLER_ASSIGNMENT_RE,
+        EXTERNAL_NAVIGATION_RE,
+        EXTERNAL_URL_RE,
+        JAVASCRIPT_PROTOCOL_RE,
+        SCRIPT_TAG_CAPTURE_RE,
+        SCRIPT_TAG_PATTERN,
+        XSS_PATTERNS,
+        XSS_QUOTE_BREAKOUT_PATTERN,
+        XSS_TAG_INJECTION_PATTERN,
+    )
     from prepare.method_summaries import (
         METHOD_BASELINE_FAMILIES,
         METHOD_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
@@ -239,16 +267,6 @@ except ImportError:
 # ----------------------------
 # 패턴 정의
 # ----------------------------
-XSS_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
-    ("script_tag", re.compile(r"(?i)<\s*script\b"), 5),
-    ("img_onerror", re.compile(r"(?i)<\s*img\b[^>]*onerror\s*="), 5),
-    ("svg_onload", re.compile(r"(?i)<\s*svg\b[^>]*onload\s*="), 5),
-    ("javascript_uri", re.compile(r"(?i)javascript\s*:"), 4),
-    ("event_handler", re.compile(r"(?i)\bon\w+\s*="), 3),
-    ("alert_call", re.compile(r"(?i)\balert\s*\("), 3),
-    ("document_cookie", re.compile(r"(?i)document\.cookie"), 4),
-]
-
 TRAVERSAL_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
     ("dotdot_slash", re.compile(r"(?i)(?:\.\./|\.\.\\\\|%2e%2e%2f|%2e%2e/|\.\.%2f|%252e%252e%252f)"), 4),
     ("etc_passwd", re.compile(r"(?i)/etc/passwd|win\.ini"), 5),
@@ -490,44 +508,7 @@ HTML_ENTITY_RE = re.compile(r"&#x?[0-9a-fA-F]+;", re.IGNORECASE)
 NORMAL_SEARCH_ATTACK_TEXT_RE = re.compile(
     r"(?i)(<\s*script\b|javascript\s*:|alert\s*\(|document\.cookie|localstorage|sessionstorage|php\s*://\s*filter|(?:\.\./|\.\.\\\\)|%3c|%253c|%3e|%253e|%27|%2527|%22|%2522|%28|%2528|%29|%2529|%2e%2e|%252e%252e|%00|%2500|%3a%2f%2f|%253a%252f%252f|%3b|%253b)"
 )
-SCRIPT_TAG_PATTERN = re.compile(r"(?i)<\s*script\b")
-SCRIPT_TAG_CAPTURE_RE = re.compile(r"<\s*([a-z]+)\b", re.IGNORECASE)
-EVENT_HANDLER_ASSIGNMENT_RE = re.compile(r"(?i)\b(on[a-z0-9_]+)\s*=")
-JAVASCRIPT_PROTOCOL_RE = re.compile(r"(?i)javascript\s*:")
-BROWSER_DATA_ACCESS_RE = re.compile(r"(?i)(document\.cookie|localStorage|sessionStorage)")
-EXTERNAL_NAVIGATION_RE = re.compile(
-    r"(?i)(document\.location|window\.location|location\.href|location\s*=|fetch\s*\(|new\s+Image\s*\(\s*\)\s*\.src|navigator\.sendBeacon\s*\()"
-)
-EXTERNAL_URL_RE = re.compile(r"(?i)\b(?:https?:)?//[^\s\"'<>]+")
-XSS_QUOTE_BREAKOUT_PATTERN = re.compile(r"(?i)(?:['\"]\s*>|['\"]\s*<|['\"]\s*on[a-z0-9_]+\s*=)")
-XSS_TAG_INJECTION_PATTERN = re.compile(r"(?i)<\s*(?:script|img|svg|iframe|body|a)\b")
 PHP_FILTER_CANONICAL_PATTERN = re.compile(r"(?i)php\s*://\s*filter")
-EDUCATIONAL_XSS_SEARCH_TERMS = (
-    "how to",
-    "tutorial",
-    "prevent",
-    "example",
-    "guide",
-    "docs",
-    "documentation",
-    "사용법",
-    "예제",
-    "튜토리얼",
-    "강의",
-    "문서",
-)
-EDUCATIONAL_XSS_KEYWORDS = (
-    "xss",
-    "script",
-    "javascript",
-    "onerror",
-    "onload",
-    "onclick",
-    "document.cookie",
-    "cookie",
-    "localstorage",
-    "sessionstorage",
-)
 # ----------------------------
 # 공용 유틸
 # ----------------------------
