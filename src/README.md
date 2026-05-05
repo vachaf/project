@@ -21,6 +21,7 @@ export -> prepare -> stage1 -> stage2
   - prepare 결과의 후보를 대상으로 1차 LLM 분류를 수행한다.
 - `llm_stage2_reporter.py`
   - Stage1 결과와 문맥을 바탕으로 JSON / Markdown 보고서를 생성한다.
+  - Stage2 prompt는 Apache logs-only guard를 섹션화한 compact prompt 구조를 사용한다.
 - `run_analysis_pipeline.py`
   - `export/prepare/stage1/stage2` 흐름을 통합 실행한다.
 
@@ -47,6 +48,8 @@ src/prepare/file_disclosure_hints.py
 src/prepare/traversal_cmdi_hints.py
 ```
 
+모듈별 역할과 분리 원칙은 [prepare/README.md](./prepare/README.md)를 기준으로 확인한다.
+
 분리 원칙:
 
 - `prepare_llm_input.py`의 기존 공개 함수명 wrapper를 유지한다.
@@ -54,6 +57,23 @@ src/prepare/traversal_cmdi_hints.py
 - candidate/scoring/filtering과 supporting_events 의미를 refactor 커밋에서 바꾸지 않는다.
 - expected/test fixture와 Stage2 reporter는 mechanical refactor 커밋에서 수정하지 않는다.
 - Apache logs-only 해석 한계를 유지한다.
+
+## Stage2 report quality lint
+
+Stage2 actual report JSON의 wording risk는 `scripts/check_stage2_report_quality.py`로 점검한다.
+
+```bash
+python3 scripts/check_stage2_report_quality.py \
+  --input path/to/stage2_report.json \
+  --pretty
+```
+
+이 lint는 공격 성공 여부를 판정하는 도구가 아니라 Apache logs-only 기준의 report wording review 도구다.
+
+- 기본 모드는 warning-only이며 exit code 0을 유지한다.
+- `--fail-on-blocker`를 지정한 경우에만 blocker가 있을 때 non-zero exit을 사용할 수 있다.
+- safe negation과 weak conservative context를 구분해 과도한 blocker 판정을 줄인다.
+- 최신 H R4 / E R2B actual report spot check에서는 blocker=0, warning=0, info=6으로 PASS를 기준으로 둔다.
 
 ## 운영 원칙
 
@@ -72,6 +92,7 @@ python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
 python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py
 python3 scripts/check_prepare_regression.py --strict
 python3 scripts/check_stage_dryrun_regression.py --strict
+python3 -m pytest tests/test_stage2_report_quality.py
 ```
 
 현재 기준:
@@ -79,6 +100,7 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 ```text
 prepare regression: pass=18 warn=0 fail=0
 stage dry-run regression: pass=12 warn=0 fail=0
+Stage2 report quality lint tests: 14 passed
 ```
 
 ## 관련 문서
@@ -87,5 +109,6 @@ stage dry-run regression: pass=12 warn=0 fail=0
 - 현재 상태: `../docs/진행상황.md`
 - 운영/실행 가이드: `../docs/operations/01_운영_기준_실행_가이드.md`
 - 회귀 검증 설계: `../docs/design/99_prepare_regression_fixture_설계.md`, `../docs/design/99_stage_dryrun_regression_설계.md`
-- prepare split 인덱스: `../docs/design/README.md`
+- prepare split 인덱스: `../docs/design/README.md`, `./prepare/README.md`
+- Stage2 prompt/lint 설계: `../docs/design/99_stage2_prompt_compaction_plan.md`, `../docs/design/99_stage2_report_quality_lint_candidate_review.md`, `../docs/design/99_stage2_report_quality_lint_tuning_plan.md`
 - 후속 TODO: `../docs/planning/99_비교실험_후속개선_TODO.md`
