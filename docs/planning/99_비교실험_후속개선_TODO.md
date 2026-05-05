@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-04
+- 기준 시점: 2026-05-05
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 원칙: 완료된 항목은 이 문서에 길게 유지하지 않는다.
 
@@ -23,36 +23,20 @@
   - Stage1 prompt guard 추가
   - Stage2 `stage1_carryover_rule` 추가
   - `e_r2_php_wrapper.expected.json` 보강
-- prepare regression 18 fixtures, stage dry-run regression 12 fixtures 모두 strict 기준 통과
-  - `python3 scripts/check_prepare_regression.py --strict`
-  - `python3 scripts/check_stage_dryrun_regression.py --strict`
 - retention/output cleanup 정책과 cleanup script 설계 문서 작성 완료
   - `docs/operations/99_output_retention_policy.md`
   - `docs/design/99_output_cleanup_script_설계.md`
-- cleanup output inventory list-only prototype 추가 완료
-  - `scripts/cleanup_outputs.py`
-  - `tests/test_cleanup_outputs.py`
-  - 삭제 기능 없음, `--apply` 미구현
-  - 단위 테스트 15개 통과
+  - `scripts/cleanup_outputs.py` list-only prototype 추가 완료
+  - `tests/test_cleanup_outputs.py` 단위 테스트 15개 통과
 - prepare module split 1차/2차 진행 완료
-  - `src/prepare/decoders.py` 분리 완료
-  - `src/prepare/l3_hints.py` 분리 완료
-  - `src/prepare/models.py` 분리 완료
-  - `src/prepare/method_summaries.py` 분리 완료
-  - `src/prepare/protocol_anomalies.py` 분리 완료
-  - `src/prepare/auth_behavior.py` 분리 완료
-  - `src/prepare/static_baseline.py` 분리 완료
-  - `src/prepare/crawler_baseline.py` 분리 완료
-  - `src/prepare/sensitive_path_probe.py` 분리 완료
-  - `src/prepare/ip_behavior.py` 분리 완료
-  - `src/prepare/probing_sequence.py` 분리 완료
-  - `src/prepare/mixed_baseline_scanner.py` 분리 완료
+  - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
+  - round2: `ip_behavior.py`, `probing_sequence.py`, `mixed_baseline_scanner.py`
   - `docs/design/99_prepare_module_split_round1_summary.md` 작성 완료
   - `docs/design/99_prepare_module_split_round2_summary.md` 작성 완료
-- prepare constants ownership / mini-move 정리 진행
+- prepare constants ownership / mini-move 정리 완료
   - `docs/design/99_prepare_constants_ownership_map.md` 작성 완료
   - `docs/design/99_prepare_constants_mini_move_candidate_review.md` 작성 완료
-  - `docs/design/99_prepare_constants_mini_move_summary.md` 작성 완료
+  - `docs/design/99_prepare_constants_mini_move_summary.md` 작성 및 crawler baseline까지 갱신 완료
   - `PROTOCOL_ANOMALY_*` constants 3개를 `src/prepare/protocol_anomalies.py`로 이동 완료
   - `IP_BEHAVIOR_*` constants 3개를 `src/prepare/ip_behavior.py`로 이동 완료
   - method behavior constants 5개를 `src/prepare/method_summaries.py`로 이동 완료
@@ -68,30 +52,40 @@
   - `src/prepare/file_disclosure_hints.py` 분리 완료
   - `src/prepare/traversal_cmdi_hints.py` 분리 완료
   - shared attack/search policy, automation UA, decoded attack hints는 보류로 고정
-  - prepare/stage dry-run regression strict 통과 유지
+- post-refactor dry-run / actual LLM spot check 완료
+  - `docs/reviews/99_post_refactor_dry_run_spot_check.md` 작성 완료
+  - `docs/reviews/99_post_refactor_LLM_output_spot_check.md` 작성 완료
+  - B R2B, C, E R2B, H R4 dry-run spot check 통과
+  - H R4 actual LLM spot check 통과
+  - E R2B actual LLM spot check 통과
+  - context-only 과승격, file disclosure 성공 단정, server-status 노출 단정은 spot check 기준 발견하지 않음
+- 최종 검증 재확인 완료
+  - `python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py` 통과
+  - `python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py` 통과
+  - `python3 scripts/check_prepare_regression.py --strict`: pass=18 warn=0 fail=0
+  - `python3 scripts/check_stage_dryrun_regression.py --strict`: pass=12 warn=0 fail=0
+  - `git status --short`: clean
 
-## P1. 실제 LLM 샘플 검증 체계 정리 — 1차 완료
+## P1. 실제 LLM 샘플 검증 체계 관리 — stable
 
 - 완료:
   - F/G/H 5개 샘플 수동 리뷰 완료
   - B/C/E 3개 샘플 수동 리뷰 완료
-  - 누적 8개 샘플, 72/80 = 90%
-  - dry-run regression과 실제 LLM 품질 검증을 분리해서 문서화
-  - 분석 품질 기준과 수동 평가 체크리스트 추가
-  - A~F 대표 샘플 6선 문서 추가
+  - post-refactor actual LLM spot check 2건 완료
 - 남은 관리:
   - 새 샘플은 반복 문제나 발표/보고 필요 시점에만 추가
   - provider별 비교는 필요할 때만 선택 수행
   - 실제 LLM 샘플 검증은 regression 통과 여부와 같은 의미가 아님
 
-## P2. Stage1/Stage2 wording/taxonomy guard 관리 — 일부 완료
+## P2. Stage1/Stage2 wording/taxonomy guard 관리 — 관찰 단계
 
 - 완료:
   - `suspicious_file_disclosure` taxonomy 검토
   - Stage1 `lab-*` / experiment-like UA guard 추가
   - Stage2 `stage1_carryover_rule` 추가
   - `e_r2_php_wrapper.expected.json` 보강
-  - prepare/stage dry-run regression strict 통과
+  - H R4 actual LLM: context-only 과승격 없음
+  - E R2B actual LLM: file disclosure 성공/유출 단정 없음
 - 남은 후보:
   - 실제 LLM 출력에서 context-only 문맥이 과승격되는지 계속 관찰
   - 반복 wording 문제가 다시 나오면 report lint 검토
@@ -106,10 +100,8 @@
 - 완료:
   - output retention policy 작성
   - cleanup script 설계 문서 작성
-  - dry-run 기본, `--apply`에서만 삭제, 보호 경로 제외 원칙 문서화
   - `scripts/cleanup_outputs.py` list-only inventory prototype 추가
-  - `tests/test_cleanup_outputs.py` 단위 테스트 추가
-  - `scripts/README.md` 인덱스 반영
+  - `tests/test_cleanup_outputs.py` 단위 테스트 15개 통과
 - 현재 동작:
   - 삭제 기능 없음
   - `--apply`는 NOT IMPLEMENTED로 종료
@@ -120,21 +112,17 @@
   - 실제 필요 시점에만 JSONL 로그 출력 검토
   - 실제 필요 시점에만 `--kind temp-dryrun`, `--older-than-days` 필터 검토
   - `--apply` 또는 실제 삭제 기능은 별도 승인 전까지 보류
-- 주의:
-  - 실제 삭제 기능은 아직 구현하지 않는다.
-  - `lab/`, `docs/`, `tests/fixtures`, `tests/expected`, `src/`는 기본 보호한다.
-  - cleanup script가 민감 정보 여부를 자동 판단하게 하지 않는다.
 
 ## P4. prepare 모듈 분리 — stable / 추가 코드 분리 보류
 
 - 완료:
-  - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
-  - round2: `ip_behavior.py`, `probing_sequence.py`, `mixed_baseline_scanner.py`
-  - constants mini-move: protocol anomaly, IP behavior, method behavior 일부, static baseline 일부, auth behavior, crawler baseline
-  - hints split: SQLi, XSS, file disclosure, traversal/CMDI
+  - round1/round2 prepare module split 완료
+  - constants mini-move 1차 완료
+  - topic hint pattern split 1차 완료
   - shared attack/search policy boundary review 작성 완료
   - dry-run spot check: B R2B, C, E R2B, H R4 통과
-  - prepare/stage dry-run regression strict 통과 유지
+  - actual LLM spot check: H R4, E R2B 통과
+  - 최종 py_compile / prepare regression / stage dry-run regression 통과
 - 보류:
   - `AUTOMATION_UA_PATTERNS`
   - `detect_decoded_attack_hints`
@@ -148,7 +136,6 @@
 - 다음 후보:
   - 바로 추가 코드 분리하지 않음
   - 실제 LLM 출력 관찰 후 반복 문제에 맞춰 report lint, Stage2 wording, 또는 보류 후보 재검토
-  - 필요 시 `docs/reviews/99_post_refactor_LLM_output_spot_check.md` 작성
 - 조건:
   - 전면 리팩터링 금지
   - 작은 커밋 유지
@@ -164,8 +151,6 @@
   - 새 standards/reviews 문서가 생기면 해당 README 인덱스를 먼저 갱신
   - 오래된 문서는 archive 후보로 검토하되, 직접 참조 중인 문서는 이동하지 않음
 - 현재 우선 후보:
-  - `docs/design/99_prepare_constants_mini_move_summary.md`에 crawler baseline constants 이동 완료 반영
-  - `docs/README.md`, `docs/design/README.md`, `docs/진행상황.md`가 최신 상태인지 필요 시 점검
   - archive 후보 조사
   - 절대 경로 링크의 단계적 상대 경로 전환
 
