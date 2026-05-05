@@ -36,6 +36,8 @@
   - [99_prepare_ip_behavior_constants_move_plan.md](./99_prepare_ip_behavior_constants_move_plan.md): IP behavior constants 이동 계획/완료 기록
   - [99_prepare_method_behavior_constants_move_plan.md](./99_prepare_method_behavior_constants_move_plan.md): method behavior constants 부분 이동 계획/완료 기록
   - [99_prepare_static_baseline_constants_move_plan.md](./99_prepare_static_baseline_constants_move_plan.md): static baseline constants 부분 이동 계획/완료 기록
+  - [99_prepare_auth_behavior_constants_move_plan.md](./99_prepare_auth_behavior_constants_move_plan.md): auth behavior constants/patterns 이동 계획/완료 기록
+  - [99_prepare_crawler_baseline_constants_move_plan.md](./99_prepare_crawler_baseline_constants_move_plan.md): crawler baseline constants/patterns 이동 계획/완료 기록
 - prepare hints split / evidence boundary
   - [99_prepare_hints_split_candidate_review.md](./99_prepare_hints_split_candidate_review.md): SQLi/XSS/file disclosure 등 hint split 후보 비교
   - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md): prepare hint split 완료 요약
@@ -45,6 +47,8 @@
   - [99_prepare_traversal_cmdi_hints_split_plan.md](./99_prepare_traversal_cmdi_hints_split_plan.md): traversal/CMDI hint split 계획/완료 기록
   - [99_prepare_attack_hints_shared_policy_candidate_review.md](./99_prepare_attack_hints_shared_policy_candidate_review.md): attack hints와 shared policy 후보 비교
   - [99_prepare_shared_attack_policy_boundary_review.md](./99_prepare_shared_attack_policy_boundary_review.md): automation UA, shared attack/search policy, decoded hints 보류 경계 검토
+- Stage2 prompt / report wording
+  - [99_stage2_prompt_compaction_plan.md](./99_stage2_prompt_compaction_plan.md): Stage2 report prompt 압축·섹션화 계획
 - 설계 결정/해석 한계
   - [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](./99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md): HTML fallback fingerprint 기능 보류 결정
   - [99_POST_body_visibility_한계와_해석_기준.md](./99_POST_body_visibility_한계와_해석_기준.md): POST body visibility 한계와 해석 기준
@@ -56,9 +60,10 @@
 1. regression 또는 module split 작업이면 설계/회귀 검증 문서와 prepare module split 문서
 2. constants 이동 또는 ownership 판단이면 prepare constants ownership / mini-move 문서
 3. SQLi/XSS/file disclosure 등 hint 계열 분리나 evidence boundary 판단이면 prepare hints split / evidence boundary 문서
-4. 로그 가시성, 해석 한계, 보류 기능 판단이면 설계 결정/해석 한계 문서
-5. 관련 평가는 [../reviews/README.md](../reviews/README.md)
-6. 후속 작업은 [../planning/README.md](../planning/README.md)
+4. Stage2 prompt 정리나 report wording 보강 검토면 Stage2 prompt / report wording 문서
+5. 로그 가시성, 해석 한계, 보류 기능 판단이면 설계 결정/해석 한계 문서
+6. 관련 평가는 [../reviews/README.md](../reviews/README.md)
+7. 후속 작업은 [../planning/README.md](../planning/README.md)
 
 ## 관리 원칙
 
