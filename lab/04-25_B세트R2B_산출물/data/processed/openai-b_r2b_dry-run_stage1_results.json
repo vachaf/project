@@ -1,0 +1,434 @@
+{
+  "meta": {
+    "generated_at": "2026-05-05T10:37:30.519+09:00",
+    "mode": "routine",
+    "selected_model": "dry-run-placeholder",
+    "dry_run": true,
+    "source_prepared_at": "2026-05-05T10:37:30.460+09:00",
+    "source_exported_at": "2026-04-25T17:55:11.253+09:00",
+    "source_query_timezone": "Asia/Seoul",
+    "source_window": {
+      "start": "2026-04-25T17:50:00.000+09:00",
+      "end_exclusive": "2026-04-25T17:55:00.000+09:00"
+    },
+    "source_counts": {
+      "total_exported_rows": 17,
+      "selected_source_rows": 17,
+      "filtered_out_rows": 4,
+      "filtered_out_non_aggregated_rows": 4,
+      "noise_group_count": 0,
+      "candidate_rows_before_auth_behavior_reduction": 13,
+      "auth_behavior_demoted_candidate_rows": 0,
+      "candidate_rows_before_dedup": 13,
+      "candidate_rows": 13,
+      "candidate_duplicate_rows_removed": 0,
+      "distinct_incident_candidates": 13,
+      "supporting_events": 4,
+      "false_positive_review_candidates": 0,
+      "probing_sequence_summaries": 0,
+      "static_baseline_summaries": 0,
+      "crawler_baseline_summaries": 0,
+      "sensitive_path_probe_summaries": 0,
+      "mixed_baseline_scanner_summaries": 0,
+      "ip_behavior_aggregates": 1,
+      "auth_behavior_summaries": 0,
+      "method_behavior_summaries": 0,
+      "protocol_anomaly_summaries": 0
+    },
+    "processed_candidate_count": 13,
+    "success_count": 13,
+    "error_count": 0
+  },
+  "results": [
+    {
+      "candidate_index": 0,
+      "request_id": "aeyAfnHCi27Md-UoFOnpGgAAAEs",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9532,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:51:10.744 09:00",
+      "status_code": 500,
+      "score": 17,
+      "verdict": "likely_sqli",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:or_true(+4)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 1,
+      "request_id": "aeyAiHHCi27Md-UoFOnpGwAAAE0",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9533,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:51:20.171 09:00",
+      "status_code": 500,
+      "score": 16,
+      "verdict": "likely_sqli",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "sqli:quote_termination(+4)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "error_status:500(+2)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 2,
+      "request_id": "aeyAZ3HCi27Md-UoFOnpGAAAAEc",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9529,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:50:47.005 09:00",
+      "status_code": 200,
+      "score": 10,
+      "verdict": "likely_sqli",
+      "severity": "high",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:or_true(+4)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:boolean_true_condition"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 3,
+      "request_id": "aeyArXHCi27Md-UoFOnpIAAAAFc",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9539,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:51:57.033 09:00",
+      "status_code": 200,
+      "score": 9,
+      "verdict": "likely_sqli",
+      "severity": "medium",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:boolean_true_condition"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 4,
+      "request_id": "aeyArHHCi27Md-UoFOnpHwAAAFU",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9538,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:51:56.976 09:00",
+      "status_code": 200,
+      "score": 9,
+      "verdict": "likely_sqli",
+      "severity": "medium",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:boolean_true_condition"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 5,
+      "request_id": "aeyArHHCi27Md-UoFOnpHgAAAFM",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9537,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:51:56.928 09:00",
+      "status_code": 200,
+      "score": 9,
+      "verdict": "likely_sqli",
+      "severity": "medium",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:boolean_true_condition"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 6,
+      "request_id": "aeyAb_U0ZgNjgUQucSRN0wAAABU",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9530,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:50:55.269 09:00",
+      "status_code": 200,
+      "score": 9,
+      "verdict": "likely_sqli",
+      "severity": "medium",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:and_true(+3)",
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:comment_sequence"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 7,
+      "request_id": "aeyA3XHCi27Md-UoFOnpJAAAAEY",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9544,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:52:45.924 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict": "suspicious_scan",
+      "severity": "low",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:comment_sequence",
+        "sqli:xclose_pattern"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 8,
+      "request_id": "aeyAz3HCi27Md-UoFOnpIwAAAEQ",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9543,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:52:31.314 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict": "suspicious_scan",
+      "severity": "low",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:comment_sequence",
+        "sqli:xclose_pattern"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 9,
+      "request_id": "aeyAx_U0ZgNjgUQucSRN1QAAAAA",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9542,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:52:23.548 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict": "suspicious_scan",
+      "severity": "low",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:comment_sequence",
+        "sqli:xclose_pattern"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 10,
+      "request_id": "aeyAwHHCi27Md-UoFOnpIgAAAEI",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9541,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:52:16.041 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict": "suspicious_scan",
+      "severity": "low",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:comment_sequence",
+        "sqli:xclose_pattern"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 11,
+      "request_id": "aeyAuHHCi27Md-UoFOnpIQAAAEA",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9540,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:52:08.989 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict": "suspicious_scan",
+      "severity": "low",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:sql_comment(+2)",
+        "long_query(+1)",
+        "special_char_ratio_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:comment_sequence",
+        "sqli:xclose_pattern"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    },
+    {
+      "candidate_index": 12,
+      "request_id": "aeyAdnHCi27Md-UoFOnpGQAAAEk",
+      "model": "dry-run-placeholder",
+      "source_table": "security",
+      "log_id": 9531,
+      "src_ip": "192.168.56.110",
+      "uri": "/rest/products/search",
+      "log_time": "2026-04-25T17:51:02.995 09:00",
+      "status_code": 200,
+      "score": 6,
+      "verdict": "suspicious_scan",
+      "severity": "low",
+      "confidence": "low",
+      "false_positive_possible": true,
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:sql_comment(+2)",
+        "special_char_ratio_high(+1)",
+        "special_char_ratio_very_high(+1)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "sqli:quote_termination",
+        "sqli:parenthesis_termination",
+        "sqli:comment_sequence",
+        "sqli:xclose_pattern"
+      ],
+      "recommended_actions": [
+        "manual_review"
+      ]
+    }
+  ]
+}

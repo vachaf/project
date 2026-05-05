@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "generated_at": "2026-05-05T10:37:30.574+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "dry_run": true,
+    "known_asset_ips": [
+      "192.168.56.1",
+      "192.168.56.105",
+      "192.168.56.109",
+      "192.168.56.110",
+      "192.168.56.111"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "input_stage1_results": "/opt/web_log_analysis/lab/04-25_B세트R2B_산출물/data/processed/openai-b_r2b_dry-run_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/lab/04-25_B세트R2B_산출물/data/processed/openai-b_r2b_dry-run_llm_input.json"
+  },
+  "report": null
+}
