@@ -1,8 +1,9 @@
 # 99_stage2_report_quality_lint_tuning_plan
 
-- 문서 상태: Stage2 report quality lint tuning plan
+- 문서 상태: Stage2 report quality lint tuning 완료 기록
 - 기준 시점: 2026-05-05
-- 목적: `scripts/check_stage2_report_quality.py`를 전체 과거 `stage2_report.json`에 적용한 결과를 바탕으로, blocker 과잉탐지를 줄이고 warning-only review tool로 안정화하기 위한 튜닝 방향을 정한다.
+- 기준 커밋: `4ee38b1966d226b0c6257c22dc704d2afedb92cc`
+- 목적: `scripts/check_stage2_report_quality.py`의 blocker 과잉탐지를 완화하고 warning-only review tool로 안정화한 결과를 기록한다.
 
 관련 문서:
 
@@ -12,344 +13,272 @@
 - [../reviews/99_post_refactor_LLM_output_spot_check.md](../reviews/99_post_refactor_LLM_output_spot_check.md)
 - [../planning/99_비교실험_후속개선_TODO.md](../planning/99_비교실험_후속개선_TODO.md)
 
-## 1. 결론
+## 1. 완료 결론
 
-옛날 Stage2 보고서를 일괄 재작성하지 않는다.
+Stage2 report quality lint 1차 튜닝은 완료했다.
 
-대신 `check_stage2_report_quality.py`의 lint rule을 튜닝한다.
-
-현재 판단:
+수정 파일:
 
 ```text
-- 과거 보고서는 당시 모델/prompt 기준 산출물로 보존한다.
-- 발표/최종 보고서에 재사용할 산출물만 최신 pipeline으로 재생성한다.
-- lint는 과거 보고서까지 포함한 전체 batch에서 warning/blocker 분포를 보는 보조 도구로 사용한다.
-- 현재 blocker 중 일부는 실제 위험 표현이지만, 일부는 안전한 부정문을 과잉탐지한 것이다.
+scripts/check_stage2_report_quality.py
+tests/test_stage2_report_quality.py
 ```
 
-권장 다음 작업:
+이번 튜닝의 목적:
 
 ```text
-1. blocker 과잉탐지 완화
-2. safe negation pattern 보강
-3. recommended_actions의 "확인 필요" 계열은 success assertion blocker에서 완화
-4. 최신 H/E actual LLM 보고서에는 blocker가 없어야 한다는 기준 유지
+- safe negation 문맥을 blocker로 과잉탐지하지 않음
+- strong negation과 weak conservative context를 분리
+- recommended_actions의 “확인 필요” 계열 표현을 blocker로 과잉탐지하지 않음
+- 최신 actual LLM report의 안전한 보수 표현은 PASS로 평가
+- 실제 강한 성공 단정 표현은 blocker 또는 warning 후보로 계속 포착
 ```
 
-## 2. 전체 batch 결과 요약
-
-실행 대상:
-
-```bash
-find lab -path "*reports*" -name "*stage2_report.json" | sort
-```
-
-lint batch 요약:
+이번 작업에서도 아래 원칙은 유지했다.
 
 ```text
-- PASS/WARN/FAIL이 모두 발생
-- dry-run report 중 report=null인 파일은 PASS checked_fields=0으로 처리됨
-- FAIL은 주로 과거 보고서 또는 강한 표현이 포함된 보고서에서 발생
-- 최신 H R4 / E R2B actual report는 blocker 없이 warning 중심으로 처리됨
+- warning-only review tool 성격 유지
+- 기본 exit code 0 유지
+- --fail-on-blocker 옵션에서만 blocker_count > 0일 때 non-zero 가능
+- Stage2 reporter 수정 없음
+- Stage2 prompt/schema 수정 없음
+- tests/expected 수정 없음
+- tests/fixtures 수정 없음
+- prepare/stage regression 의미 변경 없음
 ```
 
-warning rule 분포:
+## 2. 적용 내용
+
+### 2.1 strong / weak context 분리
+
+추가/정리한 개념:
 
 ```text
-auth_success_assertion: 21
-xss_execution_assertion: 17
-file_disclosure_success_assertion: 17
-context_only_escalation: 6
-sql_success_assertion: 5
-method_protocol_success_assertion: 2
-traversal_cmdi_success_assertion: 1
-ip_ua_attribution_assertion: 1
+STRONG_NEGATION_PATTERNS
+WEAK_CONSERVATIVE_PATTERNS
+classify_assertion_context(text, start, end)
 ```
 
-해석:
+새 분류:
 
 ```text
-- auth/file_disclosure/XSS 계열은 안전한 부정문에도 많이 반응한다.
-- 이 자체는 useful signal이지만 blocker로 남으면 review 효율이 떨어진다.
-- regex lint의 1차 목표는 자동 실패가 아니라 위험 후보 위치를 빠르게 찾는 것이다.
+strong_negation
+weak_conservative
+none
 ```
 
-## 3. 실제 blocker 성격 분류
-
-### 3.1 실제로 고쳐야 할 수 있는 과거 표현
-
-아래 표현은 현재 Apache logs-only 기준으로 강하다.
+적용한 severity 강등 정책:
 
 ```text
-- "로그인 성공 응답 형태에 부합"
-- "인증 우회 성공 정황"
-- "SQLi 성공을 암시"
-- "데이터 탈취 기록 확인"
-- "브라우저 XSS 실행 확인"
+blocker + strong_negation -> info
+blocker + weak_conservative -> warning
+warning + strong_negation -> info
+warning + weak_conservative -> info
+none -> 기존 severity 유지
 ```
 
-판단:
+예상 효과:
 
 ```text
-- 과거 보고서 산출물에서는 그대로 보존 가능
-- 최신 보고서나 발표자료에 쓰려면 재생성 또는 수동 수정 필요
-- lint가 blocker/warning으로 잡는 것이 타당함
+- “파일 내용 노출 성공은 확인할 수 없습니다”는 info로 낮춤
+- “로그인 성공은 확인되지 않았습니다”는 info로 낮춤
+- “침해 성공으로 볼 근거는 부족합니다”는 info로 낮춤
+- “로그인 성공 가능성을 시사”는 warning으로 유지
+- “SQL injection 성공으로 DB 결과가 반환됐다”는 blocker로 유지
 ```
 
-### 3.2 safe negation인데 blocker/warning으로 잡힌 표현
+### 2.2 recommended_actions 완화
 
-아래 표현은 오히려 보수적 문장이다.
+`report.recommended_actions[*].action` / `report.recommended_actions[*].why` 경로에서는 확인/검증 조치 문구가 자주 나온다.
+
+추가한 safe action context:
 
 ```text
-- "로그인 성공은 확인되지 않았습니다"
-- "계정 탈취로는 해석하지 않았습니다"
-- "침해 성공으로 볼 근거는 부족합니다"
-- "파일 내용 노출 성공은 확인할 수 없습니다"
-- "XSS 실행 ... 확인하지 않았습니다"
-- "본 보고서에서 주장하지 않았습니다"
-- "입증할 근거가 없습니다"
+확인 필요
+검증 필요
+추가 확인
+추가 분석
+상관분석
+교차 검증
+원시 로그
+raw log
+애플리케이션 로그
+WAF 로그
+네트워크 추적
+모니터링
 ```
 
-판단:
+정책:
 
 ```text
-- blocker로 두면 안 됨
-- warning도 과할 수 있음
-- info로 낮추는 것이 적절함
+- recommended_actions에서 safe action 또는 strong negation 문맥이면 blocker를 info 또는 warning으로 낮춤
+- “데이터 탈취 성공”, “명령 실행 성공”, “파일 내용이 반환”처럼 명백한 단정은 warning 이상으로 유지
 ```
 
-## 4. 튜닝 목표
+### 2.3 테스트 보강
 
-1차 튜닝 목표:
+추가/확인한 테스트 범위:
 
 ```text
-- 명확한 부정/제한 문맥은 blocker가 아니라 info로 낮춘다.
-- "가능성", "시사", "정황", "암시"는 warning으로 유지한다.
-- 실제 성공 단정은 blocker로 유지한다.
-- 기본 모드는 계속 exit code 0을 유지한다.
-- --fail-on-blocker는 유지하지만, blocker 기준을 더 보수적으로 만든다.
+- report=null 처리
+- 안전한 auth negation
+- 안전한 account takeover negation
+- 안전한 file disclosure negation
+- 안전한 XSS negation
+- “본 보고서에서 주장하지 않았습니다” 문맥
+- weak possibility remains warning
+- file disclosure blocker
+- XSS blocker
+- SQLi blocker
+- IP attribution warning
+- key_findings.detail path 검사
+- recommended action check should not be blocker
+- --fail-on-blocker exit code
 ```
 
-성공 기준:
+검증 결과:
 
 ```text
-- H R4 actual report: blocker_count=0 유지
-- E R2B actual report: blocker_count=0 유지
-- safe negation 문장 대부분 info로 하향
-- 과거의 강한 성공 단정은 blocker 또는 warning으로 유지
-- tests/test_stage2_report_quality.py 통과
-- 기존 prepare/stage regression 통과
+python3 -m pytest tests/test_stage2_report_quality.py: 14 passed
 ```
 
-## 5. 권장 코드 변경
+## 3. 검증 결과
 
-### 5.1 conservative context severity 조정
-
-현재 개념:
+기준 커밋 `4ee38b1966d226b0c6257c22dc704d2afedb92cc`에서 아래 검증을 통과했다.
 
 ```text
-blocker expression + conservative context -> warning
-warning expression + conservative context -> info
+python3 -m py_compile scripts/check_stage2_report_quality.py: 통과
+python3 -m pytest tests/test_stage2_report_quality.py: 14 passed
+python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py: 통과
+python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py: 통과
+python3 scripts/check_prepare_regression.py --strict: pass=18 warn=0 fail=0
+python3 scripts/check_stage_dryrun_regression.py --strict: pass=12 warn=0 fail=0
 ```
 
-권장 변경:
+수정하지 않은 영역:
 
 ```text
-strong negation context가 있으면 blocker expression도 info로 낮춘다.
-weak conservative context이면 blocker -> warning으로 낮춘다.
+src/llm_stage2_reporter.py
+src/llm_stage1_classifier.py
+src/prepare_llm_input.py
+src/prepare/*.py
+tests/expected/*
+tests/fixtures/*
+Stage2 output schema
+stage dry-run expected
+prepare regression fixture
 ```
 
-구분 예:
+## 4. 샘플 lint 재확인 결과
+
+### 4.1 H R4 actual LLM report
+
+대상:
 
 ```text
-strong negation:
-- 확인되지 않았다
-- 확인할 수 없다
-- 확정할 수 없다
-- 단정할 수 없다
-- 근거가 부족하다
-- 증거가 없다
-- 해석하지 않았다
-- 주장하지 않았다
-- 입증할 근거가 없다
-- 본 보고서에서 주장하지 않았다
-- no evidence
-- not confirmed
-
-weak conservative:
-- 가능성
-- 시도
-- 정황
-- 의심
-- 관찰
-- 추정
-- review 필요
+lab/05-03_H세트R4_산출물/reports/openai-h_r4-check_stage2_report.json
 ```
 
-권장 구현:
+결과:
 
 ```text
-- STRONG_NEGATION_PATTERNS 추가
-- WEAK_CONSERVATIVE_PATTERNS 분리
-- has_conservative_context() 대신 classify_context() 형태 검토
+Verdict: PASS
+checked_fields=28
+blocker_count=0
+warning_count=0
+info_count=6
 ```
 
-예시 판정:
+의미:
 
 ```text
-"파일 내용 노출 성공은 확인할 수 없습니다" -> info
-"로그인 성공 가능성을 시사" -> warning
-"SQLi 성공을 암시" -> warning 또는 blocker 후보
-"SQL injection 성공" -> blocker
+- context-only 보수 표현은 info로 유지
+- blocker/warning 없음
+- server-status 노출/침해 성공 단정 없음
 ```
 
-### 5.2 recommended_actions 완화
+### 4.2 E R2B actual LLM report
 
-`recommended_actions`는 본질적으로 확인/검증을 요구하는 섹션이다. 이 섹션에서 나오는 "확인" 표현은 실제 단정이라기보다 조치일 수 있다.
+대상:
+
+```text
+lab/04-30_E세트R2B_산출물/reports/openai-e_r2b-check_stage2_report.json
+```
+
+결과:
+
+```text
+Verdict: PASS
+checked_fields=37
+blocker_count=0
+warning_count=0
+info_count=6
+```
+
+의미:
+
+```text
+- “파일 내용 노출 성공은 확인할 수 없습니다” 같은 safe negation은 info로 낮아짐
+- file disclosure success blocker 없음
+- confirmed source/config disclosure 단정 없음
+```
+
+## 5. 현재 상태 평가
+
+튜닝 후 상태는 의도에 맞다.
+
+```text
+- 최신 actual LLM report 2건은 PASS
+- safe negation blocker 과잉탐지는 완화됨
+- info signal은 남아 review context로 활용 가능
+- 실제 강한 단정 표현은 여전히 blocker/warning 후보로 잡을 수 있음
+```
+
+과거 report JSON은 일괄 재작성하지 않는다.
+
+```text
+- 과거 보고서는 당시 모델/prompt 기준 산출물로 보존
+- 발표/최종 보고서에 재사용할 산출물만 최신 pipeline으로 재생성
+- lint는 과거 보고서 품질 회고와 warning/blocker 분포 파악용으로 사용
+```
+
+## 6. 남은 후보
+
+현재는 추가 lint 튜닝을 바로 하지 않는다.
+
+보류 후보:
+
+```text
+- Markdown parser 도입
+- LLM judge 도입
+- CI fail gate 승격
+- --fail-on-warning 도입
+- 과거 report JSON 일괄 재작성
+```
+
+향후 추가 튜닝 조건:
+
+```text
+- 최신 actual LLM report에서 blocker가 재발
+- 실제 unsafe 단정 표현이 PASS로 누락
+- warning/info가 너무 많아 review 효율이 떨어짐
+- 특정 rule group이 반복적으로 과잉탐지
+```
+
+## 7. 다음 작업
+
+현재는 stable 상태로 둔다.
 
 권장:
 
 ```text
-- path가 report.recommended_actions[*]이면 blocker를 warning으로 낮추는 옵션 검토
-- 단, "데이터 탈취 성공"처럼 명확한 성공 단정은 warning보다 강하게 남길 수 있음
+- 실제 운영/보고 단계에서 반복 wording 문제 관찰
+- 필요 시 report lint rule을 소규모로 추가 튜닝
+- CI fail gate는 아직 도입하지 않음
 ```
-
-예:
-
-```text
-"브라우저 XSS 실행 여부 확인" -> warning 또는 info
-"브라우저에서 스크립트가 실행되었다" -> blocker
-```
-
-### 5.3 pattern 정교화
-
-`auth_success_assertion`에서 아래처럼 부정문 전체를 blocker로 잡는 것을 줄인다.
-
-추가 negation 후보:
-
-```text
-- 해석하지 않았
-- 주장하지 않았
-- 입증할 근거
-- 볼 근거는 부족
-- 확인되지 않아
-- 확인할 수 없어
-```
-
-`file_disclosure_success_assertion`에서 아래는 info로 낮춘다.
-
-```text
-- 실제 파일 내용 노출 성공은 확인되지 않음
-- 파일 내용 노출 성공은 확인할 수 없음
-- file exposure not confirmed
-```
-
-`xss_execution_assertion`에서 아래는 info로 낮춘다.
-
-```text
-- XSS 실행은 확인되지 않음
-- 브라우저 실행 여부를 확인할 수 없음
-- 실행으로 해석하지 않음
-```
-
-## 6. 테스트 추가/수정 계획
-
-기존 테스트에 아래 케이스를 추가한다.
-
-```text
-- "로그인 성공은 확인되지 않았습니다" -> blocker_count=0, warning_count=0 또는 info 허용
-- "계정 탈취로는 해석하지 않았습니다" -> blocker_count=0
-- "파일 내용 노출 성공은 확인할 수 없습니다" -> blocker_count=0, info 허용
-- "XSS 실행 성공으로 해석할 수 있는 증거는 제공되지 않았습니다" -> blocker_count=0
-- "본 보고서에서 주장하지 않았습니다" 문맥 -> blocker_count=0
-- "로그인 성공 가능성을 시사" -> warning 유지
-- "SQLi 성공을 암시" -> warning 또는 blocker 유지
-- recommended_actions의 "브라우저 XSS 실행 여부 확인" -> blocker_count=0
-```
-
-기존 blocker 테스트는 유지한다.
-
-```text
-- "SQL injection 성공으로 DB 결과가 반환됐다" -> blocker
-- "브라우저에서 스크립트가 실행되어 쿠키가 탈취됐다" -> blocker
-- "config 파일 내용이 반환됐다" -> blocker
-```
-
-## 7. 검증 계획
-
-코드 변경 후 실행:
-
-```bash
-python3 -m py_compile scripts/check_stage2_report_quality.py
-python3 -m pytest tests/test_stage2_report_quality.py
-python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py
-python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py
-python3 scripts/check_prepare_regression.py --strict
-python3 scripts/check_stage_dryrun_regression.py --strict
-```
-
-샘플 lint 재확인:
-
-```bash
-python3 scripts/check_stage2_report_quality.py \
-  --input lab/05-03_H세트R4_산출물/reports/openai-h_r4-check_stage2_report.json \
-  --pretty
-
-python3 scripts/check_stage2_report_quality.py \
-  --input lab/04-30_E세트R2B_산출물/reports/openai-e_r2b-check_stage2_report.json \
-  --pretty
-```
-
-전체 batch는 선택 실행:
-
-```bash
-mkdir -p /tmp/stage2_quality_lint
-for f in $(find lab -path "*reports*" -name "*stage2_report.json" | sort); do
-  safe_name=$(echo "$f" | sed 's#[/ ]#_#g')
-  python3 scripts/check_stage2_report_quality.py \
-    --input "$f" \
-    --output "/tmp/stage2_quality_lint/${safe_name}.json" \
-    > "/tmp/stage2_quality_lint/${safe_name}.txt"
-done
-```
-
-## 8. 성공 기준
-
-```text
-- 최신 H/E actual reports: blocker_count=0 유지
-- safe negation blocker 대부분 제거
-- 실제 강한 단정 표현은 여전히 blocker 또는 warning으로 잡힘
-- 테스트 통과
-- 기존 prepare/stage regression 통과
-- 기본 모드는 warning-only exit 0 유지
-```
-
-## 9. 하지 않을 것
-
-이번 튜닝에서 하지 않을 것:
-
-```text
-- 과거 report JSON 재작성
-- Stage2 reporter 수정
-- Stage2 prompt 추가 수정
-- expected fixture 수정
-- lint를 CI fail gate로 승격
-- LLM judge 도입
-- Markdown parser 도입
-```
-
-## 10. 다음 작업
-
-이 문서 작성 후 다음 작업은 Codex에 lint 튜닝을 맡기는 것이다.
 
 문서 전용 커밋 후보:
 
 ```text
-docs: plan Stage2 report quality lint tuning
-```
-
-코드 커밋 후보:
-
-```text
-refactor: tune Stage2 report quality lint
+docs: record Stage2 report quality lint tuning
 ```
