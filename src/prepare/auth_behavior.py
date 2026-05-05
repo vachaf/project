@@ -6,6 +6,38 @@ import re
 from typing import Any, Callable, Dict, Iterable, List, Optional, Pattern, Tuple
 from urllib.parse import unquote_plus
 
+AUTH_SUCCESS_ATTACK_HINT_PATTERN = re.compile(
+    r"(?i)\b("
+    r"bypass|exploit|attack|abuse|intrud|tamper|payload|fuzz|poc|scanner|sqlmap|nikto|nmap"
+    r")\b"
+)
+
+LOGIN_URI_HINTS = (
+    "/login",
+    "/user/login",
+    "/rest/user/login",
+    "/authenticate",
+    "/auth",
+    "/signin",
+    "/session",
+)
+
+AUTH_ENDPOINT_FAMILY_PATTERNS: List[Tuple[str, Pattern[str]]] = [
+    ("auth_login", re.compile(r"(?i)(?:^|[^a-z0-9])login(?:[^a-z0-9]|$)")),
+    ("auth_signin", re.compile(r"(?i)(?:^|[^a-z0-9])signin(?:[^a-z0-9]|$)")),
+    ("auth_session", re.compile(r"(?i)(?:^|[^a-z0-9])session(?:[^a-z0-9]|$)")),
+    ("auth_token", re.compile(r"(?i)(?:^|[^a-z0-9])token(?:[^a-z0-9]|$)")),
+    (
+        "auth_endpoint",
+        re.compile(r"(?i)(?:^|[^a-z0-9])(?:auth|authenticate|authentication)(?:[^a-z0-9]|$)"),
+    ),
+]
+
+AUTH_BEHAVIOR_WINDOW_SEC = 300
+AUTH_BEHAVIOR_RAPID_WINDOW_SEC = 60
+AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
+AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT = 3
+
 
 def _normalize_text(value: Optional[Any]) -> str:
     if value is None:
@@ -257,10 +289,10 @@ def finalize_auth_behavior_bucket(
 
 def build_auth_behavior_summaries(
     rows: List[Dict[str, Any]],
-    window_sec: int = 300,
-    rapid_window_sec: int = 60,
+    window_sec: int = AUTH_BEHAVIOR_WINDOW_SEC,
+    rapid_window_sec: int = AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
     *,
-    sample_request_limit: int = 10,
+    sample_request_limit: int = AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
     auth_endpoint_family_patterns: Iterable[Tuple[str, Pattern[str]]],
 ) -> List[Dict[str, Any]]:
     rows_by_group: Dict[Tuple[str, str], List[Dict[str, Any]]] = defaultdict(list)
@@ -373,4 +405,3 @@ def build_auth_behavior_summary_contexts(
             }
         )
     return contexts
-

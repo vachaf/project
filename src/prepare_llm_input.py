@@ -106,6 +106,13 @@ try:
         build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
     )
     from src.prepare.auth_behavior import (
+        AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
+        AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT,
+        AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
+        AUTH_BEHAVIOR_WINDOW_SEC,
+        AUTH_ENDPOINT_FAMILY_PATTERNS,
+        AUTH_SUCCESS_ATTACK_HINT_PATTERN,
+        LOGIN_URI_HINTS,
         build_auth_behavior_summaries as _build_auth_behavior_summaries,
         build_auth_behavior_summary_contexts as _build_auth_behavior_summary_contexts,
         finalize_auth_behavior_bucket as _finalize_auth_behavior_bucket,
@@ -227,6 +234,13 @@ except ImportError:
         build_method_behavior_summary_contexts as _build_method_behavior_summary_contexts,
     )
     from prepare.auth_behavior import (
+        AUTH_BEHAVIOR_RAPID_WINDOW_SEC,
+        AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT,
+        AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT,
+        AUTH_BEHAVIOR_WINDOW_SEC,
+        AUTH_ENDPOINT_FAMILY_PATTERNS,
+        AUTH_SUCCESS_ATTACK_HINT_PATTERN,
+        LOGIN_URI_HINTS,
         build_auth_behavior_summaries as _build_auth_behavior_summaries,
         build_auth_behavior_summary_contexts as _build_auth_behavior_summary_contexts,
         finalize_auth_behavior_bucket as _finalize_auth_behavior_bucket,
@@ -294,32 +308,6 @@ AUTOMATION_UA_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
     ("wget", re.compile(r"(?i)^wget/"), 1),
 ]
 
-AUTH_SUCCESS_ATTACK_HINT_PATTERN = re.compile(
-    r"(?i)\b("
-    r"bypass|exploit|attack|abuse|intrud|tamper|payload|fuzz|poc|scanner|sqlmap|nikto|nmap"
-    r")\b"
-)
-
-LOGIN_URI_HINTS = (
-    "/login",
-    "/user/login",
-    "/rest/user/login",
-    "/authenticate",
-    "/auth",
-    "/signin",
-    "/session",
-)
-
-AUTH_ENDPOINT_FAMILY_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
-    ("auth_login", re.compile(r"(?i)(?:^|[^a-z0-9])login(?:[^a-z0-9]|$)")),
-    ("auth_signin", re.compile(r"(?i)(?:^|[^a-z0-9])signin(?:[^a-z0-9]|$)")),
-    ("auth_session", re.compile(r"(?i)(?:^|[^a-z0-9])session(?:[^a-z0-9]|$)")),
-    ("auth_token", re.compile(r"(?i)(?:^|[^a-z0-9])token(?:[^a-z0-9]|$)")),
-    (
-        "auth_endpoint",
-        re.compile(r"(?i)(?:^|[^a-z0-9])(?:auth|authenticate|authentication)(?:[^a-z0-9]|$)"),
-    ),
-]
 
 QUERY_HEAVY_URI_HINTS = (
     "/search",
@@ -455,10 +443,6 @@ SENSITIVE_PATH_PROBE_REPRESENTATIVE_CANDIDATE_LIMIT = 1
 MIXED_BASELINE_SCANNER_WINDOW_SEC = 300
 MIXED_BASELINE_SCANNER_MIN_REQUEST_COUNT = 4
 MIXED_BASELINE_SCANNER_SAMPLE_REQUEST_LIMIT = 10
-AUTH_BEHAVIOR_WINDOW_SEC = 300
-AUTH_BEHAVIOR_RAPID_WINDOW_SEC = 60
-AUTH_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
-AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT = 3
 STANDARD_HTTP_METHODS = {
     "GET",
     "HEAD",
