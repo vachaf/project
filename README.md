@@ -9,6 +9,7 @@ Apache 웹 로그를 MariaDB에 적재한 뒤 `export -> prepare -> stage1 -> st
 - Apache 웹 로그 기반 분석
 - `export -> prepare -> stage1 -> stage2` 구조로 동작
 - `prepare_llm_input.py`에서 후보와 context-only 문맥을 선별
+- `src/prepare/` 하위 모듈에서 decoder, hint, context summary, constants owner 일부를 분리 관리
 - `llm_stage1_classifier.py`에서 후보별 1차 분류
 - `llm_stage2_reporter.py`에서 Markdown / JSON 보고서 생성
 - `run_analysis_pipeline.py --dry-run`으로 실제 LLM API 호출 없이 구조 검증 가능
@@ -32,6 +33,7 @@ Apache logs
 - SQLi
 - XSS
 - traversal
+- CMDI
 - HPP
 - PHP wrapper / file disclosure attempt
 - Log4Shell-style JNDI lookup
@@ -58,6 +60,37 @@ Apache logs
 
 위 context-only 항목은 성공/침해 단정 근거가 아니라 문맥 보존용입니다.
 
+## Prepare Module Structure
+
+`src/prepare_llm_input.py`는 여전히 prepare 단계의 coordinator 역할을 유지합니다. 세부 helper와 pattern/context builder는 아래 모듈로 분리되어 있습니다.
+
+```text
+src/prepare/decoders.py
+src/prepare/l3_hints.py
+src/prepare/models.py
+src/prepare/method_summaries.py
+src/prepare/protocol_anomalies.py
+src/prepare/auth_behavior.py
+src/prepare/static_baseline.py
+src/prepare/crawler_baseline.py
+src/prepare/sensitive_path_probe.py
+src/prepare/ip_behavior.py
+src/prepare/probing_sequence.py
+src/prepare/mixed_baseline_scanner.py
+src/prepare/sqli_hints.py
+src/prepare/xss_hints.py
+src/prepare/file_disclosure_hints.py
+src/prepare/traversal_cmdi_hints.py
+```
+
+분리 원칙:
+
+- mechanical refactor 우선
+- `prepare_llm_input.py` wrapper 유지
+- output key / policy_notes / counts 의미 유지
+- expected fixture와 Stage2 reporter는 refactor 커밋에서 수정하지 않음
+- Apache logs-only 해석 한계 유지
+
 ## Regression Checks
 
 ```bash
@@ -80,7 +113,9 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 - no response body content
 - no DB result
 - no browser execution validation
-- no success / exfiltration / compromise assertion from status/bytes/content-type alone
+- no login success / account takeover / credential stuffing success assertion from Apache logs alone
+- no file exposure / source disclosure / server compromise assertion from status/bytes/content-type alone
+- no real crawler identity or site structure assertion from User-Agent/path pattern alone
 - Apache logs-only visibility can produce blind spots
 
 ## Safety Principles
@@ -99,9 +134,9 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 - `src/`: 분석 파이프라인의 주요 Python 코드
 - `scripts/`: 회귀 검증, dry-run 검증, 보조 점검 스크립트
 - `docs/operations/`: 실행 가이드, 환경 구축, 로그 구조, `export/prepare/stage1/stage2` 운영 문서
-- `docs/standards/`: 비교 실험 표준, 결과 기록 템플릿
+- `docs/standards/`: 비교 실험 표준, 결과 기록 템플릿, 품질 기준
 - `docs/experiments/`: A~H 세트별 실험 설계/실행 요청 문서
-- `docs/design/`: 파이프라인 설계, regression 설계, 해석 한계, 보류 결정
+- `docs/design/`: 파이프라인 설계, regression 설계, prepare split, constants/hints evidence boundary 문서
 - `docs/reviews/`: 중간정리, LLM 샘플 검증, Stage2 wording 품질 검토
 - `docs/planning/`: 후속 작업 TODO와 우선순위
 - `lab/`: 실험 산출물, 비교 결과, 실행 결과 보관
@@ -115,6 +150,6 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 - 운영/실행: [docs/operations/01_운영_기준_실행_가이드.md](docs/operations/01_운영_기준_실행_가이드.md)
 - 전체 흐름: [docs/operations/00_전체_흐름_요약_가이드.md](docs/operations/00_전체_흐름_요약_가이드.md)
 - 실험 표준: [docs/standards/98_비교_실험_요청_세트_표준.md](docs/standards/98_비교_실험_요청_세트_표준.md)
-- 실험 문서 인덱스: [docs/experiments/README.md](docs/experiments/README.md)
 - 회귀 검증 설계: [docs/design/99_prepare_regression_fixture_설계.md](docs/design/99_prepare_regression_fixture_설계.md), [docs/design/99_stage_dryrun_regression_설계.md](docs/design/99_stage_dryrun_regression_설계.md)
+- prepare split 인덱스: [docs/design/README.md](docs/design/README.md)
 - 후속 작업: [docs/planning/99_비교실험_후속개선_TODO.md](docs/planning/99_비교실험_후속개선_TODO.md)
