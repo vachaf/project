@@ -74,6 +74,9 @@
   - `python3 scripts/check_prepare_regression.py --strict`: pass=18 warn=0 fail=0
   - `python3 scripts/check_stage_dryrun_regression.py --strict`: pass=12 warn=0 fail=0
   - `git status --short`: clean
+- Web UI Report Viewer 문서/구현 흐름 반영 완료
+  - Phase 1A plan/contract, Phase 1B plan 기준 구현 흐름 반영
+  - UI polish 계획 문서 작성 완료: `docs/design/99_web_ui_report_viewer_ui_polish_plan.md`
 
 ## P1. 실제 LLM 샘플 검증 체계 관리 — stable
 
@@ -165,6 +168,8 @@
   - 새 standards/reviews 문서가 생기면 해당 README 인덱스를 먼저 갱신
   - 오래된 문서는 archive 후보로 검토하되, 직접 참조 중인 문서는 이동하지 않음
 - 현재 우선 후보:
+  - Web UI README/인덱스 동기화(viewer 원칙, lint 연계 명령, read-only 범위)
+  - docs 인덱스에서 Web UI/Stage2 lint/prepare split 최근 문서 가시성 유지
   - archive 후보 조사
   - 절대 경로 링크의 단계적 상대 경로 전환
 
@@ -173,10 +178,15 @@
 - known asset 운영 가이드 정리
 - Threat intelligence 연동 검토
 - 알림, 대시보드, 자동 대응 검토
-- optional next candidate: web UI report viewer Phase 1A ([docs/design/99_web_ui_report_viewer_phase1a_plan.md](../design/99_web_ui_report_viewer_phase1a_plan.md))
-  - scope: report list/detail + Stage2 quality lint display only
-  - do not modify pipeline core
-  - implementation gated by manual decision
+- 보류/비권장: 프레임워크 전환(React/Vue/Svelte/Angular, Streamlit, Tailwind/Bootstrap, Docker)
+  - 현재는 FastAPI + Jinja2 + Plain CSS 유지가 우선
+  - htmx/Alpine.js는 작은 인터랙션 필요 시에만 후보
+
+## 다음 실행 후보
+
+- UI polish 구현(template/CSS 중심)
+  - 우선 파일: `web/templates/index.html`, `web/templates/compare.html`, `web/templates/detail.html`, `web/static/style.css`
+  - 원칙: Python logic 변경 최소화, report read-only 유지, Stage2 보안 판정 의미 변경 금지
 
 장기 후보 주의:
 

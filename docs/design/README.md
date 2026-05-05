@@ -54,6 +54,9 @@
 - Web UI / report viewer
   - [99_web_ui_report_viewer_plan.md](./99_web_ui_report_viewer_plan.md): Stage2 report viewer 전체 설계와 phase 개요
   - [99_web_ui_report_viewer_phase1a_plan.md](./99_web_ui_report_viewer_phase1a_plan.md): Phase 1A report list/detail + Stage2 quality lint display 구현 체크리스트
+  - [99_web_ui_report_viewer_phase1a_template_contract.md](./99_web_ui_report_viewer_phase1a_template_contract.md): Phase 1A 템플릿/뷰 컨텍스트 contract
+  - [99_web_ui_report_viewer_phase1b_plan.md](./99_web_ui_report_viewer_phase1b_plan.md): Phase 1B compare view 설계와 구현 체크리스트
+  - [99_web_ui_report_viewer_ui_polish_plan.md](./99_web_ui_report_viewer_ui_polish_plan.md): UI polish 우선순위와 프레임워크 보류 기준
 - 설계 결정/해석 한계
   - [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](./99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md): HTML fallback fingerprint 기능 보류 결정
   - [99_POST_body_visibility_한계와_해석_기준.md](./99_POST_body_visibility_한계와_해석_기준.md): POST body visibility 한계와 해석 기준

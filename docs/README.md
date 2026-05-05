@@ -21,10 +21,11 @@
 4. 실험 표준과 결과 기록 양식은 `standards/`를 본다.
 5. 설계, 회귀 검증, 해석 한계, 보류 결정은 `design/`을 본다.
 6. prepare 모듈 분리, constants mini-move, hints evidence boundary, Stage2 prompt/lint 정리는 [design/README.md](./design/README.md)의 해당 묶음을 본다.
-7. prepare 하위 모듈의 실제 역할은 [../src/prepare/README.md](../src/prepare/README.md)를 본다.
-8. 중간정리, 샘플 리뷰, post-refactor spot check, wording 품질 검토는 `reviews/`를 본다.
-9. 환경 구축, 로그 구조, 실행 가이드, 운영 메모는 `operations/`를 본다.
-10. 후속 작업 계획과 TODO는 `planning/`을 본다.
+7. Web UI Report Viewer(Phase 1A/1B, UI polish) 문서는 `design/`의 Web UI 묶음을 먼저 본다.
+8. prepare 하위 모듈의 실제 역할은 [../src/prepare/README.md](../src/prepare/README.md)를 본다.
+9. 중간정리, 샘플 리뷰, post-refactor spot check, wording 품질 검토는 `reviews/`를 본다.
+10. 환경 구축, 로그 구조, 실행 가이드, 운영 메모는 `operations/`를 본다.
+11. 후속 작업 계획과 TODO는 `planning/`을 본다.
 
 ## 3. 문서 분류 기준
 
@@ -132,6 +133,11 @@ docs/
 - [99_stage2_prompt_compaction_plan.md](./design/99_stage2_prompt_compaction_plan.md)
 - [99_stage2_report_quality_lint_candidate_review.md](./design/99_stage2_report_quality_lint_candidate_review.md)
 - [99_stage2_report_quality_lint_tuning_plan.md](./design/99_stage2_report_quality_lint_tuning_plan.md)
+- [99_web_ui_report_viewer_plan.md](./design/99_web_ui_report_viewer_plan.md)
+- [99_web_ui_report_viewer_phase1a_plan.md](./design/99_web_ui_report_viewer_phase1a_plan.md)
+- [99_web_ui_report_viewer_phase1a_template_contract.md](./design/99_web_ui_report_viewer_phase1a_template_contract.md)
+- [99_web_ui_report_viewer_phase1b_plan.md](./design/99_web_ui_report_viewer_phase1b_plan.md)
+- [99_web_ui_report_viewer_ui_polish_plan.md](./design/99_web_ui_report_viewer_ui_polish_plan.md)
 
 ### prepare split / evidence boundary
 
