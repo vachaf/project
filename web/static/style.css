@@ -71,6 +71,23 @@ a {
   min-width: 0;
 }
 
+.card-grid.card-grid-provider-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.card-grid.card-grid-provider-pair > .card {
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+}
+
+.provider-card-missing {
+  border-style: dashed;
+}
+
 .card-grid > * {
   min-width: 0;
 }
@@ -341,6 +358,10 @@ a {
   }
 
   .compare-bar-row {
+    grid-template-columns: 1fr;
+  }
+
+  .card-grid.card-grid-provider-pair {
     grid-template-columns: 1fr;
   }
 }

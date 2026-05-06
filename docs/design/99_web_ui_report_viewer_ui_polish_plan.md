@@ -366,6 +366,41 @@ UI는 새로 단정하지 않는다.
 
 ## 10. 작업 우선순위
 
+### 10.1 2026-05-06 브라우저 점검 결과 (Phase 1B)
+
+점검 일자: 2026-05-06
+
+정상 확인 항목:
+
+- list/detail/compare page 기본 표시 정상
+- compare metrics 위치 정상
+- known asset masking 유지
+- pair ready compare group 표시 정상 (openai/anthropic 나란히 표시)
+
+추가 polish 필요 항목:
+
+- provider가 하나뿐인 timeframe group에서 오른쪽 카드 영역이 비어 보임
+- partial group의 missing provider 상태를 더 명확히 보여줄 필요 있음
+
+권장 해결:
+
+- list page partial group에도 missing provider placeholder card를 표시
+- placeholder는 muted/dashed style을 사용
+- `Missing report` badge 표시
+- `N/A` 표시
+- detail link는 표시하지 않음
+- missing을 `0 incidents`로 해석하지 않음
+
+대안:
+
+- single-provider group을 full-width card로 표시
+- 단, missing provider 상태가 덜 명확하므로 우선순위는 낮음
+
+판단:
+
+- 위 항목은 Phase 2 기능 확장이 아니라 Phase 1B UI polish 범위다.
+- Phase 2 문서는 신규 생성하지 않고 본 문서에서 계속 관리한다.
+
 ### P1
 
 - Compare Metrics를 provider panels보다 위로 이동
