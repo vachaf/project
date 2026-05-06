@@ -592,7 +592,29 @@ Phase 1B 완료 기준:
 
 ---
 
-## 15. Phase 2로 넘길 항목
+## 15. 2026-05-06 브라우저 점검 결과 반영
+
+### 확인된 정상 항목
+- `/` list page 기본 표시 정상
+- `/report/{report_id}` detail page 기본 표시 정상
+- `/compare/{timeframe_id}` compare metrics 표시 정상
+- Known Asset masking 유지
+- Compare Metrics가 provider panels보다 위에 표시됨
+- Pair ready / Compare link 동작 확인
+
+### 추가 polish 필요 항목
+- provider가 하나뿐인 timeframe group에서 오른쪽 카드 영역이 비어 보여 partial 상태가 시각적으로 어색함
+- list page에서도 missing provider 상태를 명확히 보여줄 필요가 있음
+- 해결 후보:
+  1. partial group에서는 missing provider placeholder card를 표시
+  2. 또는 single-provider group은 single-column/full-width card로 표시
+- 권장안: missing provider placeholder card 표시
+  - compare page의 `Missing report` / `N/A` 원칙과 일관됨
+  - missing을 `0 incidents`로 오해하지 않게 할 수 있음
+
+---
+
+## 16. Phase 2로 넘길 항목
 
 Phase 1B 이후로 넘긴다.
 
