@@ -16,6 +16,7 @@
 - 외부 Phase 1B 실행 가이드 stale/부분 불일치 검토 완료
 - list page partial compare missing provider 1:1 layout, report viewer card/action/header polish 1차 완료
 - Web UI Phase 2A filter MVP 구현/검증 완료(`q`/`lint`/`pair`/`provider`, server-side GET query filtering, safe ignore, group count, clear all/no-result)
+- Web UI Phase 2A filter 브라우저 spot check 완료(423px viewport에서 form/chips/result count/group card/no-result 확인, 가로 스크롤/텍스트 잘림 없음, lint filter group-level ANY 로직 정상 확인)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -74,7 +75,6 @@
 
 남은 TODO:
 
-- [ ] Filter 브라우저 추가 spot check
 - [ ] Scenario select option 수 확인 후 Phase 2B 후보 판단
 - [ ] 개별 filter chip 제거 필요 여부 검토(선택 후보)
 - [ ] Phase 2C execution console risk review는 보류 유지
