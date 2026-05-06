@@ -89,34 +89,51 @@ Phase 1B polish checklist:
 P1:
 
 - [ ] Compare Metrics를 provider panels보다 위에 두는 구조 최종 확인/개선
-- [ ] Provider panel 긴 section을 `<details>` 등으로 접을지 검토
+  - 팀원 체크 기준 현재 compare metrics가 provider panels 아래에 있을 가능성이 있어 우선 확인
+  - provider panel 내용이 길어져도 주요 비교 지표 접근성이 떨어지지 않아야 함
+  - count 차이는 실제 사건 수 차이가 아니라 report output 차이로만 표시
+- [ ] Provider panel 긴 section을 `<details>` 등으로 접기
+  - `key_findings`, `recommended_actions` 등 긴 섹션 우선 검토
+  - report text 원문 의미는 변경하지 않음
 - [ ] Header compacting 최종 확인
-- [ ] Missing provider panel 시각 일관성 최종 확인
+  - 1차 compacting은 반영됨
+  - 남은 작업은 실제 화면에서 vertical spacing과 subtitle 가독성 최종 확인
+- [x] Missing provider panel 시각 일관성 1차 완료
+  - `Missing report`, `N/A`, detail link 없음 유지
+  - list page partial group placeholder 및 1:1 card layout 반영 완료
+  - compare page에서도 동일 원칙 유지 여부만 최종 확인
 
 P2:
 
-- [ ] Badge color/spacing 정리
+- [x] Badge spacing 1차 완료
+  - 기본 badge padding/spacing은 유지
+  - 추후 색상 대비 문제 발견 시만 조정
 - [ ] Table/card border contrast 개선
+  - 카드와 테이블 border가 단일 tone으로 보이는 부분 확인
+  - 너무 강한 contrast가 되지 않도록 내부 콘솔 톤 유지
 - [ ] List page card compacting 최종 확인
-- [ ] meta-grid spacing 조정
+  - card/action/header polish 1차 반영 완료
+  - 남은 작업은 list가 길어질 때 vertical density 확인
+- [x] meta-grid spacing 1차 완료
+  - metadata spacing은 현재 일관성 있게 관리됨
+  - 추가 변경은 필요 시만 수행
 
 P3:
 
 - [ ] hover/focus state 개선
+  - Compare / Compare partial / Detail action의 hover/focus-visible 추가
+  - keyboard focus outline 유지
 - [ ] section collapse styling 개선
-- [ ] small viewport polish
+  - `<details>` 적용 후 summary/collapse styling 정리
+- [ ] small viewport polish 최종 확인
+  - 900px 이하 stack 기본 동작은 존재
+  - 1440px / 1024px / 900px 이하 / 600px 이하에서 list/detail/compare 최종 확인
 
 - responsive 세부 확인
   - 1440px / 1024px / 900px 이하 / 600px 이하에서 list/detail/compare 확인
   - 900px 이하에서 provider cards와 compare panels가 1-column stack 되는지 확인
   - badge/action link가 작은 화면에서 겹치지 않는지 확인
   - 긴 filename/path가 카드 밖으로 넘치지 않는지 확인
-- Compare page metrics 위치 최종 확인
-  - provider panel 내용이 길어져도 주요 비교 지표 접근성이 떨어지지 않아야 함
-  - count 차이는 실제 사건 수 차이가 아니라 report output 차이로만 표시
-- missing provider UX 최종 확인
-  - `Missing report`, `N/A`, detail link 없음 유지
-  - missing provider를 `0 incidents`로 해석하게 만드는 표현이 없는지 확인
 - QA v4 포맷 불일치 방어
   - C세트 및 E R2B의 `notable_incidents` 키 누락 원인 확인
   - QA 스크립트에서 missing key를 안전하게 처리할지, report schema/format 문서로 관리할지 결정
