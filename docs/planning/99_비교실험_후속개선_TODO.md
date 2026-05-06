@@ -88,11 +88,11 @@ Phase 1B polish checklist:
 
 P1:
 
-- [ ] Compare Metrics를 provider panels보다 위에 두는 구조 최종 확인/개선
+- [x] Compare Metrics를 provider panels보다 위에 두는 구조 최종 확인/개선
   - 팀원 체크 기준 현재 compare metrics가 provider panels 아래에 있을 가능성이 있어 우선 확인
   - provider panel 내용이 길어져도 주요 비교 지표 접근성이 떨어지지 않아야 함
   - count 차이는 실제 사건 수 차이가 아니라 report output 차이로만 표시
-- [ ] Provider panel 긴 section을 `<details>` 등으로 접기
+- [x] Provider panel 긴 section을 `<details>` 등으로 접기
   - `key_findings`, `recommended_actions` 등 긴 섹션 우선 검토
   - report text 원문 의미는 변경하지 않음
 - [ ] Header compacting 최종 확인
@@ -123,7 +123,7 @@ P3:
 - [ ] hover/focus state 개선
   - Compare / Compare partial / Detail action의 hover/focus-visible 추가
   - keyboard focus outline 유지
-- [ ] section collapse styling 개선
+- [x] section collapse styling 개선
   - `<details>` 적용 후 summary/collapse styling 정리
 - [ ] small viewport polish 최종 확인
   - 900px 이하 stack 기본 동작은 존재
