@@ -22,6 +22,49 @@
   </div>
 </section>
 
+<section class="section card compare-metrics">
+  <h3>Compare Metrics</h3>
+
+  {% for metric_key, metric_label in [
+    ('incident_count', 'Reported incident count'),
+    ('high_severity_count', 'High severity count (critical + high)'),
+    ('key_finding_count', 'Key finding count'),
+    ('recommended_action_count', 'Recommended action count'),
+    ('lint_blocker_count', 'Lint blocker count'),
+    ('lint_warning_count', 'Lint warning count'),
+    ('lint_info_count', 'Lint info count')
+  ] %}
+    {% set bar = comparison.metrics.bars[metric_key] %}
+    <div class="compare-bar-row">
+      <div class="compare-bar-label">{{ metric_label }}</div>
+      <div>
+        <div class="compare-bar">
+          <span class="badge badge-provider-openai">openai</span>
+          {% if bar.openai.width is none %}
+            <span class="compare-bar-value-na">N/A</span>
+          {% else %}
+            <div class="compare-bar-track">
+              <div class="compare-bar-fill-openai" style="width: {{ bar.openai.width }}%;"></div>
+            </div>
+            <span>{{ bar.openai.value }}</span>
+          {% endif %}
+        </div>
+        <div class="compare-bar">
+          <span class="badge badge-provider-anthropic">anthropic</span>
+          {% if bar.anthropic.width is none %}
+            <span class="compare-bar-value-na">N/A</span>
+          {% else %}
+            <div class="compare-bar-track">
+              <div class="compare-bar-fill-anthropic" style="width: {{ bar.anthropic.width }}%;"></div>
+            </div>
+            <span>{{ bar.anthropic.value }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</section>
+
 <div class="compare-layout section">
   {% for provider in ['openai', 'anthropic'] %}
     {% set panel = panels[provider] %}
@@ -99,31 +142,35 @@
         <h3>overall_assessment</h3>
         <p>{{ panel.overall_assessment or 'N/A' }}</p>
 
-        <h3>key_findings</h3>
-        {% if panel.key_findings %}
-          <ul>
-            {% for row in panel.key_findings %}
-              <li>
-                <strong>{{ row.title or '-' }}</strong>
-                ({{ row.severity or 'unknown' }})
-                - {{ row.detail or '-' }}
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="is-muted">N/A</p>
-        {% endif %}
+        <details class="report-section">
+          <summary>Key findings</summary>
+          {% if panel.key_findings %}
+            <ul>
+              {% for row in panel.key_findings %}
+                <li>
+                  <strong>{{ row.title or '-' }}</strong>
+                  ({{ row.severity or 'unknown' }})
+                  - {{ row.detail or '-' }}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="is-muted">N/A</p>
+          {% endif %}
+        </details>
 
-        <h3>recommended_actions</h3>
-        {% if panel.recommended_actions %}
-          <ul>
-            {% for row in panel.recommended_actions %}
-              <li>[{{ row.priority or 'unknown' }}] {{ row.action or '-' }}</li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="is-muted">N/A</p>
-        {% endif %}
+        <details class="report-section">
+          <summary>Recommended actions</summary>
+          {% if panel.recommended_actions %}
+            <ul>
+              {% for row in panel.recommended_actions %}
+                <li>[{{ row.priority or 'unknown' }}] {{ row.action or '-' }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="is-muted">N/A</p>
+          {% endif %}
+        </details>
       {% else %}
         <div class="compare-empty-panel">
           <span class="badge badge-missing-report">Missing report</span>
@@ -135,49 +182,6 @@
     </section>
   {% endfor %}
 </div>
-
-<section class="section card compare-metrics">
-  <h3>Compare Metrics</h3>
-
-  {% for metric_key, metric_label in [
-    ('incident_count', 'Reported incident count'),
-    ('high_severity_count', 'High severity count (critical + high)'),
-    ('key_finding_count', 'Key finding count'),
-    ('recommended_action_count', 'Recommended action count'),
-    ('lint_blocker_count', 'Lint blocker count'),
-    ('lint_warning_count', 'Lint warning count'),
-    ('lint_info_count', 'Lint info count')
-  ] %}
-    {% set bar = comparison.metrics.bars[metric_key] %}
-    <div class="compare-bar-row">
-      <div class="compare-bar-label">{{ metric_label }}</div>
-      <div>
-        <div class="compare-bar">
-          <span class="badge badge-provider-openai">openai</span>
-          {% if bar.openai.width is none %}
-            <span class="compare-bar-value-na">N/A</span>
-          {% else %}
-            <div class="compare-bar-track">
-              <div class="compare-bar-fill-openai" style="width: {{ bar.openai.width }}%;"></div>
-            </div>
-            <span>{{ bar.openai.value }}</span>
-          {% endif %}
-        </div>
-        <div class="compare-bar">
-          <span class="badge badge-provider-anthropic">anthropic</span>
-          {% if bar.anthropic.width is none %}
-            <span class="compare-bar-value-na">N/A</span>
-          {% else %}
-            <div class="compare-bar-track">
-              <div class="compare-bar-fill-anthropic" style="width: {{ bar.anthropic.width }}%;"></div>
-            </div>
-            <span>{{ bar.anthropic.value }}</span>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  {% endfor %}
-</section>
 
 <section class="section card">
   <h3>Severity Distribution</h3>

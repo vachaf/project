@@ -384,6 +384,26 @@ a:focus-visible {
   min-width: 0;
 }
 
+.report-section {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.report-section summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.report-section summary:hover {
+  color: #124f9f;
+}
+
+.report-section[open] {
+  padding-bottom: 0.15rem;
+}
+
 .compare-panel-openai {
   border-top: 4px solid var(--openai);
 }
