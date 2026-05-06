@@ -92,16 +92,19 @@ Phase 1B polish checklist:
 
 후속 polish 후보:
 
-- [ ] Details 펼침 시 긴 리스트 가독성 점검
-  - `key_findings`/`recommended_actions` 리스트가 길 때 좌우 panel 높이 차이가 과도한지 확인
-  - 필요 시 list spacing/border만 조정하고 report text 의미는 변경하지 않음
-- [ ] 600px 이하 긴 문자열 overflow 최종 확인
-  - `incident_ref` / URL / path / `report_id`가 panel width를 강제로 늘리지 않는지 확인
-  - 필요 시 table cell/panel text wrapping 보강
-- [ ] Table/card border contrast 개선 여부 판단
-  - 내부 콘솔 톤 유지
-  - 과도한 contrast는 피함
-- [ ] List page card compacting 추가 필요 여부 판단
+- [x] 600px 이하 긴 문자열 overflow 최종 확인
+  - 600px / 430px / 375px / 768px에서 `key_findings` details 펼침 상태 확인
+  - 긴 URL-encoded payload가 좁은 폭에서 줄바꿈되며, card 밖으로 의미가 잘리는 overflow는 확인되지 않음
+  - 추가 CSS 수정 없이 완료 처리
+- [ ] Details 펼침 시 긴 리스트 가독성 점검 (선택적 polish)
+  - 현재 확인 기준 좌우 panel 높이 차이는 과도하지 않음
+  - 추가 spacing/border 조정은 필요 시만 수행
+- [ ] Table/card border contrast 개선 여부 판단 (선택적 polish/보류)
+  - 현재 내부 콘솔 톤에서는 현상 유지 가능
+  - 과도한 contrast 조정은 보류
+- [ ] List page card compacting 추가 필요 여부 판단 (선택적 polish/보류)
+  - 현재 card/action/header polish 이후 큰 문제 없음
+  - 추가 compacting은 보류 또는 필요 시만 수행
 - [x] QA v4 `notable_incidents` AttributeError 현재 repo 재현 확인
   - `web/` 경로에서 `notable_incidents` 직접 접근 없음
   - `scripts/check_stage2_report_quality.py --input` 기준 C세트/E R2B report 재검증 시 Traceback/AttributeError 재현 안 됨
@@ -114,6 +117,10 @@ Phase 1B polish checklist:
   - Python 로직 변경은 가급적 피한다.
   - `FastAPI + Jinja2 + Plain CSS`를 유지한다.
   - `React`/`npm`/`webpack`/`DB`/외부 CDN은 사용하지 않는다.
+
+요약:
+
+- Phase 1B 후속 polish는 사실상 마감 상태에 가깝고, 남은 항목은 선택적 미세조정 중심으로 관리한다.
 
 ## 장기 후보
 
