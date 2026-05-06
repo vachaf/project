@@ -102,12 +102,14 @@ Phase 1B polish checklist:
   - 내부 콘솔 톤 유지
   - 과도한 contrast는 피함
 - [ ] List page card compacting 추가 필요 여부 판단
-- [ ] QA v4 `notable_incidents` AttributeError 실제 발생 위치 확인
-  - 현재 Web UI compare 코드(`web/services/report_comparator.py`, `web/templates/compare.html`)에서는 직접 접근 확인되지 않음
-  - C세트 및 E R2B 기준 traceback 실제 발생 위치를 먼저 확인
-  - QA v4 스크립트/별도 scoring 코드 우선 점검
-  - missing key를 `.get()`/`getattr(..., [])`로 안전 처리할지, report format 문서로 관리할지 결정
-  - AttributeError로 전체 일괄 검증이 중단되지 않도록 방어 로직 검토
+- [x] QA v4 `notable_incidents` AttributeError 현재 repo 재현 확인
+  - `web/` 경로에서 `notable_incidents` 직접 접근 없음
+  - `scripts/check_stage2_report_quality.py --input` 기준 C세트/E R2B report 재검증 시 Traceback/AttributeError 재현 안 됨
+  - C세트 일부 report의 FAIL, E R2B 일부 report의 WARN은 lint 판정 결과이며 크래시가 아님
+  - 팀원 문서의 오류는 별도 QA v4 스크립트, 과거 실행본, 또는 다른 실행 명령에서 발생했을 가능성이 있으므로 전체 traceback 확보 전까지 신규 코드 수정은 하지 않음
+- 조건부 재확인:
+  - 팀원분이 당시 실행 명령과 전체 traceback을 공유하면 별도 QA v4 스크립트 또는 `file/explainable_qa.py` 계열을 재검토
+  - 현재 Web UI / Stage2 quality lint 경로에는 신규 방어 코드 추가하지 않음
 - 구현 제약:
   - Python 로직 변경은 가급적 피한다.
   - `FastAPI + Jinja2 + Plain CSS`를 유지한다.
