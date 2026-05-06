@@ -6,118 +6,28 @@
 
 ## 최근 완료 상태
 
-- A~H 실험 문서, operations/design/reviews/standards/planning 문서 구조 정리 완료
-- 폴더별 README와 루트 README 정비 완료
-- A~H 실험 세트의 주요 context-only 문맥은 현재 regression/docs 기준에 반영 완료
-- 실제 LLM 샘플 검증 1차 완료
-  - F/G/H 5개 샘플 수동 리뷰 완료
-  - B/C/E 3개 샘플 수동 리뷰 완료
-  - 누적 8개 샘플, 72/80 = 90%
-- 분석 품질 기준/체크리스트 정리 완료
-  - `docs/standards/99_analysis_quality_criteria.md`
-  - `docs/standards/99_LLM분석_품질평가_체크리스트.md`
-  - `docs/reviews/99_A-F세트_대표샘플_6선.md`
-- file disclosure verdict taxonomy 검토 완료
-  - `suspicious_file_disclosure` verdict는 이미 존재하며 새 verdict 추가는 현재 필요 없음
-- Stage1/Stage2 `lab-*` / experiment-like User-Agent wording guard 1차 보강 완료
-  - Stage1 prompt guard 추가
-  - Stage2 `stage1_carryover_rule` 추가
-  - `e_r2_php_wrapper.expected.json` 보강
-- retention/output cleanup 정책과 cleanup script 설계 문서 작성 완료
-  - `docs/operations/99_output_retention_policy.md`
-  - `docs/design/99_output_cleanup_script_설계.md`
-  - `scripts/cleanup_outputs.py` list-only prototype 추가 완료
-  - `tests/test_cleanup_outputs.py` 단위 테스트 15개 통과
-- prepare module split 1차/2차 진행 완료
-  - round1: `decoders.py`, `l3_hints.py`, `models.py`, `method_summaries.py`, `protocol_anomalies.py`, `auth_behavior.py`, `static_baseline.py`, `crawler_baseline.py`, `sensitive_path_probe.py`
-  - round2: `ip_behavior.py`, `probing_sequence.py`, `mixed_baseline_scanner.py`
-  - `docs/design/99_prepare_module_split_round1_summary.md` 작성 완료
-  - `docs/design/99_prepare_module_split_round2_summary.md` 작성 완료
-- prepare constants ownership / mini-move 정리 완료
-  - `docs/design/99_prepare_constants_ownership_map.md` 작성 완료
-  - `docs/design/99_prepare_constants_mini_move_candidate_review.md` 작성 완료
-  - `docs/design/99_prepare_constants_mini_move_summary.md` 작성 및 crawler baseline까지 갱신 완료
-  - `PROTOCOL_ANOMALY_*` constants 3개를 `src/prepare/protocol_anomalies.py`로 이동 완료
-  - `IP_BEHAVIOR_*` constants 3개를 `src/prepare/ip_behavior.py`로 이동 완료
-  - method behavior constants 5개를 `src/prepare/method_summaries.py`로 이동 완료
-  - static baseline constants 3개를 `src/prepare/static_baseline.py`로 이동 완료
-  - auth behavior constants/patterns 7개를 `src/prepare/auth_behavior.py`로 이동 완료
-  - crawler baseline constants/patterns 6개를 `src/prepare/crawler_baseline.py`로 이동 완료
-- prepare hints split 1차 정리 완료
-  - `docs/design/99_prepare_hints_split_candidate_review.md` 작성 완료
-  - `docs/design/99_prepare_hints_split_summary.md` 작성 및 traversal/CMDI까지 갱신 완료
-  - `docs/design/99_prepare_shared_attack_policy_boundary_review.md` 작성 완료
-  - `src/prepare/sqli_hints.py` 분리 완료
-  - `src/prepare/xss_hints.py` 분리 완료
-  - `src/prepare/file_disclosure_hints.py` 분리 완료
-  - `src/prepare/traversal_cmdi_hints.py` 분리 완료
-  - shared attack/search policy, automation UA, decoded attack hints는 보류로 고정
-- Stage2 prompt / report lint 정리 완료
-  - `docs/design/99_stage2_prompt_compaction_plan.md` 작성 완료
-  - `src/llm_stage2_reporter.py`의 `build_messages()` system prompt를 섹션화/압축 완료
-  - `docs/design/99_stage2_report_quality_lint_candidate_review.md` 작성 완료
-  - `scripts/check_stage2_report_quality.py` 추가 완료
-  - `tests/test_stage2_report_quality.py`: 14 passed
-  - `docs/design/99_stage2_report_quality_lint_tuning_plan.md` 작성 및 튜닝 완료 반영
-  - safe negation blocker 과잉탐지 완화 완료
-  - H R4 / E R2B actual report lint 결과 PASS, blocker=0 warning=0
-- post-refactor dry-run / actual LLM spot check 완료
-  - `docs/reviews/99_post_refactor_dry_run_spot_check.md` 작성 완료
-  - `docs/reviews/99_post_refactor_LLM_output_spot_check.md` 작성 완료
-  - B R2B, C, E R2B, H R4 dry-run spot check 통과
-  - H R4 actual LLM spot check 통과
-  - E R2B actual LLM spot check 통과
-  - context-only 과승격, file disclosure 성공 단정, server-status 노출 단정은 spot check 기준 발견하지 않음
-- 최종 검증 재확인 완료
-  - `python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py` 통과
-  - `python3 -m py_compile src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py` 통과
-  - `python3 scripts/check_prepare_regression.py --strict`: pass=18 warn=0 fail=0
-  - `python3 scripts/check_stage_dryrun_regression.py --strict`: pass=12 warn=0 fail=0
-  - `git status --short`: clean
-- Web UI Report Viewer 문서/구현 흐름 반영 완료
-  - Phase 1A plan/contract, Phase 1B plan 기준 구현 흐름 반영
-  - UI polish 계획 문서 작성 완료: `docs/design/99_web_ui_report_viewer_ui_polish_plan.md`
-- 외부 Phase 1B 실행 가이드 3개 검토 완료
-  - 결론: 구현 전 기준 문서라 현재 repo 상태와 불일치 항목 다수 확인
-  - 그대로 공식 TODO/진행상황에 병합하지 않음
-  - 검증 관점 참고 자료로만 사용
-- Phase 1B 핵심 compare 구현 존재 확인 완료
-  - `compare.html` 존재
-  - compare CSS 클래스 존재
-  - index `Compare` / `Compare (partial)` link 존재
-  - `/compare/{timeframe_id}` route 존재
-  - `compare_reports()` 존재
-- Web/UI 관련 검증 완료
-  - `python3 -m py_compile web/config.py web/app.py web/services/report_loader.py web/services/qa_runner.py web/services/report_comparator.py` 통과
-  - Jinja2 template load 통과: `base.html`, `index.html`, `detail.html`, `compare.html`
-  - `python3 scripts/check_prepare_regression.py --strict`: pass=18 warn=0 fail=0
-  - `python3 scripts/check_stage_dryrun_regression.py --strict`: pass=12 warn=0 fail=0
-  - `python3 -m pytest tests/test_stage2_report_quality.py`: 14 passed
+- A~H 실험/standards/reviews 정리 및 기준 문서 반영 완료
+- retention/output cleanup list-only prototype 완료(삭제 기능 보류)
+- prepare split round1/round2, constants mini-move, hints split(SQLi/XSS/file disclosure/traversal-CMDI) 완료
+- auth/crawler constants move 및 shared attack/search policy boundary review 완료
+- Stage2 prompt compaction + report quality lint 추가/튜닝 완료(`14 passed`)
+- post-refactor dry-run/actual LLM spot check 완료, 주요 regression 기준 통과(`pass=18`, `pass=12`)
+- Web UI Phase 1A/1B 핵심 구현 완료(compare view 포함) 및 기본 검증 통과
+- 외부 Phase 1B 실행 가이드 stale/부분 불일치 검토 완료
+- list page partial compare missing provider 1:1 layout, report viewer card/action/header polish 1차 완료
 
-## P1. 실제 LLM 샘플 검증 체계 관리 — stable
+## P1. 실제 LLM 샘플 검증 체계 관리
 
-- 완료:
-  - F/G/H 5개 샘플 수동 리뷰 완료
-  - B/C/E 3개 샘플 수동 리뷰 완료
-  - post-refactor actual LLM spot check 2건 완료
 - 남은 관리:
   - 새 샘플은 반복 문제나 발표/보고 필요 시점에만 추가
   - provider별 비교는 필요할 때만 선택 수행
   - 실제 LLM 샘플 검증은 regression 통과 여부와 같은 의미가 아님
 
-## P2. Stage1/Stage2 wording/taxonomy guard 관리 — 관찰 단계
+## P2. Stage1/Stage2 wording/taxonomy guard 관찰
 
-- 완료:
-  - `suspicious_file_disclosure` taxonomy 검토
-  - Stage1 `lab-*` / experiment-like UA guard 추가
-  - Stage2 `stage1_carryover_rule` 추가
-  - Stage2 report prompt compaction 완료
-  - Stage2 report quality lint 추가 및 safe-negation tuning 완료
-  - `e_r2_php_wrapper.expected.json` 보강
-  - H R4 actual LLM: context-only 과승격 없음
-  - E R2B actual LLM: file disclosure 성공/유출 단정 없음
 - 남은 후보:
-  - 실제 LLM 출력에서 context-only 문맥이 과승격되는지 계속 관찰
+  - actual LLM 출력에서 context-only 과승격을 계속 관찰
+  - actual LLM 출력에서 file disclosure 성공 단정 등 과해석을 계속 관찰
   - lint warning/blocker 분포를 필요 시 확인
   - `suspicious_file_disclosure` 실제 LLM 재검증은 필요 시점에만 수행
 - 주의:
@@ -126,13 +36,8 @@
   - `lab-*` UA를 공격 근거로 일반화하지 않는다.
   - `check_stage2_report_quality.py`는 review-only lint이며 기본 모드는 CI를 깨지 않는다.
 
-## P3. retention / output cleanup — list-only prototype 완료
+## P3. retention / output cleanup
 
-- 완료:
-  - output retention policy 작성
-  - cleanup script 설계 문서 작성
-  - `scripts/cleanup_outputs.py` list-only inventory prototype 추가
-  - `tests/test_cleanup_outputs.py` 단위 테스트 15개 통과
 - 현재 동작:
   - 삭제 기능 없음
   - `--apply`는 NOT IMPLEMENTED로 종료
@@ -144,18 +49,8 @@
   - 실제 필요 시점에만 `--kind temp-dryrun`, `--older-than-days` 필터 검토
   - `--apply` 또는 실제 삭제 기능은 별도 승인 전까지 보류
 
-## P4. prepare 모듈 분리 — stable / 추가 코드 분리 보류
+## P4. prepare 모듈 분리(추가 코드 분리 보류)
 
-- 완료:
-  - round1/round2 prepare module split 완료
-  - constants mini-move 1차 완료
-  - topic hint pattern split 1차 완료
-  - shared attack/search policy boundary review 작성 완료
-  - dry-run spot check: B R2B, C, E R2B, H R4 통과
-  - actual LLM spot check: H R4, E R2B 통과
-  - Stage2 prompt compaction 후 stage dry-run regression 통과
-  - Stage2 report lint tuning 후 sample lint PASS
-  - 최종 py_compile / prepare regression / stage dry-run regression 통과
 - 보류:
   - `AUTOMATION_UA_PATTERNS`
   - `detect_decoded_attack_hints`
@@ -167,27 +62,8 @@
   - expected/test fixture 변경
   - `constants.py` 대량 분리
 - 다음 후보:
-  - 바로 추가 코드 분리하지 않음
-  - 실제 LLM 출력 관찰 후 반복 문제에 맞춰 report lint, Stage2 wording, 또는 보류 후보 재검토
-- 조건:
-  - 전면 리팩터링 금지
-  - 작은 커밋 유지
-  - prepare regression, stage dry-run regression, py_compile 통과 유지
-  - 기존 behavior 변경 없이 구조 분리 우선
-  - Apache logs-only 해석 한계 유지
-
-## P5. docs 유지보수
-
-- 할 일:
-  - 문서 구조가 바뀌면 루트 README와 docs/README.md 동기화
-  - operations 문서와 코드 옵션 정합성 주기 점검
-  - 새 standards/reviews 문서가 생기면 해당 README 인덱스를 먼저 갱신
-  - 오래된 문서는 archive 후보로 검토하되, 직접 참조 중인 문서는 이동하지 않음
-- 현재 우선 후보:
-  - Web UI README/인덱스 동기화(viewer 원칙, lint 연계 명령, read-only 범위)
-  - docs 인덱스에서 Web UI/Stage2 lint/prepare split 최근 문서 가시성 유지
-  - archive 후보 조사
-  - 절대 경로 링크의 단계적 상대 경로 전환
+  - 추가 코드 분리는 당장 진행하지 않음
+  - 반복 문제 재발 시 report lint, Stage2 wording, 보류 후보를 재검토
 
 ## P6. Web UI Phase 1B 후속(검증/Polish 중심)
 
@@ -205,34 +81,42 @@
 ### 추가 확인 항목 — 2026-05-06 팀원 체크리스트 반영
 
 - 팀원 UI polish checklist는 Phase 2가 아니라 Phase 1B polish 완료 기준으로 관리한다.
-- P1/P2/P3를 다음 기준으로 반영한다.
-  - P1: Compare metrics 우선 노출, provider 긴 section 접기 검토, header compacting, missing provider panel 일관성
-  - P2: badge color/spacing, table/card border contrast, list card compacting, meta-grid spacing
-  - P3: hover/focus state, section collapse styling, small viewport polish
 - Phase 2 기능 확장은 Phase 1B polish + 브라우저 검증 완료 후 별도 문서화 여부를 판단한다.
 - 현재는 Phase 2 문서 신규 생성을 보류한다.
 
-- Compare page metrics 위치 최종 확인
-  - `Compare Metrics`가 provider detail panels보다 먼저 접근 가능한지 확인
-  - provider panel 내용이 길어져도 주요 비교 지표가 아래로 밀리지 않아야 함
-  - count 차이는 실제 사건 수 차이가 아니라 report output 차이로만 표시
-- Provider panel 긴 section 접기 검토
-  - `overall_assessment`는 기본 표시 유지
-  - `key_findings`, `recommended_actions` 등 긴 항목은 `<details>` 적용 검토
-  - report text 원문 의미는 변경하지 않음
-- missing provider UX 최종 점검
-  - list page partial group에서 placeholder card가 provider slot을 1:1로 차지하는지 확인
-  - compare page에서도 `Missing report`, `N/A`, detail link 없음 유지
-  - missing provider를 `0 incidents`로 해석하게 만드는 표현이 없는지 확인
+Phase 1B polish checklist:
+
+P1:
+
+- [ ] Compare Metrics를 provider panels보다 위에 두는 구조 최종 확인/개선
+- [ ] Provider panel 긴 section을 `<details>` 등으로 접을지 검토
+- [ ] Header compacting 최종 확인
+- [ ] Missing provider panel 시각 일관성 최종 확인
+
+P2:
+
+- [ ] Badge color/spacing 정리
+- [ ] Table/card border contrast 개선
+- [ ] List page card compacting 최종 확인
+- [ ] meta-grid spacing 조정
+
+P3:
+
+- [ ] hover/focus state 개선
+- [ ] section collapse styling 개선
+- [ ] small viewport polish
+
 - responsive 세부 확인
   - 1440px / 1024px / 900px 이하 / 600px 이하에서 list/detail/compare 확인
   - 900px 이하에서 provider cards와 compare panels가 1-column stack 되는지 확인
   - badge/action link가 작은 화면에서 겹치지 않는지 확인
   - 긴 filename/path가 카드 밖으로 넘치지 않는지 확인
-- hover/focus 및 action style polish
-  - `Compare`, `Compare partial`, `Detail` action이 같은 시각 체계로 보이는지 확인
-  - keyboard focus-visible outline 유지
-  - card hover가 과하지 않게 적용되는지 확인
+- Compare page metrics 위치 최종 확인
+  - provider panel 내용이 길어져도 주요 비교 지표 접근성이 떨어지지 않아야 함
+  - count 차이는 실제 사건 수 차이가 아니라 report output 차이로만 표시
+- missing provider UX 최종 확인
+  - `Missing report`, `N/A`, detail link 없음 유지
+  - missing provider를 `0 incidents`로 해석하게 만드는 표현이 없는지 확인
 - QA v4 포맷 불일치 방어
   - C세트 및 E R2B의 `notable_incidents` 키 누락 원인 확인
   - QA 스크립트에서 missing key를 안전하게 처리할지, report schema/format 문서로 관리할지 결정
@@ -244,20 +128,20 @@
 
 ## 장기 후보
 
-- known asset 운영 가이드 정리
-- Threat intelligence 연동 검토
-- 알림, 대시보드, 자동 대응 검토
-- 보류/비권장: 프레임워크 전환(React/Vue/Svelte/Angular, Streamlit, Tailwind/Bootstrap, Docker)
-  - 현재는 FastAPI + Jinja2 + Plain CSS 유지가 우선
-  - htmx/Alpine.js는 작은 인터랙션 필요 시에만 후보
+- pipeline run button
+- provider selection
+- dry-run toggle
+- live progress
+- regression run button
+- report search/filter
+- SQLite history
+- alert/dashboard
+- comparison history trend
+- 모바일 전용 UX
+- 화려한 애니메이션
+- dark/light theme toggle
 
-## 다음 실행 후보
+주의:
 
-- Web UI 실브라우저 확인 + UI polish 구현(template/CSS 중심)
-  - 우선 파일: `web/templates/index.html`, `web/templates/compare.html`, `web/templates/detail.html`, `web/static/style.css`
-  - 원칙: Python logic 변경 최소화, report read-only 유지, Stage2 보안 판정 의미 변경 금지
-
-장기 후보 주의:
-
-- Apache 로그 표면만으로 성공/침해를 단정하지 않으므로 자동 차단은 가장 나중이다.
-- 실시간 Slack/email 알림, 웹 대시보드, 자동 대응은 현재 범위 밖이다.
+- 위 항목은 Phase 1B polish 완료 후에만 검토한다.
+- 현재는 Phase 2 문서 신규 생성 및 실행 TODO 승격을 하지 않는다.
