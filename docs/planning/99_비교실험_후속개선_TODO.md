@@ -67,65 +67,28 @@
 
 ## P6. Web UI Phase 1B 후속(검증/Polish 중심)
 
-- 현재 상태:
-  - Phase 1B compare view 핵심 구현은 이미 존재한다.
-  - 따라서 `compare.html 생성`, `compare CSS 추가`, `index compare link 추가`, `/compare route 추가`, `compare_reports() 생성`은 신규 TODO가 아니라 현존/확인 완료 항목이다.
-- 남은 작업은 Phase 2 기능이 아니라 Phase 1B 후속 polish 후보 중심으로 관리한다.
+- 상태 요약:
+  - Phase 1B 핵심 구현(list/detail/compare viewer, compare route/API, provider 비교 레이아웃)과 P1 polish는 완료 상태다.
+  - 완료 이력은 `docs/진행상황.md`로 이관하고, 이 섹션은 실제 남은 후보만 유지한다.
 
-### 추가 확인 항목 — 2026-05-06 팀원 체크리스트 반영
+남은 선택적 polish 후보:
 
-- 팀원 UI polish checklist는 Phase 2가 아니라 Phase 1B polish 완료 기준으로 관리한다.
-- Phase 2 기능 확장은 Phase 1B polish + 브라우저 검증 완료 후 별도 문서화 여부를 판단한다.
-- 현재는 Phase 2 문서 신규 생성을 보류한다.
-
-Phase 1B polish checklist:
-
-- [x] Compare Metrics를 provider panels보다 위에 두는 구조 최종 확인/개선
-- [x] Provider panel 긴 section을 `<details>` 등으로 접기
-- [x] Header compacting 최종 확인
-- [x] Missing provider panel 시각 일관성 최종 확인
-- [x] Badge spacing 1차 완료
-- [x] meta-grid spacing 1차 완료
-- [x] hover/focus state 1차 완료
-- [x] section collapse styling 개선
-- [x] small viewport polish 기본 확인
-
-후속 polish 후보:
-
-- [x] 600px 이하 긴 문자열 overflow 최종 확인
-  - 600px / 430px / 375px / 768px에서 `key_findings` details 펼침 상태 확인
-  - 긴 URL-encoded payload가 좁은 폭에서 줄바꿈되며, card 밖으로 의미가 잘리는 overflow는 확인되지 않음
-  - 추가 CSS 수정 없이 완료 처리
-- [ ] Details 펼침 시 긴 리스트 가독성 점검 (선택적 polish)
-  - 현재 확인 기준 좌우 panel 높이 차이는 과도하지 않음
-  - 추가 spacing/border 조정은 필요 시만 수행
+- [ ] Details 펼침 시 긴 리스트 가독성 추가 개선 여부 판단 (선택적 polish)
+  - 현재 큰 문제는 없으나 `key_findings`/`recommended_actions`가 매우 길 때 list spacing/border 조정 여부만 필요 시 검토
 - [ ] Table/card border contrast 개선 여부 판단 (선택적 polish/보류)
   - 현재 내부 콘솔 톤에서는 현상 유지 가능
   - 과도한 contrast 조정은 보류
 - [ ] List page card compacting 추가 필요 여부 판단 (선택적 polish/보류)
   - 현재 card/action/header polish 이후 큰 문제 없음
-  - 추가 compacting은 보류 또는 필요 시만 수행
-- [x] QA v4 `notable_incidents` AttributeError 현재 repo 재현 확인
-  - `web/` 경로에서 `notable_incidents` 직접 접근 없음
-  - `scripts/check_stage2_report_quality.py --input` 기준 C세트/E R2B report 재검증 시 Traceback/AttributeError 재현 안 됨
-  - C세트 일부 report의 FAIL, E R2B 일부 report의 WARN은 lint 판정 결과이며 크래시가 아님
-  - 원인 범위는 공식 경로(Web UI/quality lint) 외 별도 QA v4 스크립트까지 분리해 확인 필요
-- [x] QA v4 `run_qa_check_production_v4.py`의 `report: null` 방어 처리
-  - 현재 공식 Web UI / `scripts/check_stage2_report_quality.py --input` 경로에서는 C세트/E R2B 기준 `notable_incidents` AttributeError가 재현되지 않음
-  - 별도 QA v4 보조 스크립트인 `scripts/run_qa_check_production_v4.py`에서는 `"report": null` dry-run JSON에서 `data.get("report", {})`가 `None`을 반환해 AttributeError가 발생할 수 있음을 확인
-  - `report_data = data.get("report") or {}` 방식으로 방어
-  - QA v4는 공식 regression/lint를 대체하지 않고 보조 점검 스크립트로 관리
-- 조건부 재확인:
-  - 팀원분이 당시 실행 명령과 전체 traceback을 공유하면 별도 QA v4 스크립트 또는 `file/explainable_qa.py` 계열을 재검토
+  - 추가 compacting은 필요 시만 수행
+
+QA v4 보조 스크립트 관리:
+
+- [ ] QA v4 추가 개선 필요 여부 관찰
+  - `scripts/run_qa_check_production_v4.py`는 공식 regression/lint 대체가 아니라 보조/실험 스크립트로 유지
+  - `"report": null` 방어는 완료
+  - 추가 QA v4 개선은 실제 사용 필요가 생길 때만 검토
   - 추가 traceback이 있으면 케이스를 분리해 재검토
-- 구현 제약:
-  - Python 로직 변경은 가급적 피한다.
-  - `FastAPI + Jinja2 + Plain CSS`를 유지한다.
-  - `React`/`npm`/`webpack`/`DB`/외부 CDN은 사용하지 않는다.
-
-요약:
-
-- Phase 1B 후속 polish는 사실상 마감 상태에 가깝고, 남은 항목은 선택적 미세조정 중심으로 관리한다.
 
 ## 장기 후보
 
@@ -146,3 +109,4 @@ Phase 1B polish checklist:
 
 - 위 항목은 Phase 1B polish 완료 후에만 검토한다.
 - 현재는 Phase 2 문서 신규 생성 및 실행 TODO 승격을 하지 않는다.
+- Phase 2를 시작하려면 read-only viewer 범위를 실행/운영 콘솔로 확장할지 먼저 별도 판단한다.
