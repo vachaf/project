@@ -5,19 +5,21 @@
 {% block content %}
 <section class="section card">
   <h2>Provider Comparison</h2>
-  <p>
-    <strong>timeframe:</strong> {{ group.timeframe or 'unknown' }} |
-    <strong>scenario:</strong> {{ group.scenario or 'unknown' }} |
-    <strong>timeframe_id:</strong> {{ group.timeframe_id }}
-  </p>
-  <p>
+  <div class="group-head">
+    <p class="group-title">
+      <strong>{{ group.timeframe or 'unknown' }}</strong>
+      <span class="is-muted">/ {{ group.scenario or 'unknown' }}</span>
+    </p>
+    <p class="group-id is-muted">timeframe_id={{ group.timeframe_id }}</p>
+  </div>
+  <div class="group-actions">
     {% if group.has_both %}
-      <span class="badge badge-lint-pass">has_both=true</span>
+      <span class="badge badge-lint-pass">Pair ready</span>
     {% else %}
-      <span class="badge badge-lint-warn">has_both=false</span>
+      <span class="badge badge-lint-warn">Missing pair</span>
     {% endif %}
-    <a href="/">Back to list</a>
-  </p>
+    <a class="action-link" href="/">Back to list</a>
+  </div>
 </section>
 
 <div class="compare-layout section">
@@ -40,7 +42,7 @@
           <div><strong>incidents</strong><br>{{ panel.incident_count }}</div>
         </div>
 
-        <p><a href="/report/{{ panel.report.report_id }}">Detail</a></p>
+        <p><a class="action-link" href="/report/{{ panel.report.report_id }}">Detail</a></p>
 
         <p>
           lint:

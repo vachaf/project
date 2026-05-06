@@ -17,27 +17,29 @@
 {% if summary.groups %}
   {% for group in summary.groups.values() %}
   <section class="section card">
-    <p>
-      <strong>timeframe:</strong> {{ group.timeframe or 'unknown' }} |
-      <strong>scenario:</strong> {{ group.scenario or 'unknown' }}
-    </p>
-    <p>
+    <div class="group-head">
+      <p class="group-title">
+        <strong>{{ group.timeframe or 'unknown' }}</strong>
+        <span class="is-muted">/ {{ group.scenario or 'unknown' }}</span>
+      </p>
+      <p class="group-id is-muted">timeframe_id={{ group.timeframe_id }}</p>
+    </div>
+    <div class="group-actions">
       {% if group.has_both %}
         <span class="badge badge-lint-pass">Pair ready</span>
-        <a href="/compare/{{ group.timeframe_id }}">Compare</a>
+        <a class="action-link" href="/compare/{{ group.timeframe_id }}">Compare</a>
       {% else %}
         <span class="badge badge-lint-warn">Missing pair</span>
-        <a href="/compare/{{ group.timeframe_id }}">Compare (partial)</a>
+        <a class="action-link" href="/compare/{{ group.timeframe_id }}">Compare partial</a>
       {% endif %}
-      <span class="is-muted">timeframe_id={{ group.timeframe_id }}</span>
-    </p>
+    </div>
 
     <div class="card-grid card-grid-provider-pair">
       {% set provider_cards = [('openai', group.openai), ('anthropic', group.anthropic)] %}
       {% for provider_name, report in provider_cards %}
       {% if report %}
       <article class="card provider-card {% if not report.is_valid %}is-invalid{% endif %}">
-        <p>
+        <p class="provider-title">
           {% if report.provider == 'openai' %}
             <span class="badge badge-provider-openai">openai</span>
           {% elif report.provider == 'anthropic' %}
@@ -48,14 +50,16 @@
           <strong>{{ report.filename }}</strong>
         </p>
 
-        <p class="is-muted">{{ report.repo_relative_path }}</p>
-        <p>model: {{ report.model or 'unknown' }}</p>
-        <p>generated_at: {{ report.generated_at or 'unknown' }}</p>
-        <p>scenario: {{ report.scenario or 'unknown' }}</p>
-        <p>incidents: {{ report.incident_count }}</p>
+        <p class="provider-path is-muted">{{ report.repo_relative_path }}</p>
+        <div class="meta-compact">
+          <p><span class="meta-label">model</span><span>{{ report.model or 'unknown' }}</span></p>
+          <p><span class="meta-label">generated_at</span><span>{{ report.generated_at or 'unknown' }}</span></p>
+          <p><span class="meta-label">scenario</span><span>{{ report.scenario or 'unknown' }}</span></p>
+          <p><span class="meta-label">incidents</span><span>{{ report.incident_count }}</span></p>
+        </div>
 
-        <p>
-          severity:
+        <p class="provider-badge-row">
+          <span class="meta-label">severity</span>
           {% if report.severity_counts %}
             {% for severity, count in report.severity_counts.items() %}
               {% set severity_class = 'badge-severity-info' %}
@@ -73,8 +77,8 @@
           {% endif %}
         </p>
 
-        <p>
-          lint:
+        <p class="provider-badge-row">
+          <span class="meta-label">lint</span>
           {% set lint_verdict = report.lint.verdict|upper %}
           {% if lint_verdict == 'PASS' %}
             <span class="badge badge-lint-pass">PASS</span>
@@ -90,7 +94,7 @@
         </p>
 
         {% if report.is_valid %}
-          <p><a href="/report/{{ report.report_id }}">Detail</a></p>
+          <p><a class="action-link" href="/report/{{ report.report_id }}">Detail</a></p>
         {% else %}
           <p><span class="badge badge-lint-error">Invalid JSON</span></p>
           <p class="is-muted">{{ report.error or 'Failed to parse report file' }}</p>
@@ -98,7 +102,7 @@
       </article>
       {% else %}
       <article class="card provider-card provider-card-missing compare-panel-missing">
-        <p>
+        <p class="provider-title">
           {% if provider_name == 'openai' %}
             <span class="badge badge-provider-openai">openai</span>
           {% else %}
@@ -107,37 +111,32 @@
           <span class="badge badge-missing-report">Missing report</span>
         </p>
         <p class="is-muted">This provider report is not available for this timeframe group.</p>
-        <p>model: <span class="compare-bar-value-na">N/A</span></p>
-        <p>generated_at: <span class="compare-bar-value-na">N/A</span></p>
-        <p>scenario: <span class="compare-bar-value-na">N/A</span></p>
-        <p>incidents: <span class="compare-bar-value-na">N/A</span></p>
-        <p>
-          severity:
-          <span class="compare-bar-value-na">N/A</span>
-        </p>
-        <p>
-          lint:
-          <span class="badge badge-missing-report">Missing report</span>
-        </p>
+        <div class="meta-compact meta-compact-missing">
+          <p><span class="meta-label">model</span><span class="compare-bar-value-na">N/A</span></p>
+          <p><span class="meta-label">incidents</span><span class="compare-bar-value-na">N/A</span></p>
+          <p><span class="meta-label">lint</span><span class="badge badge-missing-report">Missing report</span></p>
+        </div>
       </article>
       {% endif %}
       {% endfor %}
 
       {% for report in group.unknown_reports %}
       <article class="card provider-card {% if not report.is_valid %}is-invalid{% endif %}">
-        <p>
+        <p class="provider-title">
           <span class="badge badge-provider-unknown">unknown</span>
           <strong>{{ report.filename }}</strong>
         </p>
 
-        <p class="is-muted">{{ report.repo_relative_path }}</p>
-        <p>model: {{ report.model or 'unknown' }}</p>
-        <p>generated_at: {{ report.generated_at or 'unknown' }}</p>
-        <p>scenario: {{ report.scenario or 'unknown' }}</p>
-        <p>incidents: {{ report.incident_count }}</p>
+        <p class="provider-path is-muted">{{ report.repo_relative_path }}</p>
+        <div class="meta-compact">
+          <p><span class="meta-label">model</span><span>{{ report.model or 'unknown' }}</span></p>
+          <p><span class="meta-label">generated_at</span><span>{{ report.generated_at or 'unknown' }}</span></p>
+          <p><span class="meta-label">scenario</span><span>{{ report.scenario or 'unknown' }}</span></p>
+          <p><span class="meta-label">incidents</span><span>{{ report.incident_count }}</span></p>
+        </div>
 
-        <p>
-          severity:
+        <p class="provider-badge-row">
+          <span class="meta-label">severity</span>
           {% if report.severity_counts %}
             {% for severity, count in report.severity_counts.items() %}
               {% set severity_class = 'badge-severity-info' %}
@@ -155,8 +154,8 @@
           {% endif %}
         </p>
 
-        <p>
-          lint:
+        <p class="provider-badge-row">
+          <span class="meta-label">lint</span>
           {% set lint_verdict = report.lint.verdict|upper %}
           {% if lint_verdict == 'PASS' %}
             <span class="badge badge-lint-pass">PASS</span>
@@ -172,7 +171,7 @@
         </p>
 
         {% if report.is_valid %}
-          <p><a href="/report/{{ report.report_id }}">Detail</a></p>
+          <p><a class="action-link" href="/report/{{ report.report_id }}">Detail</a></p>
         {% else %}
           <p><span class="badge badge-lint-error">Invalid JSON</span></p>
           <p class="is-muted">{{ report.error or 'Failed to parse report file' }}</p>

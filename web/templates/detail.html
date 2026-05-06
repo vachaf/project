@@ -5,15 +5,15 @@
 {% block content %}
 <section class="section card {% if not report.is_valid %}is-invalid{% endif %}">
   <h2>Report Detail</h2>
-  <div class="meta-grid">
-    <div><strong>filename</strong><br>{{ report.filename }}</div>
-    <div><strong>path</strong><br>{{ report.repo_relative_path }}</div>
-    <div><strong>provider</strong><br>{{ report.provider or 'unknown' }}</div>
-    <div><strong>model</strong><br>{{ report.model or 'unknown' }}</div>
-    <div><strong>generated_at</strong><br>{{ report.generated_at or 'unknown' }}</div>
-    <div><strong>report_id</strong><br>{{ report.report_id }}</div>
-    <div><strong>scenario</strong><br>{{ report.scenario or 'unknown' }}</div>
-    <div><strong>timeframe</strong><br>{{ report.timeframe or 'unknown' }}</div>
+  <div class="meta-grid meta-grid-summary">
+    <div><span class="meta-label">filename</span><br><strong>{{ report.filename }}</strong></div>
+    <div><span class="meta-label">path</span><br><span class="is-muted">{{ report.repo_relative_path }}</span></div>
+    <div><span class="meta-label">provider</span><br><strong>{{ report.provider or 'unknown' }}</strong></div>
+    <div><span class="meta-label">model</span><br>{{ report.model or 'unknown' }}</div>
+    <div><span class="meta-label">generated_at</span><br>{{ report.generated_at or 'unknown' }}</div>
+    <div><span class="meta-label">report_id</span><br>{{ report.report_id }}</div>
+    <div><span class="meta-label">scenario</span><br>{{ report.scenario or 'unknown' }}</div>
+    <div><span class="meta-label">timeframe</span><br>{{ report.timeframe or 'unknown' }}</div>
   </div>
 
   {% if report.known_asset_ips %}
