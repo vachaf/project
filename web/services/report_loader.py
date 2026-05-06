@@ -197,6 +197,85 @@ class ReportLoader:
             self.scan_reports()
         return self._groups_by_timeframe_id.get(timeframe_id)
 
+    def filter_groups(
+        self,
+        groups: Dict[str, Dict[str, Any]],
+        filters: Dict[str, Optional[str]],
+    ) -> Dict[str, Dict[str, Any]]:
+        query = str(filters.get("q") or "").strip().lower()
+        lint = str(filters.get("lint") or "").strip().lower()
+        pair = str(filters.get("pair") or "").strip().lower()
+        provider = str(filters.get("provider") or "").strip().lower()
+
+        filtered: Dict[str, Dict[str, Any]] = {}
+        for timeframe_id, group in groups.items():
+            if query and not self._matches_query(group, query):
+                continue
+            if lint and not self._matches_lint(group, lint):
+                continue
+            if pair and not self._matches_pair(group, pair):
+                continue
+            if provider and not self._matches_provider(group, provider):
+                continue
+            filtered[timeframe_id] = group
+        return filtered
+
+    def _iter_group_reports(self, group: Dict[str, Any]) -> List[Dict[str, Any]]:
+        reports = group.get("reports")
+        if isinstance(reports, list):
+            return [report for report in reports if isinstance(report, dict)]
+
+        items: List[Dict[str, Any]] = []
+        openai = group.get("openai")
+        anthropic = group.get("anthropic")
+        unknown_reports = group.get("unknown_reports")
+        if isinstance(openai, dict):
+            items.append(openai)
+        if isinstance(anthropic, dict):
+            items.append(anthropic)
+        if isinstance(unknown_reports, list):
+            items.extend([row for row in unknown_reports if isinstance(row, dict)])
+        return items
+
+    def _matches_query(self, group: Dict[str, Any], query: str) -> bool:
+        # Group-level scenario fields are checked first per Phase 2A contract.
+        if _contains_text(group.get("scenario"), query) or _contains_text(group.get("scenario_key"), query):
+            return True
+
+        for report in self._iter_group_reports(group):
+            if _contains_text(report.get("filename"), query):
+                return True
+            if _contains_text(report.get("scenario"), query) or _contains_text(report.get("scenario_key"), query):
+                return True
+            if _contains_text(report.get("report_id"), query):
+                return True
+        return False
+
+    def _matches_lint(self, group: Dict[str, Any], lint: str) -> bool:
+        for report in self._iter_group_reports(group):
+            verdict = str((report.get("lint") or {}).get("verdict") or "").strip().lower()
+            if verdict == lint:
+                return True
+        return False
+
+    def _matches_pair(self, group: Dict[str, Any], pair: str) -> bool:
+        has_both = bool(group.get("has_both"))
+        if pair == "both":
+            return has_both
+        if pair == "partial":
+            return not has_both
+        return True
+
+    def _matches_provider(self, group: Dict[str, Any], provider: str) -> bool:
+        if provider == "openai":
+            return isinstance(group.get("openai"), dict)
+        if provider == "anthropic":
+            return isinstance(group.get("anthropic"), dict)
+        if provider == "unknown":
+            unknown_reports = group.get("unknown_reports")
+            return isinstance(unknown_reports, list) and len(unknown_reports) > 0
+        return True
+
     def _iter_unique_report_paths(self) -> List[Path]:
         unique: Dict[Path, Path] = {}
         for pattern in self.report_globs:
@@ -310,6 +389,12 @@ def make_report_id(file_path: Path) -> str:
 
 def make_timeframe_id(scenario: str, timeframe: str) -> str:
     return hashlib.sha256(f"{scenario}|{timeframe}".encode("utf-8")).hexdigest()[:16]
+
+
+def _contains_text(value: Any, query: str) -> bool:
+    if value is None:
+        return False
+    return query in str(value).lower()
 
 
 def default_lint_summary() -> Dict[str, Any]:

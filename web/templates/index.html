@@ -5,7 +5,7 @@
 {% block content %}
 <section class="section card">
   <h2>Stage2 Report Overview</h2>
-  <p class="is-muted">Reports: {{ summary.total_count }} | Timeframes: {{ summary.timeframe_count }}</p>
+  <p class="is-muted">Reports: {{ summary.total_count }} | Groups: {{ unfiltered_count }}</p>
   <div class="meta-grid">
     <div><span class="badge badge-lint-pass">PASS</span> {{ summary.lint_aggregate.PASS }}</div>
     <div><span class="badge badge-lint-warn">WARN</span> {{ summary.lint_aggregate.WARN }}</div>
@@ -14,7 +14,83 @@
   </div>
 </section>
 
-{% if summary.groups %}
+<section class="section card filter-panel">
+  <h3>Search & Filters</h3>
+  <form class="filter-form" method="get" action="/">
+    <div class="filter-row">
+      <label class="filter-field filter-field-q">
+        <span>q</span>
+        <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="scenario, filename, report_id">
+      </label>
+
+      <label class="filter-field">
+        <span>lint</span>
+        <select name="lint">
+          <option value="">Any</option>
+          {% for value in filter_options.lint %}
+          <option value="{{ value }}" {% if filters.lint == value %}selected{% endif %}>{{ value|upper }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>pair</span>
+        <select name="pair">
+          <option value="">Any</option>
+          {% for value in filter_options.pair %}
+          <option value="{{ value }}" {% if filters.pair == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>provider</span>
+        <select name="provider">
+          <option value="">Any</option>
+          {% for value in filter_options.provider %}
+          <option value="{{ value }}" {% if filters.provider == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+
+    <div class="filter-actions">
+      <button class="action-link" type="submit">Apply</button>
+      <a class="action-link" href="/">Reset</a>
+    </div>
+  </form>
+
+  <p class="result-count">
+    {% if unfiltered_count == 0 %}
+      0 groups
+    {% elif result_count != unfiltered_count %}
+      Showing {{ result_count }} of {{ unfiltered_count }} groups
+    {% else %}
+      {{ result_count }} groups
+    {% endif %}
+  </p>
+
+  {% set has_active_filters = filters.q or filters.lint or filters.pair or filters.provider %}
+  {% if has_active_filters %}
+  <div class="filter-chip-list">
+    {% if filters.q %}
+      <span class="filter-chip">Q: "{{ filters.q }}"</span>
+    {% endif %}
+    {% if filters.lint %}
+      <span class="filter-chip">Lint: {{ filters.lint|upper }}</span>
+    {% endif %}
+    {% if filters.pair %}
+      <span class="filter-chip">Pair: {{ filters.pair }}</span>
+    {% endif %}
+    {% if filters.provider %}
+      <span class="filter-chip">Provider: {{ filters.provider }}</span>
+    {% endif %}
+    <a class="action-link" href="/">Clear all</a>
+  </div>
+  {% endif %}
+</section>
+
+{% if result_count > 0 %}
   {% for group in summary.groups.values() %}
   <section class="section card">
     <div class="group-head">
@@ -181,6 +257,12 @@
     </div>
   </section>
   {% endfor %}
+{% elif unfiltered_count > 0 %}
+  <section class="section card no-result-card">
+    <p><strong>No groups match the current filters.</strong></p>
+    <p class="is-muted">Try adjusting your search or filter criteria.</p>
+    <p><a class="action-link" href="/">Clear all filters</a></p>
+  </section>
 {% else %}
   <section class="section card is-empty">
     <p>No Stage2 report files found.</p>

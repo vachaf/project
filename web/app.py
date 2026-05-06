@@ -25,6 +25,9 @@ loader = ReportLoader()
 qa_runner = QARunner()
 
 IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+LINT_OPTIONS = ("pass", "warn", "fail", "error")
+PAIR_OPTIONS = ("both", "partial")
+PROVIDER_OPTIONS = ("openai", "anthropic", "unknown")
 
 
 @app.get("/")
@@ -35,10 +38,15 @@ def index(request: Request):
         report.lint = lint_for_report(report)
 
     groups = loader.group_by_timeframe(reports)
+    filters = parse_filters(request)
+    filtered_groups = loader.filter_groups(groups, filters)
+    result_count = len(filtered_groups)
+    unfiltered_count = len(groups)
+
     summary = {
         "total_count": len(reports),
         "timeframe_count": len(groups),
-        "groups": groups,
+        "groups": filtered_groups,
         "lint_aggregate": aggregate_lint_counts(reports),
     }
 
@@ -49,6 +57,14 @@ def index(request: Request):
             "summary": summary,
             "host": HOST,
             "port": PORT,
+            "filters": filters,
+            "filter_options": {
+                "lint": list(LINT_OPTIONS),
+                "pair": list(PAIR_OPTIONS),
+                "provider": list(PROVIDER_OPTIONS),
+            },
+            "result_count": result_count,
+            "unfiltered_count": unfiltered_count,
         },
     )
 
@@ -287,6 +303,36 @@ def aggregate_lint_counts(reports: List[Report]) -> Dict[str, int]:
         elif (report.lint or {}).get("is_error"):
             counts["ERROR"] += 1
     return counts
+
+
+def parse_filters(request: Request) -> Dict[str, Optional[str]]:
+    query = request.query_params
+
+    q_raw = query.get("q")
+    q = q_raw.strip() if isinstance(q_raw, str) else ""
+    q_value: Optional[str] = q or None
+
+    lint = normalize_filter_value(query.get("lint"), LINT_OPTIONS)
+    pair = normalize_filter_value(query.get("pair"), PAIR_OPTIONS)
+    provider = normalize_filter_value(query.get("provider"), PROVIDER_OPTIONS)
+
+    return {
+        "q": q_value,
+        "lint": lint,
+        "pair": pair,
+        "provider": provider,
+    }
+
+
+def normalize_filter_value(value: Optional[str], allowed: tuple[str, ...]) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().lower()
+    if not normalized:
+        return None
+    if normalized not in allowed:
+        return None
+    return normalized
 
 
 def sanitize_incidents(rows: Any) -> List[Dict[str, str]]:
