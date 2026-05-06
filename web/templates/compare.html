@@ -111,9 +111,20 @@
         <p>
           severity:
           {% if panel.severity_counts %}
+            {% set has_visible_severity = false %}
             {% for severity, count in panel.severity_counts.items() %}
-              <span class="badge badge-severity-info">{{ severity }}={{ count }}</span>
+              {% if count > 0 %}
+                {% set has_visible_severity = true %}
+              {% endif %}
             {% endfor %}
+            {% for severity, count in panel.severity_counts.items() %}
+              {% if count > 0 %}
+                <span class="badge badge-severity-info">{{ severity }}={{ count }}</span>
+              {% endif %}
+            {% endfor %}
+            {% if not has_visible_severity %}
+              <span class="badge badge-muted">N/A</span>
+            {% endif %}
           {% else %}
             <span class="badge badge-muted">N/A</span>
           {% endif %}

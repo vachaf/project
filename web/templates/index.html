@@ -137,17 +137,28 @@
         <p class="provider-badge-row">
           <span class="meta-label">severity</span>
           {% if report.severity_counts %}
+            {% set has_visible_severity = false %}
             {% for severity, count in report.severity_counts.items() %}
-              {% set severity_class = 'badge-severity-info' %}
-              {% if severity == 'critical' or severity == 'high' %}
-                {% set severity_class = 'badge-severity-high' %}
-              {% elif severity == 'medium' %}
-                {% set severity_class = 'badge-severity-medium' %}
-              {% elif severity == 'low' %}
-                {% set severity_class = 'badge-severity-low' %}
+              {% if count > 0 %}
+                {% set has_visible_severity = true %}
               {% endif %}
-              <span class="badge {{ severity_class }}">{{ severity }}={{ count }}</span>
             {% endfor %}
+            {% for severity, count in report.severity_counts.items() %}
+              {% if count > 0 %}
+                {% set severity_class = 'badge-severity-info' %}
+                {% if severity == 'critical' or severity == 'high' %}
+                  {% set severity_class = 'badge-severity-high' %}
+                {% elif severity == 'medium' %}
+                  {% set severity_class = 'badge-severity-medium' %}
+                {% elif severity == 'low' %}
+                  {% set severity_class = 'badge-severity-low' %}
+                {% endif %}
+                <span class="badge {{ severity_class }}">{{ severity }}={{ count }}</span>
+              {% endif %}
+            {% endfor %}
+            {% if not has_visible_severity %}
+              <span class="badge badge-muted">none</span>
+            {% endif %}
           {% else %}
             <span class="badge badge-muted">none</span>
           {% endif %}
@@ -214,17 +225,28 @@
         <p class="provider-badge-row">
           <span class="meta-label">severity</span>
           {% if report.severity_counts %}
+            {% set has_visible_severity = false %}
             {% for severity, count in report.severity_counts.items() %}
-              {% set severity_class = 'badge-severity-info' %}
-              {% if severity == 'critical' or severity == 'high' %}
-                {% set severity_class = 'badge-severity-high' %}
-              {% elif severity == 'medium' %}
-                {% set severity_class = 'badge-severity-medium' %}
-              {% elif severity == 'low' %}
-                {% set severity_class = 'badge-severity-low' %}
+              {% if count > 0 %}
+                {% set has_visible_severity = true %}
               {% endif %}
-              <span class="badge {{ severity_class }}">{{ severity }}={{ count }}</span>
             {% endfor %}
+            {% for severity, count in report.severity_counts.items() %}
+              {% if count > 0 %}
+                {% set severity_class = 'badge-severity-info' %}
+                {% if severity == 'critical' or severity == 'high' %}
+                  {% set severity_class = 'badge-severity-high' %}
+                {% elif severity == 'medium' %}
+                  {% set severity_class = 'badge-severity-medium' %}
+                {% elif severity == 'low' %}
+                  {% set severity_class = 'badge-severity-low' %}
+                {% endif %}
+                <span class="badge {{ severity_class }}">{{ severity }}={{ count }}</span>
+              {% endif %}
+            {% endfor %}
+            {% if not has_visible_severity %}
+              <span class="badge badge-muted">none</span>
+            {% endif %}
           {% else %}
             <span class="badge badge-muted">none</span>
           {% endif %}
