@@ -71,12 +71,13 @@
 
 - 상태 요약:
   - Phase 1B 핵심 구현(list/detail/compare viewer, compare route/API, provider 비교 레이아웃)과 Phase 2A filter MVP는 완료 상태다.
+  - Phase 2A filter MVP는 마감 가능 상태다.
   - 완료 이력은 `docs/진행상황.md`로 이관하고, 이 섹션은 실제 남은 후보만 유지한다.
 
 남은 TODO:
 
-- [ ] Scenario select option 수 확인 후 Phase 2B 후보 판단
-- [ ] 개별 filter chip 제거 필요 여부 검토(선택 후보)
+- [ ] Phase 2B 후보: scenario select는 현재 `q` 검색으로 대체 가능하며, option 수 증가/실제 필요 확인 시 재검토
+- [ ] Phase 2B 후보: 개별 filter chip 제거는 필터 수 증가/실제 불편 확인 시 재검토
 - [ ] Phase 2C execution console risk review는 보류 유지
 
 QA v4 보조 스크립트 관리:
