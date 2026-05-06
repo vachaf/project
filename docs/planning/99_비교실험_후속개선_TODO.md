@@ -197,17 +197,38 @@
 - 남은 TODO:
   - 실제 브라우저에서 `/`, `/report/{report_id}`, `/compare/{timeframe_id}` 재확인
   - `Compare` / `Compare (partial)` UX 흐름 확인
-  - missing provider 표시 정책 확인
-  - 기준: `Missing report`, `N/A`, detail link 없음
-  - responsive stack 동작 확인
   - `docs/design/99_web_ui_report_viewer_ui_polish_plan.md` 기준 template/CSS 중심 개선
-  - provider panel 긴 section 접기 적용/조정
-  - `Compare Metrics` 위치/가독성 점검
-  - header compacting 점검
-  - badge/spacing/typography 조정
   - Apache logs-only 원칙 유지 점검
   - IP masking 유지 점검
   - UI가 새 보안 판정을 생성하지 않는지 점검
+
+### 추가 확인 항목 — 2026-05-06 팀원 체크리스트 반영
+
+- Compare page metrics 위치 최종 확인
+  - `Compare Metrics`가 provider detail panels보다 먼저 접근 가능한지 확인
+  - provider panel 내용이 길어져도 주요 비교 지표가 아래로 밀리지 않아야 함
+  - count 차이는 실제 사건 수 차이가 아니라 report output 차이로만 표시
+- Provider panel 긴 section 접기 검토
+  - `overall_assessment`는 기본 표시 유지
+  - `key_findings`, `recommended_actions` 등 긴 항목은 `<details>` 적용 검토
+  - report text 원문 의미는 변경하지 않음
+- missing provider UX 최종 점검
+  - list page partial group에서 placeholder card가 provider slot을 1:1로 차지하는지 확인
+  - compare page에서도 `Missing report`, `N/A`, detail link 없음 유지
+  - missing provider를 `0 incidents`로 해석하게 만드는 표현이 없는지 확인
+- responsive 세부 확인
+  - 1440px / 1024px / 900px 이하 / 600px 이하에서 list/detail/compare 확인
+  - 900px 이하에서 provider cards와 compare panels가 1-column stack 되는지 확인
+  - badge/action link가 작은 화면에서 겹치지 않는지 확인
+  - 긴 filename/path가 카드 밖으로 넘치지 않는지 확인
+- hover/focus 및 action style polish
+  - `Compare`, `Compare partial`, `Detail` action이 같은 시각 체계로 보이는지 확인
+  - keyboard focus-visible outline 유지
+  - card hover가 과하지 않게 적용되는지 확인
+- QA v4 포맷 불일치 방어
+  - C세트 및 E R2B의 `notable_incidents` 키 누락 원인 확인
+  - QA 스크립트에서 missing key를 안전하게 처리할지, report schema/format 문서로 관리할지 결정
+  - AttributeError로 전체 일괄 검증이 중단되지 않도록 방어 로직 검토
 - 구현 제약:
   - Python 로직 변경은 가급적 피한다.
   - `FastAPI + Jinja2 + Plain CSS`를 유지한다.
