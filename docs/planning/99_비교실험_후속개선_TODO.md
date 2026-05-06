@@ -95,13 +95,11 @@ P1:
 - [x] Provider panel 긴 section을 `<details>` 등으로 접기
   - `key_findings`, `recommended_actions` 등 긴 섹션 우선 검토
   - report text 원문 의미는 변경하지 않음
-- [ ] Header compacting 최종 확인
-  - 1차 compacting은 반영됨
-  - 남은 작업은 실제 화면에서 vertical spacing과 subtitle 가독성 최종 확인
-- [x] Missing provider panel 시각 일관성 1차 완료
+- [x] Header compacting 최종 확인
+  - 현재 header 크기 약 1905x120px 수준으로 큰 문제 없음
+- [x] Missing provider panel 시각 일관성 최종 확인
   - `Missing report`, `N/A`, detail link 없음 유지
-  - list page partial group placeholder 및 1:1 card layout 반영 완료
-  - compare page에서도 동일 원칙 유지 여부만 최종 확인
+  - partial group placeholder 및 1:1 card layout 확인됨
 
 P2:
 
@@ -113,27 +111,25 @@ P2:
   - 너무 강한 contrast가 되지 않도록 내부 콘솔 톤 유지
 - [ ] List page card compacting 최종 확인
   - card/action/header polish 1차 반영 완료
-  - 남은 작업은 list가 길어질 때 vertical density 확인
+  - 현재 나쁘지 않으나 미세 조정 필요 여부를 추가 판단
 - [x] meta-grid spacing 1차 완료
   - metadata spacing은 현재 일관성 있게 관리됨
   - 추가 변경은 필요 시만 수행
 
 P3:
 
-- [ ] hover/focus state 개선
-  - Compare / Compare partial / Detail action의 hover/focus-visible 추가
+- [x] hover/focus state 1차 완료
+  - `.provider-card:hover`, `.compare-panel:hover`, `.action-link:hover`, `.action-link:focus-visible`, `a:focus-visible` 존재
   - keyboard focus outline 유지
 - [x] section collapse styling 개선
   - `<details>` 적용 후 summary/collapse styling 정리
-- [ ] small viewport polish 최종 확인
-  - 900px 이하 stack 기본 동작은 존재
-  - 1440px / 1024px / 900px 이하 / 600px 이하에서 list/detail/compare 최종 확인
+- [x] small viewport polish 최종 확인
+  - 화면상 큰 문제 없음
+  - 최종 확인 완료로 판단
 
-- responsive 세부 확인
-  - 1440px / 1024px / 900px 이하 / 600px 이하에서 list/detail/compare 확인
-  - 900px 이하에서 provider cards와 compare panels가 1-column stack 되는지 확인
-  - badge/action link가 작은 화면에서 겹치지 않는지 확인
-  - 긴 filename/path가 카드 밖으로 넘치지 않는지 확인
+- 남은 TODO 정리
+  - Table/card border contrast 개선 여부 판단
+  - List page card compacting 추가 필요 여부 판단
 - QA v4 포맷 불일치 방어
   - C세트 및 E R2B의 `notable_incidents` 키 누락 원인 확인
   - QA 스크립트에서 missing key를 안전하게 처리할지, report schema/format 문서로 관리할지 결정
