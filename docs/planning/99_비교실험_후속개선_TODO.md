@@ -86,53 +86,32 @@
 
 Phase 1B polish checklist:
 
-P1:
-
 - [x] Compare Metrics를 provider panels보다 위에 두는 구조 최종 확인/개선
-  - 팀원 체크 기준 현재 compare metrics가 provider panels 아래에 있을 가능성이 있어 우선 확인
-  - provider panel 내용이 길어져도 주요 비교 지표 접근성이 떨어지지 않아야 함
-  - count 차이는 실제 사건 수 차이가 아니라 report output 차이로만 표시
 - [x] Provider panel 긴 section을 `<details>` 등으로 접기
-  - `key_findings`, `recommended_actions` 등 긴 섹션 우선 검토
-  - report text 원문 의미는 변경하지 않음
 - [x] Header compacting 최종 확인
-  - 현재 header 크기 약 1905x120px 수준으로 큰 문제 없음
 - [x] Missing provider panel 시각 일관성 최종 확인
-  - `Missing report`, `N/A`, detail link 없음 유지
-  - partial group placeholder 및 1:1 card layout 확인됨
-
-P2:
-
 - [x] Badge spacing 1차 완료
-  - 기본 badge padding/spacing은 유지
-  - 추후 색상 대비 문제 발견 시만 조정
-- [ ] Table/card border contrast 개선
-  - 카드와 테이블 border가 단일 tone으로 보이는 부분 확인
-  - 너무 강한 contrast가 되지 않도록 내부 콘솔 톤 유지
-- [ ] List page card compacting 최종 확인
-  - card/action/header polish 1차 반영 완료
-  - 현재 나쁘지 않으나 미세 조정 필요 여부를 추가 판단
 - [x] meta-grid spacing 1차 완료
-  - metadata spacing은 현재 일관성 있게 관리됨
-  - 추가 변경은 필요 시만 수행
-
-P3:
-
 - [x] hover/focus state 1차 완료
-  - `.provider-card:hover`, `.compare-panel:hover`, `.action-link:hover`, `.action-link:focus-visible`, `a:focus-visible` 존재
-  - keyboard focus outline 유지
 - [x] section collapse styling 개선
-  - `<details>` 적용 후 summary/collapse styling 정리
-- [x] small viewport polish 최종 확인
-  - 화면상 큰 문제 없음
-  - 최종 확인 완료로 판단
+- [x] small viewport polish 기본 확인
 
-- 남은 TODO 정리
-  - Table/card border contrast 개선 여부 판단
-  - List page card compacting 추가 필요 여부 판단
-- QA v4 포맷 불일치 방어
-  - C세트 및 E R2B의 `notable_incidents` 키 누락 원인 확인
-  - QA 스크립트에서 missing key를 안전하게 처리할지, report schema/format 문서로 관리할지 결정
+후속 polish 후보:
+
+- [ ] Details 펼침 시 긴 리스트 가독성 점검
+  - `key_findings`/`recommended_actions` 리스트가 길 때 좌우 panel 높이 차이가 과도한지 확인
+  - 필요 시 list spacing/border만 조정하고 report text 의미는 변경하지 않음
+- [ ] 600px 이하 긴 문자열 overflow 최종 확인
+  - `incident_ref` / URL / path / `report_id`가 panel width를 강제로 늘리지 않는지 확인
+  - 필요 시 table cell/panel text wrapping 보강
+- [ ] Table/card border contrast 개선 여부 판단
+  - 내부 콘솔 톤 유지
+  - 과도한 contrast는 피함
+- [ ] List page card compacting 추가 필요 여부 판단
+- [ ] QA v4 `notable_incidents` AttributeError 실제 발생 위치 확인
+  - 현재 Web UI compare 코드(`web/services/report_comparator.py`, `web/templates/compare.html`)에서는 직접 접근 확인되지 않음
+  - QA v4 스크립트/별도 scoring 코드 우선 점검
+  - missing key를 `.get()`/`getattr(..., [])`로 안전 처리할지, report format 문서로 관리할지 결정
   - AttributeError로 전체 일괄 검증이 중단되지 않도록 방어 로직 검토
 - 구현 제약:
   - Python 로직 변경은 가급적 피한다.
