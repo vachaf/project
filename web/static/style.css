@@ -385,9 +385,26 @@ a:focus-visible {
 }
 
 .report-section {
+  min-width: 0;
   border-top: 1px solid var(--border);
   padding-top: 0.75rem;
   margin-top: 0.75rem;
+}
+
+.report-section ul {
+  margin: 0.7rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.report-section li {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.55;
+}
+
+.report-section li + li {
+  margin-top: 0.55rem;
 }
 
 .report-section summary {
@@ -402,6 +419,15 @@ a:focus-visible {
 
 .report-section[open] {
   padding-bottom: 0.15rem;
+}
+
+.compare-panel p,
+.compare-panel li,
+.compare-panel td,
+.compare-panel th {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .compare-panel-openai {
