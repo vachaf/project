@@ -77,7 +77,7 @@
 - [ ] Filter 브라우저 추가 spot check
 - [ ] Scenario select option 수 확인 후 Phase 2B 후보 판단
 - [ ] 개별 filter chip 제거 필요 여부 검토(선택 후보)
-- [ ] Phase 2C execution console 관련 항목은 계속 보류 유지
+- [ ] Phase 2C execution console risk review는 보류 유지
 
 QA v4 보조 스크립트 관리:
 

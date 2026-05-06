@@ -28,7 +28,7 @@
 
 - `/` list page에서 server-side GET query 기반 filter 지원
 - 지원 filter:
-  - `q`: `group.scenario`/`scenario_key` 우선, group 내 `filename`/`scenario`/`scenario_key`/`report_id` 대상 대소문자 무시 부분 일치
+  - `q`: `filename` / `scenario` / `report_id` 대상 대소문자 무시 부분 일치
   - `lint`: `pass | warn | fail | error`
   - `pair`: `both | partial`
   - `provider`: `openai | anthropic | unknown`
@@ -41,10 +41,12 @@
 예시 query:
 
 - `/?q=xss`
+- `/?q=h_r4`
 - `/?lint=fail`
 - `/?pair=partial`
 - `/?provider=openai`
 - `/?q=h_r4&provider=openai&pair=both`
+- `/?q=__no_such_report__`
 
 ## UI polish 범위 원칙
 
