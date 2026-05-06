@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-05
+- 기준 시점: 2026-05-06
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 원칙: 완료된 항목은 이 문서에 길게 유지하지 않는다.
 
@@ -15,6 +15,7 @@
 - Web UI Phase 1A/1B 핵심 구현 완료(compare view 포함) 및 기본 검증 통과
 - 외부 Phase 1B 실행 가이드 stale/부분 불일치 검토 완료
 - list page partial compare missing provider 1:1 layout, report viewer card/action/header polish 1차 완료
+- Web UI Phase 2A filter MVP 구현/검증 완료(`q`/`lint`/`pair`/`provider`, server-side GET query filtering, safe ignore, group count, clear all/no-result)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -65,22 +66,18 @@
   - 추가 코드 분리는 당장 진행하지 않음
   - 반복 문제 재발 시 report lint, Stage2 wording, 보류 후보를 재검토
 
-## P6. Web UI Phase 1B 후속(검증/Polish 중심)
+## P6. Web UI Phase 2A 후속(남은 작업만 유지)
 
 - 상태 요약:
-  - Phase 1B 핵심 구현(list/detail/compare viewer, compare route/API, provider 비교 레이아웃)과 P1 polish는 완료 상태다.
+  - Phase 1B 핵심 구현(list/detail/compare viewer, compare route/API, provider 비교 레이아웃)과 Phase 2A filter MVP는 완료 상태다.
   - 완료 이력은 `docs/진행상황.md`로 이관하고, 이 섹션은 실제 남은 후보만 유지한다.
 
-남은 선택적 polish 후보:
+남은 TODO:
 
-- [ ] Details 펼침 시 긴 리스트 가독성 추가 개선 여부 판단 (선택적 polish)
-  - 현재 큰 문제는 없으나 `key_findings`/`recommended_actions`가 매우 길 때 list spacing/border 조정 여부만 필요 시 검토
-- [ ] Table/card border contrast 개선 여부 판단 (선택적 polish/보류)
-  - 현재 내부 콘솔 톤에서는 현상 유지 가능
-  - 과도한 contrast 조정은 보류
-- [ ] List page card compacting 추가 필요 여부 판단 (선택적 polish/보류)
-  - 현재 card/action/header polish 이후 큰 문제 없음
-  - 추가 compacting은 필요 시만 수행
+- [ ] Filter 브라우저 추가 spot check
+- [ ] Scenario select option 수 확인 후 Phase 2B 후보 판단
+- [ ] 개별 filter chip 제거 필요 여부 검토(선택 후보)
+- [ ] Phase 2C execution console 관련 항목은 계속 보류 유지
 
 QA v4 보조 스크립트 관리:
 
@@ -107,6 +104,6 @@ QA v4 보조 스크립트 관리:
 
 주의:
 
-- 위 항목은 Phase 1B polish 완료 후에만 검토한다.
+- 위 항목은 read-only viewer 범위 검토 이후에만 장기 후보로 유지한다.
 - 현재는 Phase 2 문서 신규 생성 및 실행 TODO 승격을 하지 않는다.
 - Phase 2를 시작하려면 read-only viewer 범위를 실행/운영 콘솔로 확장할지 먼저 별도 판단한다.
