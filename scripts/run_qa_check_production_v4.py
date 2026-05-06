@@ -163,8 +163,13 @@ def main():
     with open(input_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    report_data = data.get("report", {})
-    incidents = report_data.get("notable_incidents", [])
+    report_data = data.get("report") or {}
+    if not isinstance(report_data, dict):
+        report_data = {}
+
+    incidents = report_data.get("notable_incidents") or []
+    if not isinstance(incidents, list):
+        incidents = []
     report_context = " ".join([safe_get(report_data, "overall_assessment"), safe_get(report_data, "recommended_actions")])
 
     engine = VerdictEngine(RuleWeight[args.rule_weight.upper()], debug=args.debug)

@@ -109,10 +109,15 @@ Phase 1B polish checklist:
   - `web/` 경로에서 `notable_incidents` 직접 접근 없음
   - `scripts/check_stage2_report_quality.py --input` 기준 C세트/E R2B report 재검증 시 Traceback/AttributeError 재현 안 됨
   - C세트 일부 report의 FAIL, E R2B 일부 report의 WARN은 lint 판정 결과이며 크래시가 아님
-  - 팀원 문서의 오류는 별도 QA v4 스크립트, 과거 실행본, 또는 다른 실행 명령에서 발생했을 가능성이 있으므로 전체 traceback 확보 전까지 신규 코드 수정은 하지 않음
+  - 원인 범위는 공식 경로(Web UI/quality lint) 외 별도 QA v4 스크립트까지 분리해 확인 필요
+- [x] QA v4 `run_qa_check_production_v4.py`의 `report: null` 방어 처리
+  - 현재 공식 Web UI / `scripts/check_stage2_report_quality.py --input` 경로에서는 C세트/E R2B 기준 `notable_incidents` AttributeError가 재현되지 않음
+  - 별도 QA v4 보조 스크립트인 `scripts/run_qa_check_production_v4.py`에서는 `"report": null` dry-run JSON에서 `data.get("report", {})`가 `None`을 반환해 AttributeError가 발생할 수 있음을 확인
+  - `report_data = data.get("report") or {}` 방식으로 방어
+  - QA v4는 공식 regression/lint를 대체하지 않고 보조 점검 스크립트로 관리
 - 조건부 재확인:
   - 팀원분이 당시 실행 명령과 전체 traceback을 공유하면 별도 QA v4 스크립트 또는 `file/explainable_qa.py` 계열을 재검토
-  - 현재 Web UI / Stage2 quality lint 경로에는 신규 방어 코드 추가하지 않음
+  - 추가 traceback이 있으면 케이스를 분리해 재검토
 - 구현 제약:
   - Python 로직 변경은 가급적 피한다.
   - `FastAPI + Jinja2 + Plain CSS`를 유지한다.

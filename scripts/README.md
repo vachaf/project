@@ -30,9 +30,29 @@ python3 -m pytest tests/test_stage2_report_quality.py
   - `--pretty`는 결과 JSON을 보기 좋게 stdout에 출력한다.
   - `--output`이 있을 때만 결과 JSON 파일을 저장한다.
   - strong negation과 weak conservative context를 구분해 safe negation blocker 과잉탐지를 줄인다.
+- `run_qa_check_production_v4.py`
+  - 공식 regression/lint를 대체하지 않는 별도 QA v4 보조/실험 스크립트다.
+  - score/confidence/debug 기반으로 Stage2 report 품질을 보조 점검할 때 사용한다.
+  - `"report": null` 형태의 dry-run report도 안전하게 처리한다.
 - `cleanup_outputs.py`
   - output retention policy 기준의 list-only cleanup candidate inventory를 만든다.
   - 삭제 기능 없음, `--apply` 미구현.
+
+QA v4 보조 스크립트 예시:
+
+```bash
+python3 scripts/run_qa_check_production_v4.py \
+  --input path/to/stage2_report.json \
+  --rule-weight strict \
+  --debug
+```
+
+구분 기준:
+
+- `check_stage2_report_quality.py`
+  - Apache logs-only wording risk를 review-only lint로 점검하는 공식 축
+- `run_qa_check_production_v4.py`
+  - 별도 scoring 기반 QA 보조 스크립트
 
 ## 현재 검증 기준
 
@@ -53,8 +73,11 @@ verdict=PASS
 
 ## 관리 원칙
 
+- 공식 검증 기준은 `check_prepare_regression.py`, `check_stage_dryrun_regression.py`, `check_stage2_report_quality.py`를 우선한다.
 - regression check, dry-run check, 요약 helper처럼 개발/검증 보조 스크립트를 둔다.
 - Stage2 report quality lint는 공격 성공 여부를 판정하는 도구가 아니라 wording review 도구다.
+- QA v4 score는 공식 regression 통과/실패와 같은 의미가 아니다.
+- QA v4는 Apache logs-only 단정 금지 원칙을 보조적으로 점검하는 용도다.
 - warning은 사람이 검토해야 하는 후보이지 자동 실패가 아니다.
 - `--fail-on-blocker`는 수동 확인 후 제한적으로 사용한다.
 - 파이프라인 본체 코드는 `src/`에 둔다.
