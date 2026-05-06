@@ -401,36 +401,55 @@ UI는 새로 단정하지 않는다.
 - 위 항목은 Phase 2 기능 확장이 아니라 Phase 1B UI polish 범위다.
 - Phase 2 문서는 신규 생성하지 않고 본 문서에서 계속 관리한다.
 
+## 11. Phase 1B Polish Checklist
+
+이 checklist는 Phase 2가 아니라 Phase 1B polish 완료 기준이다.
+
 ### P1
 
-- Compare Metrics를 provider panels보다 위로 이동
-- Provider panel의 긴 section 접기
-- Header compacting
-- Missing provider panel 시각 일관성
+- [ ] Compare Metrics를 provider panels보다 위에 두는 구조 확인/개선
+- [ ] Provider panel 긴 section을 `<details>` 등으로 접을지 검토
+- [ ] Header compacting
+- [ ] Missing provider panel 시각 일관성
 
 ### P2
 
-- Badge color/spacing 정리
-- Table/card border contrast 개선
-- List page card compacting
-- meta-grid spacing 조정
+- [ ] Badge color/spacing 정리
+- [ ] Table/card border contrast 개선
+- [ ] List page card compacting
+- [ ] meta-grid spacing 조정
 
 ### P3
 
-- hover/focus state 개선
-- section collapse styling 개선
-- small viewport polish
+- [ ] hover/focus state 개선
+- [ ] section collapse styling 개선
+- [ ] small viewport polish
 
-보류:
+추가 설명:
 
-- animation-heavy transition
+- 구현은 가능하면 template/CSS 중심으로 제한한다.
+- Python logic은 실제 bug가 확인될 때만 최소 수정한다.
+- UI가 새 보안 판정을 생성하지 않아야 한다.
+- missing provider는 `0 incidents`가 아니라 `Missing report` / `N/A`로 유지한다.
+
+## 12. Phase 2로 넘길 항목
+
+- pipeline run button
+- provider selection
+- dry-run toggle
+- live progress
+- regression run button
+- report search/filter
+- SQLite history
+- alert/dashboard
+- comparison history trend
+- 모바일 전용 UX
+- 화려한 애니메이션
 - dark/light theme toggle
-- frontend framework 전환
-- chart library 도입
 
 ---
 
-## 11. 예상 수정 범위
+## 13. 예상 수정 범위
 
 가능하면 CSS/template만 수정한다.
 
@@ -458,7 +477,7 @@ config/
 
 ---
 
-## 12. 검증 기준
+## 14. 검증 기준
 
 문법 검증:
 
@@ -513,7 +532,7 @@ python -m uvicorn web.app:app --host 127.0.0.1 --port 8766
 
 ---
 
-## 13. 완료 기준
+## 15. 완료 기준
 
 UI polish 완료 기준:
 
@@ -528,7 +547,7 @@ UI polish 완료 기준:
 
 ---
 
-## 14. 결론
+## 16. 결론
 
 현재 가장 적절한 방향은 framework 전환이 아니다.
 

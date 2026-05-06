@@ -204,6 +204,14 @@
 
 ### 추가 확인 항목 — 2026-05-06 팀원 체크리스트 반영
 
+- 팀원 UI polish checklist는 Phase 2가 아니라 Phase 1B polish 완료 기준으로 관리한다.
+- P1/P2/P3를 다음 기준으로 반영한다.
+  - P1: Compare metrics 우선 노출, provider 긴 section 접기 검토, header compacting, missing provider panel 일관성
+  - P2: badge color/spacing, table/card border contrast, list card compacting, meta-grid spacing
+  - P3: hover/focus state, section collapse styling, small viewport polish
+- Phase 2 기능 확장은 Phase 1B polish + 브라우저 검증 완료 후 별도 문서화 여부를 판단한다.
+- 현재는 Phase 2 문서 신규 생성을 보류한다.
+
 - Compare page metrics 위치 최종 확인
   - `Compare Metrics`가 provider detail panels보다 먼저 접근 가능한지 확인
   - provider panel 내용이 길어져도 주요 비교 지표가 아래로 밀리지 않아야 함
