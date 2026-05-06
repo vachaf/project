@@ -70,13 +70,7 @@
 - 현재 상태:
   - Phase 1B compare view 핵심 구현은 이미 존재한다.
   - 따라서 `compare.html 생성`, `compare CSS 추가`, `index compare link 추가`, `/compare route 추가`, `compare_reports() 생성`은 신규 TODO가 아니라 현존/확인 완료 항목이다.
-- 남은 TODO:
-  - 실제 브라우저에서 `/`, `/report/{report_id}`, `/compare/{timeframe_id}` 재확인
-  - `Compare` / `Compare (partial)` UX 흐름 확인
-  - `docs/design/99_web_ui_report_viewer_ui_polish_plan.md` 기준 template/CSS 중심 개선
-  - Apache logs-only 원칙 유지 점검
-  - IP masking 유지 점검
-  - UI가 새 보안 판정을 생성하지 않는지 점검
+- 남은 작업은 Phase 2 기능이 아니라 Phase 1B 후속 polish 후보 중심으로 관리한다.
 
 ### 추가 확인 항목 — 2026-05-06 팀원 체크리스트 반영
 
@@ -110,6 +104,7 @@ Phase 1B polish checklist:
 - [ ] List page card compacting 추가 필요 여부 판단
 - [ ] QA v4 `notable_incidents` AttributeError 실제 발생 위치 확인
   - 현재 Web UI compare 코드(`web/services/report_comparator.py`, `web/templates/compare.html`)에서는 직접 접근 확인되지 않음
+  - C세트 및 E R2B 기준 traceback 실제 발생 위치를 먼저 확인
   - QA v4 스크립트/별도 scoring 코드 우선 점검
   - missing key를 `.get()`/`getattr(..., [])`로 안전 처리할지, report format 문서로 관리할지 결정
   - AttributeError로 전체 일괄 검증이 중단되지 않도록 방어 로직 검토

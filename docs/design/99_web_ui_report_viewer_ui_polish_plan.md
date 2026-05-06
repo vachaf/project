@@ -405,25 +405,15 @@ UI는 새로 단정하지 않는다.
 
 이 checklist는 Phase 2가 아니라 Phase 1B polish 완료 기준이다.
 
-### P1
-
-- [ ] Compare Metrics를 provider panels보다 위에 두는 구조 확인/개선
-- [ ] Provider panel 긴 section을 `<details>` 등으로 접을지 검토
-- [ ] Header compacting
-- [ ] Missing provider panel 시각 일관성
-
-### P2
-
-- [ ] Badge color/spacing 정리
-- [ ] Table/card border contrast 개선
-- [ ] List page card compacting
-- [ ] meta-grid spacing 조정
-
-### P3
-
-- [ ] hover/focus state 개선
-- [ ] section collapse styling 개선
-- [ ] small viewport polish
+- [x] Compare Metrics를 provider panels보다 위에 두는 구조 최종 확인/개선
+- [x] Provider panel 긴 section을 `<details>` 등으로 접기
+- [x] Header compacting 1차 완료
+- [x] Missing provider panel 시각 일관성 최종 확인
+- [x] Badge spacing 1차 완료
+- [x] meta-grid spacing 1차 완료
+- [x] hover/focus state 1차 완료
+- [x] section collapse styling 1차 완료
+- [x] small viewport 기본 동작 확인
 
 추가 설명:
 
@@ -432,7 +422,21 @@ UI는 새로 단정하지 않는다.
 - UI가 새 보안 판정을 생성하지 않아야 한다.
 - missing provider는 `0 incidents`가 아니라 `Missing report` / `N/A`로 유지한다.
 
-## 12. Phase 2로 넘길 항목
+## 12. Phase 1B 후속 polish 후보
+
+- [ ] Details 펼침 시 긴 리스트 가독성 점검
+  - `key_findings`/`recommended_actions` 리스트가 길 때 좌우 provider panel 높이 차이가 과도한지 확인
+  - 필요 시 list spacing/border만 조정
+  - report text 의미는 변경하지 않음
+- [ ] 600px 이하 긴 문자열 overflow 최종 확인
+  - `incident_ref` / URL / path / `report_id`가 panel width를 강제로 늘리지 않는지 확인
+  - 필요 시 table cell/panel text wrapping 보강
+- [ ] Table/card border contrast 개선 여부 판단
+  - 내부 콘솔 톤 유지
+  - 과도한 contrast는 피함
+- [ ] List page card compacting 추가 필요 여부 판단
+
+## 13. Phase 2로 넘길 항목
 
 - pipeline run button
 - provider selection
@@ -449,7 +453,7 @@ UI는 새로 단정하지 않는다.
 
 ---
 
-## 13. 예상 수정 범위
+## 14. 예상 수정 범위
 
 가능하면 CSS/template만 수정한다.
 
@@ -477,7 +481,7 @@ config/
 
 ---
 
-## 14. 검증 기준
+## 15. 검증 기준
 
 문법 검증:
 
