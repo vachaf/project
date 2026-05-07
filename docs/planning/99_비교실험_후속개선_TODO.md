@@ -60,32 +60,25 @@
   - 추가 prepare split은 당장 진행하지 않음
   - 다음 작업 후보를 새 공격/시나리오 coverage 검토로 이동
   - Apache logs-only evidence boundary를 먼저 고정하고 fixture/regression 적합성부터 판단
-- 완료 처리:
-  - [x] SSRF metadata endpoint 1차 regression 완료(`l3_ssrf_metadata_endpoint_context`)
-  - [x] Log4Shell obfuscated payload regression 완료(`l3_log4shell_obfuscated_payload_context`)
-  - [x] Log4Shell은 `src/prepare/l3_hints.py` 최소 수정으로 obfuscated JNDI-like payload를 hint 경로에 포함하고 ldap/rmi/dns callback-like scheme hint를 유지
-  - [x] Webshell/admin tool probe 1차 regression 완료(`l3_webshell_admin_tool_probe_context`)
-  - [x] Webshell/admin probe는 `src/prepare/l3_hints.py` 최소 수정으로 `webshell:admin_tool_probe_path`를 추가하고 path-only probe에서도 webshell hint 보존 확인
-  - [x] GraphQL / API introspection 1차 regression 완료(`l3_graphql_introspection_context`)
-  - [x] GraphQL은 `src/prepare/l3_hints.py`와 `src/prepare_llm_input.py` 최소 수정으로 `__schema`/`__type`/`IntrospectionQuery`와 `/graphql` 계열 path 탐지를 hint 경로에 포함
-  - [x] Open redirect / redirect abuse attempt 1차 regression 완료(`l3_open_redirect_external_url_context`)
-  - [x] Open redirect는 `src/prepare/l3_hints.py`의 `detect_open_redirect_hints` + `src/prepare_llm_input.py` 최소 연동으로 external URL + redirect-like parameter 후보를 보존하고, internal/metadata는 SSRF 우선 해석 유지
-  - [x] SSTI / template injection 1차 regression 완료(`l3_ssti_template_expression_context`)
-  - [x] SSTI는 코드 수정 없이 기존 `detect_ssti_hints` 및 educational_ssti_context 기반 FP 완화 경계로 arithmetic/object probe candidate 보존과 benign baseline 과승격 방지를 확인
-  - [x] XXE / XML parser abuse attempt 1차 regression 완료(`l3_xxe_external_entity_context`)
-  - [x] XXE는 `src/prepare/l3_hints.py` 최소 보강(`detect_xxe_hints`) + `src/prepare_llm_input.py` 최소 연동으로 DOCTYPE/ENTITY/SYSTEM/file:// 및 external entity URL marker를 보존하고, raw POST body 비가시성 전제를 유지
-- 남은 TODO:
-  - [x] API key / secret token probe coverage plan 작성 완료(`docs/design/99_prepare_api_key_secret_probe_coverage_plan.md`)
-  - [x] Webshell command query endpoint coverage plan 작성 완료(`docs/design/99_prepare_webshell_command_query_coverage_plan.md`)
-  - [ ] API key / secret token probe는 false positive 위험 때문에 fixture/regression은 보류하거나 별도 fixture plan을 먼저 작성
-  - [ ] Webshell command query endpoint는 traversal/CMDI 경계 민감도로 별도 fixture plan을 먼저 작성
-  - [ ] 다음 작업 선택 A: API key / secret token fixture plan 작성
-  - [ ] 다음 작업 선택 B: Webshell command query fixture plan 작성
-  - [ ] 다음 작업 선택 C: 신규 coverage round summary 작성 후 라운드 마감
-  - [ ] Open redirect 추가 보강은 필요 시 선택 후보로만 유지
-  - [ ] Apache logs-only evidence boundary 유지
-  - [ ] traversal/CMDI 보강과 file disclosure 보강을 기존 module 확장 후보로 계속 관리
-  - [ ] 개발환경 정리 후보: pytest dependency 이슈는 현재 재현되지 않음(`python -m pytest tests/test_stage2_report_quality.py`: `14 passed`), 추가 조치는 필요 시에만 검토
+- 완료 요약(상세는 `docs/진행상황.md`로 이관):
+  - 신규 coverage regression 7종 완료
+  - API key / secret token probe, Webshell command query endpoint coverage plan 작성 완료
+- 남은 TODO(실제 작업만 유지):
+  - [ ] 신규 coverage round summary 작성 여부 판단
+    - 문서 후보: `docs/design/99_prepare_new_attack_coverage_round_summary.md`
+    - 생성 여부만 판단하고, 미확정 상태를 유지
+  - [ ] API key / secret token probe fixture plan 작성 여부 판단
+    - false positive 위험이 높아 즉시 regression 추가는 하지 않음
+    - 정상 API traffic과 secret probe 구분 기준이 필요할 때만 fixture plan 선행
+  - [ ] Webshell command query fixture plan 작성 여부 판단
+    - traversal/CMDI 경계가 민감해 즉시 regression 추가는 하지 않음
+    - 필요 시 별도 fixture plan 선행
+  - [ ] P2 이후 후보 보류 유지
+    - Deserialization / object injection-like payload
+    - LDAP / NoSQL injection-like payload
+    - request smuggling / header anomaly
+    - scanner / tool behavior 확장
+  - [ ] Apache logs-only evidence boundary 및 성공 단정 금지 원칙 유지
 - deferred split 보류 유지:
   - `AUTOMATION_UA_PATTERNS`
   - `detect_decoded_attack_hints`
@@ -110,6 +103,12 @@
 - [ ] Phase 2B 후보: scenario select는 현재 `q` 검색으로 대체 가능하며, option 수 증가/실제 필요 확인 시 재검토
 - [ ] Phase 2B 후보: 개별 filter chip 제거는 필터 수 증가/실제 불편 확인 시 재검토
 - [ ] Phase 2C execution console risk review는 보류 유지
+  - pipeline run button
+  - dry-run toggle
+  - live progress
+  - regression run button
+  - SQLite history
+  - alert/dashboard
 
 QA v4 보조 스크립트 관리:
 
