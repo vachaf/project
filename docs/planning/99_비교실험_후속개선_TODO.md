@@ -11,8 +11,8 @@
 - prepare split round1/round2, constants mini-move, hints split(SQLi/XSS/file disclosure/traversal-CMDI) 완료
 - auth/crawler constants move 및 shared attack/search policy boundary review 완료
 - Stage2 prompt compaction + report quality lint 추가/튜닝 완료(`python -m pytest tests/test_stage2_report_quality.py`: `14 passed`)
-- post-refactor dry-run/actual LLM spot check 완료, 주요 regression 기준 통과(`pass=22`, `pass=16`)
-- 현재 검증 결과 기준 통일 완료(py_compile 통과, `pass=22`, `pass=16`, `14 passed`)
+- post-refactor dry-run/actual LLM spot check 완료, 주요 regression 기준 통과(`pass=23`, `pass=17`)
+- 현재 검증 결과 기준 통일 완료(py_compile 통과, `pass=23`, `pass=17`, `14 passed`)
 - prepare deferred split re-entry review / shared attack policy re-entry review / search false-positive re-entry review 완료
 - `docs/design/99_prepare_new_attack_coverage_candidate_review.md` 작성 완료
 - Web UI Phase 1A/1B 핵심 구현 완료(compare view 포함) 및 기본 검증 통과
@@ -68,8 +68,10 @@
   - [x] Webshell/admin probe는 `src/prepare/l3_hints.py` 최소 수정으로 `webshell:admin_tool_probe_path`를 추가하고 path-only probe에서도 webshell hint 보존 확인
   - [x] GraphQL / API introspection 1차 regression 완료(`l3_graphql_introspection_context`)
   - [x] GraphQL은 `src/prepare/l3_hints.py`와 `src/prepare_llm_input.py` 최소 수정으로 `__schema`/`__type`/`IntrospectionQuery`와 `/graphql` 계열 path 탐지를 hint 경로에 포함
+  - [x] Open redirect / redirect abuse attempt 1차 regression 완료(`l3_open_redirect_external_url_context`)
+  - [x] Open redirect는 `src/prepare/l3_hints.py`의 `detect_open_redirect_hints` + `src/prepare_llm_input.py` 최소 연동으로 external URL + redirect-like parameter 후보를 보존하고, internal/metadata는 SSRF 우선 해석 유지
 - 남은 TODO:
-  - [ ] 다음 순번 판단: Open redirect와 SSTI 중 무엇을 먼저 coverage 후보로 진행할지 결정
+  - [ ] 다음 순번: SSTI / template injection coverage plan 또는 fixture 후보 검토 진행
   - [ ] Webshell command query는 traversal/CMDI 의미 경계가 더 민감하므로 별도 경계 검토 후 진행
   - [ ] XXE/API key probe는 보수적 후보로 계속 유지
   - [ ] Apache logs-only evidence boundary 유지

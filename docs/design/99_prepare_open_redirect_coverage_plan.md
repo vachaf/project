@@ -1,8 +1,8 @@
 # 99_prepare_open_redirect_coverage_plan
 
-- 문서 상태: Open redirect / redirect abuse attempt coverage plan
+- 문서 상태: Open redirect / redirect abuse attempt coverage plan (1차 regression 반영 완료)
 - 기준 시점: 2026-05-07
-- 목적: P2 다음 coverage 후보인 Open redirect / redirect abuse attempt 계열을 검토하고, Apache logs-only evidence boundary와 SSRF URL parameter 경계를 먼저 고정한 뒤 fixture/regression 추가 여부를 판단한다.
+- 목적: Open redirect / redirect abuse attempt coverage의 1차 regression 결과를 반영하고, Apache logs-only evidence boundary와 SSRF URL parameter 경계를 유지한다.
 
 관련 문서:
 
@@ -28,19 +28,19 @@ grep -RIn "redirect=\|next=\|return=\|continue=\|callback=\|url=\|open redirect\
 
 ```text
 - redirect/next/return/continue/callback/url 신호는 기존 SSRF 문맥과 P2 후보 비교 문서에 분산되어 있다.
-- Open redirect 전용 coverage plan 문서는 아직 없었고, 이번 문서에서 경계 기준을 고정한다.
-- 이번 작업은 문서 작성만 수행하며 fixture/expected/코드 수정은 하지 않는다.
+- `l3_open_redirect_external_url_context` fixture/expected가 추가되어 1차 regression이 완료되었다.
+- 문서 목표는 구현 상세와 경계 기준(SSRF 우선 해석, success 단정 금지) 고정이다.
 ```
 
 ## 1. 목적
 
-- Open redirect / redirect abuse attempt coverage 후보를 검토한다.
-- redirect 성공, phishing 성공, open redirect 취약점 확인을 단정하지 않는 기준을 고정한다.
-- 이번 문서는 구현 코드 작성 문서가 아니라 coverage plan 문서다.
+- Open redirect / redirect abuse attempt coverage 1차 반영 상태를 정리한다.
+- redirect 성공, phishing 성공, open redirect 취약점 확인을 단정하지 않는 기준을 유지한다.
+- 경계 유지 범위와 남은 선택 후보를 분리한다.
 
 ## 2. 현재 상태
 
-- P2 후보 비교 문서에서 Open redirect는 GraphQL 다음 2순위 후보로 정리되어 있다.
+- P2 후보 비교 문서에서 Open redirect는 1차 regression 완료 상태로 이동했다.
 - `url=`, `callback=`, `next=` 계열 parameter는 SSRF URL parameter family와 일부 경계가 겹친다.
 - shared attack/search policy 및 normal search false-positive 경계는 유지한다.
 
@@ -51,8 +51,9 @@ grep -RIn "redirect=\|next=\|return=\|continue=\|callback=\|url=\|open redirect\
   - `l3_log4shell_obfuscated_payload_context`
   - `l3_webshell_admin_tool_probe_context`
   - `l3_graphql_introspection_context`
-- prepare regression `pass=22 warn=0 fail=0`
-- stage dry-run regression `pass=16 warn=0 fail=0`
+  - `l3_open_redirect_external_url_context`
+- prepare regression `pass=23 warn=0 fail=0`
+- stage dry-run regression `pass=17 warn=0 fail=0`
 - Stage2 report quality tests `14 passed`
 
 ## 3. 관찰 가능한 signal
@@ -110,8 +111,9 @@ Apache logs-only 기준에서 관찰 가능한 주요 signal:
 
 ## 6. 기존 module과의 관계
 
-- `l3_hints.py`에 URL parameter 기반 hint를 추가할지 검토 대상이다.
-- SSRF hint와의 중복 가능성 및 분기 기준을 먼저 문서화해야 한다.
+- `src/prepare/l3_hints.py`에 `detect_open_redirect_hints`를 추가해 redirect-like parameter + external URL 신호를 분리 보존했다.
+- `src/prepare_llm_input.py` 최소 연동으로 `l3:open_redirect_probe`, `open_redirect:*` 계열 hint를 context/candidate 경로에 유지한다.
+- SSRF와의 분기 기준은 metadata/internal target 우선 해석으로 유지한다.
 - shared attack/search policy 변경은 금지한다.
 - normal search false-positive handling 변경은 금지한다.
 
@@ -145,11 +147,9 @@ context-only 또는 baseline 우선 조건:
 - 반복 probing은 success가 아니라 context summary로만 보존한다.
 ```
 
-## 8. Fixture/regression 아이디어
+## 8. 반영된 Fixture/regression
 
-이번 문서에서는 fixture를 추가하지 않는다. 다음 구현 단계 후보만 고정한다.
-
-후보 fixture:
+1차 regression fixture:
 
 - `l3_open_redirect_external_url_context`
   - `GET /login?next=https://external.example/`
@@ -160,6 +160,7 @@ benign baseline 후보:
 
 - `GET /product?url=https://example.com/manual.pdf`
 - `GET /login?next=/account`
+- `GET /checkout?return=/cart`
 - `GET /search?q=redirect`
 
 expected 확인 포인트:
@@ -170,6 +171,7 @@ expected 확인 포인트:
 - same-site relative redirect baseline 과승격 방지
 - Stage2 input에 candidate/context 유지
 - success wording 없음
+- `status_code=200/302/3xx` 또는 `response_body_bytes`만으로 redirect 결과를 확정하지 않음
 
 ## 9. Stage2 wording/lint guard 필요 여부
 
@@ -219,7 +221,7 @@ python -m pytest tests/test_stage2_report_quality.py
 
 ## 12. 결론
 
-- Open redirect / redirect abuse attempt는 GraphQL 다음 P2 후보로 유지한다.
-- 바로 구현하기보다 fixture plan을 한 번 더 분리해 expected 경계와 SSRF 분기 기준을 먼저 고정하는 경로가 안전하다.
-- SSTI와의 우선순위는 Open redirect를 먼저 검토하는 쪽으로 유지한다.
+- Open redirect / redirect abuse attempt는 GraphQL과 함께 완료된 P2 coverage로 이동했다.
+- `l3_open_redirect_external_url_context` 기준으로 1차 regression은 완료되었고, Apache logs-only 경계와 SSRF 분기 기준이 expected에 반영되었다.
+- 다음 신규 후보는 SSTI / template injection coverage 검토로 이동한다.
 - Webshell command query는 traversal/CMDI 의미 경계가 민감하므로 계속 별도 검토 후보로 유지한다.

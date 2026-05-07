@@ -56,8 +56,8 @@ prepare 계열은 현재 stable 상태이며, 추가 split보다 coverage candid
 
 ```text
 - py_compile 통과
-- prepare regression pass=22 warn=0 fail=0
-- stage dry-run regression pass=16 warn=0 fail=0
+- prepare regression pass=23 warn=0 fail=0
+- stage dry-run regression pass=17 warn=0 fail=0
 - python -m pytest tests/test_stage2_report_quality.py: 14 passed
 ```
 
@@ -70,7 +70,8 @@ prepare 계열은 현재 stable 상태이며, 추가 split보다 coverage candid
 - `l3_ssrf_metadata_endpoint_context`와 `l3_log4shell_obfuscated_payload_context` 1차 regression을 완료
 - `l3_webshell_admin_tool_probe_context` 1차 regression을 완료
 - `l3_graphql_introspection_context` 1차 regression을 완료
-- 다음 분기는 Open redirect/SSTI 우선순위 선택과 Webshell command query 별도 검토를 병행
+- `l3_open_redirect_external_url_context` 1차 regression을 완료
+- 다음 분기는 SSTI 우선 검토와 Webshell command query 별도 검토를 병행
 ```
 
 신규 coverage 완료 목록:
@@ -80,6 +81,7 @@ prepare 계열은 현재 stable 상태이며, 추가 split보다 coverage candid
 - l3_log4shell_obfuscated_payload_context
 - l3_webshell_admin_tool_probe_context
 - l3_graphql_introspection_context
+- l3_open_redirect_external_url_context
 ```
 
 ## 3. 공통 Apache logs-only evidence boundary
@@ -141,7 +143,7 @@ Apache logs만으로 볼 수 없는 것:
 | Webshell / admin tool probe | scanner/sensitive path context + shared attack hint path | `/shell.php`, `/cmd.php`, `/upload.php`, `/wso.php`, `/c99.php`, `/vendor/phpunit/...`, `/cgi-bin/...` | webshell 존재, admin tool 존재, command execution success | candidate | 낮음~중간 | Stage1 taxonomy, Stage2 wording guard 필요 | 중간 | P1 | sensitive path/context와 candidate 경계 정리 후 별도 coverage plan |
 | Deserialization / object injection-like payload | shared attack hint path | Java/PHP serialized object marker, object-like gadget string, unsafe deserialize parameter pattern | deserialization success, gadget execution success, RCE success | context-only에서 시작, 장기적으로 candidate 검토 | 높음 | Stage1 wording guard 부담 큼 | 높음 | P3 | 초기에는 marker catalog, 이후 필요 시 후보 승격 |
 | XXE / XML parser abuse attempt | shared attack hint path | `<!DOCTYPE`, `<!ENTITY`, external entity marker, XML endpoint probing | file read success, SSRF success, parser execution success | candidate | 중간 | Stage2 wording guard 필요 | 중간 | P2 | XXE 전용 coverage plan 또는 SSTI와 분리된 parser abuse plan |
-| Open redirect / redirect abuse attempt | shared attack/search policy와 인접 | `redirect=`, `url=`, `next=`, `return=`, `continue=` + 외부 URL 값 | redirect success, phishing success, token theft success | candidate | 낮음~중간 | wording guard 중심 | 중간~높음 | P2 | parameter family boundary 문서화 후 fixture 검토 |
+| Open redirect / redirect abuse attempt | shared attack/search policy와 인접 | `redirect=`, `url=`, `next=`, `return=`, `continue=` + 외부 URL 값 | redirect success, phishing success, token theft success | candidate | 낮음~중간 | wording guard 중심 | 중간~높음 | P2(1차 완료) | parameter family boundary 문서화 후 fixture 검토 |
 | Request smuggling / header anomaly attempt | `protocol_anomalies.py`, method/protocol summary 인접 | suspicious `Transfer-Encoding`, `Content-Length` anomaly, malformed request signal | smuggling success, proxy desync success, internal routing success | context-only 우선 | 높음 | Stage1/Stage2 과해석 위험 큼 | 높음 | P3 | protocol anomaly 보강 후보로 장기 관리 |
 | API key / secret token probe | file disclosure/sensitive path/shared attack policy 인접 | `api_key=`, `token=`, `access_token=`, `.env`, config path probe | secret exposure success, credential theft success | candidate | 중간 | wording/taxonomy guard 필요 | 중간~높음 | P2 | file disclosure 보강과 연계해 family 단위로 정리 |
 | GraphQL / API introspection attempt | shared attack hint path | `/graphql`, `__schema`, `__type`, introspection-like query | schema exposure success, auth bypass success | candidate | 낮음~중간 | Stage2 wording guard 필요 | 중간 | P2 | dedicated API introspection family 검토 |
@@ -424,7 +426,7 @@ P2
 
 목표:
 
-- redirect-like parameter family를 별도 coverage 후보로 둘지 판단한다.
+- redirect-like parameter family의 1차 regression 완료 상태와 경계 유지 항목을 정리한다.
 
 관찰 가능한 request pattern:
 
@@ -446,10 +448,11 @@ P2
 - 낮다.
 - parameter family coverage로 먼저 다루는 편이 자연스럽다.
 
-fixture/regression 아이디어:
+fixture/regression 반영:
 
 - 외부 URL target이 들어간 redirect parameter
 - benign same-site return URL과 비교 샘플
+- `l3_open_redirect_external_url_context` 1차 regression 완료
 
 Stage2 wording guard 필요 여부:
 
@@ -767,12 +770,15 @@ P3
 - Log4Shell / JNDI lookup 보강 (obfuscated payload 1차 regression 완료)
 - Webshell / admin tool probe (1차 regression 완료)
 
+완료된 신규 coverage:
+
+- GraphQL / API introspection (1차 regression 완료)
+- Open redirect / redirect abuse attempt (1차 regression 완료)
+
 중기 P2:
 
 - SSTI / template injection
 - XXE
-- Open redirect
-- GraphQL / API introspection (1차 regression 완료)
 - API key / secret token probe
 
 장기 P3:
@@ -825,7 +831,7 @@ roadmap 원칙:
 
 추천:
 
-- SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe, GraphQL introspection 1차 regression 완료 이후 다음 실행 후보를 Open redirect/SSTI 중에서 선택한다.
+- SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe, GraphQL introspection, Open redirect external URL context 1차 regression 완료 이후 다음 실행 후보는 SSTI / template injection으로 유지한다.
 - Webshell command query는 traversal/CMDI 의미 경계 검토를 선행하는 별도 후보로 유지한다.
 - XXE/API key probe는 중기 보수 후보(P2)로 유지한다.
 
@@ -850,8 +856,8 @@ roadmap 원칙:
 
 ```text
 - 추가 prepare split보다 새 공격 coverage 후보 검토가 더 생산적
-- SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe, GraphQL introspection 1차 regression은 완료
-- 다음 분기는 Open redirect/SSTI 우선순위를 결정하고, Webshell command query(`l3_webshell_command_query_context`)는 별도 경계 검토 후 진행 여부를 판단
+- SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe, GraphQL introspection, Open redirect external URL context 1차 regression은 완료
+- 다음 분기는 SSTI / template injection을 우선 검토하고, Webshell command query(`l3_webshell_command_query_context`)는 별도 경계 검토 후 진행 여부를 판단
 - XXE/API key probe는 보수 후보로 유지
 - 장기적으로 모든 후보를 순차 대응하되, Apache logs-only boundary를 먼저 문서화
 - 구현은 fixture/regression 설계 후 진행

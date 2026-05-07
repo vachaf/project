@@ -1,8 +1,8 @@
 # 99_prepare_open_redirect_fixture_plan
 
-- 문서 상태: Open redirect / redirect abuse attempt fixture plan
+- 문서 상태: Open redirect / redirect abuse attempt fixture plan (1차 regression 반영 완료)
 - 기준 시점: 2026-05-07
-- 목적: Open redirect / redirect abuse attempt coverage plan 이후 실제 fixture/regression 추가 여부를 판단하기 위한 기준을 고정한다.
+- 목적: Open redirect / redirect abuse attempt 1차 fixture/regression 반영 상태와 expected 고정 항목을 정리한다.
 
 관련 문서:
 
@@ -24,21 +24,21 @@ grep -RIn "redirect=\|next=\|return=\|continue=\|callback=\|url=\|open_redirect\
 
 ```text
 - redirect-like parameter 신호는 SSRF coverage 및 P2 후보 비교 문서에 이미 분산되어 있다.
-- Open redirect 전용 fixture/regression 케이스는 아직 없는 상태다.
-- 이번 작업은 fixture plan 문서 작성이며 fixture/expected/code 수정은 수행하지 않는다.
+- `l3_open_redirect_external_url_context` fixture/expected가 추가되어 1차 regression이 완료되었다.
+- 문서 목표는 적용된 fixture 구성과 remaining 후보를 분리해 유지하는 것이다.
 ```
 
 ## 1. 목적
 
-- Open redirect coverage 후보를 fixture/regression 관점으로 좁힌다.
-- 바로 구현하지 않고 fixture 설계와 expected 확인 포인트를 고정한다.
+- Open redirect coverage 1차 fixture/regression 반영 상태를 기록한다.
+- 남은 후보는 선택 후보로만 유지한다.
 
 ## 2. 현재 coverage 확인 결과
 
 Open redirect 관련 기존 hint/module/fixture 확인:
 
 - Open redirect 전용 hint module은 없다.
-- Open redirect 전용 fixture/expected 회귀 케이스는 아직 없다.
+- Open redirect 전용 fixture/expected 회귀 케이스 `l3_open_redirect_external_url_context`는 추가 완료 상태다.
 - URL parameter 계열 신호(`url`, `callback`, `next`, `return`, `continue`, `redirect`)는 SSRF 문맥과 일부 중첩된다.
 
 SSRF URL parameter와의 중복 여부:
@@ -49,13 +49,11 @@ SSRF URL parameter와의 중복 여부:
 
 현재 regression 기준:
 
-- prepare regression `pass=22 warn=0 fail=0`
-- stage dry-run regression `pass=16 warn=0 fail=0`
+- prepare regression `pass=23 warn=0 fail=0`
+- stage dry-run regression `pass=17 warn=0 fail=0`
 - Stage2 report quality tests `14 passed`
 
-## 3. fixture 후보
-
-아래 후보를 비교한다.
+## 3. 반영된 1차 fixture 구성
 
 external redirect-like parameter:
 
@@ -120,7 +118,7 @@ context-only 또는 baseline 우선 조건:
 
 ## 7. 기존 module 확장 여부
 
-- `l3_hints.py`에 최소 open redirect-like hint 추가가 적절한지 검토한다.
+- `l3_hints.py`에 `detect_open_redirect_hints` 최소 추가가 반영되었고, `prepare_llm_input.py` 최소 연동으로 hint 보존이 적용되었다.
 - 새 module 생성은 보류한다.
 
 변경 금지 범위:
@@ -131,11 +129,11 @@ context-only 또는 baseline 우선 조건:
 - supporting_events/scoring/filtering 변경 금지
 - Stage2 reporter 변경 금지
 
-## 8. 권장 1차 fixture
+## 8. 상태 및 남은 선택 후보
 
 추천:
 
-- `l3_open_redirect_external_url_context`
+- `l3_open_redirect_external_url_context` (완료)
 
 후순위:
 
@@ -172,9 +170,9 @@ python -m pytest tests/test_stage2_report_quality.py
 
 ## 11. 결론
 
-- 첫 구현 후보는 `l3_open_redirect_external_url_context`로 두는 것이 적절하다.
+- `l3_open_redirect_external_url_context` 기준 1차 regression 반영은 완료되었다.
 - fixture 추가 전 확인할 것:
   - SSRF 경계(내부/metadata target 우선)와 Open redirect-like 경계를 expected에서 분리했는지
   - relative/documentation baseline 과승격 방지 기준이 충분한지
   - Stage2 wording에서 redirect/phishing 성공 단정 금지 표현이 유지되는지
-- 코드 수정은 다음 작업으로 분리한다.
+- 남은 Open redirect 확장 후보는 선택 후보로만 유지한다.
