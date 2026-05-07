@@ -52,6 +52,15 @@
           {% endfor %}
         </select>
       </label>
+
+      <label class="filter-field">
+        <span>sort</span>
+        <select name="sort" onchange="this.form.submit()">
+          {% for opt in filter_options.sort %}
+          <option value="{{ opt }}" {% if filters.sort == opt %}selected{% endif %}>{{ opt.replace('_', ' ') | capitalize }}</option>
+          {% endfor %}
+        </select>
+      </label>
     </div>
 
     <div class="filter-actions">
@@ -70,7 +79,7 @@
     {% endif %}
   </p>
 
-  {% set has_active_filters = filters.q or filters.lint or filters.pair or filters.provider %}
+  {% set has_active_filters = filters.q or filters.lint or filters.pair or filters.provider or (filters.sort and filters.sort != 'time_desc') %}
   {% if has_active_filters %}
   <div class="filter-chip-list">
     {% if filters.q %}
@@ -84,6 +93,9 @@
     {% endif %}
     {% if filters.provider %}
       <span class="filter-chip">Provider: {{ filters.provider }}</span>
+    {% endif %}
+    {% if filters.sort and filters.sort != 'time_desc' %}
+      <span class="filter-chip">Sort: {{ filters.sort.replace('_', ' ') }}</span>
     {% endif %}
     <a class="action-link" href="/">Clear all</a>
   </div>

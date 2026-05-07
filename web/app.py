@@ -28,6 +28,7 @@ IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 LINT_OPTIONS = ("pass", "warn", "fail", "error")
 PAIR_OPTIONS = ("both", "partial")
 PROVIDER_OPTIONS = ("openai", "anthropic", "unknown")
+SORT_OPTIONS = ("time_desc", "time_asc", "severity_desc")
 
 
 @app.get("/")
@@ -40,13 +41,14 @@ def index(request: Request):
     groups = loader.group_by_timeframe(reports)
     filters = parse_filters(request)
     filtered_groups = loader.filter_groups(groups, filters)
-    result_count = len(filtered_groups)
+    sorted_filtered_groups = sort_groups(filtered_groups, filters.get("sort", "time_desc"))
+    result_count = len(sorted_filtered_groups)
     unfiltered_count = len(groups)
 
     summary = {
         "total_count": len(reports),
         "timeframe_count": len(groups),
-        "groups": filtered_groups,
+        "groups": sorted_filtered_groups,
         "lint_aggregate": aggregate_lint_counts(reports),
     }
 
@@ -62,6 +64,7 @@ def index(request: Request):
                 "lint": list(LINT_OPTIONS),
                 "pair": list(PAIR_OPTIONS),
                 "provider": list(PROVIDER_OPTIONS),
+                "sort": list(SORT_OPTIONS),
             },
             "result_count": result_count,
             "unfiltered_count": unfiltered_count,
@@ -315,14 +318,55 @@ def parse_filters(request: Request) -> Dict[str, Optional[str]]:
     lint = normalize_filter_value(query.get("lint"), LINT_OPTIONS)
     pair = normalize_filter_value(query.get("pair"), PAIR_OPTIONS)
     provider = normalize_filter_value(query.get("provider"), PROVIDER_OPTIONS)
+    sort = normalize_filter_value(query.get("sort"), SORT_OPTIONS) or "time_desc"
 
     return {
         "q": q_value,
         "lint": lint,
         "pair": pair,
         "provider": provider,
+        "sort": sort,
     }
 
+
+def sort_groups(groups: Dict[str, Any], sort_val: str) -> Dict[str, Any]:
+    """filtering 완료된 groups dict를 sort_val 기준으로 재정렬한다."""
+    items = list(groups.items())
+
+    def get_severity_score(group_dict: Dict[str, Any]) -> int:
+        score = 0
+        for r in group_dict.get("reports", []):
+            counts = r.get("severity_counts") or {}
+            score += int(counts.get("critical", 0)) + int(counts.get("high", 0))
+        return score
+
+    def get_latest_generated_at(group_dict: Dict[str, Any]) -> str:
+        """group 내 가장 최근 generated_at 값을 반환 (큰 것이 최신)"""
+        latest = "0000-00-00"  # 가장 작은 값으로 시작
+        for r in group_dict.get("reports", []):
+            generated = str(r.get("generated_at") or "")
+            if generated and generated > latest:
+                latest = generated
+        return latest
+
+    if sort_val == "severity_desc":
+        items.sort(key=lambda x: (
+            get_severity_score(x[1]),
+            get_latest_generated_at(x[1]),
+            x[1].get("scenario_key", ""),
+        ), reverse=True)
+    elif sort_val == "time_asc":
+        items.sort(key=lambda x: (
+            get_latest_generated_at(x[1]),
+            x[1].get("scenario_key", ""),
+        ))
+    else:  # time_desc (기본값)
+        items.sort(key=lambda x: (
+            get_latest_generated_at(x[1]),
+            x[1].get("scenario_key", ""),
+        ), reverse=True)
+
+    return dict(items)
 
 def normalize_filter_value(value: Optional[str], allowed: tuple[str, ...]) -> Optional[str]:
     if not isinstance(value, str):

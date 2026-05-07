@@ -304,7 +304,7 @@ summary:focus-visible {
 
 .filter-row {
   display: grid;
-  grid-template-columns: minmax(260px, 2fr) repeat(3, minmax(130px, 1fr));
+  grid-template-columns: minmax(240px, 1.6fr) repeat(4, minmax(120px, 1fr));
   gap: 0.55rem;
   align-items: end;
 }
