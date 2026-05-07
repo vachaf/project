@@ -1,0 +1,82 @@
+{
+  "description": "Log4Shell obfuscated and direct JNDI-like payloads stay as candidates while benign ${...} baseline remains filtered/context-only.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-obfus-1"
+      },
+      "message": "obfuscated Log4Shell candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-obfus-1"
+      },
+      "field": "reason_hints",
+      "contains": "l3:log4shell",
+      "message": "obfuscated payload has Log4Shell L3 hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-obfus-1"
+      },
+      "field": "reason_hints",
+      "contains": "log4shell:jndi_lookup",
+      "message": "obfuscated payload has JNDI lookup hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-obfus-1"
+      },
+      "field": "reason_hints",
+      "contains": "log4shell:ldap_callback",
+      "message": "obfuscated payload has LDAP callback hint"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-basic-1"
+      },
+      "message": "direct JNDI baseline candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-basic-1"
+      },
+      "field": "reason_hints",
+      "contains": "log4shell:rmi_callback",
+      "message": "direct JNDI baseline has RMI callback hint"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "supporting_events",
+        "filtered_out"
+      ],
+      "where": {
+        "request_id": "l3-log4shell-benign-template-1"
+      },
+      "message": "benign ${...} baseline retained as context or filtered"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-log4shell-benign-template-1"
+      },
+      "message": "benign ${...} baseline must not be promoted as candidate"
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "description": "Stage dry-run should preserve obfuscated/direct Log4Shell context and avoid success assertions.",
+  "MUST": [
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-log4shell-obfus-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "l3:log4shell",
+      "message": "stage1 payload preserves obfuscated Log4Shell hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-log4shell-obfus-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "log4shell:ldap_callback",
+      "message": "stage1 payload preserves obfuscated LDAP callback hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-log4shell-basic-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "log4shell:rmi_callback",
+      "message": "stage1 payload preserves direct RMI callback hint"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-log4shell-obfus-1"
+      },
+      "field": "request_id",
+      "equals": "l3-log4shell-obfus-1",
+      "message": "stage2 report input keeps obfuscated Log4Shell candidate"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-log4shell-basic-1"
+      },
+      "field": "request_id",
+      "equals": "l3-log4shell-basic-1",
+      "message": "stage2 report input keeps direct Log4Shell candidate"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "list_any_equals",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-log4shell-benign-template-1"
+      },
+      "field": "request_id",
+      "equals": "l3-log4shell-benign-template-1",
+      "message": "stage1 payload must not promote benign ${...} baseline"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "JNDI lookup succeeded",
+      "message": "markdown must not assert JNDI lookup success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "callback received",
+      "message": "markdown must not assert callback receipt"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "RCE succeeded",
+      "message": "markdown must not assert RCE success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "server compromised",
+      "message": "markdown must not assert server compromise"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "exploit success",
+      "message": "markdown must not assert exploit success"
+    }
+  ]
+}

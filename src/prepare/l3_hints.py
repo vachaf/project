@@ -6,9 +6,21 @@ from typing import Any, Dict, Iterable, List, Tuple
 from urllib.parse import parse_qsl, urlparse
 
 LOG4SHELL_JNDI_LOOKUP_RE = re.compile(r"(?i)\$\{\s*jndi\s*:\s*(ldap|rmi|dns)\s*://[^\s}]+")
+LOG4SHELL_OBFUSCATED_JNDI_LOOKUP_RE = re.compile(
+    r"(?i)\$\{\s*\$\{\s*::-\s*j\s*\}\s*\$\{\s*::-\s*n\s*\}\s*\$\{\s*::-\s*d\s*\}\s*\$\{\s*::-\s*i\s*\}\s*:\s*(ldap|rmi|dns)\s*://[^\s}]+"
+)
 LOG4SHELL_LDAP_RE = re.compile(r"(?i)\$\{\s*jndi\s*:\s*ldap\s*://[^\s}]+")
+LOG4SHELL_OBFUSCATED_LDAP_RE = re.compile(
+    r"(?i)\$\{\s*\$\{\s*::-\s*j\s*\}\s*\$\{\s*::-\s*n\s*\}\s*\$\{\s*::-\s*d\s*\}\s*\$\{\s*::-\s*i\s*\}\s*:\s*ldap\s*://[^\s}]+"
+)
 LOG4SHELL_RMI_RE = re.compile(r"(?i)\$\{\s*jndi\s*:\s*rmi\s*://[^\s}]+")
+LOG4SHELL_OBFUSCATED_RMI_RE = re.compile(
+    r"(?i)\$\{\s*\$\{\s*::-\s*j\s*\}\s*\$\{\s*::-\s*n\s*\}\s*\$\{\s*::-\s*d\s*\}\s*\$\{\s*::-\s*i\s*\}\s*:\s*rmi\s*://[^\s}]+"
+)
 LOG4SHELL_DNS_RE = re.compile(r"(?i)\$\{\s*jndi\s*:\s*dns\s*://[^\s}]+")
+LOG4SHELL_OBFUSCATED_DNS_RE = re.compile(
+    r"(?i)\$\{\s*\$\{\s*::-\s*j\s*\}\s*\$\{\s*::-\s*n\s*\}\s*\$\{\s*::-\s*d\s*\}\s*\$\{\s*::-\s*i\s*\}\s*:\s*dns\s*://[^\s}]+"
+)
 SSRF_PARAM_NAMES = {"url", "uri", "target", "next", "redirect", "callback", "webhook", "image", "fetch", "resource"}
 SSRF_METADATA_HOSTS = {"169.254.169.254", "metadata.google.internal"}
 SSTI_JINJA_ARITHMETIC_RE = re.compile(r"\{\{\s*\d{1,8}\s*[\*\+\-/]\s*\d{1,8}\s*\}\}")
@@ -135,15 +147,19 @@ def detect_log4shell_hints(
     if not samples:
         return 0, []
 
-    if any(LOG4SHELL_JNDI_LOOKUP_RE.search(sample) for sample in samples):
+    has_jndi_lookup = any(
+        LOG4SHELL_JNDI_LOOKUP_RE.search(sample) or LOG4SHELL_OBFUSCATED_JNDI_LOOKUP_RE.search(sample)
+        for sample in samples
+    )
+    if has_jndi_lookup:
         score_boost += 5
         _append_unique_hint(hints, "l3:log4shell")
         _append_unique_hint(hints, "log4shell:jndi_lookup")
-        if any(LOG4SHELL_LDAP_RE.search(sample) for sample in samples):
+        if any(LOG4SHELL_LDAP_RE.search(sample) or LOG4SHELL_OBFUSCATED_LDAP_RE.search(sample) for sample in samples):
             _append_unique_hint(hints, "log4shell:ldap_callback")
-        if any(LOG4SHELL_RMI_RE.search(sample) for sample in samples):
+        if any(LOG4SHELL_RMI_RE.search(sample) or LOG4SHELL_OBFUSCATED_RMI_RE.search(sample) for sample in samples):
             _append_unique_hint(hints, "log4shell:rmi_callback")
-        if any(LOG4SHELL_DNS_RE.search(sample) for sample in samples):
+        if any(LOG4SHELL_DNS_RE.search(sample) or LOG4SHELL_OBFUSCATED_DNS_RE.search(sample) for sample in samples):
             _append_unique_hint(hints, "log4shell:dns_callback")
 
     return score_boost, hints
