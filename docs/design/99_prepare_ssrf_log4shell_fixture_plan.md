@@ -199,7 +199,7 @@ naming convention 메모:
 python3 -m py_compile src/prepare/*.py src/prepare_llm_input.py src/llm_stage1_classifier.py src/llm_stage2_reporter.py src/run_analysis_pipeline.py
 python3 scripts/check_prepare_regression.py --strict
 python3 scripts/check_stage_dryrun_regression.py --strict
-python3 -m pytest tests/test_stage2_report_quality.py
+python -m pytest tests/test_stage2_report_quality.py
 ```
 
 검증 결과(이번 1차 반영 기준):
@@ -207,7 +207,7 @@ python3 -m pytest tests/test_stage2_report_quality.py
 - `python3 -m py_compile ...`: 통과
 - `python3 scripts/check_prepare_regression.py --strict`: `pass=19 warn=0 fail=0`
 - `python3 scripts/check_stage_dryrun_regression.py --strict`: `pass=13 warn=0 fail=0`
-- `python3 -m pytest tests/test_stage2_report_quality.py`: 실행 불가(`No module named pytest`), 테스트 실패가 아니라 dependency missing
+- `python -m pytest tests/test_stage2_report_quality.py`: `14 passed`
 
 ## 10. 결론
 

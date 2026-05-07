@@ -55,9 +55,10 @@ prepare 계열은 현재 stable 상태이며, 추가 split보다 coverage candid
 현재 안정 기준:
 
 ```text
+- py_compile 통과
 - prepare regression pass=19 warn=0 fail=0
 - stage dry-run regression pass=13 warn=0 fail=0
-- Stage2 report quality tests 14 passed
+- python -m pytest tests/test_stage2_report_quality.py: 14 passed
 ```
 
 현재 판단:

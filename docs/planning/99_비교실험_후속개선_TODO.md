@@ -10,8 +10,9 @@
 - retention/output cleanup list-only prototype 완료(삭제 기능 보류)
 - prepare split round1/round2, constants mini-move, hints split(SQLi/XSS/file disclosure/traversal-CMDI) 완료
 - auth/crawler constants move 및 shared attack/search policy boundary review 완료
-- Stage2 prompt compaction + report quality lint 추가/튜닝 완료(`14 passed`)
+- Stage2 prompt compaction + report quality lint 추가/튜닝 완료(`python -m pytest tests/test_stage2_report_quality.py`: `14 passed`)
 - post-refactor dry-run/actual LLM spot check 완료, 주요 regression 기준 통과(`pass=19`, `pass=13`)
+- 현재 검증 결과 기준 통일 완료(py_compile 통과, `pass=19`, `pass=13`, `14 passed`)
 - prepare deferred split re-entry review / shared attack policy re-entry review / search false-positive re-entry review 완료
 - `docs/design/99_prepare_new_attack_coverage_candidate_review.md` 작성 완료
 - Web UI Phase 1A/1B 핵심 구현 완료(compare view 포함) 및 기본 검증 통과
@@ -67,7 +68,7 @@
   - [ ] Webshell/admin tool probe 후보는 후속 순번으로 유지
   - [ ] Apache logs-only evidence boundary 유지
   - [ ] traversal/CMDI 보강과 file disclosure 보강을 기존 module 확장 후보로 계속 관리
-  - [ ] 개발환경 정리 후보: pytest 미설치(`No module named pytest`) 대응은 필요 시에만 수행
+  - [ ] 개발환경 정리 후보: pytest dependency 이슈는 현재 재현되지 않음(`python -m pytest tests/test_stage2_report_quality.py`: `14 passed`), 추가 조치는 필요 시에만 검토
 - deferred split 보류 유지:
   - `AUTOMATION_UA_PATTERNS`
   - `detect_decoded_attack_hints`
