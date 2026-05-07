@@ -40,8 +40,9 @@ grep -RIn "graphql\|__schema\|__type\|IntrospectionQuery\|redirect=\|next=\|retu
 - `l3_ssrf_metadata_endpoint_context`
 - `l3_log4shell_obfuscated_payload_context`
 - `l3_webshell_admin_tool_probe_context`
-- prepare regression `pass=21 warn=0 fail=0`
-- stage dry-run regression `pass=15 warn=0 fail=0`
+- `l3_graphql_introspection_context`
+- prepare regression `pass=22 warn=0 fail=0`
+- stage dry-run regression `pass=16 warn=0 fail=0`
 - Stage2 report quality tests `14 passed`
 
 ## 3. P2 후보 목록
@@ -113,7 +114,7 @@ Apache access logs만으로 볼 수 없는 것:
 
 | 후보 | 기존 module 관계 | 관찰 가능한 signal | false positive 위험 | fixture 난이도 | Stage2 wording 위험 | 추천 |
 |---|---|---|---|---|---|---|
-| GraphQL / API introspection | shared attack hint path, API endpoint 분류 인접 | `/graphql`, `__schema`, `__type`, `IntrospectionQuery` | 중간 | 낮음~중간 | 중간 | 1순위 |
+| GraphQL / API introspection | shared attack hint path, API endpoint 분류 인접 | `/graphql`, `__schema`, `__type`, `IntrospectionQuery` | 중간 | 낮음~중간 | 중간 | 1순위(1차 완료) |
 | Open redirect / redirect abuse | shared attack/search policy, SSRF parameter family 인접 | `redirect=`, `url=`, `next=`, `return=`, `continue=` | 높음 | 낮음~중간 | 중간~높음 | 2순위 |
 | SSTI / template injection | shared attack hint path, decoded/expression 경계 인접 | `{{7*7}}`, `${7*7}`, `<%= 7*7 %>`, `#{7*7}` | 중간~높음 | 중간 | 높음 | 3순위 |
 | XXE / XML parser abuse | shared attack hint path, SSRF/file disclosure 경계 인접 | `<!DOCTYPE`, `<!ENTITY`, `SYSTEM "file://..."` | 중간 | 중간~높음 | 높음 | 보수적 후보 |
@@ -162,7 +163,7 @@ fixture 아이디어:
 
 추천:
 
-- P2 첫 후보
+- P2 첫 후보(1차 regression 완료)
 
 ### 6.2 Open redirect / redirect abuse attempt
 
@@ -279,7 +280,7 @@ fixture 아이디어:
 
 P2-1:
 
-- GraphQL / API introspection attempt
+- GraphQL / API introspection attempt (1차 regression 완료)
 
 P2-2:
 
@@ -312,8 +313,8 @@ P2-3:
 
 ## 10. 결론
 
-- 다음 실제 coverage 후보는 GraphQL / API introspection attempt로 둔다.
-- 바로 구현하지 않고 GraphQL coverage plan을 먼저 작성한다.
+- GraphQL / API introspection attempt 1차 regression은 완료되었다.
+- 다음 실제 P2 후보는 Open redirect와 SSTI 중 선택한다.
 - Webshell command query는 traversal/CMDI와 의미 경계가 민감하므로 별도 검토 후 진행한다.
-- Open redirect와 SSTI는 중기 후보로 유지한다.
+- Open redirect와 SSTI는 다음 우선 후보로 유지한다.
 - XXE와 API key/secret token probe는 Apache logs-only 가시성과 false positive 위험 때문에 더 보수적으로 접근한다.

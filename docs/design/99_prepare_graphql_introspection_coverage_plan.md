@@ -24,9 +24,9 @@ grep -RIn "graphql\|__schema\|__type\|IntrospectionQuery" src tests docs
 확인 요약:
 
 ```text
-- src/tests에는 GraphQL introspection 전용 fixture/regression이 아직 없다.
-- GraphQL 관련 문자열은 주로 docs/design 후보 검토 문서에 존재한다.
-- 따라서 이번 문서는 구현 지시가 아니라 coverage plan 고정 문서로 유지한다.
+- GraphQL introspection 전용 fixture/regression(`l3_graphql_introspection_context`)이 추가되었다.
+- `src/prepare/l3_hints.py`와 `src/prepare_llm_input.py` 최소 수정으로 `__schema`/`__type`/`IntrospectionQuery`와 `/graphql` 계열 path 탐지가 반영되었다.
+- 이번 문서는 구현 지시가 아니라 coverage 기준 정리 문서로 유지한다.
 ```
 
 ## 1. 목적
@@ -45,14 +45,14 @@ P1 coverage 완료 상태:
 
 현재 regression 상태:
 
-- prepare regression `pass=21 warn=0 fail=0`
-- stage dry-run regression `pass=15 warn=0 fail=0`
+- prepare regression `pass=22 warn=0 fail=0`
+- stage dry-run regression `pass=16 warn=0 fail=0`
 - Stage2 quality tests `14 passed`
 
 GraphQL 관련 기존 coverage 관찰:
 
-- grep 결과 기준, GraphQL introspection 신호(`__schema`, `__type`, `IntrospectionQuery`)는 기존 candidate review 문서에서 주로 관리되고 있다.
-- 전용 GraphQL fixture/expected 회귀 케이스는 아직 없는 상태다.
+- `l3_graphql_introspection_context` fixture/expected(prepare, stage dry-run)가 추가 완료되었다.
+- introspection-like query 3건과 benign baseline 2건으로 candidate/context 보존과 과승격 억제 경계를 함께 고정했다.
 
 ## 3. 관찰 가능한 signal
 
@@ -184,7 +184,7 @@ expected 확인 포인트:
 
 추천:
 
-- `l3_graphql_introspection_context`
+- `l3_graphql_introspection_context` (1차 regression 완료)
 
 후순위:
 
@@ -206,6 +206,6 @@ python -m pytest tests/test_stage2_report_quality.py
 
 ## 12. 결론
 
-- GraphQL introspection을 P2 첫 후보로 유지하는 것이 합리적이다.
-- 바로 구현 여부는 별도 판단하되, 우선 fixture/expected 설계를 포함한 세부 fixture plan을 한 번 더 작성하는 경로가 안전하다.
-- 우선순위는 GraphQL → Open redirect → SSTI 순으로 정리하고, Open redirect/SSTI는 중기 후보로 유지한다.
+- GraphQL introspection 1차 regression(`l3_graphql_introspection_context`)은 완료되었다.
+- schema disclosure success / introspection enabled confirmed / API structure exposed 단정 금지 원칙은 유지한다.
+- 다음 P2 우선순위는 Open redirect와 SSTI 중 선택으로 정리한다.

@@ -56,8 +56,8 @@ prepare 계열은 현재 stable 상태이며, 추가 split보다 coverage candid
 
 ```text
 - py_compile 통과
-- prepare regression pass=21 warn=0 fail=0
-- stage dry-run regression pass=15 warn=0 fail=0
+- prepare regression pass=22 warn=0 fail=0
+- stage dry-run regression pass=16 warn=0 fail=0
 - python -m pytest tests/test_stage2_report_quality.py: 14 passed
 ```
 
@@ -69,7 +69,17 @@ prepare 계열은 현재 stable 상태이며, 추가 split보다 coverage candid
 - 단, 구현보다 evidence boundary와 fixture/regression 설계 적합성 검토가 선행
 - `l3_ssrf_metadata_endpoint_context`와 `l3_log4shell_obfuscated_payload_context` 1차 regression을 완료
 - `l3_webshell_admin_tool_probe_context` 1차 regression을 완료
-- 다음 단기 실행 분기는 `l3_webshell_command_query_context` 또는 중기 P2 후보 전환 판단
+- `l3_graphql_introspection_context` 1차 regression을 완료
+- 다음 분기는 Open redirect/SSTI 우선순위 선택과 Webshell command query 별도 검토를 병행
+```
+
+신규 coverage 완료 목록:
+
+```text
+- l3_ssrf_metadata_endpoint_context
+- l3_log4shell_obfuscated_payload_context
+- l3_webshell_admin_tool_probe_context
+- l3_graphql_introspection_context
 ```
 
 ## 3. 공통 Apache logs-only evidence boundary
@@ -762,7 +772,7 @@ P3
 - SSTI / template injection
 - XXE
 - Open redirect
-- GraphQL / API introspection
+- GraphQL / API introspection (1차 regression 완료)
 - API key / secret token probe
 
 장기 P3:
@@ -815,8 +825,9 @@ roadmap 원칙:
 
 추천:
 
-- SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe 1차 regression 완료 이후 다음 실행 후보를 `l3_webshell_command_query_context`와 중기 P2 후보 사이에서 결정한다.
-- SSTI/XXE/Open redirect/GraphQL/API key probe는 중기 후보(P2)로 계속 보류한다.
+- SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe, GraphQL introspection 1차 regression 완료 이후 다음 실행 후보를 Open redirect/SSTI 중에서 선택한다.
+- Webshell command query는 traversal/CMDI 의미 경계 검토를 선행하는 별도 후보로 유지한다.
+- XXE/API key probe는 중기 보수 후보(P2)로 유지한다.
 
 문서 후보:
 
@@ -839,10 +850,9 @@ roadmap 원칙:
 
 ```text
 - 추가 prepare split보다 새 공격 coverage 후보 검토가 더 생산적
-- SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe 1차 regression은 완료
-- 다음 분기는 Webshell command query(`l3_webshell_command_query_context`) 진행 여부와 중기 P2 후보 전환 시점을 함께 판단
-- Webshell command query는 traversal/CMDI 의미 경계 민감도가 높아 별도 경계 검토를 선행
-- 중기에는 SSTI / XXE / Open redirect / GraphQL 등으로 확장
+- SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe, GraphQL introspection 1차 regression은 완료
+- 다음 분기는 Open redirect/SSTI 우선순위를 결정하고, Webshell command query(`l3_webshell_command_query_context`)는 별도 경계 검토 후 진행 여부를 판단
+- XXE/API key probe는 보수 후보로 유지
 - 장기적으로 모든 후보를 순차 대응하되, Apache logs-only boundary를 먼저 문서화
 - 구현은 fixture/regression 설계 후 진행
 ```

@@ -24,8 +24,8 @@ grep -RIn "graphql\|__schema\|__type\|IntrospectionQuery" src tests docs
 
 ```text
 - GraphQL 관련 문자열은 주로 docs/design 후보 검토/coverage plan 문서에 존재한다.
-- src/tests에는 GraphQL introspection 전용 fixture/expected 회귀 케이스가 아직 없다.
-- 이번 작업은 fixture plan 문서 작성이며 fixture/expected/code 수정은 수행하지 않는다.
+- GraphQL introspection 전용 fixture/expected 회귀 케이스(`l3_graphql_introspection_context`)가 추가되었다.
+- 이번 문서는 fixture 추가 이후 기준 정리 문서로 유지한다.
 ```
 
 ## 1. 목적
@@ -38,8 +38,8 @@ grep -RIn "graphql\|__schema\|__type\|IntrospectionQuery" src tests docs
 GraphQL 관련 기존 hint/module/fixture 확인:
 
 - 전용 GraphQL hint module은 없다.
-- `l3_hints.py`에 GraphQL introspection 전용 hint 경로는 아직 명시적으로 분리되어 있지 않다.
-- GraphQL introspection 전용 fixture/expected는 아직 없다.
+- `l3_hints.py`와 `src/prepare_llm_input.py` 최소 수정으로 GraphQL introspection hint 경로가 반영되었다.
+- GraphQL introspection 전용 fixture/expected(`l3_graphql_introspection_context`)가 추가 완료되었다.
 
 이미 있는 coverage:
 
@@ -48,14 +48,13 @@ GraphQL 관련 기존 hint/module/fixture 확인:
 
 부족한 coverage:
 
-- `__schema` / `__type` / `IntrospectionQuery` query string 기반 회귀 샘플 부재
-- `/graphql` 및 `/graphql/playground` baseline과 introspection query의 과승격 경계 검증 부재
-- benign search/doc 문자열(`graphql`)의 false-positive 억제 회귀 부재
+- Open redirect/SSTI 계열 후속 회귀 후보의 우선순위 판단
+- GraphQL endpoint baseline 분리 케이스의 추가 필요성 검토
 
 현재 regression 기준:
 
-- prepare regression `pass=21 warn=0 fail=0`
-- stage dry-run regression `pass=15 warn=0 fail=0`
+- prepare regression `pass=22 warn=0 fail=0`
+- stage dry-run regression `pass=16 warn=0 fail=0`
 - Stage2 report quality tests `14 passed`
 
 ## 3. fixture 후보
@@ -130,7 +129,7 @@ fixture family별 최소 체크:
 
 추천:
 
-- `l3_graphql_introspection_context`
+- `l3_graphql_introspection_context` (완료)
 
 후순위:
 
@@ -170,9 +169,9 @@ python -m pytest tests/test_stage2_report_quality.py
 
 ## 11. 결론
 
-- 첫 구현 후보는 `l3_graphql_introspection_context`로 두는 것이 적절하다.
+- 권장 1차 후보였던 `l3_graphql_introspection_context`는 완료되었다.
 - fixture 추가 전 확인할 것:
   - introspection-like query 직접 신호와 baseline-only 요청을 한 fixture에 과도하게 혼합하지 않는지
   - benign search/doc baseline 과승격 억제 확인이 가능한지
   - Stage2 wording에서 schema disclosure 성공 단정 금지 표현이 유지되는지
-- 코드 수정은 다음 작업으로 분리하고, 이번 문서는 fixture/regression 설계 기준 고정으로 마감한다.
+- 후속 후보는 Open redirect/SSTI coverage 검토로 넘기고, `graphql_endpoint_baseline_context`는 선택 후보로 유지한다.
