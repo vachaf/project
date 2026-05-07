@@ -58,6 +58,8 @@
   - [99_prepare_graphql_introspection_fixture_plan.md](./99_prepare_graphql_introspection_fixture_plan.md): GraphQL/API introspection fixture/regression 구성 기준
   - [99_prepare_open_redirect_coverage_plan.md](./99_prepare_open_redirect_coverage_plan.md): redirect-like external URL parameter의 Apache logs-only 경계와 SSRF 구분 검토
   - [99_prepare_open_redirect_fixture_plan.md](./99_prepare_open_redirect_fixture_plan.md): `l3_open_redirect_external_url_context` fixture/regression 후보 설계
+  - [99_prepare_xxe_coverage_plan.md](./99_prepare_xxe_coverage_plan.md): XML parser abuse/XXE-like marker의 Apache logs-only 경계 검토
+  - [99_prepare_xxe_fixture_plan.md](./99_prepare_xxe_fixture_plan.md): `l3_xxe_external_entity_context` fixture/regression 후보 설계
 - Stage2 prompt / report quality
   - [99_stage2_prompt_compaction_plan.md](./99_stage2_prompt_compaction_plan.md): Stage2 report prompt 압축·섹션화 계획/완료 기록
   - [99_stage2_report_quality_lint_candidate_review.md](./99_stage2_report_quality_lint_candidate_review.md): Stage2 report quality lint 후보 검토와 warning-only 도입 기준

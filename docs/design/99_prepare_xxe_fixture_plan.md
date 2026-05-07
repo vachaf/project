@@ -1,6 +1,6 @@
 # 99_prepare_xxe_fixture_plan
 
-- 문서 상태: XXE / XML parser abuse attempt fixture plan
+- 문서 상태: XXE / XML parser abuse attempt fixture plan (1차 regression 반영 완료)
 - 기준 시점: 2026-05-07
 - 목적: XXE / XML parser abuse attempt coverage를 fixture/regression 후보로 좁히고, Apache logs-only evidence boundary를 유지한 채 추가 여부를 판단한다.
 
@@ -27,9 +27,9 @@ grep -RIn "xxe\|DOCTYPE\|ENTITY\|SYSTEM\|file:///\|external entity\|xml" src tes
 확인 요약:
 
 ```text
-- src/prepare/l3_hints.py에는 현재 SSRF/Log4Shell/Open redirect/SSTI/GraphQL/Webshell detector가 있고 XXE 전용 detector는 확인되지 않는다.
-- src/prepare/file_disclosure_hints.py에는 php wrapper/resource 기반 file disclosure signal이 있으며 XML parser abuse 전용 marker는 없다.
-- tests/fixtures, tests/expected에는 xxe/xml 전용 regression fixture가 아직 없다.
+- src/prepare/l3_hints.py에 `detect_xxe_hints` 최소 패턴이 추가되어 XXE-like marker를 보존한다.
+- src/prepare/file_disclosure_hints.py와 SSRF hint 의미는 변경되지 않았고 경계는 유지된다.
+- `l3_xxe_external_entity_context` fixture/expected가 추가되어 1차 regression이 반영되었다.
 - Apache access log에서는 raw POST body가 비가시적인 경우가 많아 body-only XML payload 원문을 추정할 수 없다.
 ```
 
@@ -44,13 +44,13 @@ grep -RIn "xxe\|DOCTYPE\|ENTITY\|SYSTEM\|file:///\|external entity\|xml" src tes
 XXE 관련 기존 hint/module/fixture 여부:
 
 - `src/prepare/l3_hints.py`
-  - XXE 전용 hint detector는 현재 없음
+  - `detect_xxe_hints` 최소 패턴이 반영됨
   - SSRF 관련 detector(`detect_ssrf_hints`, `classify_ssrf_target`)는 존재
 - `src/prepare/file_disclosure_hints.py`
   - file disclosure wrapper/resource signal은 존재
   - XML parser abuse 전용 signal은 없음
 - `tests/fixtures`, `tests/expected`
-  - XXE 전용 fixture/expected는 아직 없음
+  - `l3_xxe_external_entity_context` 추가 완료
 
 기존 family와의 관계:
 
@@ -60,12 +60,12 @@ XXE 관련 기존 hint/module/fixture 여부:
   - external entity URL은 SSRF-like intent와 겹칠 수 있음
   - external/internal request success 단정 금지
 - L3 hints 경계:
-  - XXE-like marker를 별도 L3 hint로 최소 추가할지 검토 대상
+  - XXE-like marker는 `l3:xxe_probe`, `xxe:*`로 보존하고 success 단정으로 확장하지 않음
 
 현재 regression 기준:
 
-- prepare regression `pass=24 warn=0 fail=0`
-- stage dry-run regression `pass=18 warn=0 fail=0`
+- prepare regression `pass=25 warn=0 fail=0`
+- stage dry-run regression `pass=19 warn=0 fail=0`
 - Stage2 report quality tests `14 passed`
 
 현재 신규 coverage 완료 목록:
@@ -76,6 +76,7 @@ XXE 관련 기존 hint/module/fixture 여부:
 - `l3_graphql_introspection_context`
 - `l3_open_redirect_external_url_context`
 - `l3_ssti_template_expression_context`
+- `l3_xxe_external_entity_context`
 
 ## 3. fixture 후보
 
@@ -167,11 +168,11 @@ context-only 또는 low signal 우선 조건:
 
 추천:
 
-- `l3_xxe_external_entity_context`
+- `l3_xxe_external_entity_context` (완료)
 
 후순위:
 
-- `xxe_xml_endpoint_baseline_context`
+- `xxe_xml_endpoint_baseline_context` (필요 시 선택 후보)
 
 참고:
 
@@ -211,11 +212,11 @@ python -m pytest tests/test_stage2_report_quality.py
 
 ## 11. 결론
 
-- 첫 구현 후보는 `l3_xxe_external_entity_context`가 적절하다.
+- `l3_xxe_external_entity_context` 1차 regression은 완료되었다.
 - fixture 추가 전 확인할 것:
   - query/path에서 직접 관찰 가능한 marker만 candidate로 승격되는지
   - XML endpoint baseline/benign search baseline이 과승격되지 않는지
   - success 확정 wording이 expected/Stage2 입력에서 발생하지 않는지
   - Apache logs-only 경계와 raw POST body 비가시성 원칙이 유지되는지
 - 코드 수정은 다음 작업으로 분리한다.
-- 우선순위는 XXE를 다음 후보로 유지하되, API key / Webshell command query와 병행 비교하고 Webshell command query는 traversal/CMDI 경계 검토를 선행한다.
+- 다음 후보는 API key / secret token probe 또는 Webshell command query 중에서 선택한다.
