@@ -55,8 +55,8 @@ prepare 계열은 현재 stable 상태이며, 추가 split보다 coverage candid
 현재 안정 기준:
 
 ```text
-- prepare regression pass=18 warn=0 fail=0
-- stage dry-run regression pass=12 warn=0 fail=0
+- prepare regression pass=19 warn=0 fail=0
+- stage dry-run regression pass=13 warn=0 fail=0
 - Stage2 report quality tests 14 passed
 ```
 
@@ -66,6 +66,7 @@ prepare 계열은 현재 stable 상태이며, 추가 split보다 coverage candid
 - 위험한 추가 split을 구조 정리 목적만으로 재개하지 않음
 - 다음 큰 축은 새 공격/시나리오 coverage 확장 검토로 전환
 - 단, 구현보다 evidence boundary와 fixture/regression 설계 적합성 검토가 선행
+- `l3_ssrf_metadata_endpoint_context` 1차 regression은 완료됐고, 다음 후보는 Log4Shell obfuscated payload fixture로 유지
 ```
 
 ## 3. 공통 Apache logs-only evidence boundary
@@ -811,7 +812,8 @@ roadmap 원칙:
 
 추천:
 
-- 첫 번째 실제 설계 후보는 SSRF / Log4Shell / Webshell 중 하나를 고르되, 바로 코드 작성하지 말고 별도 split/coverage plan을 작성한다.
+- SSRF metadata endpoint 1차 regression 완료 이후, 다음 실행 후보는 `l3_log4shell_obfuscated_payload_context` 검토로 유지한다.
+- Webshell/admin tool probe는 후속 후보로 유지한다.
 
 문서 후보:
 
@@ -834,7 +836,7 @@ roadmap 원칙:
 
 ```text
 - 추가 prepare split보다 새 공격 coverage 후보 검토가 더 생산적
-- 단기적으로 SSRF / Log4Shell / Webshell 계열부터 검토
+- SSRF metadata endpoint 1차 regression은 완료, 다음은 Log4Shell obfuscated payload/Webshell probe 순으로 검토
 - 중기에는 SSTI / XXE / Open redirect / GraphQL 등으로 확장
 - 장기적으로 모든 후보를 순차 대응하되, Apache logs-only boundary를 먼저 문서화
 - 구현은 fixture/regression 설계 후 진행

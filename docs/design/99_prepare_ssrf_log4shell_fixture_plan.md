@@ -4,6 +4,16 @@
 - 기준 시점: 2026-05-07
 - 목적: coverage plan 이후 실제 fixture/regression 추가 여부를 판단하기 위한 설계 기준을 고정한다.
 
+최근 반영 결과(1차):
+
+- `l3_ssrf_metadata_endpoint_context` fixture/regression 추가 완료
+- 추가 파일:
+  - `tests/fixtures/prepare_regression/l3_ssrf_metadata_endpoint_context.json`
+  - `tests/expected/prepare_regression/l3_ssrf_metadata_endpoint_context.expected.json`
+  - `tests/expected/stage_dryrun_regression/l3_ssrf_metadata_endpoint_context.expected.json`
+- 구현 코드 수정 없이 fixture/expected만 추가
+- 기존 `src/prepare/l3_hints.py`에서 `169.254.169.254`, `metadata.google.internal` 분류(`ssrf:metadata_ip`, `ssrf:cloud_metadata_target`)가 이미 가능함을 재확인
+
 관련 문서:
 
 - [99_prepare_ssrf_log4shell_coverage_plan.md](./99_prepare_ssrf_log4shell_coverage_plan.md)
@@ -24,10 +34,9 @@ grep -RIn "l3_log4shell\|l3_ssrf\|l3_ssti" tests/fixtures tests/expected docs
 
 ```text
 - src/prepare/l3_hints.py 에 detect_log4shell_hints / detect_ssrf_hints / classify_ssrf_target가 이미 존재한다.
-- 현재 fixture/expected는 l3_log4shell_ssrf_context 1세트가 중심이다.
-- prepare expected는 Log4Shell(ldap) + SSRF(metadata ip) candidate/hint 보존을 이미 검증한다.
-- stage dry-run expected는 후보 보존과 성공 단정 금지(RCE 성공/SSRF 성공/침해 성공)를 이미 검증한다.
-- l3_ssti_webshell_context fixture는 별도로 존재하지만, l3_ssrf 또는 l3_log4shell 명시 fixture는 추가로 보이지 않는다.
+- `l3_log4shell_ssrf_context`에 더해 `l3_ssrf_metadata_endpoint_context`가 추가되었다.
+- prepare expected는 Log4Shell(ldap) + SSRF(metadata ip/metadata hostname) candidate/hint 보존을 검증한다.
+- stage dry-run expected는 후보 보존과 성공 단정 금지 경계를 검증한다.
 ```
 
 ## 1. 목적
@@ -48,6 +57,9 @@ grep -RIn "l3_log4shell\|l3_ssrf\|l3_ssti" tests/fixtures tests/expected docs
 - 존재: `tests/fixtures/prepare_regression/l3_log4shell_ssrf_context.json`
 - 존재: `tests/expected/prepare_regression/l3_log4shell_ssrf_context.expected.json`
 - 존재: `tests/expected/stage_dryrun_regression/l3_log4shell_ssrf_context.expected.json`
+- 존재: `tests/fixtures/prepare_regression/l3_ssrf_metadata_endpoint_context.json`
+- 존재: `tests/expected/prepare_regression/l3_ssrf_metadata_endpoint_context.expected.json`
+- 존재: `tests/expected/stage_dryrun_regression/l3_ssrf_metadata_endpoint_context.expected.json`
 
 이미 있는 coverage:
 
@@ -164,11 +176,14 @@ fixture별 최소 확인 예시:
 - `99_prepare_hints_split_summary.md`, `99_prepare_deferred_split_items.md`에서 위 영역은 behavior risk가 큰 보류 대상으로 이미 고정돼 있다.
 - fixture/expected로 경계를 먼저 고정한 뒤 최소 변경으로 접근해야 한다.
 
-## 8. 권장 1차 fixture
+## 8. 권장 1차 fixture 상태
 
-권장 후보:
+완료:
 
-- `l3_ssrf_metadata_endpoint_context`
+- `l3_ssrf_metadata_endpoint_context` (완료)
+
+다음 후보:
+
 - `l3_log4shell_obfuscated_payload_context`
 
 naming convention 메모:
@@ -187,11 +202,16 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 python3 -m pytest tests/test_stage2_report_quality.py
 ```
 
+검증 결과(이번 1차 반영 기준):
+
+- `python3 -m py_compile ...`: 통과
+- `python3 scripts/check_prepare_regression.py --strict`: `pass=19 warn=0 fail=0`
+- `python3 scripts/check_stage_dryrun_regression.py --strict`: `pass=13 warn=0 fail=0`
+- `python3 -m pytest tests/test_stage2_report_quality.py`: 실행 불가(`No module named pytest`), 테스트 실패가 아니라 dependency missing
+
 ## 10. 결론
 
-- 첫 구현 후보는 `metadata endpoint hostname 케이스 + obfuscated JNDI 케이스`를 분리 fixture로 추가하는 방향이 가장 합리적이다.
-- fixture 추가 전 확인할 것:
-  - obfuscated JNDI를 candidate로 볼지 context-only로 볼지 기대동작을 먼저 고정
-  - benign URL baseline을 함께 넣어 false positive 경계를 동시 확인
-  - Stage2 문구에서 성공/침해/유출/RCE/internal access 단정 금지 expected를 강화
-- 코드 수정(구현)은 다음 작업으로 분리한다.
+- `l3_ssrf_metadata_endpoint_context` 1차 regression 추가는 완료됐다.
+- metadata endpoint 후보 보존, `l3:ssrf`/`ssrf:*` hint 확인, benign URL baseline 과승격 방지, 단정 문구 금지 경계를 expected에 고정했다.
+- 다음 fixture 후보는 `l3_log4shell_obfuscated_payload_context`로 유지한다.
+- 이번 반영은 구현 코드 수정 없이 fixture/expected만 추가하는 범위로 마감했다.

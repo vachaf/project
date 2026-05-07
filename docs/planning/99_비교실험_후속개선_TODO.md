@@ -11,7 +11,7 @@
 - prepare split round1/round2, constants mini-move, hints split(SQLi/XSS/file disclosure/traversal-CMDI) 완료
 - auth/crawler constants move 및 shared attack/search policy boundary review 완료
 - Stage2 prompt compaction + report quality lint 추가/튜닝 완료(`14 passed`)
-- post-refactor dry-run/actual LLM spot check 완료, 주요 regression 기준 통과(`pass=18`, `pass=12`)
+- post-refactor dry-run/actual LLM spot check 완료, 주요 regression 기준 통과(`pass=19`, `pass=13`)
 - prepare deferred split re-entry review / shared attack policy re-entry review / search false-positive re-entry review 완료
 - `docs/design/99_prepare_new_attack_coverage_candidate_review.md` 작성 완료
 - Web UI Phase 1A/1B 핵심 구현 완료(compare view 포함) 및 기본 검증 통과
@@ -59,12 +59,15 @@
   - 추가 prepare split은 당장 진행하지 않음
   - 다음 작업 후보를 새 공격/시나리오 coverage 검토로 이동
   - Apache logs-only evidence boundary를 먼저 고정하고 fixture/regression 적합성부터 판단
+- 완료 처리:
+  - [x] SSRF metadata endpoint 1차 regression 완료(`l3_ssrf_metadata_endpoint_context`)
+  - [x] 구현 코드 수정 없이 fixture/expected만 추가해 반영
 - 남은 TODO:
-  - [ ] SSRF/Log4Shell/Webshell 중 1순위 coverage 후보 선택
-  - [ ] 선택 후보에 대한 별도 coverage plan 작성
-  - [ ] fixture/regression 추가 여부 판단
+  - [ ] 다음 후보로 `l3_log4shell_obfuscated_payload_context` fixture 검토
+  - [ ] Webshell/admin tool probe 후보는 후속 순번으로 유지
   - [ ] Apache logs-only evidence boundary 유지
   - [ ] traversal/CMDI 보강과 file disclosure 보강을 기존 module 확장 후보로 계속 관리
+  - [ ] 개발환경 정리 후보: pytest 미설치(`No module named pytest`) 대응은 필요 시에만 수행
 - deferred split 보류 유지:
   - `AUTOMATION_UA_PATTERNS`
   - `detect_decoded_attack_hints`
