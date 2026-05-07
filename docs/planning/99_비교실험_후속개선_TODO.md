@@ -63,21 +63,23 @@
 - 완료 요약(상세는 `docs/진행상황.md`로 이관):
   - 신규 coverage regression 7종 완료
   - API key / secret token probe, Webshell command query endpoint coverage plan 작성 완료
+  - 신규 coverage round summary 작성 완료(`docs/design/99_prepare_new_attack_coverage_round_summary.md`)
+  - 신규 coverage 2라운드 후보 비교 문서 작성 완료(`docs/design/99_prepare_new_attack_coverage_round2_candidate_review.md`)
 - 남은 TODO(실제 작업만 유지):
-  - [ ] 신규 coverage round summary 작성 여부 판단
-    - 문서 후보: `docs/design/99_prepare_new_attack_coverage_round_summary.md`
-    - 생성 여부만 판단하고, 미확정 상태를 유지
   - [ ] API key / secret token probe fixture plan 작성 여부 판단
     - false positive 위험이 높아 즉시 regression 추가는 하지 않음
     - 정상 API traffic과 secret probe 구분 기준이 필요할 때만 fixture plan 선행
+    - 다음 추천 후보: API key / secret token fixture plan 검토부터 시작
   - [ ] Webshell command query fixture plan 작성 여부 판단
     - traversal/CMDI 경계가 민감해 즉시 regression 추가는 하지 않음
     - 필요 시 별도 fixture plan 선행
+  - [ ] request smuggling / header anomaly 로그 가시성 검토
+    - Apache access log에서 관찰 가능한 신호 범위와 해석 한계를 먼저 고정
   - [ ] P2 이후 후보 보류 유지
     - Deserialization / object injection-like payload
     - LDAP / NoSQL injection-like payload
-    - request smuggling / header anomaly
     - scanner / tool behavior 확장
+  - [ ] prepare split 추가 분리는 계속 보류
   - [ ] Apache logs-only evidence boundary 및 성공 단정 금지 원칙 유지
 - deferred split 보류 유지:
   - `AUTOMATION_UA_PATTERNS`

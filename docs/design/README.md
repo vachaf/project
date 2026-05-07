@@ -53,6 +53,8 @@
   - [99_prepare_attack_hints_shared_policy_candidate_review.md](./99_prepare_attack_hints_shared_policy_candidate_review.md): attack hints와 shared policy 후보 비교
   - [99_prepare_shared_attack_policy_boundary_review.md](./99_prepare_shared_attack_policy_boundary_review.md): automation UA, shared attack/search policy, decoded hints 보류 경계 검토
   - [99_prepare_new_attack_coverage_candidate_review.md](./99_prepare_new_attack_coverage_candidate_review.md): 새 공격 커버리지 후보와 장기 roadmap 검토
+  - [99_prepare_new_attack_coverage_round_summary.md](./99_prepare_new_attack_coverage_round_summary.md): 신규 공격 coverage 1라운드 완료 요약
+  - [99_prepare_new_attack_coverage_round2_candidate_review.md](./99_prepare_new_attack_coverage_round2_candidate_review.md): 신규 공격 coverage 2라운드 후보 비교
   - [99_prepare_p2_attack_coverage_candidate_review.md](./99_prepare_p2_attack_coverage_candidate_review.md): P2 공격 커버리지 후보 우선순위와 완료/보류 상태 검토
   - [99_prepare_graphql_introspection_coverage_plan.md](./99_prepare_graphql_introspection_coverage_plan.md): GraphQL/API introspection 신호의 Apache logs-only 해석 경계와 coverage 계획
   - [99_prepare_graphql_introspection_fixture_plan.md](./99_prepare_graphql_introspection_fixture_plan.md): GraphQL/API introspection fixture/regression 구성 기준
