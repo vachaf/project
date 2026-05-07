@@ -4,15 +4,21 @@
 - 기준 시점: 2026-05-07
 - 목적: coverage plan 이후 실제 fixture/regression 추가 여부를 판단하기 위한 설계 기준을 고정한다.
 
-최근 반영 결과(1차):
+최근 반영 결과(2차):
 
 - `l3_ssrf_metadata_endpoint_context` fixture/regression 추가 완료
+- `l3_log4shell_obfuscated_payload_context` fixture/regression 추가 완료
 - 추가 파일:
   - `tests/fixtures/prepare_regression/l3_ssrf_metadata_endpoint_context.json`
   - `tests/expected/prepare_regression/l3_ssrf_metadata_endpoint_context.expected.json`
   - `tests/expected/stage_dryrun_regression/l3_ssrf_metadata_endpoint_context.expected.json`
-- 구현 코드 수정 없이 fixture/expected만 추가
+  - `tests/fixtures/prepare_regression/l3_log4shell_obfuscated_payload_context.json`
+  - `tests/expected/prepare_regression/l3_log4shell_obfuscated_payload_context.expected.json`
+  - `tests/expected/stage_dryrun_regression/l3_log4shell_obfuscated_payload_context.expected.json`
 - 기존 `src/prepare/l3_hints.py`에서 `169.254.169.254`, `metadata.google.internal` 분류(`ssrf:metadata_ip`, `ssrf:cloud_metadata_target`)가 이미 가능함을 재확인
+- `src/prepare/l3_hints.py` 최소 수정으로 direct `${jndi:...}` 외 `${${::-j}${::-n}${::-d}${::-i}:...}` 형태 obfuscated JNDI-like payload를 Log4Shell hint 경로로 처리
+- ldap/rmi/dns callback-like scheme별 hint(`log4shell:ldap_callback`, `log4shell:rmi_callback`, `log4shell:dns_callback`)는 유지
+- 미수정 영역: `detect_decoded_attack_hints`, `supporting_events/scoring/filtering`, Stage2 reporter
 
 관련 문서:
 
@@ -34,8 +40,8 @@ grep -RIn "l3_log4shell\|l3_ssrf\|l3_ssti" tests/fixtures tests/expected docs
 
 ```text
 - src/prepare/l3_hints.py 에 detect_log4shell_hints / detect_ssrf_hints / classify_ssrf_target가 이미 존재한다.
-- `l3_log4shell_ssrf_context`에 더해 `l3_ssrf_metadata_endpoint_context`가 추가되었다.
-- prepare expected는 Log4Shell(ldap) + SSRF(metadata ip/metadata hostname) candidate/hint 보존을 검증한다.
+- `l3_log4shell_ssrf_context`, `l3_ssrf_metadata_endpoint_context`, `l3_log4shell_obfuscated_payload_context`가 준비됐다.
+- prepare expected는 direct/obfuscated JNDI-like payload와 SSRF(metadata ip/metadata hostname) candidate/hint 보존을 검증한다.
 - stage dry-run expected는 후보 보존과 성공 단정 금지 경계를 검증한다.
 ```
 
@@ -60,17 +66,21 @@ grep -RIn "l3_log4shell\|l3_ssrf\|l3_ssti" tests/fixtures tests/expected docs
 - 존재: `tests/fixtures/prepare_regression/l3_ssrf_metadata_endpoint_context.json`
 - 존재: `tests/expected/prepare_regression/l3_ssrf_metadata_endpoint_context.expected.json`
 - 존재: `tests/expected/stage_dryrun_regression/l3_ssrf_metadata_endpoint_context.expected.json`
+- 존재: `tests/fixtures/prepare_regression/l3_log4shell_obfuscated_payload_context.json`
+- 존재: `tests/expected/prepare_regression/l3_log4shell_obfuscated_payload_context.expected.json`
+- 존재: `tests/expected/stage_dryrun_regression/l3_log4shell_obfuscated_payload_context.expected.json`
 
 이미 있는 coverage:
 
 - Log4Shell basic payload(ldap) 1건의 candidate 보존
+- Log4Shell obfuscated JNDI-like payload 1건의 candidate 보존
 - SSRF metadata IP(`169.254.169.254`) 1건의 candidate 보존
+- benign `${...}` baseline 1건의 과승격 방지
 - stage dry-run 입력(Stage1 payload, Stage2 top_incidents) 보존
 - 성공 단정 문구 일부 금지
 
-부족한 coverage:
+남은 SSRF/Log4Shell coverage 후보:
 
-- obfuscated JNDI payload
 - `metadata.google.internal` hostname 케이스
 - `127.0.0.1` / `localhost` internal URL parameter 케이스
 - external URL parameter 케이스와 benign URL baseline 분리 검증
@@ -87,8 +97,8 @@ grep -RIn "l3_log4shell\|l3_ssrf\|l3_ssti" tests/fixtures tests/expected docs
 ### 3.2 obfuscated JNDI payload
 
 - 형태: `${${::-j}${::-n}${::-d}${::-i}:ldap://...}` 계열
-- 판단: 이번 단계에서는 “필요 여부 검토”를 우선, 과한 변형 확장은 보류 가능
-- 용도: regex 경계(직접 jndi만 허용 중)와 기대 동작(현재는 context-only 가능성) 확인
+- 판단: 1차 regression으로 반영 완료, direct JNDI baseline/benign `${...}` baseline과 함께 expected를 고정
+- 용도: obfuscated/direct JNDI-like payload의 candidate + `log4shell:*` hint 유지 및 benign baseline 과승격 방지 경계 검증
 
 ### 3.3 SSRF external URL parameter
 
@@ -129,7 +139,7 @@ grep -RIn "l3_log4shell\|l3_ssrf\|l3_ssti" tests/fixtures tests/expected docs
 fixture별 최소 확인 예시:
 
 - Log4Shell basic: `l3:log4shell`, `log4shell:jndi_lookup` 유지
-- obfuscated JNDI: candidate 또는 context-only 의도 중 하나를 명시 고정
+- obfuscated JNDI: candidate + `log4shell:jndi_lookup` 및 callback-like scheme hint 유지
 - SSRF internal: `l3:ssrf` + `ssrf:url_parameter` + 내부 target hint
 - metadata hostname: `ssrf:cloud_metadata_target` 포함
 - benign baseline: 공격 계열로 과승격되지 않음을 확인
@@ -144,7 +154,7 @@ fixture별 최소 확인 예시:
 판단 메모:
 
 - `${jndi:ldap://...}` 및 metadata/internal URL은 고신호이므로 candidate 우선
-- obfuscation 변형은 현재 regex와의 간극을 고려해 1차에서는 context-only 고정도 가능
+- obfuscation 변형은 1차에서 `${${::-j}${::-n}${::-d}${::-i}:...}` 패턴까지 candidate/hint 유지로 고정
 - external URL parameter 단독 케이스는 baseline/패턴 결합 여부에 따라 candidate 여부를 분리
 
 ## 6. Stage dry-run regression 추가 여부
@@ -181,10 +191,12 @@ fixture별 최소 확인 예시:
 완료:
 
 - `l3_ssrf_metadata_endpoint_context` (완료)
+- `l3_log4shell_obfuscated_payload_context` (완료)
 
-다음 후보:
+후속/선택 후보:
 
-- `l3_log4shell_obfuscated_payload_context`
+- `l3_ssrf_internal_target_context`
+- `l3_ssrf_url_baseline_context`
 
 naming convention 메모:
 
@@ -202,16 +214,16 @@ python3 scripts/check_stage_dryrun_regression.py --strict
 python -m pytest tests/test_stage2_report_quality.py
 ```
 
-검증 결과(이번 1차 반영 기준):
+검증 결과(이번 2차 반영 기준):
 
 - `python3 -m py_compile ...`: 통과
-- `python3 scripts/check_prepare_regression.py --strict`: `pass=19 warn=0 fail=0`
-- `python3 scripts/check_stage_dryrun_regression.py --strict`: `pass=13 warn=0 fail=0`
+- `python3 scripts/check_prepare_regression.py --strict`: `pass=20 warn=0 fail=0`
+- `python3 scripts/check_stage_dryrun_regression.py --strict`: `pass=14 warn=0 fail=0`
 - `python -m pytest tests/test_stage2_report_quality.py`: `14 passed`
 
 ## 10. 결론
 
-- `l3_ssrf_metadata_endpoint_context` 1차 regression 추가는 완료됐다.
-- metadata endpoint 후보 보존, `l3:ssrf`/`ssrf:*` hint 확인, benign URL baseline 과승격 방지, 단정 문구 금지 경계를 expected에 고정했다.
-- 다음 fixture 후보는 `l3_log4shell_obfuscated_payload_context`로 유지한다.
-- 이번 반영은 구현 코드 수정 없이 fixture/expected만 추가하는 범위로 마감했다.
+- `l3_ssrf_metadata_endpoint_context`와 `l3_log4shell_obfuscated_payload_context` 1차 regression 추가를 완료했다.
+- obfuscated/direct JNDI-like payload candidate + `log4shell:*` hint 유지, benign `${...}` baseline 과승격 방지, 단정 문구 금지 경계를 expected에 고정했다.
+- 남은 SSRF/Log4Shell 후보는 후속/선택 항목으로만 유지한다.
+- 이번 반영은 `src/prepare/l3_hints.py` 최소 수정과 fixture/expected 추가 범위로 마감했다.
