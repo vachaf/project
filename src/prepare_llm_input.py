@@ -52,6 +52,7 @@ try:
         detect_educational_ssti_search_context as _detect_educational_ssti_search_context,
         detect_graphql_introspection_hints as _detect_graphql_introspection_hints,
         detect_log4shell_hints as _detect_log4shell_hints,
+        detect_open_redirect_hints as _detect_open_redirect_hints,
         detect_ssrf_hints as _detect_ssrf_hints,
         detect_ssti_hints as _detect_ssti_hints,
         detect_webshell_hints as _detect_webshell_hints,
@@ -187,6 +188,7 @@ except ImportError:
         detect_educational_ssti_search_context as _detect_educational_ssti_search_context,
         detect_graphql_introspection_hints as _detect_graphql_introspection_hints,
         detect_log4shell_hints as _detect_log4shell_hints,
+        detect_open_redirect_hints as _detect_open_redirect_hints,
         detect_ssrf_hints as _detect_ssrf_hints,
         detect_ssti_hints as _detect_ssti_hints,
         detect_webshell_hints as _detect_webshell_hints,
@@ -481,6 +483,7 @@ STRONG_ATTACK_HINT_PREFIXES = (
     "l3:",
     "log4shell:",
     "ssrf:",
+    "open_redirect:",
     "ssti:",
     "webshell:",
 )
@@ -585,6 +588,16 @@ def detect_ssrf_hints(
     raw_request_target_variants: List[Dict[str, Any]],
 ) -> Tuple[int, List[str]]:
     return _detect_ssrf_hints(query_variants, raw_request_target_variants)
+
+
+def detect_open_redirect_hints(
+    uri: str,
+    raw_request_target: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    request_path = get_effective_request_path(uri, raw_request_target)
+    return _detect_open_redirect_hints(request_path, query_variants, raw_request_target_variants)
 
 
 def detect_educational_ssti_search_context(text: str) -> bool:
@@ -1336,6 +1349,13 @@ def build_row_context_reason_hints(row: Dict[str, Any]) -> List[str]:
         raw_request_target_variants=raw_request_target_variants,
     )
     extend_unique_hints(reason_hints, ssrf_hints)
+    _, open_redirect_hints = detect_open_redirect_hints(
+        uri=uri,
+        raw_request_target=raw_request_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    extend_unique_hints(reason_hints, open_redirect_hints)
     _, ssti_hints = detect_ssti_hints(
         combined_target=combined_target,
         query_variants=query_variants,
@@ -1403,6 +1423,8 @@ def get_attack_categories_from_reason_hints(reason_hints: Iterable[str]) -> List
             append_unique_hint(categories, "log4shell")
         elif normalized.startswith("ssrf:") or normalized == "l3:ssrf":
             append_unique_hint(categories, "ssrf")
+        elif normalized.startswith("open_redirect:") or normalized == "l3:open_redirect_probe":
+            append_unique_hint(categories, "open_redirect")
         elif normalized.startswith("ssti:") or normalized == "l3:ssti":
             append_unique_hint(categories, "ssti")
         elif normalized.startswith("graphql:") or normalized == "l3:graphql_introspection":
@@ -3439,6 +3461,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     automation_ua_hits = 0
     log4shell_score_boost = 0
     ssrf_score_boost = 0
+    open_redirect_score_boost = 0
     ssti_score_boost = 0
     graphql_score_boost = 0
     webshell_score_boost = 0
@@ -3504,6 +3527,15 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     if ssrf_score_boost > 0:
         score += ssrf_score_boost
     extend_unique_hints(reason_hints, ssrf_hints)
+    open_redirect_score_boost, open_redirect_hints = detect_open_redirect_hints(
+        uri=uri,
+        raw_request_target=raw_request_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    if open_redirect_score_boost > 0:
+        score += open_redirect_score_boost
+    extend_unique_hints(reason_hints, open_redirect_hints)
     ssti_score_boost, ssti_hints = detect_ssti_hints(
         combined_target=combined_target,
         query_variants=query_variants,

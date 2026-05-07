@@ -23,6 +23,8 @@ LOG4SHELL_OBFUSCATED_DNS_RE = re.compile(
 )
 SSRF_PARAM_NAMES = {"url", "uri", "target", "next", "redirect", "callback", "webhook", "image", "fetch", "resource"}
 SSRF_METADATA_HOSTS = {"169.254.169.254", "metadata.google.internal"}
+OPEN_REDIRECT_PARAM_NAMES = {"next", "redirect", "return", "continue", "callback", "url"}
+OPEN_REDIRECT_URL_PARAM_PATH_HINTS = ("/redirect", "/oauth/authorize", "/oauth2/authorize", "/signin")
 SSTI_JINJA_ARITHMETIC_RE = re.compile(r"\{\{\s*\d{1,8}\s*[\*\+\-/]\s*\d{1,8}\s*\}\}")
 SSTI_JINJA_OBJECT_RE = re.compile(r"(?i)\{\{\s*(?:config\b|self(?:\.__init__)?\b|request\b|cycler\b|namespace\b|class\b)[^}]{0,120}\}\}")
 SSTI_FREEMARKER_RE = re.compile(r"(?i)(?:\$\{|#\{)\s*(?:\d{1,8}\s*[\*\+\-/]\s*\d{1,8}|T\s*\(\s*java\.lang\.Runtime\s*\)|config\b|class\b)[^}]{0,120}\}")
@@ -65,6 +67,7 @@ __all__ = [
     "detect_educational_ssti_search_context",
     "detect_graphql_introspection_hints",
     "detect_log4shell_hints",
+    "detect_open_redirect_hints",
     "detect_ssrf_hints",
     "detect_ssti_hints",
     "detect_webshell_hints",
@@ -234,6 +237,77 @@ def detect_ssrf_hints(
         score_boost += 5
         _append_unique_hint(hints, "l3:ssrf")
 
+    return score_boost, hints
+
+
+def _is_external_http_target(value: str) -> Tuple[bool, bool]:
+    text = _normalize_text(value)
+    if not text:
+        return False, False
+
+    is_protocol_relative = text.startswith("//")
+    parse_target = text if not is_protocol_relative else f"https:{text}"
+    try:
+        parsed = urlparse(parse_target)
+    except Exception:
+        return False, False
+
+    scheme = _raw_text(parsed.scheme).lower()
+    if scheme not in {"http", "https"}:
+        return False, False
+
+    hostname = _raw_text(parsed.hostname).lower()
+    if not hostname:
+        return False, False
+    if hostname in {"localhost", "metadata.google.internal", "169.254.169.254"}:
+        return False, False
+
+    try:
+        host_ip = ipaddress.ip_address(hostname.strip("[]"))
+    except ValueError:
+        host_ip = None
+    if host_ip is not None:
+        if host_ip == ipaddress.ip_address("169.254.169.254") or host_ip.is_loopback or host_ip.is_private:
+            return False, False
+
+    return True, is_protocol_relative
+
+
+def detect_open_redirect_hints(
+    request_path: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    hints: List[str] = []
+    score_boost = 0
+
+    normalized_path = _normalize_text(request_path).lower()
+    pairs = extract_query_pairs_from_variants(query_variants, raw_request_target_variants)
+    matched = False
+    saw_protocol_relative = False
+
+    for key, value in pairs:
+        if key not in OPEN_REDIRECT_PARAM_NAMES:
+            continue
+        is_external_http, is_protocol_relative = _is_external_http_target(value)
+        if not is_external_http:
+            continue
+        if key == "url" and not any(fragment in normalized_path for fragment in OPEN_REDIRECT_URL_PARAM_PATH_HINTS):
+            continue
+        if key == "url" and not is_protocol_relative:
+            continue
+        matched = True
+        saw_protocol_relative = saw_protocol_relative or is_protocol_relative
+
+    if not matched:
+        return 0, []
+
+    score_boost += 4
+    _append_unique_hint(hints, "l3:open_redirect_probe")
+    _append_unique_hint(hints, "open_redirect:external_url_parameter")
+    _append_unique_hint(hints, "open_redirect:redirect_param_name")
+    if saw_protocol_relative:
+        _append_unique_hint(hints, "open_redirect:protocol_relative_url")
     return score_boost, hints
 
 

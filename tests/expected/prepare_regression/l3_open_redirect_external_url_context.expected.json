@@ -1,0 +1,138 @@
+{
+  "description": "Open redirect-like external URL parameter probes should be preserved as candidates while relative/documentation/search baselines remain filtered or context-only.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-open-redirect-1"
+      },
+      "message": "next external URL probe candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-open-redirect-2"
+      },
+      "message": "protocol-relative redirect URL probe candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-open-redirect-3"
+      },
+      "message": "continue external URL probe candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-open-redirect-1"
+      },
+      "field": "reason_hints",
+      "contains": "l3:open_redirect_probe",
+      "message": "candidate keeps open redirect L3 hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-open-redirect-2"
+      },
+      "field": "reason_hints",
+      "contains": "open_redirect:protocol_relative_url",
+      "message": "protocol-relative probe keeps dedicated hint"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-open-redirect-benign-1"
+      },
+      "message": "relative next baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-open-redirect-benign-2"
+      },
+      "message": "relative return baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-open-redirect-benign-3"
+      },
+      "message": "documentation URL baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-open-redirect-benign-4"
+      },
+      "message": "redirect search baseline retained as context or filtered"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-open-redirect-benign-1"
+      },
+      "message": "relative next baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-open-redirect-benign-2"
+      },
+      "message": "relative return baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-open-redirect-benign-3"
+      },
+      "message": "documentation URL baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-open-redirect-benign-4"
+      },
+      "message": "redirect search baseline must not be promoted"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "collection_count_by_where_at_least",
+      "collection": "analysis_candidates",
+      "where": {
+        "reason_hints__contains": "open_redirect:"
+      },
+      "value": 3,
+      "message": "all three open redirect probes carry open_redirect hint family"
+    }
+  ]
+}
