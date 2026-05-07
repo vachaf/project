@@ -1,0 +1,120 @@
+{
+  "description": "GraphQL introspection-like query signals should be preserved as candidates while benign graphql text baselines remain filtered/context-only.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-graphql-introspection-1"
+      },
+      "message": "__schema introspection candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-graphql-introspection-2"
+      },
+      "message": "IntrospectionQuery candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-graphql-introspection-3"
+      },
+      "message": "__type introspection candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-graphql-introspection-1"
+      },
+      "field": "reason_hints",
+      "contains": "l3:graphql_introspection",
+      "message": "__schema candidate has GraphQL L3 hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-graphql-introspection-1"
+      },
+      "field": "reason_hints",
+      "contains": "graphql:__schema_marker",
+      "message": "__schema marker hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-graphql-introspection-2"
+      },
+      "field": "reason_hints",
+      "contains": "graphql:introspection_query_name",
+      "message": "IntrospectionQuery marker hint found"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-graphql-introspection-3"
+      },
+      "field": "reason_hints",
+      "contains": "graphql:__type_marker",
+      "message": "__type marker hint found"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-graphql-benign-1"
+      },
+      "message": "benign graphql search baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-graphql-benign-2"
+      },
+      "message": "benign graphql docs baseline retained as context or filtered"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-graphql-benign-1"
+      },
+      "message": "benign graphql search baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-graphql-benign-2"
+      },
+      "message": "benign graphql docs baseline must not be promoted"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "collection_count_by_where_at_least",
+      "collection": "analysis_candidates",
+      "where": {
+        "reason_hints__contains": "graphql:"
+      },
+      "value": 3,
+      "message": "all three introspection candidates carry graphql hint family"
+    }
+  ]
+}

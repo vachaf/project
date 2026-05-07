@@ -27,6 +27,10 @@ SSTI_JINJA_ARITHMETIC_RE = re.compile(r"\{\{\s*\d{1,8}\s*[\*\+\-/]\s*\d{1,8}\s*\
 SSTI_JINJA_OBJECT_RE = re.compile(r"(?i)\{\{\s*(?:config\b|self(?:\.__init__)?\b|request\b|cycler\b|namespace\b|class\b)[^}]{0,120}\}\}")
 SSTI_FREEMARKER_RE = re.compile(r"(?i)(?:\$\{|#\{)\s*(?:\d{1,8}\s*[\*\+\-/]\s*\d{1,8}|T\s*\(\s*java\.lang\.Runtime\s*\)|config\b|class\b)[^}]{0,120}\}")
 SSTI_JSP_RE = re.compile(r"(?i)<%=\s*(?:\d{1,8}\s*[\*\+\-/]\s*\d{1,8}|T\s*\(\s*java\.lang\.Runtime\s*\)|config\b|class\b)[^%]{0,120}%>")
+GRAPHQL_INTROSPECTION_SCHEMA_RE = re.compile(r"(?i)(?:^|[^\w])__schema(?:[^\w]|$)")
+GRAPHQL_INTROSPECTION_TYPE_RE = re.compile(r"(?i)(?:^|[^\w])__type(?:[^\w]|$)")
+GRAPHQL_INTROSPECTION_QUERY_RE = re.compile(r"(?i)(?:^|[^\w])IntrospectionQuery(?:[^\w]|$)")
+GRAPHQL_ENDPOINT_PATH_HINTS = ("/graphql", "/api/graphql")
 EDUCATIONAL_SSTI_SEARCH_TERMS = (
     "how to",
     "tutorial",
@@ -59,6 +63,7 @@ __all__ = [
     "classify_ssrf_target",
     "classify_webshell_path",
     "detect_educational_ssti_search_context",
+    "detect_graphql_introspection_hints",
     "detect_log4shell_hints",
     "detect_ssrf_hints",
     "detect_ssti_hints",
@@ -267,6 +272,44 @@ def detect_ssti_hints(
         _append_unique_hint(hints, "ssti:jinja_expression")
     if has_freemarker:
         _append_unique_hint(hints, "ssti:freemarker_expression")
+    return score_boost, hints
+
+
+def detect_graphql_introspection_hints(
+    request_path: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    hints: List[str] = []
+    score_boost = 0
+
+    normalized_path = _normalize_text(request_path).lower()
+    if not normalized_path:
+        return 0, []
+    if not any(normalized_path.startswith(prefix) for prefix in GRAPHQL_ENDPOINT_PATH_HINTS):
+        return 0, []
+
+    samples = _unique_non_empty_texts(
+        [_raw_text(item.get("text")) for item in query_variants + raw_request_target_variants]
+    )
+    if not samples:
+        return 0, []
+
+    has_schema = any(GRAPHQL_INTROSPECTION_SCHEMA_RE.search(sample) for sample in samples)
+    has_type = any(GRAPHQL_INTROSPECTION_TYPE_RE.search(sample) for sample in samples)
+    has_introspection_query = any(GRAPHQL_INTROSPECTION_QUERY_RE.search(sample) for sample in samples)
+    if not (has_schema or has_type or has_introspection_query):
+        return 0, []
+
+    score_boost += 4
+    _append_unique_hint(hints, "l3:graphql_introspection")
+    _append_unique_hint(hints, "graphql:introspection_query")
+    if has_schema:
+        _append_unique_hint(hints, "graphql:__schema_marker")
+    if has_type:
+        _append_unique_hint(hints, "graphql:__type_marker")
+    if has_introspection_query:
+        _append_unique_hint(hints, "graphql:introspection_query_name")
     return score_boost, hints
 
 

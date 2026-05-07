@@ -1,0 +1,142 @@
+{
+  "description": "Stage dry-run should preserve GraphQL introspection candidate context and avoid schema disclosure success assertions.",
+  "MUST": [
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-graphql-introspection-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "l3:graphql_introspection",
+      "message": "stage1 payload preserves GraphQL L3 hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-graphql-introspection-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "graphql:__schema_marker",
+      "message": "stage1 payload preserves __schema marker hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-graphql-introspection-2"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "graphql:introspection_query_name",
+      "message": "stage1 payload preserves IntrospectionQuery marker hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-graphql-introspection-3"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "graphql:__type_marker",
+      "message": "stage1 payload preserves __type marker hint"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-graphql-introspection-1"
+      },
+      "field": "request_id",
+      "equals": "l3-graphql-introspection-1",
+      "message": "stage2 report input keeps __schema candidate"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-graphql-introspection-2"
+      },
+      "field": "request_id",
+      "equals": "l3-graphql-introspection-2",
+      "message": "stage2 report input keeps IntrospectionQuery candidate"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-graphql-introspection-3"
+      },
+      "field": "request_id",
+      "equals": "l3-graphql-introspection-3",
+      "message": "stage2 report input keeps __type candidate"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "list_any_equals",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-graphql-benign-1"
+      },
+      "field": "request_id",
+      "equals": "l3-graphql-benign-1",
+      "message": "stage1 payload must not promote benign graphql search baseline"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-graphql-benign-2"
+      },
+      "field": "request_id",
+      "equals": "l3-graphql-benign-2",
+      "message": "stage1 payload must not promote benign graphql docs baseline"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "GraphQL schema exposed",
+      "message": "markdown must not assert schema exposure"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "introspection enabled confirmed",
+      "message": "markdown must not assert introspection enabled"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "API structure exposed",
+      "message": "markdown must not assert API structure exposure"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "data exfiltration",
+      "message": "markdown must not assert data exfiltration"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "auth bypass succeeded",
+      "message": "markdown must not assert auth bypass success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "GraphQL vulnerability confirmed",
+      "message": "markdown must not assert vulnerability confirmation"
+    }
+  ]
+}
