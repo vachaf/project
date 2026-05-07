@@ -1,0 +1,145 @@
+{
+  "description": "SSTI template-expression probes should be preserved as candidates while benign template/search traffic remains filtered or context-only.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-1"
+      },
+      "message": "jinja arithmetic SSTI probe candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-2"
+      },
+      "message": "freemarker arithmetic SSTI probe candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-3"
+      },
+      "message": "jsp arithmetic SSTI probe candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-4"
+      },
+      "message": "jinja object SSTI probe candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-5"
+      },
+      "message": "jinja request-object SSTI probe candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-1"
+      },
+      "field": "reason_hints",
+      "contains": "l3:ssti",
+      "message": "candidate keeps SSTI L3 hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-2"
+      },
+      "field": "reason_hints",
+      "contains": "ssti:freemarker_expression",
+      "message": "freemarker probe keeps specific SSTI hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-3"
+      },
+      "field": "reason_hints",
+      "contains": "ssti:template_expression",
+      "message": "jsp probe keeps template-expression hint"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-ssti-template-benign-1"
+      },
+      "message": "template docs baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-ssti-template-benign-2"
+      },
+      "message": "jinja template search baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-ssti-template-benign-3"
+      },
+      "message": "curly-braces baseline retained as context or filtered"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-benign-1"
+      },
+      "message": "template docs baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-benign-2"
+      },
+      "message": "jinja template search baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssti-template-benign-3"
+      },
+      "message": "curly-braces baseline must not be promoted"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "collection_count_by_where_at_least",
+      "collection": "analysis_candidates",
+      "where": {
+        "reason_hints__contains": "ssti:"
+      },
+      "value": 5,
+      "message": "all SSTI probes carry ssti hint family"
+    }
+  ]
+}

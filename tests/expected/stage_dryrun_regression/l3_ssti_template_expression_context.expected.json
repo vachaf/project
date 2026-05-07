@@ -1,0 +1,155 @@
+{
+  "description": "Stage dry-run should preserve SSTI template-expression candidates while avoiding template execution/RCE success assertions beyond Apache log evidence.",
+  "MUST": [
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssti-template-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "l3:ssti",
+      "message": "stage1 payload keeps SSTI L3 hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssti-template-2"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "ssti:freemarker_expression",
+      "message": "stage1 payload keeps freemarker SSTI hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssti-template-3"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "ssti:template_expression",
+      "message": "stage1 payload keeps template-expression SSTI hint"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-ssti-template-1"
+      },
+      "field": "request_id",
+      "equals": "l3-ssti-template-1",
+      "message": "stage2 report input keeps jinja arithmetic SSTI probe"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-ssti-template-2"
+      },
+      "field": "request_id",
+      "equals": "l3-ssti-template-2",
+      "message": "stage2 report input keeps freemarker arithmetic SSTI probe"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-ssti-template-3"
+      },
+      "field": "request_id",
+      "equals": "l3-ssti-template-3",
+      "message": "stage2 report input keeps jsp arithmetic SSTI probe"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.sensitive_path_probe_summary_policy.success_rule",
+      "contains": "status_code, response_body_bytes, content_type",
+      "message": "policy notes preserve Apache logs-only success boundary"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "list_any_equals",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssti-template-benign-1"
+      },
+      "field": "request_id",
+      "equals": "l3-ssti-template-benign-1",
+      "message": "stage1 payload must not promote template docs baseline"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssti-template-benign-2"
+      },
+      "field": "request_id",
+      "equals": "l3-ssti-template-benign-2",
+      "message": "stage1 payload must not promote jinja template search baseline"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssti-template-benign-3"
+      },
+      "field": "request_id",
+      "equals": "l3-ssti-template-benign-3",
+      "message": "stage1 payload must not promote curly-braces baseline"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "SSTI executed",
+      "message": "markdown must not assert SSTI execution"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "template expression evaluated",
+      "message": "markdown must not assert expression evaluation"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "RCE succeeded",
+      "message": "markdown must not assert RCE success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "command executed",
+      "message": "markdown must not assert command execution"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "server compromised",
+      "message": "markdown must not assert compromise"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "evaluated result returned",
+      "message": "markdown must not assert evaluated result return"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "template engine confirmed",
+      "message": "markdown must not assert template engine confirmation"
+    }
+  ]
+}
