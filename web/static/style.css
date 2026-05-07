@@ -3,14 +3,14 @@
   --surface: #ffffff;
   --text: #14243d;
   --muted: #5e6e85;
-  --border: #d7dde6;
+  --border: #c5d0dd;  
   --brand: #0d2b52;
-  --openai: #1f4db8;
-  --anthropic: #b85d14;
+  --openai: #0d2f6b; 
+  --anthropic: #7a3a00;  
   --unknown: #475569;
-  --pass: #0f7a4f;
-  --warn: #9a6800;
-  --fail: #a61b1b;
+  --pass: #0a5c35;
+  --warn: #6b4700; 
+  --fail: #7a0000;  
   --error: #6b7280;
 }
 
@@ -69,17 +69,22 @@ a {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 0.9rem;
+  padding: 1rem;  
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  border-color: #b0bfcf;  
+  box-shadow: 0 2px 8px rgba(20, 36, 61, 0.06); 
 }
 
 .provider-card:hover,
 .compare-panel:hover {
-  border-color: #c5cfde;
-  box-shadow: 0 4px 14px rgba(20, 36, 61, 0.06);
+  border-color: #b0bfcf; 
+  box-shadow: 0 3px 10px rgba(20, 36, 61, 0.08); 
 }
 
 .card-grid {
@@ -117,6 +122,8 @@ a {
 
 .group-title {
   margin: 0;
+  font-size: 1.08rem;  
+  font-weight: 600;
 }
 
 .group-id {
@@ -207,9 +214,14 @@ a {
 .table th,
 .table td {
   border: 1px solid var(--border);
-  padding: 0.45rem;
+  padding: 0.5rem;
   text-align: left;
   vertical-align: top;
+}
+
+.table th {
+  background: #f5f7fa;  
+  font-weight: 600;
 }
 
 .table-compact th,
@@ -221,7 +233,7 @@ a {
 .meta-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.6rem;
+  gap: 0.75rem;  
 }
 
 .meta-grid-summary > div {
@@ -230,11 +242,17 @@ a {
 
 .badge {
   display: inline-block;
-  font-size: 0.76rem;
-  line-height: 1;
-  padding: 0.25rem 0.45rem;
+  font-size: 0.78rem;  
+  line-height: 1.2;  
+  padding: 0.3rem 0.5rem;  
   border-radius: 999px;
   border: 1px solid transparent;
+  margin-right: 0.35rem;  
+  margin-bottom: 0.25rem;  
+}
+
+.badge:last-child {
+  margin-right: 0;
 }
 
 .action-link {
@@ -243,18 +261,23 @@ a {
   justify-content: center;
   font-size: 0.84rem;
   line-height: 1;
-  color: #124f9f;
+  color: #0d47a1; 
   text-decoration: none;
-  border: 1px solid #c8d5e8;
-  background: #f4f8ff;
+  border: 1px solid #b8cadf; 
+  background: #f0f6ff;  
   border-radius: 8px;
-  padding: 0.34rem 0.6rem;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  padding: 0.4rem 0.65rem;  
+  transition: all 0.2s ease; 
 }
 
 .action-link:hover {
-  background: #e8f1ff;
-  border-color: #adc3e0;
+  background: #deeaff; 
+  border-color: #99b3d9;  
+  transform: translateY(-1px);  
+}
+
+.action-link:active {
+  transform: translateY(0);
 }
 
 button.action-link {
@@ -262,9 +285,11 @@ button.action-link {
 }
 
 .action-link:focus-visible,
-a:focus-visible {
-  outline: 2px solid #2b6ccf;
-  outline-offset: 2px;
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #1976d2;  
+  outline-offset: 3px;
   border-radius: 6px;
 }
 
@@ -351,7 +376,10 @@ a:focus-visible {
 
 .no-result-card {
   border-style: dashed;
-  background: #fbfcff;
+  border-color: #b8cadf;  
+  background: #f8fbff; 
+  padding: 1.5rem;  
+  text-align: center;
 }
 
 .badge-muted {
@@ -363,11 +391,13 @@ a:focus-visible {
 .badge-provider-openai {
   background: #dce9ff;
   color: var(--openai);
+  border-color: #b3d1ff;
 }
 
 .badge-provider-anthropic {
   background: #ffead8;
   color: var(--anthropic);
+  border-color: #ffc999;
 }
 
 .badge-provider-unknown {
@@ -378,16 +408,19 @@ a:focus-visible {
 .badge-lint-pass {
   background: #daf8e9;
   color: var(--pass);
+  border-color: #a8e6c1;
 }
 
 .badge-lint-warn {
   background: #fff0cb;
-  color: var(--warn);
+  color: var(--warn);  
+  border-color: #ffe299;
 }
 
 .badge-lint-fail {
   background: #ffd9d9;
   color: var(--fail);
+    border-color: #ffb3b3;
 }
 
 .badge-lint-error {
@@ -397,17 +430,20 @@ a:focus-visible {
 
 .badge-severity-high {
   background: #ffe1e1;
-  color: #9d1a1a;
+  color: #8b0000; 
+  border-color: #ffcccc;
 }
 
 .badge-severity-medium {
   background: #ffeacd;
-  color: #925b00;
+  color: #7a4a00;  
+  border-color: #ffd699;
 }
 
 .badge-severity-low {
   background: #e6f3ff;
-  color: #1f5b94;
+  color: #0d3c6b; 
+  border-color: #b8d9ff;
 }
 
 .badge-severity-info {
@@ -482,8 +518,8 @@ a:focus-visible {
 }
 
 .report-section ul {
-  margin: 0.7rem 0 0;
-  padding-left: 1.2rem;
+  margin: 0.8rem 0 0;  
+  padding-left: 1.3rem; 
 }
 
 .report-section li {
@@ -494,21 +530,30 @@ a:focus-visible {
 }
 
 .report-section li + li {
-  margin-top: 0.55rem;
+  margin-top: 0.7rem;
 }
 
 .report-section summary {
   cursor: pointer;
   font-weight: 700;
   color: var(--text);
+  padding: 0.35rem 0; 
+  transition: color 0.15s ease;
 }
 
 .report-section summary:hover {
-  color: #124f9f;
+  color: #0d47a1;  
 }
 
 .report-section[open] {
-  padding-bottom: 0.15rem;
+  padding-bottom: 0.3rem;  
+  border-bottom: 1px solid #e5eaf0;  
+  margin-bottom: 0.5rem;
+}
+
+.report-section[open] summary {
+  margin-bottom: 0.4rem;
+  color: #0d47a1; 
 }
 
 .compare-panel p,
@@ -609,7 +654,8 @@ a:focus-visible {
 
 @media (max-width: 900px) {
   .filter-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; 
+    gap: 0.6rem;
   }
 
   .filter-field-q {
@@ -644,5 +690,31 @@ a:focus-visible {
 
   .meta-compact p {
     grid-template-columns: 86px 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .report-title,
+  .report-filename,
+  .report-path,
+  .issue-path,
+  .meta-grid > div {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
+  
+  .table-wrapper,
+  .compare-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; 
+  }
+  
+  .card {
+    padding: 0.85rem;  
+  }
+  
+  .meta-grid {
+    gap: 0.5rem;  
   }
 }
