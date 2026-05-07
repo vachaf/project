@@ -1,0 +1,123 @@
+{
+  "description": "Stage dry-run should keep webshell/admin probe candidates and avoid success assertions beyond Apache log evidence.",
+  "MUST": [
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-webshell-admin-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "webshell:script_filename",
+      "message": "stage1 payload keeps wso webshell hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-webshell-admin-3"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "webshell:admin_tool_probe_path",
+      "message": "stage1 payload keeps phpunit admin tool probe hint"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-webshell-admin-1"
+      },
+      "field": "request_id",
+      "equals": "l3-webshell-admin-1",
+      "message": "stage2 report input keeps wso probe candidate"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-webshell-admin-2"
+      },
+      "field": "request_id",
+      "equals": "l3-webshell-admin-2",
+      "message": "stage2 report input keeps c99 probe candidate"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-webshell-admin-3"
+      },
+      "field": "request_id",
+      "equals": "l3-webshell-admin-3",
+      "message": "stage2 report input keeps phpunit probe candidate"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.sensitive_path_probe_summary_policy.success_rule",
+      "contains": "status_code, response_body_bytes, content_type",
+      "message": "policy notes preserve Apache logs-only success boundary"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "dry-run 이므로 실제 LLM API 호출 없이 요약 입력만 검증했다.",
+      "message": "markdown keeps dry-run caveat"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "webshell exists",
+      "message": "markdown must not assert webshell existence"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "shell uploaded",
+      "message": "markdown must not assert shell upload success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "command executed",
+      "message": "markdown must not assert command execution success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "RCE succeeded",
+      "message": "markdown must not assert RCE success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "attacker gained shell",
+      "message": "markdown must not assert attacker shell gain"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "server compromised",
+      "message": "markdown must not assert server compromise"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "exploit success",
+      "message": "markdown must not assert exploit success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "upload succeeded",
+      "message": "markdown must not assert upload success"
+    }
+  ]
+}

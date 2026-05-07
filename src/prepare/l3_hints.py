@@ -53,6 +53,7 @@ EDUCATIONAL_SSTI_KEYWORDS = (
 WEBSHELL_CMD_PARAM_NAMES = {"cmd", "exec", "command", "shell", "powershell"}
 WEBSHELL_KNOWN_FILENAMES = {"shell.php", "cmd.php", "webshell.php", "wso.php", "c99.php", "r57.php"}
 WEBSHELL_UPLOAD_PATH_HINTS = ("/upload/", "/uploads/")
+WEBSHELL_ADMIN_TOOL_PATH_HINTS = ("/vendor/phpunit/", "/eval-stdin.php")
 
 __all__ = [
     "classify_ssrf_target",
@@ -285,6 +286,8 @@ def classify_webshell_path(path: str) -> List[str]:
         _append_unique_hint(hints, "webshell:script_filename")
     if any(segment in normalized_path for segment in WEBSHELL_UPLOAD_PATH_HINTS) and normalized_path.endswith(".php"):
         _append_unique_hint(hints, "webshell:script_filename")
+    if all(fragment in normalized_path for fragment in WEBSHELL_ADMIN_TOOL_PATH_HINTS):
+        _append_unique_hint(hints, "webshell:admin_tool_probe_path")
     return hints
 
 
@@ -302,7 +305,8 @@ def detect_webshell_hints(
     pairs = extract_query_pairs_from_variants(query_variants, raw_request_target_variants)
     has_cmd_parameter = any(key in WEBSHELL_CMD_PARAM_NAMES and _raw_text(value) for key, value in pairs)
     if not has_cmd_parameter:
-        return 0, []
+        _extend_unique_hints(hints, path_hints)
+        return 0, hints
 
     score_boost += 4
     _append_unique_hint(hints, "l3:webshell_probe")

@@ -1,0 +1,104 @@
+{
+  "description": "Webshell/admin tool probe paths should remain candidate-grade context with conservative webshell hints, while benign admin/static baseline stays filtered.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-admin-1"
+      },
+      "message": "wso probe candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-admin-2"
+      },
+      "message": "c99 probe candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-admin-3"
+      },
+      "message": "phpunit probe candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-admin-1"
+      },
+      "field": "reason_hints",
+      "contains": "webshell:script_filename",
+      "message": "wso candidate keeps webshell script hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-admin-2"
+      },
+      "field": "reason_hints",
+      "contains": "webshell:known_shell_name",
+      "message": "c99 candidate keeps known shell name hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-admin-3"
+      },
+      "field": "reason_hints",
+      "contains": "webshell:admin_tool_probe_path",
+      "message": "phpunit candidate keeps admin tool probe hint"
+    },
+    {
+      "op": "exists",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "l3-webshell-benign-1"
+      },
+      "message": "admin help baseline remains filtered"
+    },
+    {
+      "op": "exists",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "l3-webshell-benign-2"
+      },
+      "message": "static shell icon baseline remains filtered"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-benign-1"
+      },
+      "message": "admin help baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-webshell-benign-2"
+      },
+      "message": "static shell icon baseline must not be promoted"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "collection_count_by_where_at_least",
+      "collection": "analysis_candidates",
+      "where": {
+        "reason_hints__contains": "webshell:"
+      },
+      "value": 3,
+      "message": "all three probe candidates carry webshell hint family"
+    }
+  ]
+}
