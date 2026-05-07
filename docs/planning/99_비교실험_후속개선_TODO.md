@@ -69,10 +69,11 @@
   - [ ] API key / secret token probe fixture plan 작성 여부 판단
     - false positive 위험이 높아 즉시 regression 추가는 하지 않음
     - 정상 API traffic과 secret probe 구분 기준이 필요할 때만 fixture plan 선행
-    - 다음 추천 후보: API key / secret token fixture plan 검토부터 시작
+    - 현재는 보류 상태를 유지하고 실제 필요가 확인될 때만 작성
   - [ ] Webshell command query fixture plan 작성 여부 판단
     - traversal/CMDI 경계가 민감해 즉시 regression 추가는 하지 않음
     - 필요 시 별도 fixture plan 선행
+    - 현재는 보류 상태를 유지하고 실제 필요가 확인될 때만 작성
   - [ ] request smuggling / header anomaly 로그 가시성 검토
     - Apache access log에서 관찰 가능한 신호 범위와 해석 한계를 먼저 고정
   - [ ] P2 이후 후보 보류 유지
