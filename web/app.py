@@ -71,10 +71,51 @@ def index(request: Request):
         },
     )
 
+def _get_generated_at(report: Report) -> str:
+    return str(report.generated_at or "")
 
+def _report_to_nav_dict(report: Report) -> Dict[str, Any]:
+    return {
+        "report_id": report.report_id,
+        "filename": report.filename,
+        "scenario": report.scenario,
+        "generated_at": report.generated_at,
+    }
+
+def _calculate_navigation(all_reports: List[Report], current_report_id: str) -> Dict[str, Any]:
+    sorted_reports = sorted(
+        all_reports,
+        key=lambda report: (report.filename, report.report_id),
+    )
+    sorted_reports = sorted(
+        sorted_reports,
+        key=_get_generated_at,
+        reverse=True,
+    )
+
+    current_index = next(
+        (index for index, report in enumerate(sorted_reports) if report.report_id == current_report_id),
+        -1,
+    )
+
+    if current_index < 0:
+        return {
+            "prev_report": None,
+            "next_report": None,
+            "current_index": 0,
+            "total_reports": len(sorted_reports),
+        }
+
+    return {
+        "prev_report": _report_to_nav_dict(sorted_reports[current_index - 1]) if current_index > 0 else None,
+        "next_report": _report_to_nav_dict(sorted_reports[current_index + 1]) if current_index < len(sorted_reports) - 1 else None,
+        "current_index": current_index,
+        "total_reports": len(sorted_reports),
+    }
 @app.get("/report/{report_id}")
 def report_detail(request: Request, report_id: str):
-    report = loader.get_report_by_id(report_id)
+    all_reports = loader.scan_reports()
+    report = next((r for r in all_reports if r.report_id == report_id), None)
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
 
@@ -89,6 +130,8 @@ def report_detail(request: Request, report_id: str):
     detail = report.to_detail()
     detail["known_asset_ips"] = normalize_known_asset_ips(report.meta.get("known_asset_ips", []))
 
+    nav_context = _calculate_navigation(all_reports, report_id)
+
     return templates.TemplateResponse(
         request=request,
         name="detail.html",
@@ -99,9 +142,9 @@ def report_detail(request: Request, report_id: str):
             "actions": actions,
             "key_findings": key_findings,
             "source_ips": source_ips,
+            **nav_context, # 컨텍스트 병합
         },
     )
-
 
 @app.get("/compare/{timeframe_id}")
 def compare_view(request: Request, timeframe_id: str):

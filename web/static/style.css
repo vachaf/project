@@ -718,3 +718,49 @@ summary:focus-visible {
     gap: 0.5rem;  
   }
 }
+.navigation-section {
+  margin: 1.5rem 0;
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.navigation-controls {
+  display: flex;
+  flex-wrap: wrap; /* 모바일 대응 */
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.nav-disabled {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: not-allowed;
+}
+
+.nav-info {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* 모바일 대응 미디어 쿼리 */
+@media (max-width: 600px) {
+  .navigation-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .navigation-controls .action-link,
+  .nav-disabled {
+    width: 100%;
+    text-align: center;
+  }
+}

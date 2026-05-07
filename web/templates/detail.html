@@ -30,6 +30,27 @@
   {% endif %}
 </section>
 
+<section class="navigation-section">
+  <nav class="navigation-controls">
+    {% if prev_report %}
+      <a href="/report/{{ prev_report.report_id }}" class="action-link nav-prev">&larr; Previous</a>
+    {% else %}
+      <span class="nav-disabled">&larr; Previous</span>
+    {% endif %}
+
+    <a href="/" class="action-link nav-list">Report List</a>
+
+    {% if next_report %}
+      <a href="/report/{{ next_report.report_id }}" class="action-link nav-next">Next &rarr;</a>
+    {% else %}
+      <span class="nav-disabled">Next &rarr;</span>
+    {% endif %}
+  </nav>
+  <div class="nav-info">
+    Report {{ current_index + 1 }} of {{ total_reports }}
+  </div>
+</section>
+
 <section class="section card">
   <h3>Stage2 Quality Lint</h3>
   <p>
