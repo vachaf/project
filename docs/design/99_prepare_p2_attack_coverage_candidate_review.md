@@ -3,7 +3,7 @@
 - 문서 상태: P2 후보 비교 문서
 - 기준 시점: 2026-05-07
 - 목적: P1 신규 coverage 이후 다음 후보를 선택하기 위한 판단 기준을 고정한다.
-- 상단 결론: GraphQL / API introspection attempt와 Open redirect / redirect abuse attempt는 1차 regression 완료. 다음 후보는 SSTI / template injection이다.
+- 상단 결론: GraphQL / API introspection attempt, Open redirect / redirect abuse attempt, SSTI / template injection은 1차 regression 완료. 다음 후보는 XXE / API key / Webshell command query다.
 
 관련 문서:
 
@@ -43,8 +43,9 @@ grep -RIn "graphql\|__schema\|__type\|IntrospectionQuery\|redirect=\|next=\|retu
 - `l3_webshell_admin_tool_probe_context`
 - `l3_graphql_introspection_context`
 - `l3_open_redirect_external_url_context`
-- prepare regression `pass=23 warn=0 fail=0`
-- stage dry-run regression `pass=17 warn=0 fail=0`
+- `l3_ssti_template_expression_context`
+- prepare regression `pass=24 warn=0 fail=0`
+- stage dry-run regression `pass=18 warn=0 fail=0`
 - Stage2 report quality tests `14 passed`
 
 ## 3. P2 후보 목록
@@ -53,10 +54,13 @@ grep -RIn "graphql\|__schema\|__type\|IntrospectionQuery\|redirect=\|next=\|retu
 
 - GraphQL / API introspection attempt
 - Open redirect / redirect abuse attempt
+- SSTI / template injection
 
 다음 후보:
 
-- SSTI / template injection
+- XXE / XML parser abuse attempt
+- API key / secret token probe
+- Webshell command query endpoint
 
 보수적/별도 검토 후보:
 
@@ -126,10 +130,10 @@ Apache access logs만으로 볼 수 없는 것:
 |---|---|---|---|---|---|---|
 | GraphQL / API introspection | shared attack hint path, API endpoint 분류 인접 | `/graphql`, `__schema`, `__type`, `IntrospectionQuery` | 중간 | 낮음~중간 | 중간 | 1순위(1차 완료) |
 | Open redirect / redirect abuse | shared attack/search policy, SSRF parameter family 인접 | `redirect=`, `url=`, `next=`, `return=`, `continue=` | 높음 | 낮음~중간 | 중간~높음 | 2순위(1차 완료) |
-| SSTI / template injection | shared attack hint path, decoded/expression 경계 인접 | `{{7*7}}`, `${7*7}`, `<%= 7*7 %>`, `#{7*7}` | 중간~높음 | 중간 | 높음 | 다음 후보 |
-| XXE / XML parser abuse | shared attack hint path, SSRF/file disclosure 경계 인접 | `<!DOCTYPE`, `<!ENTITY`, `SYSTEM "file://..."` | 중간 | 중간~높음 | 높음 | 보수적 후보 |
-| API key / secret token probe | file disclosure/sensitive path/shared policy 인접 | `api_key=`, `access_token=`, `token=`, `secret=`, `.env`, `/config` | 높음 | 중간 | 높음 | 보수적 후보 |
-| Webshell command query endpoint | `l3_hints` + traversal/CMDI + webshell 경계 중첩 | `/cmd.php?cmd=id`, `/shell.php?exec=whoami` | 중간~높음 | 낮음~중간 | 높음 | 별도 검토 |
+| SSTI / template injection | shared attack hint path, decoded/expression 경계 인접 | `{{7*7}}`, `${7*7}`, `<%= 7*7 %>`, `#{7*7}` | 중간~높음 | 중간 | 높음 | 3순위(1차 완료) |
+| XXE / XML parser abuse | shared attack hint path, SSRF/file disclosure 경계 인접 | `<!DOCTYPE`, `<!ENTITY`, `SYSTEM "file://..."` | 중간 | 중간~높음 | 높음 | 다음 후보 |
+| API key / secret token probe | file disclosure/sensitive path/shared policy 인접 | `api_key=`, `access_token=`, `token=`, `secret=`, `.env`, `/config` | 높음 | 중간 | 높음 | 다음 후보 |
+| Webshell command query endpoint | `l3_hints` + traversal/CMDI + webshell 경계 중첩 | `/cmd.php?cmd=id`, `/shell.php?exec=whoami` | 중간~높음 | 낮음~중간 | 높음 | 다음 후보(별도 검토) |
 
 ## 6. 후보별 상세 검토
 
@@ -216,8 +220,8 @@ fixture 아이디어:
 
 추천:
 
-- 3순위 후보
-- 기존 L3 힌트와 연결 가능하나 execution 성공 단정 위험이 높음
+- 1차 regression 완료
+- 기존 L3 힌트와 연결 가능하고 Apache logs-only 경계/wording guard를 고정한 상태로 유지
 
 ### 6.4 XXE / XML parser abuse attempt
 
@@ -292,10 +296,13 @@ fixture 아이디어:
 
 - GraphQL / API introspection attempt
 - Open redirect / redirect abuse attempt
+- SSTI / template injection
 
 다음 후보:
 
-- SSTI / template injection
+- XXE / XML parser abuse attempt
+- API key / secret token probe
+- Webshell command query endpoint
 
 보수적/별도 검토 후보:
 
@@ -305,9 +312,9 @@ fixture 아이디어:
 
 ## 8. 팀원 검토 요청 포인트
 
-- SSTI를 다음 후보로 진행할 때 expression family false positive 경계를 어떻게 고정할지
-- XXE를 SSTI 이후 보수 후보로 유지하는 우선순위가 적절한지
-- Webshell command query를 지금 진행하면 command execution 단정 위험이 커지는지
+- XXE를 다음 후보로 진행할 때 raw POST body 가시성 한계를 어떻게 다룰지
+- API key / secret token probe에서 false positive 억제 경계를 어떻게 고정할지
+- Webshell command query를 진행할 때 traversal/CMDI 경계를 어떻게 분리할지
 - Stage2 lint/QA에서 추가로 금지해야 할 wording risk가 있는지
 
 ## 9. 다음 문서 후보
@@ -321,8 +328,8 @@ fixture 아이디어:
 
 ## 10. 결론
 
-- GraphQL / API introspection attempt와 Open redirect / redirect abuse attempt 1차 regression은 완료되었다.
-- GraphQL과 Open redirect는 완료된 P2 coverage로 이동한다.
-- 다음 실제 후보는 SSTI / template injection으로 유지한다.
+- GraphQL / API introspection attempt, Open redirect / redirect abuse attempt, SSTI / template injection 1차 regression은 완료되었다.
+- GraphQL, Open redirect, SSTI는 완료된 P2 coverage로 이동한다.
+- 다음 실제 후보는 XXE / API key / Webshell command query 중에서 선택한다.
 - Webshell command query는 traversal/CMDI와 의미 경계가 민감하므로 별도 검토를 유지한다.
 - XXE와 API key/secret token probe는 Apache logs-only 가시성과 false positive 위험 때문에 보수적으로 유지한다.

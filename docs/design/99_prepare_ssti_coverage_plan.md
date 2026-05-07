@@ -1,6 +1,6 @@
 # 99_prepare_ssti_coverage_plan
 
-- 문서 상태: SSTI / template injection coverage plan
+- 문서 상태: SSTI / template injection coverage plan (1차 regression 반영 완료)
 - 기준 시점: 2026-05-07
 - 목적: P2 다음 coverage 후보인 SSTI / template injection 계열을 검토하고, Apache logs-only evidence boundary를 먼저 고정한 뒤 fixture/regression 추가 여부를 판단한다.
 
@@ -52,7 +52,7 @@ grep -RIn "ssti\|template\|{{\|<%=\|#{\|\${.*7.*7" src tests docs
 기존 fixture 관계:
 
 - `tests/fixtures/prepare_regression/l3_ssti_webshell_context.json`는 SSTI(`{{7*7}}`)와 webshell command query(`/upload/shell.php?cmd=id`)가 결합된 복합 케이스다.
-- SSTI 단독 template-expression family를 분리 검증하는 fixture는 아직 없다.
+- `l3_ssti_template_expression_context`가 추가되어 SSTI 단독 template-expression family 1차 회귀 경계가 고정되었다.
 
 현재 regression 상태:
 
@@ -62,8 +62,9 @@ grep -RIn "ssti\|template\|{{\|<%=\|#{\|\${.*7.*7" src tests docs
   - `l3_webshell_admin_tool_probe_context`
   - `l3_graphql_introspection_context`
   - `l3_open_redirect_external_url_context`
-- prepare regression `pass=23 warn=0 fail=0`
-- stage dry-run regression `pass=17 warn=0 fail=0`
+  - `l3_ssti_template_expression_context`
+- prepare regression `pass=24 warn=0 fail=0`
+- stage dry-run regression `pass=18 warn=0 fail=0`
 - Stage2 report quality tests `14 passed`
 
 ## 3. 관찰 가능한 signal
@@ -139,9 +140,7 @@ context-only 또는 benign/search baseline 우선 조건:
 - search-like 텍스트는 educational/benign baseline과 분리해 과승격을 억제한다.
 ```
 
-## 7. Fixture/regression 아이디어
-
-이번 문서에서는 fixture를 추가하지 않는다. 후보 설계만 고정한다.
+## 7. Fixture/regression 반영
 
 후보 fixture:
 
@@ -205,7 +204,7 @@ python -m pytest tests/test_stage2_report_quality.py
 
 ## 11. 결론
 
-- SSTI / template injection은 Open redirect 다음 P2 coverage 후보로 유지한다.
-- 기존 `l3_ssti_webshell_context`는 복합 케이스이므로 SSTI 단독 family 경계를 고정하려면 별도 fixture(`l3_ssti_template_expression_context`)가 유효하다.
-- 바로 구현하기보다 fixture plan을 한 번 더 분리해 benign search baseline 경계와 wording guard를 먼저 고정하는 경로가 안전하다.
-- 우선순위는 SSTI를 먼저 검토하고, XXE/API key/Webshell command query는 보수적/별도 검토 후보로 유지한다.
+- `l3_ssti_template_expression_context` 기준 SSTI / template injection 1차 regression은 완료되었다.
+- 기존 `l3_ssti_webshell_context`와 분리된 SSTI 단독 family 경계가 fixture/expected에 고정되었다.
+- template execution, expression evaluated, RCE 단정 금지 원칙은 유지한다.
+- 다음 후보는 XXE / API key / Webshell command query 중에서 선택한다.

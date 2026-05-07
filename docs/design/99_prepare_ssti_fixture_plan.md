@@ -1,6 +1,6 @@
 # 99_prepare_ssti_fixture_plan
 
-- 문서 상태: SSTI / template injection fixture plan
+- 문서 상태: SSTI / template injection fixture plan (1차 regression 반영 완료)
 - 기준 시점: 2026-05-07
 - 목적: SSTI / template injection coverage를 실제 fixture/regression 후보로 좁히고, Apache logs-only evidence boundary를 유지한 채 추가 여부를 판단한다.
 
@@ -26,7 +26,7 @@ grep -RIn "ssti\|template\|{{\|<%=\|#{\|\${.*7.*7" src tests docs
 - l3_hints.py에 SSTI 관련 hint detector(detect_ssti_hints)와 educational search detector가 이미 존재한다.
 - prepare_llm_input.py에는 SSTI score/hint 연동과 educational_ssti_context 기반 false-positive 완화가 존재한다.
 - 기존 fixture/expected에는 l3_ssti_webshell_context가 있어 SSTI+webshell 복합 케이스는 이미 커버된다.
-- 이번 문서는 fixture plan 작성만 수행하며 fixture/expected/code는 수정하지 않는다.
+- `l3_ssti_template_expression_context` fixture/expected가 추가되어 SSTI 단독 family 1차 regression이 반영되었다.
 ```
 
 ## 1. 목적
@@ -46,20 +46,21 @@ SSTI 관련 hint 존재 여부:
 기존 fixture와의 관계:
 
 - `tests/fixtures/prepare_regression/l3_ssti_webshell_context.json`는 `{{7*7}}`와 `/upload/shell.php?cmd=id`가 함께 있는 복합 케이스다.
-- 따라서 SSTI 단독 payload family를 분리 평가하는 독립 fixture는 아직 부족하다.
+- SSTI 단독 payload family를 분리 평가하는 독립 fixture `l3_ssti_template_expression_context`가 추가되었다.
 
 이미 있는 coverage vs 부족한 coverage:
 
 - 이미 있는 coverage:
   - 복합 고신호(SSTI + webshell command query)에서 candidate/hint 보존 확인
+  - SSTI 단독 family(`l3_ssti_template_expression_context`)에서 arithmetic/object probe candidate/hint 보존 확인
 - 부족한 coverage:
-  - arithmetic/object 계열 SSTI payload만 따로 분리한 candidate/context 경계
-  - benign template/search baseline 과승격 방지 경계
+  - 추가 SSTI 변형 payload 확장 여부
+  - 후순위 benign-only fixture(`ssti_benign_template_search_context`) 독립 분리 필요성
 
 현재 regression 기준:
 
-- prepare regression `pass=23 warn=0 fail=0`
-- stage dry-run regression `pass=17 warn=0 fail=0`
+- prepare regression `pass=24 warn=0 fail=0`
+- stage dry-run regression `pass=18 warn=0 fail=0`
 - Stage2 report quality tests `14 passed`
 
 ## 3. fixture 후보
@@ -144,11 +145,11 @@ context-only 또는 benign/search baseline 우선 조건:
 
 추천:
 
-- `l3_ssti_template_expression_context`
+- `l3_ssti_template_expression_context` (완료)
 
 후순위:
 
-- `ssti_benign_template_search_context`
+- `ssti_benign_template_search_context` (필요 시 선택 후보)
 
 ## 9. 금지 wording
 
@@ -182,7 +183,7 @@ python -m pytest tests/test_stage2_report_quality.py
 
 - 첫 구현 후보는 `l3_ssti_template_expression_context`로 두는 것이 적절하다.
 - fixture 추가 전 확인할 것:
-  - 기존 `l3_ssti_webshell_context`와 중복되지 않는 독립 SSTI 샘플인지
+  - 기존 `l3_ssti_webshell_context`와 중복되지 않는 독립 SSTI family 경계가 유지되는지
   - benign template/search baseline 과승격 방지 조건이 expected에 충분히 반영되는지
   - success 단정 금지 wording과 Apache logs-only 경계가 유지되는지
   - stage dry-run input에서도 candidate/context가 일관되게 보존되는지
