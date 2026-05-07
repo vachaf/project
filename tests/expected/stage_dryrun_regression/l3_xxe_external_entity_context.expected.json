@@ -1,0 +1,162 @@
+{
+  "description": "Stage dry-run should preserve XXE-like external entity marker candidates while avoiding entity resolution/file read/SSRF success assertions beyond Apache log evidence.",
+  "MUST": [
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-xxe-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "l3:xxe_probe",
+      "message": "stage1 payload keeps XXE L3 hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-xxe-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "xxe:file_uri_target",
+      "message": "stage1 payload keeps file URI XXE hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-xxe-2"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "xxe:external_entity_url",
+      "message": "stage1 payload keeps external-entity URL hint"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-xxe-1"
+      },
+      "field": "request_id",
+      "equals": "l3-xxe-1",
+      "message": "stage2 report input keeps file URI probe"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-xxe-2"
+      },
+      "field": "request_id",
+      "equals": "l3-xxe-2",
+      "message": "stage2 report input keeps external entity URL probe"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-xxe-3"
+      },
+      "field": "request_id",
+      "equals": "l3-xxe-3",
+      "message": "stage2 report input keeps external DTD probe"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_report_input",
+      "path": "policy_notes.sensitive_path_probe_summary_policy.success_rule",
+      "contains": "status_code, response_body_bytes, content_type",
+      "message": "policy notes preserve Apache logs-only success boundary"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "list_any_equals",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-xxe-benign-endpoint-1"
+      },
+      "field": "request_id",
+      "equals": "l3-xxe-benign-endpoint-1",
+      "message": "stage1 payload must not promote plain /xml endpoint baseline"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-xxe-benign-baseline-2"
+      },
+      "field": "request_id",
+      "equals": "l3-xxe-benign-baseline-2",
+      "message": "stage1 payload must not promote doctype search baseline"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "XXE succeeded",
+      "message": "markdown must not assert XXE success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "external entity resolved",
+      "message": "markdown must not assert entity resolution"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "file read succeeded",
+      "message": "markdown must not assert file read success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "/etc/passwd returned",
+      "message": "markdown must not assert /etc/passwd return"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "SSRF succeeded",
+      "message": "markdown must not assert SSRF success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "XML parser vulnerable",
+      "message": "markdown must not assert parser vulnerability"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "response body contained file contents",
+      "message": "markdown must not assert response-body file content visibility"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "internal request success",
+      "message": "markdown must not assert internal request success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "credential theft",
+      "message": "markdown must not assert credential theft"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "server compromised",
+      "message": "markdown must not assert server compromise"
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "description": "XXE-like external entity markers in query/path should be preserved as candidates while xml endpoint/search/static baselines remain filtered or context-only.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-1"
+      },
+      "message": "doctype/entity file-uri probe candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-2"
+      },
+      "message": "external-entity URL probe candidate preserved"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-3"
+      },
+      "message": "doctype external DTD probe candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-1"
+      },
+      "field": "reason_hints",
+      "contains": "l3:xxe_probe",
+      "message": "candidate keeps XXE L3 hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-1"
+      },
+      "field": "reason_hints",
+      "contains": "xxe:doctype_marker",
+      "message": "doctype marker hint is preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-1"
+      },
+      "field": "reason_hints",
+      "contains": "xxe:file_uri_target",
+      "message": "file URI marker hint is preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-2"
+      },
+      "field": "reason_hints",
+      "contains": "xxe:external_entity_url",
+      "message": "external-entity URL hint is preserved"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-xxe-benign-endpoint-1"
+      },
+      "message": "plain /xml endpoint baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-xxe-benign-endpoint-2"
+      },
+      "message": "plain /api/xml endpoint baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-xxe-benign-endpoint-3"
+      },
+      "message": "plain /soap endpoint baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-xxe-benign-baseline-1"
+      },
+      "message": "xml docs baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-xxe-benign-baseline-2"
+      },
+      "message": "doctype search baseline retained as context or filtered"
+    },
+    {
+      "op": "exists_in_any",
+      "collections": [
+        "filtered_out",
+        "supporting_events"
+      ],
+      "where": {
+        "request_id": "l3-xxe-benign-baseline-3"
+      },
+      "message": "feed.xml baseline retained as context or filtered"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-benign-endpoint-1"
+      },
+      "message": "plain /xml endpoint baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-benign-endpoint-2"
+      },
+      "message": "plain /api/xml endpoint baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-benign-endpoint-3"
+      },
+      "message": "plain /soap endpoint baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-benign-baseline-1"
+      },
+      "message": "xml docs baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-benign-baseline-2"
+      },
+      "message": "doctype search baseline must not be promoted"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-xxe-benign-baseline-3"
+      },
+      "message": "feed.xml baseline must not be promoted"
+    }
+  ],
+  "SHOULD": [
+    {
+      "op": "collection_count_by_where_at_least",
+      "collection": "analysis_candidates",
+      "where": {
+        "reason_hints__contains": "xxe:"
+      },
+      "value": 3,
+      "message": "all three XXE probes carry xxe hint family"
+    }
+  ]
+}

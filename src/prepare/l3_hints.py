@@ -33,6 +33,12 @@ GRAPHQL_INTROSPECTION_SCHEMA_RE = re.compile(r"(?i)(?:^|[^\w])__schema(?:[^\w]|$
 GRAPHQL_INTROSPECTION_TYPE_RE = re.compile(r"(?i)(?:^|[^\w])__type(?:[^\w]|$)")
 GRAPHQL_INTROSPECTION_QUERY_RE = re.compile(r"(?i)(?:^|[^\w])IntrospectionQuery(?:[^\w]|$)")
 GRAPHQL_ENDPOINT_PATH_HINTS = ("/graphql", "/api/graphql")
+XXE_DOCTYPE_RE = re.compile(r"(?i)<!\s*doctype\b")
+XXE_ENTITY_RE = re.compile(r"(?i)<!\s*entity\b")
+XXE_SYSTEM_RE = re.compile(r"(?i)\bsystem\s*['\"]")
+XXE_FILE_URI_RE = re.compile(r"(?i)file\s*:///?")
+XXE_EXTERNAL_ENTITY_HTTP_RE = re.compile(r"(?i)\bsystem\s*['\"]\s*https?://[^'\"\s>]+")
+XXE_XML_ENDPOINT_PATH_HINTS = ("/xml", "/api/xml", "/soap")
 EDUCATIONAL_SSTI_SEARCH_TERMS = (
     "how to",
     "tutorial",
@@ -70,6 +76,7 @@ __all__ = [
     "detect_open_redirect_hints",
     "detect_ssrf_hints",
     "detect_ssti_hints",
+    "detect_xxe_hints",
     "detect_webshell_hints",
     "extract_query_pairs_from_variants",
 ]
@@ -384,6 +391,44 @@ def detect_graphql_introspection_hints(
         _append_unique_hint(hints, "graphql:__type_marker")
     if has_introspection_query:
         _append_unique_hint(hints, "graphql:introspection_query_name")
+    return score_boost, hints
+
+
+def detect_xxe_hints(
+    request_path: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    hints: List[str] = []
+    score_boost = 0
+    samples = _unique_non_empty_texts(
+        [_raw_text(item.get("text")) for item in query_variants + raw_request_target_variants]
+    )
+    if not samples:
+        return 0, []
+
+    has_doctype = any(XXE_DOCTYPE_RE.search(sample) for sample in samples)
+    has_entity = any(XXE_ENTITY_RE.search(sample) for sample in samples)
+    if not (has_doctype or has_entity):
+        return 0, []
+
+    score_boost += 4
+    _append_unique_hint(hints, "l3:xxe_probe")
+    _append_unique_hint(hints, "xxe:external_entity_marker")
+    if has_doctype:
+        _append_unique_hint(hints, "xxe:doctype_marker")
+    if has_entity:
+        _append_unique_hint(hints, "xxe:entity_marker")
+    if any(XXE_SYSTEM_RE.search(sample) for sample in samples):
+        _append_unique_hint(hints, "xxe:system_identifier")
+    if any(XXE_FILE_URI_RE.search(sample) for sample in samples):
+        _append_unique_hint(hints, "xxe:file_uri_target")
+    if any(XXE_EXTERNAL_ENTITY_HTTP_RE.search(sample) for sample in samples):
+        _append_unique_hint(hints, "xxe:external_entity_url")
+
+    normalized_path = _normalize_text(request_path).lower()
+    if normalized_path and any(normalized_path.startswith(prefix) for prefix in XXE_XML_ENDPOINT_PATH_HINTS):
+        _append_unique_hint(hints, "xxe:xml_endpoint_probe")
     return score_boost, hints
 
 

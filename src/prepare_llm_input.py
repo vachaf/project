@@ -55,6 +55,7 @@ try:
         detect_open_redirect_hints as _detect_open_redirect_hints,
         detect_ssrf_hints as _detect_ssrf_hints,
         detect_ssti_hints as _detect_ssti_hints,
+        detect_xxe_hints as _detect_xxe_hints,
         detect_webshell_hints as _detect_webshell_hints,
         extract_query_pairs_from_variants as _extract_query_pairs_from_variants,
     )
@@ -191,6 +192,7 @@ except ImportError:
         detect_open_redirect_hints as _detect_open_redirect_hints,
         detect_ssrf_hints as _detect_ssrf_hints,
         detect_ssti_hints as _detect_ssti_hints,
+        detect_xxe_hints as _detect_xxe_hints,
         detect_webshell_hints as _detect_webshell_hints,
         extract_query_pairs_from_variants as _extract_query_pairs_from_variants,
     )
@@ -485,6 +487,7 @@ STRONG_ATTACK_HINT_PREFIXES = (
     "ssrf:",
     "open_redirect:",
     "ssti:",
+    "xxe:",
     "webshell:",
 )
 STRONG_ATTACK_HINTS = {
@@ -620,6 +623,16 @@ def detect_graphql_introspection_hints(
 ) -> Tuple[int, List[str]]:
     request_path = get_effective_request_path(uri, raw_request_target)
     return _detect_graphql_introspection_hints(request_path, query_variants, raw_request_target_variants)
+
+
+def detect_xxe_hints(
+    uri: str,
+    raw_request_target: str,
+    query_variants: List[Dict[str, Any]],
+    raw_request_target_variants: List[Dict[str, Any]],
+) -> Tuple[int, List[str]]:
+    request_path = get_effective_request_path(uri, raw_request_target)
+    return _detect_xxe_hints(request_path, query_variants, raw_request_target_variants)
 
 
 def classify_webshell_path(path: str) -> List[str]:
@@ -1369,6 +1382,13 @@ def build_row_context_reason_hints(row: Dict[str, Any]) -> List[str]:
         raw_request_target_variants=raw_request_target_variants,
     )
     extend_unique_hints(reason_hints, graphql_hints)
+    _, xxe_hints = detect_xxe_hints(
+        uri=uri,
+        raw_request_target=raw_request_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    extend_unique_hints(reason_hints, xxe_hints)
     _, webshell_hints = detect_webshell_hints(
         uri=uri,
         raw_request_target=raw_request_target,
@@ -1429,6 +1449,8 @@ def get_attack_categories_from_reason_hints(reason_hints: Iterable[str]) -> List
             append_unique_hint(categories, "ssti")
         elif normalized.startswith("graphql:") or normalized == "l3:graphql_introspection":
             append_unique_hint(categories, "graphql_introspection")
+        elif normalized.startswith("xxe:") or normalized == "l3:xxe_probe":
+            append_unique_hint(categories, "xxe")
         elif normalized.startswith("webshell:") or normalized == "l3:webshell_probe":
             append_unique_hint(categories, "webshell")
     return categories
@@ -3464,6 +3486,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     open_redirect_score_boost = 0
     ssti_score_boost = 0
     graphql_score_boost = 0
+    xxe_score_boost = 0
     webshell_score_boost = 0
 
     for name, pattern, points in SQLI_PATTERNS:
@@ -3553,6 +3576,15 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     if graphql_score_boost > 0:
         score += graphql_score_boost
     extend_unique_hints(reason_hints, graphql_hints)
+    xxe_score_boost, xxe_hints = detect_xxe_hints(
+        uri=uri,
+        raw_request_target=raw_request_target,
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    if xxe_score_boost > 0:
+        score += xxe_score_boost
+    extend_unique_hints(reason_hints, xxe_hints)
     webshell_score_boost, webshell_hints = detect_webshell_hints(
         uri=uri,
         raw_request_target=raw_request_target,
