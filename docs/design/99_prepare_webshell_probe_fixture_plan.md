@@ -165,7 +165,7 @@ fixture family별 최소 체크:
 
 추천:
 
-- `l3_webshell_admin_tool_probe_context`
+- `l3_webshell_admin_tool_probe_context` (완료)
 
 후순위:
 
@@ -175,6 +175,7 @@ fixture family별 최소 체크:
 
 - 현재 부족 구간이 admin tool family(`phpunit`, `cgi-bin`)라서 1차 후보로 적합
 - command-query 계열은 기존 `l3_ssti_webshell_context`와 일부 중복되어 2차 분리 후보로 적합
+- command-like query는 traversal/CMDI와 의미 경계가 더 민감하므로 별도 경계 검토 후 진행이 안전함
 
 ## 9. 금지 wording
 
@@ -208,9 +209,11 @@ python -m pytest tests/test_stage2_report_quality.py
 
 ## 11. 결론
 
-- 첫 구현 후보는 `l3_webshell_admin_tool_probe_context`로 두는 것이 적절하다.
+- 권장 1차 후보였던 `l3_webshell_admin_tool_probe_context`는 완료되었다.
+- 구성된 fixture는 direct webshell path(`/wso.php`, `/c99.php`) + admin tool probe(`/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php`) + benign baseline(`/admin/help`, `/static/shell-icon.png`)를 포함한다.
+- expected 고정 기준(후보 3건 보존, benign 과승격 억제, Stage1/Stage2 입력 힌트 보존, success wording 금지)을 만족하는 회귀 케이스로 유지한다.
 - fixture 추가 전 확인할 것:
   - existing `l3_ssti_webshell_context`와 중복되지 않는 최소 샘플 구성
   - benign baseline 동시 배치로 과승격 억제 검증
   - Stage2 wording에서 성공 단정 금지 표현 유지
-- 코드 수정은 다음 작업으로 분리하고, 이번 문서는 fixture/regression 설계 기준 고정으로 마감한다.
+- 다음 구현 후보는 `l3_webshell_command_query_context`를 유지하되 traversal/CMDI 경계 검토 후 진행한다.

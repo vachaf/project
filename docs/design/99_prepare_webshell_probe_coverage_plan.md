@@ -68,8 +68,8 @@ grep -RIn "sensitive_path_probe\|file_disclosure\|traversal_cmdi\|mixed_baseline
 현재 regression 상태 요약:
 
 ```text
-- prepare regression pass=20 warn=0 fail=0
-- stage dry-run regression pass=14 warn=0 fail=0
+- prepare regression pass=21 warn=0 fail=0
+- stage dry-run regression pass=15 warn=0 fail=0
 - Stage2 quality tests 14 passed
 ```
 
@@ -223,13 +223,14 @@ expected 확인 포인트:
 
 권장 후보(이름 제안):
 
-- `l3_webshell_admin_tool_probe_context`
+- `l3_webshell_admin_tool_probe_context` (1차 regression 완료)
 - `l3_webshell_command_query_context`
 
 메모:
 
 - 기존 naming convention(`l3_<family>_<focus>_context`)에 맞춘 이름이다.
 - 대안으로 `webshell_admin_tool_probe_context`, `webshell_command_query_context`도 가능하나 기존 `l3_*_context`와 맞추는 쪽이 일관성이 높다.
+- 완료된 1차 회귀는 path-only admin/webshell probe(`/wso.php`, `/c99.php`, `/vendor/phpunit/.../eval-stdin.php`)와 benign baseline(`/admin/help`, `/static/shell-icon.png`)을 함께 고정했다.
 
 ## 11. 검증 기준
 
@@ -247,7 +248,7 @@ python -m pytest tests/test_stage2_report_quality.py
 
 ## 12. 결론
 
-- Webshell/admin tool probe는 단기 P1 후보로 유지할 가치가 있다.
-- 다만 Apache logs-only 경계를 먼저 고정하고, fixture/expected 설계를 한 번 더 확정한 뒤 구현에 들어가는 순서가 안전하다.
-- 즉시 구현보다 fixture plan 보강 1회가 우선이다.
-- 우선순위는 SSRF/Log4Shell과 병행 가능한 P1 축으로 정리하되, 현재 안정 regression을 흔들지 않는 최소 범위로 진행한다.
+- path-only admin/webshell probe 1차 regression(`l3_webshell_admin_tool_probe_context`)은 완료되었다.
+- Apache logs-only 경계와 success wording 금지 원칙은 유지한다.
+- 남은 Webshell 계열 후보는 command-like query endpoint coverage(`l3_webshell_command_query_context`)로 정리한다.
+- command-like query는 traversal/CMDI 의미 경계 검토를 선행한 뒤 진행한다.
