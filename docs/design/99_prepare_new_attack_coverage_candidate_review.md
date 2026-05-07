@@ -13,6 +13,8 @@
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_hints_split_candidate_review.md](./99_prepare_hints_split_candidate_review.md)
 - [99_prepare_shared_attack_policy_boundary_review.md](./99_prepare_shared_attack_policy_boundary_review.md)
+- [99_prepare_api_key_secret_probe_coverage_plan.md](./99_prepare_api_key_secret_probe_coverage_plan.md)
+- [99_prepare_webshell_command_query_coverage_plan.md](./99_prepare_webshell_command_query_coverage_plan.md)
 - [../../src/prepare/README.md](../../src/prepare/README.md)
 - [../planning/99_비교실험_후속개선_TODO.md](../planning/99_비교실험_후속개선_TODO.md)
 - [../진행상황.md](../진행상황.md)
@@ -73,7 +75,8 @@ prepare 계열은 현재 stable 상태이며, 추가 split보다 coverage candid
 - `l3_open_redirect_external_url_context` 1차 regression을 완료
 - `l3_ssti_template_expression_context` 1차 regression을 완료
 - `l3_xxe_external_entity_context` 1차 regression을 완료
-- 다음 분기는 API key / Webshell command query 후보 검토를 병행
+- 다음 분기 후보였던 API key / secret token probe, Webshell command query endpoint는 coverage plan 작성까지 완료
+- 두 후보는 regression 완료 상태가 아니며 false positive/경계 민감도로 보수 검토를 유지
 ```
 
 신규 coverage 완료 목록:
@@ -835,9 +838,9 @@ roadmap 원칙:
 
 추천:
 
-- SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe, GraphQL introspection, Open redirect external URL context, SSTI template expression, XXE external entity marker 1차 regression 완료 이후 다음 실행 후보는 API key / Webshell command query 중에서 선택한다.
-- Webshell command query는 traversal/CMDI 의미 경계 검토를 선행하는 별도 후보로 유지한다.
-- API key probe는 중기 보수 후보(P2)로 유지한다.
+- SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe, GraphQL introspection, Open redirect external URL context, SSTI template expression, XXE external entity marker 1차 regression 완료 상태를 유지한다.
+- API key / secret token probe, Webshell command query endpoint는 coverage plan 작성 완료 상태로 관리한다.
+- 두 후보는 regression 미완료 상태이며, API key는 false positive 위험, Webshell command query는 traversal/CMDI 경계 민감도로 별도 fixture plan 또는 보수 진행 판단을 선행한다.
 
 문서 후보:
 
@@ -861,8 +864,8 @@ roadmap 원칙:
 ```text
 - 추가 prepare split보다 새 공격 coverage 후보 검토가 더 생산적
 - SSRF metadata endpoint, Log4Shell obfuscated payload, Webshell/admin tool probe, GraphQL introspection, Open redirect external URL context, SSTI template expression, XXE external entity marker 1차 regression은 완료
-- 다음 분기는 API key / Webshell command query 후보를 검토하고, Webshell command query(`l3_webshell_command_query_context`)는 별도 경계 검토 후 진행 여부를 판단
-- API key probe는 보수 후보로 유지
+- 다음 분기에서는 API key / secret token fixture plan과 Webshell command query fixture plan 중 우선순위를 정하거나, 신규 coverage round summary를 먼저 마감하는 선택지를 둔다.
+- 신규 coverage regression 완료 목록은 기존 7개(`l3_ssrf_metadata_endpoint_context`, `l3_log4shell_obfuscated_payload_context`, `l3_webshell_admin_tool_probe_context`, `l3_graphql_introspection_context`, `l3_open_redirect_external_url_context`, `l3_ssti_template_expression_context`, `l3_xxe_external_entity_context`)로 유지한다.
 - 장기적으로 모든 후보를 순차 대응하되, Apache logs-only boundary를 먼저 문서화
 - 구현은 fixture/regression 설계 후 진행
 ```

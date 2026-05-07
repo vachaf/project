@@ -75,9 +75,13 @@
   - [x] XXE / XML parser abuse attempt 1차 regression 완료(`l3_xxe_external_entity_context`)
   - [x] XXE는 `src/prepare/l3_hints.py` 최소 보강(`detect_xxe_hints`) + `src/prepare_llm_input.py` 최소 연동으로 DOCTYPE/ENTITY/SYSTEM/file:// 및 external entity URL marker를 보존하고, raw POST body 비가시성 전제를 유지
 - 남은 TODO:
-  - [ ] 다음 순번: API key / secret token probe, Webshell command query endpoint 중 다음 후보 선택
-  - [ ] Webshell command query는 traversal/CMDI 의미 경계가 더 민감하므로 별도 경계 검토 후 진행
-  - [ ] API key / secret token probe는 false positive 위험 때문에 보수 후보로 계속 유지
+  - [x] API key / secret token probe coverage plan 작성 완료(`docs/design/99_prepare_api_key_secret_probe_coverage_plan.md`)
+  - [x] Webshell command query endpoint coverage plan 작성 완료(`docs/design/99_prepare_webshell_command_query_coverage_plan.md`)
+  - [ ] API key / secret token probe는 false positive 위험 때문에 fixture/regression은 보류하거나 별도 fixture plan을 먼저 작성
+  - [ ] Webshell command query endpoint는 traversal/CMDI 경계 민감도로 별도 fixture plan을 먼저 작성
+  - [ ] 다음 작업 선택 A: API key / secret token fixture plan 작성
+  - [ ] 다음 작업 선택 B: Webshell command query fixture plan 작성
+  - [ ] 다음 작업 선택 C: 신규 coverage round summary 작성 후 라운드 마감
   - [ ] Open redirect 추가 보강은 필요 시 선택 후보로만 유지
   - [ ] Apache logs-only evidence boundary 유지
   - [ ] traversal/CMDI 보강과 file disclosure 보강을 기존 module 확장 후보로 계속 관리

@@ -3,7 +3,7 @@
 - 문서 상태: P2 후보 비교 문서
 - 기준 시점: 2026-05-07
 - 목적: P1 신규 coverage 이후 다음 후보를 선택하기 위한 판단 기준을 고정한다.
-- 상단 결론: GraphQL / API introspection attempt, Open redirect / redirect abuse attempt, SSTI / template injection, XXE / XML parser abuse attempt는 1차 regression 완료. 다음 후보는 API key / Webshell command query다.
+- 상단 결론: GraphQL / API introspection attempt, Open redirect / redirect abuse attempt, SSTI / template injection, XXE / XML parser abuse attempt는 1차 regression 완료. API key / secret token probe와 Webshell command query endpoint는 coverage plan 작성 완료 상태이며, regression은 보수적으로 별도 fixture plan 후보로 유지한다.
 
 관련 문서:
 
@@ -12,6 +12,8 @@
 - [99_prepare_ssrf_log4shell_fixture_plan.md](./99_prepare_ssrf_log4shell_fixture_plan.md)
 - [99_prepare_webshell_probe_coverage_plan.md](./99_prepare_webshell_probe_coverage_plan.md)
 - [99_prepare_webshell_probe_fixture_plan.md](./99_prepare_webshell_probe_fixture_plan.md)
+- [99_prepare_api_key_secret_probe_coverage_plan.md](./99_prepare_api_key_secret_probe_coverage_plan.md)
+- [99_prepare_webshell_command_query_coverage_plan.md](./99_prepare_webshell_command_query_coverage_plan.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_deferred_split_items.md](./99_prepare_deferred_split_items.md)
 - [../../src/prepare/README.md](../../src/prepare/README.md)
@@ -133,7 +135,7 @@ Apache access logs만으로 볼 수 없는 것:
 | SSTI / template injection | shared attack hint path, decoded/expression 경계 인접 | `{{7*7}}`, `${7*7}`, `<%= 7*7 %>`, `#{7*7}` | 중간~높음 | 중간 | 높음 | 3순위(1차 완료) |
 | XXE / XML parser abuse | shared attack hint path, SSRF/file disclosure 경계 인접 | `<!DOCTYPE`, `<!ENTITY`, `SYSTEM "file://..."` | 중간 | 중간~높음 | 높음 | 4순위(1차 완료) |
 | API key / secret token probe | file disclosure/sensitive path/shared policy 인접 | `api_key=`, `access_token=`, `token=`, `secret=`, `.env`, `/config` | 높음 | 중간 | 높음 | 다음 후보 |
-| Webshell command query endpoint | `l3_hints` + traversal/CMDI + webshell 경계 중첩 | `/cmd.php?cmd=id`, `/shell.php?exec=whoami` | 중간~높음 | 낮음~중간 | 높음 | 다음 후보(별도 검토) |
+| Webshell command query endpoint | `l3_hints` + traversal/CMDI + webshell 경계 중첩 | `/cmd.php?cmd=id`, `/shell.php?exec=whoami` | 중간~높음 | 낮음~중간 | 높음 | coverage plan 완료, 별도 fixture plan 후보 |
 
 ## 6. 후보별 상세 검토
 
@@ -266,8 +268,8 @@ fixture 아이디어:
 
 추천:
 
-- 보수적 후보
-- false positive 위험 높음
+- coverage plan 작성 완료
+- false positive 위험이 높아 regression은 보류/별도 fixture plan 후보로 유지
 
 ### 6.6 Webshell command query endpoint
 
@@ -287,8 +289,8 @@ fixture 아이디어:
 
 추천:
 
-- 별도 검토 후 진행
-- traversal/CMDI와 의미 경계가 민감함
+- coverage plan 작성 완료
+- traversal/CMDI와 의미 경계가 민감해 regression은 보류/별도 fixture plan 후보로 유지
 
 ## 7. 추천 우선순위
 
@@ -317,17 +319,20 @@ fixture 아이디어:
 
 ## 9. 다음 문서 후보
 
-- `docs/design/99_prepare_open_redirect_coverage_plan.md`
-- `docs/design/99_prepare_ssti_coverage_plan.md`
+- `docs/design/99_prepare_api_key_secret_probe_coverage_plan.md` (작성 완료)
+- `docs/design/99_prepare_webshell_command_query_coverage_plan.md` (작성 완료)
 
 별도 검토 후보:
 
-- `docs/design/99_prepare_webshell_command_query_coverage_plan.md`
+- API key / secret token fixture plan(미작성)
+- Webshell command query fixture plan(미작성)
+- `docs/design/99_prepare_api_key_secret_probe_coverage_plan.md`
 
 ## 10. 결론
 
 - GraphQL / API introspection attempt, Open redirect / redirect abuse attempt, SSTI / template injection, XXE / XML parser abuse attempt 1차 regression은 완료되었다.
 - GraphQL, Open redirect, SSTI, XXE는 완료된 P2 coverage로 이동한다.
-- 다음 실제 후보는 API key / Webshell command query 중에서 선택한다.
+- API key / secret token probe와 Webshell command query endpoint는 coverage plan 작성까지 완료되었다.
+- 두 후보는 regression 완료 상태가 아니며, 별도 fixture plan 또는 round summary 판단 이후 진행한다.
 - Webshell command query는 traversal/CMDI와 의미 경계가 민감하므로 별도 검토를 유지한다.
 - API key/secret token probe는 false positive 위험 때문에 보수적으로 유지한다.

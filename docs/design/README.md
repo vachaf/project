@@ -58,6 +58,8 @@
   - [99_prepare_graphql_introspection_fixture_plan.md](./99_prepare_graphql_introspection_fixture_plan.md): GraphQL/API introspection fixture/regression 구성 기준
   - [99_prepare_open_redirect_coverage_plan.md](./99_prepare_open_redirect_coverage_plan.md): redirect-like external URL parameter의 Apache logs-only 경계와 SSRF 구분 검토
   - [99_prepare_open_redirect_fixture_plan.md](./99_prepare_open_redirect_fixture_plan.md): `l3_open_redirect_external_url_context` fixture/regression 후보 설계
+  - [99_prepare_api_key_secret_probe_coverage_plan.md](./99_prepare_api_key_secret_probe_coverage_plan.md): API key/secret token probe 신호의 Apache logs-only 경계와 false positive 위험 검토
+  - [99_prepare_webshell_command_query_coverage_plan.md](./99_prepare_webshell_command_query_coverage_plan.md): webshell path + command-like query 결합 신호와 traversal/CMDI 경계 검토
   - [99_prepare_xxe_coverage_plan.md](./99_prepare_xxe_coverage_plan.md): XML parser abuse/XXE-like marker의 Apache logs-only 경계 검토
   - [99_prepare_xxe_fixture_plan.md](./99_prepare_xxe_fixture_plan.md): `l3_xxe_external_entity_context` fixture/regression 후보 설계
 - Stage2 prompt / report quality
