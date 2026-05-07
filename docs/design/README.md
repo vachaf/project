@@ -28,6 +28,11 @@
   - [99_prepare_ip_behavior_aggregates_split_plan.md](./99_prepare_ip_behavior_aggregates_split_plan.md): IP behavior aggregate split 계획/완료 기록
   - [99_prepare_probing_sequence_split_plan.md](./99_prepare_probing_sequence_split_plan.md): probing sequence summary split 계획/완료 기록
   - [99_prepare_mixed_baseline_scanner_split_plan.md](./99_prepare_mixed_baseline_scanner_split_plan.md): mixed baseline scanner summary split 계획/완료 기록
+- prepare deferred split / re-entry review
+  - [99_prepare_deferred_split_items.md](./99_prepare_deferred_split_items.md): prepare 분리 이후 의도적으로 남겨둔 보류 항목과 재검토 조건
+  - [99_prepare_deferred_split_reentry_review.md](./99_prepare_deferred_split_reentry_review.md): stable 상태에서 deferred split 재진입 여부를 보수적으로 검토한 문서
+  - [99_prepare_shared_attack_policy_reentry_review.md](./99_prepare_shared_attack_policy_reentry_review.md): shared attack/search policy constants 재진입 검토
+  - [99_prepare_search_false_positive_policy_reentry_review.md](./99_prepare_search_false_positive_policy_reentry_review.md): normal search false-positive handling 재진입 검토
 - prepare constants ownership / mini-move
   - [99_prepare_constants_ownership_map.md](./99_prepare_constants_ownership_map.md): prepare constants ownership과 이동 가능성 지도
   - [99_prepare_constants_mini_move_candidate_review.md](./99_prepare_constants_mini_move_candidate_review.md): safe constants mini-move 후보 검토
@@ -47,6 +52,7 @@
   - [99_prepare_traversal_cmdi_hints_split_plan.md](./99_prepare_traversal_cmdi_hints_split_plan.md): traversal/CMDI hint split 계획/완료 기록
   - [99_prepare_attack_hints_shared_policy_candidate_review.md](./99_prepare_attack_hints_shared_policy_candidate_review.md): attack hints와 shared policy 후보 비교
   - [99_prepare_shared_attack_policy_boundary_review.md](./99_prepare_shared_attack_policy_boundary_review.md): automation UA, shared attack/search policy, decoded hints 보류 경계 검토
+  - [99_prepare_new_attack_coverage_candidate_review.md](./99_prepare_new_attack_coverage_candidate_review.md): 새 공격 커버리지 후보와 장기 roadmap 검토
 - Stage2 prompt / report quality
   - [99_stage2_prompt_compaction_plan.md](./99_stage2_prompt_compaction_plan.md): Stage2 report prompt 압축·섹션화 계획/완료 기록
   - [99_stage2_report_quality_lint_candidate_review.md](./99_stage2_report_quality_lint_candidate_review.md): Stage2 report quality lint 후보 검토와 warning-only 도입 기준
@@ -56,6 +62,8 @@
   - [99_web_ui_report_viewer_phase1a_plan.md](./99_web_ui_report_viewer_phase1a_plan.md): Phase 1A report list/detail + Stage2 quality lint display 구현 체크리스트
   - [99_web_ui_report_viewer_phase1a_template_contract.md](./99_web_ui_report_viewer_phase1a_template_contract.md): Phase 1A 템플릿/뷰 컨텍스트 contract
   - [99_web_ui_report_viewer_phase1b_plan.md](./99_web_ui_report_viewer_phase1b_plan.md): Phase 1B compare view 설계와 구현 체크리스트
+  - [99_web_ui_report_viewer_phase2_candidate_review.md](./99_web_ui_report_viewer_phase2_candidate_review.md): read-only viewer 확장과 execution console 확장 후보 비교
+  - [99_web_ui_report_viewer_phase2a_filter_plan.md](./99_web_ui_report_viewer_phase2a_filter_plan.md): Phase 2A read-only filter/search/navigation MVP 설계
   - [99_web_ui_report_viewer_ui_polish_plan.md](./99_web_ui_report_viewer_ui_polish_plan.md): UI polish 우선순위와 프레임워크 보류 기준
 - 설계 결정/해석 한계
   - [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](./99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md): HTML fallback fingerprint 기능 보류 결정

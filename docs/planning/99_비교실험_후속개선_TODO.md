@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-06
+- 기준 시점: 2026-05-07
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 원칙: 완료된 항목은 이 문서에 길게 유지하지 않는다.
 
@@ -12,6 +12,8 @@
 - auth/crawler constants move 및 shared attack/search policy boundary review 완료
 - Stage2 prompt compaction + report quality lint 추가/튜닝 완료(`14 passed`)
 - post-refactor dry-run/actual LLM spot check 완료, 주요 regression 기준 통과(`pass=18`, `pass=12`)
+- prepare deferred split re-entry review / shared attack policy re-entry review / search false-positive re-entry review 완료
+- `docs/design/99_prepare_new_attack_coverage_candidate_review.md` 작성 완료
 - Web UI Phase 1A/1B 핵심 구현 완료(compare view 포함) 및 기본 검증 통과
 - 외부 Phase 1B 실행 가이드 stale/부분 불일치 검토 완료
 - list page partial compare missing provider 1:1 layout, report viewer card/action/header polish 1차 완료
@@ -51,9 +53,19 @@
   - 실제 필요 시점에만 `--kind temp-dryrun`, `--older-than-days` 필터 검토
   - `--apply` 또는 실제 삭제 기능은 별도 승인 전까지 보류
 
-## P4. prepare 모듈 분리(추가 코드 분리 보류)
+## P4. 새 공격/시나리오 coverage 검토
 
-- 보류:
+- 현재 방향:
+  - 추가 prepare split은 당장 진행하지 않음
+  - 다음 작업 후보를 새 공격/시나리오 coverage 검토로 이동
+  - Apache logs-only evidence boundary를 먼저 고정하고 fixture/regression 적합성부터 판단
+- 남은 TODO:
+  - [ ] SSRF/Log4Shell/Webshell 중 1순위 coverage 후보 선택
+  - [ ] 선택 후보에 대한 별도 coverage plan 작성
+  - [ ] fixture/regression 추가 여부 판단
+  - [ ] Apache logs-only evidence boundary 유지
+  - [ ] traversal/CMDI 보강과 file disclosure 보강을 기존 module 확장 후보로 계속 관리
+- deferred split 보류 유지:
   - `AUTOMATION_UA_PATTERNS`
   - `detect_decoded_attack_hints`
   - shared attack/search policy constants
@@ -63,9 +75,7 @@
   - Stage1/Stage2 reporter 구조 변경
   - expected/test fixture 변경
   - `constants.py` 대량 분리
-- 다음 후보:
-  - 추가 코드 분리는 당장 진행하지 않음
-  - 반복 문제 재발 시 report lint, Stage2 wording, 보류 후보를 재검토
+  - 반복 문제 재발 시에만 report lint, Stage2 wording, 보류 후보를 재검토
 
 ## P6. Web UI Phase 2A 후속(남은 작업만 유지)
 
