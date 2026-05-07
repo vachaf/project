@@ -1,0 +1,89 @@
+{
+  "description": "SSRF metadata endpoint attempts should be preserved as candidates while benign external URL baseline stays filtered/context-only.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-metadata-host-1"
+      },
+      "message": "metadata hostname SSRF candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-metadata-host-1"
+      },
+      "field": "reason_hints",
+      "contains": "l3:ssrf",
+      "message": "metadata hostname request has L3 SSRF hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-metadata-host-1"
+      },
+      "field": "reason_hints",
+      "contains": "ssrf:url_parameter",
+      "message": "metadata hostname request has URL parameter SSRF hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-metadata-host-1"
+      },
+      "field": "reason_hints",
+      "contains": "ssrf:cloud_metadata_target",
+      "message": "metadata hostname request has cloud metadata target hint"
+    },
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-metadata-ip-1"
+      },
+      "message": "metadata IP SSRF candidate preserved"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-metadata-ip-1"
+      },
+      "field": "reason_hints",
+      "contains": "ssrf:metadata_ip",
+      "message": "metadata IP request has metadata IP hint"
+    },
+    {
+      "op": "field_contains",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-metadata-ip-1"
+      },
+      "field": "reason_hints",
+      "contains": "ssrf:cloud_metadata_target",
+      "message": "metadata IP request has cloud metadata target hint"
+    },
+    {
+      "op": "exists",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "l3-ssrf-benign-url-1"
+      },
+      "message": "benign external URL baseline remains filtered"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "l3-ssrf-benign-url-1"
+      },
+      "message": "benign external URL baseline must not be promoted as candidate"
+    }
+  ]
+}

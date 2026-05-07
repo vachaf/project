@@ -1,0 +1,103 @@
+{
+  "description": "Stage dry-run should preserve SSRF metadata endpoint context and avoid success assertions.",
+  "MUST": [
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssrf-metadata-host-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "l3:ssrf",
+      "message": "stage1 payload preserves metadata hostname SSRF hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssrf-metadata-host-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "ssrf:cloud_metadata_target",
+      "message": "stage1 payload preserves metadata hostname target hint"
+    },
+    {
+      "op": "list_any_contains",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssrf-metadata-ip-1"
+      },
+      "field": "message_preview.user_payload.candidate.reason_hints",
+      "contains": "ssrf:metadata_ip",
+      "message": "stage1 payload preserves metadata IP hint"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-ssrf-metadata-host-1"
+      },
+      "field": "request_id",
+      "equals": "l3-ssrf-metadata-host-1",
+      "message": "stage2 report input keeps metadata hostname candidate"
+    },
+    {
+      "op": "list_any_equals",
+      "file": "stage2_report_input",
+      "path": "top_incidents",
+      "where": {
+        "request_id": "l3-ssrf-metadata-ip-1"
+      },
+      "field": "request_id",
+      "equals": "l3-ssrf-metadata-ip-1",
+      "message": "stage2 report input keeps metadata IP candidate"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "list_any_equals",
+      "file": "stage1_request_plan",
+      "path": "",
+      "where": {
+        "request_id": "l3-ssrf-benign-url-1"
+      },
+      "field": "request_id",
+      "equals": "l3-ssrf-benign-url-1",
+      "message": "stage1 payload must not promote benign external URL baseline"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "SSRF 성공",
+      "message": "markdown must not assert SSRF success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "metadata credential 탈취",
+      "message": "markdown must not assert metadata credential theft"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "internal access success",
+      "message": "markdown must not assert internal access success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "outbound request success",
+      "message": "markdown must not assert outbound request success"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "server compromise",
+      "message": "markdown must not assert server compromise"
+    }
+  ]
+}
