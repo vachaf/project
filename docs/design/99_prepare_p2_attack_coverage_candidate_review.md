@@ -3,6 +3,7 @@
 - 문서 상태: P2 후보 비교 문서
 - 기준 시점: 2026-05-07
 - 목적: P1 신규 coverage 이후 다음 후보를 선택하기 위한 판단 기준을 고정한다.
+- 상단 결론: GraphQL / API introspection attempt는 1차 regression 완료. 다음 후보는 Open redirect / redirect abuse attempt 또는 SSTI / template injection 중 선택.
 
 관련 문서:
 
@@ -47,9 +48,17 @@ grep -RIn "graphql\|__schema\|__type\|IntrospectionQuery\|redirect=\|next=\|retu
 
 ## 3. P2 후보 목록
 
+완료된 P2 후보:
+
 - GraphQL / API introspection attempt
+
+다음 후보:
+
 - Open redirect / redirect abuse attempt
 - SSTI / template injection
+
+보수적/별도 검토 후보:
+
 - XXE / XML parser abuse attempt
 - API key / secret token probe
 - Webshell command query endpoint
@@ -163,7 +172,7 @@ fixture 아이디어:
 
 추천:
 
-- P2 첫 후보(1차 regression 완료)
+- 1차 regression 완료된 P2 후보로 유지
 
 ### 6.2 Open redirect / redirect abuse attempt
 
@@ -278,27 +287,23 @@ fixture 아이디어:
 
 ## 7. 추천 우선순위
 
-P2-1:
+완료:
 
-- GraphQL / API introspection attempt (1차 regression 완료)
+- GraphQL / API introspection attempt
 
-P2-2:
+다음 후보:
 
 - Open redirect / redirect abuse attempt
-
-P2-3:
-
 - SSTI / template injection
 
-보수적 후보:
+보수적/별도 검토 후보:
 
-- XXE
+- XXE / XML parser abuse attempt
 - API key / secret token probe
 - Webshell command query endpoint
 
 ## 8. 팀원 검토 요청 포인트
 
-- GraphQL introspection attempt가 발표/보고 가치가 있는지
 - Open redirect가 더 실용적인 후보인지
 - SSTI/XXE가 더 흥미롭지만 로그 가시성 한계 때문에 후순위가 맞는지
 - Webshell command query를 지금 진행하면 command execution 단정 위험이 커지는지
@@ -306,15 +311,18 @@ P2-3:
 
 ## 9. 다음 문서 후보
 
-- `docs/design/99_prepare_graphql_introspection_coverage_plan.md`
 - `docs/design/99_prepare_open_redirect_coverage_plan.md`
 - `docs/design/99_prepare_ssti_coverage_plan.md`
+
+별도 검토 후보:
+
 - `docs/design/99_prepare_webshell_command_query_coverage_plan.md`
 
 ## 10. 결론
 
 - GraphQL / API introspection attempt 1차 regression은 완료되었다.
-- 다음 실제 P2 후보는 Open redirect와 SSTI 중 선택한다.
-- Webshell command query는 traversal/CMDI와 의미 경계가 민감하므로 별도 검토 후 진행한다.
-- Open redirect와 SSTI는 다음 우선 후보로 유지한다.
-- XXE와 API key/secret token probe는 Apache logs-only 가시성과 false positive 위험 때문에 더 보수적으로 접근한다.
+- GraphQL은 완료된 P2 coverage로 이동한다.
+- 다음 실제 후보는 Open redirect를 우선 검토하는 흐름이 자연스럽다.
+- SSTI는 Open redirect 다음 후보로 유지한다.
+- Webshell command query는 traversal/CMDI와 의미 경계가 민감하므로 별도 검토를 유지한다.
+- XXE와 API key/secret token probe는 Apache logs-only 가시성과 false positive 위험 때문에 보수적으로 유지한다.
