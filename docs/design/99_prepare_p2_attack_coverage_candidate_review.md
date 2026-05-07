@@ -114,7 +114,7 @@ Apache access logs만으로 볼 수 없는 것:
 | 후보 | 기존 module 관계 | 관찰 가능한 signal | false positive 위험 | fixture 난이도 | Stage2 wording 위험 | 추천 |
 |---|---|---|---|---|---|---|
 | GraphQL / API introspection | shared attack hint path, API endpoint 분류 인접 | `/graphql`, `__schema`, `__type`, `IntrospectionQuery` | 중간 | 낮음~중간 | 중간 | 1순위 |
-| Open redirect / redirect abuse | shared attack/search policy, SSRF parameter family 인접 | `redirect=`, `url=`, `next=`, `return=`, `continue=`, `callback=` | 높음 | 낮음~중간 | 중간~높음 | 2순위 |
+| Open redirect / redirect abuse | shared attack/search policy, SSRF parameter family 인접 | `redirect=`, `url=`, `next=`, `return=`, `continue=` | 높음 | 낮음~중간 | 중간~높음 | 2순위 |
 | SSTI / template injection | shared attack hint path, decoded/expression 경계 인접 | `{{7*7}}`, `${7*7}`, `<%= 7*7 %>`, `#{7*7}` | 중간~높음 | 중간 | 높음 | 3순위 |
 | XXE / XML parser abuse | shared attack hint path, SSRF/file disclosure 경계 인접 | `<!DOCTYPE`, `<!ENTITY`, `SYSTEM "file://..."` | 중간 | 중간~높음 | 높음 | 보수적 후보 |
 | API key / secret token probe | file disclosure/sensitive path/shared policy 인접 | `api_key=`, `access_token=`, `token=`, `secret=`, `.env`, `/config` | 높음 | 중간 | 높음 | 보수적 후보 |
@@ -173,7 +173,6 @@ fixture 아이디어:
 - `next=//external.example/`
 - `return=https://...`
 - `continue=https://...`
-- `callback=https://...`
 
 단정 금지:
 
