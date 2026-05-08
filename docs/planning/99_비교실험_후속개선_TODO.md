@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-07
+- 기준 시점: 2026-05-08
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 원칙: 완료된 항목은 이 문서에 길게 유지하지 않는다.
 
@@ -20,6 +20,8 @@
 - list page partial compare missing provider 1:1 layout, report viewer card/action/header polish 1차 완료
 - Web UI Phase 2A filter MVP 구현/검증 완료(`q`/`lint`/`pair`/`provider`, server-side GET query filtering, safe ignore, group count, clear all/no-result)
 - Web UI Phase 2A filter 브라우저 spot check 완료(423px viewport에서 form/chips/result count/group card/no-result 확인, 가로 스크롤/텍스트 잘림 없음, lint filter group-level ANY 로직 정상 확인)
+- Web UI execution scope review 완료(`docs/design/99_web_ui_report_viewer_execution_scope_review.md`)
+- `run_analysis_pipeline.py` 사용자 runner UX review 문서 추가 완료(`docs/design/99_run_analysis_pipeline_user_runner_ux_review.md`)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -99,6 +101,8 @@
 - 상태 요약:
   - Phase 1B 핵심 구현(list/detail/compare viewer, compare route/API, provider 비교 레이아웃)과 Phase 2A filter MVP는 완료 상태다.
   - Phase 2A filter MVP는 마감 가능 상태다.
+  - 단기 Web UI 방향은 read-only Security Analysis Console 유지다.
+  - `web/` 범위는 report list/detail/compare/filter 표시로 제한하며 pipeline 실행, report rewrite, DB 제어, raw body/full search, source IP raw search, 새 보안 판정 생성은 포함하지 않는다.
   - 완료 이력은 `docs/진행상황.md`로 이관하고, 이 섹션은 실제 남은 후보만 유지한다.
 
 남은 TODO:
@@ -106,12 +110,23 @@
 - [ ] Phase 2B 후보: scenario select는 현재 `q` 검색으로 대체 가능하며, option 수 증가/실제 필요 확인 시 재검토
 - [ ] Phase 2B 후보: 개별 filter chip 제거는 필터 수 증가/실제 불편 확인 시 재검토
 - [ ] Phase 2C execution console risk review는 보류 유지
+  - New Analysis
   - pipeline run button
-  - dry-run toggle
   - live progress
   - regression run button
-  - SQLite history
-  - alert/dashboard
+  - scheduling/alert/dashboard
+- [ ] `viewer_payload` 최소 도입 구현 검토
+  - flat output 구조(`data/raw/`, `data/processed/`, `reports/`)는 유지
+  - `reports/<base>_viewer_payload.json` 생성 후보 검토
+  - `reports/<base>_pipeline_manifest.json` run별 manifest 추가 후보 검토
+  - `<work-dir>/pipeline_manifest.json`은 latest manifest로 유지
+  - `data/runs/<run_id>/`, `data/latest` 전환은 후속 보류
+- [ ] `run_analysis_pipeline.py` one-shot runner UX 코드 반영 여부 검토
+  - 기본 입력은 export JSON 1개 방향 우선 검토
+  - `--llm-input`, `--stage1-results` 등 resume 옵션은 즉시 제거/deprecate하지 않음
+- [ ] Web UI `viewer_payload` read-only 표시 후보 검토
+  - Overview / Findings / Context / Evidence / Noise 표시 후보 정리
+  - pipeline execution 기능과 분리 유지
 
 QA v4 보조 스크립트 관리:
 
@@ -123,11 +138,9 @@ QA v4 보조 스크립트 관리:
 
 ## 장기 후보
 
-- pipeline run button
+- execution console 확장 후보(New Analysis / pipeline run / live progress / regression run / scheduling/alert/dashboard)
+- run 구조 전환 후보(`data/runs/<run_id>/`, `data/latest`, manifest 기반 full run_dir 빌더)
 - provider selection
-- dry-run toggle
-- live progress
-- regression run button
 - report search/filter
 - SQLite history
 - alert/dashboard
@@ -141,3 +154,4 @@ QA v4 보조 스크립트 관리:
 - 위 항목은 read-only viewer 범위 검토 이후에만 장기 후보로 유지한다.
 - 현재는 Phase 2 문서 신규 생성 및 실행 TODO 승격을 하지 않는다.
 - Phase 2를 시작하려면 read-only viewer 범위를 실행/운영 콘솔로 확장할지 먼저 별도 판단한다.
+- `lab/`는 비교실험/fixture/archive 용도로 유지하며 일반 운영 출력과 섞지 않는다.
