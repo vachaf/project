@@ -76,6 +76,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pretty", action="store_true", help="JSON pretty 출력")
     parser.add_argument("--dry-run", action="store_true", help="실제 API 호출 없이 dry-run 산출물만 생성")
     parser.add_argument("--keep-going", action="store_true", help="오류가 나도 가능한 범위까지 manifest 를 남기고 종료")
+    parser.add_argument("--viewer-payload", dest="viewer_payload", action="store_true", help="stage2 이후 viewer payload 생성 (기본값: 사용)")
+    parser.add_argument("--no-viewer-payload", dest="viewer_payload", action="store_false", help="stage2 이후 viewer payload 생략")
+    parser.add_argument("--include-raw-log", action="store_true", help="viewer payload 에 raw_export 의 raw_log 포함")
+    parser.set_defaults(viewer_payload=True)
     return parser.parse_args()
 
 
@@ -115,6 +119,8 @@ def build_paths(base_name: str, processed_dir: Path, reports_dir: Path, write_fi
         "stage2_report_json": reports_dir / f"{base_name}_stage2_report.json",
         "stage2_report_md": reports_dir / f"{base_name}_stage2_report.md",
         "stage2_report_error": reports_dir / f"{base_name}_stage2_report_error.json",
+        "viewer_payload": reports_dir / f"{base_name}_viewer_payload.json",
+        "pipeline_manifest_run": reports_dir / f"{base_name}_pipeline_manifest.json",
     }
 
 
@@ -134,6 +140,12 @@ def dump_json(path: Path, payload: Any, pretty: bool) -> None:
 def load_json(path: Path) -> Any:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def save_manifests(manifest_path: Path, run_manifest_path: Optional[Path], payload: Any, pretty: bool) -> None:
+    dump_json(manifest_path, payload, pretty=pretty)
+    if run_manifest_path:
+        dump_json(run_manifest_path, payload, pretty=pretty)
 
 
 def build_stage1_dry_run_placeholder(llm_input_path: Path, output_path: Path, pretty: bool, mode: str, selected_model: Optional[str]) -> None:
@@ -246,6 +258,7 @@ def main() -> int:
         return 2
 
     paths = build_paths(base_name, processed_dir=processed_dir, reports_dir=reports_dir, write_filtered_out=args.write_filtered_out)
+    run_manifest_path = paths["pipeline_manifest_run"]
 
     if resume_from == "llm_input":
         paths["llm_input"] = Path(source_input)
@@ -274,6 +287,10 @@ def main() -> int:
             "prepare_source_tables": args.prepare_source_tables,
             "llm_provider": llm_provider,
             "known_asset_ips": known_asset_ips,
+            "manifest_role": "latest_and_run_copy",
+            "latest_manifest_path": str(manifest_path),
+            "run_manifest_path": str(run_manifest_path) if run_manifest_path else None,
+            "viewer_payload_enabled": bool(args.viewer_payload),
             "python": sys.executable,
         },
         "inputs": {
@@ -308,8 +325,10 @@ def main() -> int:
                 rc = step_rc
                 raise RuntimeError("prepare 단계 실패")
             if args.stop_after == "prepare":
-                dump_json(manifest_path, manifest, pretty=args.pretty)
+                save_manifests(manifest_path, run_manifest_path, manifest, pretty=args.pretty)
                 print(f"\n[OK] manifest: {manifest_path}")
+                if run_manifest_path:
+                    print(f"[OK] run_manifest: {run_manifest_path}")
                 return 0
 
         if resume_from in {"export", "llm_input"}:
@@ -362,8 +381,10 @@ def main() -> int:
             if step_rc != 0 and not args.keep_going:
                 raise RuntimeError("stage1 단계 실패")
             if args.stop_after == "stage1":
-                dump_json(manifest_path, manifest, pretty=args.pretty)
+                save_manifests(manifest_path, run_manifest_path, manifest, pretty=args.pretty)
                 print(f"\n[OK] manifest: {manifest_path}")
+                if run_manifest_path:
+                    print(f"[OK] run_manifest: {run_manifest_path}")
                 return rc
 
         stage1_results_path = paths["stage1_results"]
@@ -406,6 +427,61 @@ def main() -> int:
         if step_rc != 0 and not args.keep_going:
             raise RuntimeError("stage2 단계 실패")
 
+        if step_rc == 0 and args.viewer_payload:
+            viewer_payload_script = ensure_script(scripts_dir / "viewer_payload_builder.py")
+            stage2_report_input_path = paths["stage2_report_input"]
+            stage2_report_json_path = paths["stage2_report_json"]
+            viewer_payload_path = paths["viewer_payload"]
+            if not stage2_report_input_path or not stage2_report_input_path.exists():
+                viewer_cmd = [
+                    sys.executable,
+                    str(viewer_payload_script),
+                    "--stage2-report-input", str(stage2_report_input_path) if stage2_report_input_path else "",
+                    "--out", str(viewer_payload_path) if viewer_payload_path else "",
+                ]
+                step_rc = 1
+                manifest["steps"].append(
+                    {
+                        "name": "viewer_payload",
+                        "return_code": step_rc,
+                        "cmd": viewer_cmd,
+                        "error": "stage2_report_input 산출물을 찾을 수 없습니다.",
+                    }
+                )
+                rc = step_rc if rc == 0 else rc
+                if not args.keep_going:
+                    raise RuntimeError("viewer_payload 단계 실패")
+                manifest.setdefault("warnings", []).append("viewer_payload skipped because stage2_report_input artifact is missing")
+            else:
+                viewer_cmd = [
+                    sys.executable,
+                    str(viewer_payload_script),
+                    "--stage2-report", str(stage2_report_json_path),
+                    "--stage2-report-input", str(stage2_report_input_path),
+                    "--out", str(viewer_payload_path),
+                ]
+                if paths["stage1_results"] and Path(paths["stage1_results"]).exists():
+                    viewer_cmd.extend(["--stage1-results", str(paths["stage1_results"])])
+                if paths["llm_input"] and Path(paths["llm_input"]).exists():
+                    viewer_cmd.extend(["--llm-input", str(paths["llm_input"])])
+                if paths["noise_summary"] and Path(paths["noise_summary"]).exists():
+                    viewer_cmd.extend(["--noise-summary", str(paths["noise_summary"])])
+                if resume_from == "export" and Path(source_input).exists():
+                    viewer_cmd.extend(["--raw-export", source_input])
+                if args.include_raw_log:
+                    viewer_cmd.append("--include-raw-log")
+                if args.pretty:
+                    viewer_cmd.append("--pretty")
+
+                step_rc = run_cmd(viewer_cmd, "viewer_payload")
+                manifest["steps"].append({"name": "viewer_payload", "return_code": step_rc, "cmd": viewer_cmd})
+                rc = step_rc if step_rc != 0 and rc == 0 else rc
+                if step_rc != 0:
+                    if args.keep_going:
+                        manifest.setdefault("warnings", []).append("viewer_payload generation failed")
+                    else:
+                        raise RuntimeError("viewer_payload 단계 실패")
+
     except Exception as e:
         manifest["error"] = {
             "type": e.__class__.__name__,
@@ -414,15 +490,19 @@ def main() -> int:
         if rc == 0:
             rc = 1
         if not args.keep_going:
-            dump_json(manifest_path, manifest, pretty=args.pretty)
+            save_manifests(manifest_path, run_manifest_path, manifest, pretty=args.pretty)
             print(f"\n[ERROR] {e}", file=sys.stderr)
             print(f"[INFO] manifest: {manifest_path}")
+            if run_manifest_path:
+                print(f"[INFO] run_manifest: {run_manifest_path}")
             return rc
 
-    dump_json(manifest_path, manifest, pretty=args.pretty)
+    save_manifests(manifest_path, run_manifest_path, manifest, pretty=args.pretty)
 
     print("\n[OK] pipeline complete")
     print(f"[OK] manifest:            {manifest_path}")
+    if run_manifest_path:
+        print(f"[OK] run_manifest:        {run_manifest_path}")
     if paths["llm_input"]:
         print(f"[OK] llm_input:           {paths['llm_input']}")
     if paths["stage1_results"]:
@@ -431,6 +511,8 @@ def main() -> int:
         print(f"[OK] stage2_report_md:    {paths['stage2_report_md']}")
     if paths["stage2_report_json"]:
         print(f"[OK] stage2_report_json:  {paths['stage2_report_json']}")
+    if args.viewer_payload and paths["viewer_payload"] and Path(paths["viewer_payload"]).exists():
+        print(f"[OK] viewer_payload:      {paths['viewer_payload']}")
     return rc
 
 
