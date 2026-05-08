@@ -26,6 +26,7 @@
 - `run_analysis_pipeline.py`에서 Stage2 이후 viewer payload 자동 생성 완료(`--viewer-payload`/`--no-viewer-payload`, `--include-raw-log` opt-in)
 - latest manifest / run별 manifest 분리 1차 반영 완료(`<work-dir>/pipeline_manifest.json` latest 유지 + `reports/<base>_pipeline_manifest.json` 추가)
 - Web UI viewer_payload display plan 작성 완료(`docs/design/99_web_ui_viewer_payload_display_plan.md`)
+- Web UI viewer_payload read-only dashboard MVP 구현 완료(`/report/{report_id}/payload` route, 기존 detail fallback/link 유지)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -119,19 +120,15 @@
   - live progress
   - regression run button
   - scheduling/alert/dashboard
-- [ ] Web UI `viewer_payload` read-only 표시 MVP 구현 검토
-  - viewer_payload 있음/없음 fallback 유지
-  - 기존 Stage2 report-only detail 호환 유지
-  - Overview / Findings / Contexts 요약 표시 우선
-  - Supporting Events는 count 또는 접이식 preview 수준으로 시작
-  - pipeline execution과 분리 유지
-- [ ] Viewer payload loader / ReportLoader optional association 검토
-  - 기존 ReportLoader 구조를 크게 흔들지 않음
-  - viewer_payload가 없어도 기존 report viewer 계속 동작
-- [ ] Finding -> Supporting Events / Contexts drill-down은 후속 개선 후보로 유지
-  - 단기 구현은 details/accordion/table filter 수준
+- [ ] Supporting Events accordion / drill-down 개선 검토
+  - 현재는 count/follow-up 수준
+  - full drill-down은 후속
+- [ ] Finding -> Supporting Events / Contexts 연결 고도화 검토
+  - request_id, incident_group_key, context_role, supporting_role 기반 연결 후보
   - graph viewer 또는 복잡한 interaction은 보류
-- [ ] viewer_payload compare/history 후보는 장기 후보로 유지
+- [ ] viewer_payload compare/history 후보 검토
+  - 기존 Stage2 compare와 분리
+  - 장기 후보로 유지
 - [ ] `viewer_payload_builder.py` 최소 단위 테스트 추가 여부 검토
   - reason_hints list/string/None 처리
   - noise_summary list/dict 처리
