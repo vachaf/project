@@ -25,6 +25,7 @@
 - viewer payload 최소 도입 완료(`src/viewer_payload_builder.py` 추가, Stage2 이후 자동 생성 연결)
 - `run_analysis_pipeline.py`에서 Stage2 이후 viewer payload 자동 생성 완료(`--viewer-payload`/`--no-viewer-payload`, `--include-raw-log` opt-in)
 - latest manifest / run별 manifest 분리 1차 반영 완료(`<work-dir>/pipeline_manifest.json` latest 유지 + `reports/<base>_pipeline_manifest.json` 추가)
+- Web UI viewer_payload display plan 작성 완료(`docs/design/99_web_ui_viewer_payload_display_plan.md`)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -118,15 +119,27 @@
   - live progress
   - regression run button
   - scheduling/alert/dashboard
-- [ ] Web UI `viewer_payload` read-only 표시 설계/구현 검토
-  - Overview / Findings / Context / Evidence / Noise 표시
+- [ ] Web UI `viewer_payload` read-only 표시 MVP 구현 검토
+  - viewer_payload 있음/없음 fallback 유지
+  - 기존 Stage2 report-only detail 호환 유지
+  - Overview / Findings / Contexts 요약 표시 우선
+  - Supporting Events는 count 또는 접이식 preview 수준으로 시작
   - pipeline execution과 분리 유지
+- [ ] Viewer payload loader / ReportLoader optional association 검토
+  - 기존 ReportLoader 구조를 크게 흔들지 않음
+  - viewer_payload가 없어도 기존 report viewer 계속 동작
+- [ ] Finding -> Supporting Events / Contexts drill-down은 후속 개선 후보로 유지
+  - 단기 구현은 details/accordion/table filter 수준
+  - graph viewer 또는 복잡한 interaction은 보류
+- [ ] viewer_payload compare/history 후보는 장기 후보로 유지
 - [ ] `viewer_payload_builder.py` 최소 단위 테스트 추가 여부 검토
   - reason_hints list/string/None 처리
   - noise_summary list/dict 처리
   - raw_log opt-in 확인
   - context_only summary가 findings로 섞이지 않는지 확인
+  - 필수 키 누락 시 graceful 처리
 - [ ] `run_analysis_pipeline.py` 사용자용 one-shot runner UX/help 문구 정리 검토
+  - argparse argument_group으로 standard/developer options 분리 후보
   - export JSON 기본 흐름
   - resume 옵션은 즉시 제거하지 않고 advanced/debug 성격으로 유지
 - [ ] run_dir / data latest / manifest 기반 full runner 전환은 후속 후보로 보류
