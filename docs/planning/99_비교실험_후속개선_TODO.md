@@ -124,13 +124,19 @@
   - live progress
   - regression run button
   - scheduling/alert/dashboard
-- [ ] Finding -> Contexts 연결 고도화 검토
-  - 현재는 Related Contexts preview 완료 상태이며 full graph/advanced relationship은 장기 후보로 보류
+- [ ] Finding -> Contexts 연결성 원인 확인
+  - lab traffic v2 security export E2E smoke test에서 `findings=10`, `contexts=6`, `supporting_events=0` 확인
+  - Contexts Preview는 표시되지만 selected finding의 Related Contexts는 0으로 표시됨
+  - 우선 `viewer_payload_builder.py`/stage2 input에서 `linked_context_ids`/`context_id` 등 기존 연결 필드가 보존되는지 확인
+  - Web UI는 기존 payload 필드를 read-only로 표시만 하며 새 관계를 추론하거나 context-only를 finding으로 승격하지 않는다
   - severity/category/verdict 재계산 금지 원칙 유지
-- [ ] Supporting Events full drill-down / graph viewer는 장기 후보로 보류
-  - 현재는 selected finding related preview 수준 유지
+- [ ] Supporting Events 생성/연결성 원인 확인
+  - 같은 smoke test에서 viewer_payload JSON의 `supporting_events` length가 0임을 확인
+  - prepare/stage2_report_input/llm_input에서 supporting_events가 생성됐는지, builder 단계에서 누락됐는지 구분
+  - full drill-down/graph viewer 이전에 데이터 생성/보존 경로를 먼저 확인
+  - context-only supporting events를 incidents로 승격하지 않는다
 - [ ] Context graph / advanced relationship view는 장기 후보로 보류
-  - 현재는 Related Contexts preview 수준 유지
+  - Related Contexts/Supporting Events의 연결 필드 유무와 표시 가능성 확인 이후에만 재검토
 - [ ] viewer_payload compare/history 후보 검토
   - 기존 Stage2 compare와 분리
   - 장기 후보로 유지
@@ -142,7 +148,10 @@
   - 필수 키 누락 시 graceful 처리
 - [ ] run_dir / data latest / manifest 기반 full runner 전환은 후속 후보로 보류
 - [ ] `run_analysis_pipeline.py --help` 예시의 table auto resolution 안내 보강 필요 여부 검토
-- [ ] lab traffic `--table all` export 기준 E2E smoke test 시나리오 정리
+- [ ] lab traffic E2E smoke test 기록 정리
+  - `Mixed_Context_Heavy` + security export 기준 E2E smoke test는 성공
+  - all export 중복 영향과 security export 기준 결과 차이는 필요 시 별도 smoke로 비교
+  - 후속은 `--table all` E2E smoke와 security-only 결과 비교 정도로 유지
 
 QA v4 보조 스크립트 관리:
 
