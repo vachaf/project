@@ -41,6 +41,10 @@ class Report:
     error: Optional[str] = None
     meta: Dict[str, Any] = field(default_factory=dict)
     report: Dict[str, Any] = field(default_factory=dict)
+    viewer_payload_available: bool = False
+    viewer_payload_error: Optional[str] = None
+    viewer_payload_path: Optional[str] = None
+    viewer_payload_summary: Dict[str, Any] = field(default_factory=dict)
 
     def to_summary(self) -> Dict[str, Any]:
         return {
@@ -62,6 +66,8 @@ class Report:
             "lint": dict(self.lint),
             "is_valid": self.is_valid,
             "error": self.error,
+            "viewer_payload_available": self.viewer_payload_available,
+            "viewer_payload_error": self.viewer_payload_error,
         }
 
     def to_detail(self) -> Dict[str, Any]:
@@ -82,6 +88,10 @@ class Report:
             "report": dict(self.report),
             "is_valid": self.is_valid,
             "error": self.error,
+            "viewer_payload_available": self.viewer_payload_available,
+            "viewer_payload_error": self.viewer_payload_error,
+            "viewer_payload_path": self.viewer_payload_path,
+            "viewer_payload_summary": dict(self.viewer_payload_summary),
         }
 
 
@@ -376,7 +386,111 @@ class ReportLoader:
         base_report.severity_counts = count_severity_values(notable_incidents, "severity")
         base_report.verdict_counts = count_named_values(notable_incidents, "verdict")
 
+        viewer_path = self._resolve_viewer_payload_path(file_path)
+        if viewer_path.exists():
+            try:
+                with viewer_path.open("r", encoding="utf-8") as handle:
+                    viewer_payload = json.load(handle)
+                if not isinstance(viewer_payload, dict):
+                    base_report.viewer_payload_available = False
+                    base_report.viewer_payload_error = "Invalid viewer_payload root: expected object"
+                else:
+                    base_report.viewer_payload_available = True
+                    base_report.viewer_payload_path = to_repo_relative_path(viewer_path, self.project_root)
+                    base_report.viewer_payload_summary = self._build_viewer_payload_summary(viewer_payload)
+            except (OSError, json.JSONDecodeError, ValueError) as exc:
+                # viewer_payload 로드 실패는 report detail 자체를 invalid 처리하지 않는다.
+                base_report.viewer_payload_available = False
+                base_report.viewer_payload_error = f"viewer_payload load error: {exc}"
+
         return base_report
+
+    def _resolve_viewer_payload_path(self, stage2_report_path: Path) -> Path:
+        base_name = stage2_report_path.name
+        if base_name.endswith(STAGE2_SUFFIX):
+            stem = base_name[: -len(STAGE2_SUFFIX)]
+            return stage2_report_path.with_name(f"{stem}_viewer_payload.json")
+        return stage2_report_path.with_name(stage2_report_path.stem + "_viewer_payload.json")
+
+    def _build_viewer_payload_summary(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        meta = payload.get("meta")
+        summary = payload.get("summary")
+        report = payload.get("report")
+        integrity = payload.get("integrity")
+        policies = payload.get("policies")
+
+        meta_obj = meta if isinstance(meta, dict) else {}
+        summary_obj = summary if isinstance(summary, dict) else {}
+        report_obj = report if isinstance(report, dict) else {}
+        integrity_obj = integrity if isinstance(integrity, dict) else {}
+        policies_obj = policies if isinstance(policies, dict) else {}
+
+        findings = payload.get("findings")
+        contexts = payload.get("contexts")
+        supporting_events = payload.get("supporting_events")
+
+        finding_rows = findings if isinstance(findings, list) else []
+        context_rows = contexts if isinstance(contexts, list) else []
+        supporting_rows = supporting_events if isinstance(supporting_events, list) else []
+
+        return {
+            "schema_version": str(payload.get("schema_version") or "unknown"),
+            "generated_at": first_non_empty(
+                meta_obj.get("generated_at"),
+                summary_obj.get("generated_at"),
+            )
+            or "unknown",
+            "report_title": first_non_empty(
+                summary_obj.get("report_title"),
+                report_obj.get("report_title"),
+                report_obj.get("title"),
+            )
+            or "N/A",
+            "overall_assessment": first_non_empty(
+                summary_obj.get("overall_assessment"),
+                report_obj.get("overall_assessment"),
+            )
+            or "N/A",
+            "finding_count": int(_safe_int(first_non_empty(summary_obj.get("finding_count")), len(finding_rows))),
+            "context_count": int(_safe_int(first_non_empty(summary_obj.get("context_count")), len(context_rows))),
+            "supporting_event_count": int(
+                _safe_int(first_non_empty(summary_obj.get("supporting_event_count")), len(supporting_rows))
+            ),
+            "findings_preview": [self._build_finding_preview(row) for row in finding_rows[:5] if isinstance(row, dict)],
+            "contexts_preview": [self._build_context_preview(row) for row in context_rows[:5] if isinstance(row, dict)],
+            "integrity_warnings": self._ensure_str_list(integrity_obj.get("warnings")),
+            "guardrails": self._ensure_str_list(policies_obj.get("guardrails")),
+            "source_of_truth": meta_obj.get("source_of_truth") if isinstance(meta_obj.get("source_of_truth"), dict) else {},
+        }
+
+    def _build_finding_preview(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "severity": str(row.get("severity") or "unknown"),
+            "verdict": str(row.get("verdict") or row.get("verdict_hint") or "unknown"),
+            "category": str(row.get("category") or "unknown"),
+            "src_ip": str(row.get("src_ip") or "-"),
+            "method": str(row.get("method") or "-"),
+            "uri": str(row.get("uri") or "-"),
+            "status_code": _safe_int(row.get("status_code"), 0) if row.get("status_code") not in (None, "") else "-",
+            "request_id": str(row.get("request_id") or "-"),
+            "confidence": str(row.get("confidence") or "unknown"),
+            "context_only": bool(row.get("context_only")),
+        }
+
+    def _build_context_preview(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "context_type": str(row.get("context_type") or row.get("category") or "unknown"),
+            "src_ip": str(row.get("src_ip") or "-"),
+            "request_count": _safe_int(row.get("request_count"), 0) if row.get("request_count") not in (None, "") else "-",
+            "context_only": bool(row.get("context_only")),
+            "should_promote_to_candidate": bool(row.get("should_promote_to_candidate")),
+            "interpretation_limit": str(row.get("interpretation_limit") or "-"),
+        }
+
+    def _ensure_str_list(self, value: Any) -> List[str]:
+        if not isinstance(value, list):
+            return []
+        return [str(item) for item in value if str(item).strip()]
 
 
 def make_report_id(file_path: Path) -> str:
@@ -495,6 +609,15 @@ def first_non_empty(*values: Any) -> str:
         if text:
             return text
     return ""
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        if value in (None, ""):
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def extract_timeframe_from_string(text: str) -> str:

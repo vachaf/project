@@ -119,6 +119,144 @@
   {% endif %}
 </section>
 
+{% if report.viewer_payload_available or report.viewer_payload_error %}
+<section class="section card viewer-payload-section">
+  <h3>
+    Viewer Payload Summary
+    {% if report.viewer_payload_summary and report.viewer_payload_summary.get('schema_version') %}
+      <span class="badge badge-muted">{{ report.viewer_payload_summary.get('schema_version') }}</span>
+    {% endif %}
+    <span class="badge badge-readonly">read-only</span>
+    <span class="badge badge-context">context-only guardrail</span>
+  </h3>
+
+  {% if report.viewer_payload_path %}
+    <p class="viewer-payload-note">
+      source: <span class="is-muted">{{ report.viewer_payload_path }}</span>
+    </p>
+  {% endif %}
+
+  {% if report.viewer_payload_error %}
+    <p class="viewer-payload-note is-muted">{{ report.viewer_payload_error }}</p>
+  {% endif %}
+
+  {% if report.viewer_payload_available and report.viewer_payload_summary %}
+    <div class="meta-grid viewer-payload-preview">
+      <div><span class="meta-label">generated_at</span><br>{{ report.viewer_payload_summary.get('generated_at') or 'unknown' }}</div>
+      <div><span class="meta-label">report_title</span><br>{{ report.viewer_payload_summary.get('report_title') or 'N/A' }}</div>
+      <div><span class="meta-label">finding_count</span><br>{{ report.viewer_payload_summary.get('finding_count') or 0 }}</div>
+      <div><span class="meta-label">context_count</span><br>{{ report.viewer_payload_summary.get('context_count') or 0 }}</div>
+      <div><span class="meta-label">supporting_event_count</span><br>{{ report.viewer_payload_summary.get('supporting_event_count') or 0 }}</div>
+    </div>
+
+    {% if report.viewer_payload_summary.get('integrity_warnings') %}
+      <article class="card issue-warning">
+        <p class="issue-rule">integrity_warnings</p>
+        <ul>
+          {% for warning in report.viewer_payload_summary.get('integrity_warnings') %}
+            <li>{{ warning }}</li>
+          {% endfor %}
+        </ul>
+      </article>
+    {% endif %}
+
+    {% if report.viewer_payload_summary.get('overall_assessment') and report.viewer_payload_summary.get('overall_assessment') != 'N/A' %}
+      <section class="report-section">
+        <h4>overall_assessment (viewer payload)</h4>
+        <p>{{ report.viewer_payload_summary.get('overall_assessment') }}</p>
+      </section>
+    {% endif %}
+
+    <section class="report-section">
+      <h4>Findings Preview</h4>
+      <div class="table-wrapper">
+        <table class="table table-compact">
+          <thead>
+            <tr>
+              <th>severity</th>
+              <th>verdict</th>
+              <th>category</th>
+              <th>source_ip</th>
+              <th>method</th>
+              <th>uri</th>
+              <th>status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if report.viewer_payload_summary.get('findings_preview') %}
+              {% for finding in report.viewer_payload_summary.get('findings_preview') %}
+              <tr>
+                <td>{{ finding.severity or 'unknown' }}</td>
+                <td>{{ finding.verdict or 'unknown' }}</td>
+                <td>{{ finding.category or 'unknown' }}</td>
+                <td>{{ finding.src_ip or '-' }}</td>
+                <td>{{ finding.method or '-' }}</td>
+                <td>{{ finding.uri or '-' }}</td>
+                <td>{{ finding.status_code or '-' }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="7" class="is-empty">No findings preview.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="report-section">
+      <h4>Contexts Preview</h4>
+      <div class="table-wrapper">
+        <table class="table table-compact">
+          <thead>
+            <tr>
+              <th>type</th>
+              <th>source_ip</th>
+              <th>request_count</th>
+              <th>context_only</th>
+              <th>promote</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if report.viewer_payload_summary.get('contexts_preview') %}
+              {% for context in report.viewer_payload_summary.get('contexts_preview') %}
+              <tr>
+                <td>{{ context.context_type or 'unknown' }}</td>
+                <td>{{ context.src_ip or '-' }}</td>
+                <td>{{ context.request_count or '-' }}</td>
+                <td>
+                  {% if context.context_only %}
+                    <span class="badge badge-context-only">true</span>
+                  {% else %}
+                    <span class="badge badge-muted">false</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if context.should_promote_to_candidate %}
+                    <span class="badge badge-lint-warn">true</span>
+                  {% else %}
+                    <span class="badge badge-muted">false</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" class="is-empty">No contexts preview.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+      <p class="viewer-payload-note is-muted">
+        Supporting events are available in payload; drill-down is a follow-up.
+      </p>
+    </section>
+  {% endif %}
+</section>
+{% endif %}
+
 <section class="section card">
   <h3>overall_assessment</h3>
   <p>{{ report.report.get('overall_assessment') or 'N/A' }}</p>

@@ -456,10 +456,34 @@ summary:focus-visible {
   color: #5c44a9;
 }
 
+.badge-readonly {
+  background: #e8f2ff;
+  color: #244a7a;
+  border-color: #c7dbf5;
+}
+
+.badge-context {
+  background: #eef3f8;
+  color: #4a5f78;
+  border-color: #d4deea;
+}
+
 .badge-missing-report {
   background: #f3f4f6;
   color: #4b5563;
   border-color: #cdd3dc;
+}
+
+.viewer-payload-section {
+  border-left: 4px solid #9fb8d8;
+}
+
+.viewer-payload-note {
+  margin: 0.45rem 0 0.3rem;
+}
+
+.viewer-payload-preview {
+  margin-top: 0.5rem;
 }
 
 .issue-list {

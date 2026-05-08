@@ -129,6 +129,9 @@ def report_detail(request: Request, report_id: str):
 
     detail = report.to_detail()
     detail["known_asset_ips"] = normalize_known_asset_ips(report.meta.get("known_asset_ips", []))
+    detail["viewer_payload_summary"] = sanitize_viewer_payload_summary(detail.get("viewer_payload_summary", {}))
+    if report.viewer_payload_error:
+        detail["viewer_payload_error"] = str(mask_value(report.viewer_payload_error))
 
     nav_context = _calculate_navigation(all_reports, report_id)
 
@@ -497,6 +500,58 @@ def sanitize_source_ip_items(rows: Any) -> List[Dict[str, str]]:
                 "reason": str(row.get("reason") or "-"),
             }
         )
+    return normalized
+
+
+def sanitize_viewer_payload_summary(summary: Any) -> Dict[str, Any]:
+    if not isinstance(summary, dict):
+        return {}
+
+    normalized = dict(summary)
+
+    findings_preview = normalized.get("findings_preview")
+    if isinstance(findings_preview, list):
+        safe_findings: List[Dict[str, Any]] = []
+        for row in findings_preview[:5]:
+            if not isinstance(row, dict):
+                continue
+            safe_row = dict(row)
+            safe_row["src_ip"] = str(mask_value(row.get("src_ip") or "-"))
+            safe_findings.append(safe_row)
+        normalized["findings_preview"] = safe_findings
+    else:
+        normalized["findings_preview"] = []
+
+    contexts_preview = normalized.get("contexts_preview")
+    if isinstance(contexts_preview, list):
+        safe_contexts: List[Dict[str, Any]] = []
+        for row in contexts_preview[:5]:
+            if not isinstance(row, dict):
+                continue
+            safe_row = dict(row)
+            safe_row["src_ip"] = str(mask_value(row.get("src_ip") or "-"))
+            safe_contexts.append(safe_row)
+        normalized["contexts_preview"] = safe_contexts
+    else:
+        normalized["contexts_preview"] = []
+
+    if "overall_assessment" in normalized:
+        normalized["overall_assessment"] = str(mask_value(normalized.get("overall_assessment") or "N/A"))
+    if "report_title" in normalized:
+        normalized["report_title"] = str(mask_value(normalized.get("report_title") or "N/A"))
+
+    guardrails = normalized.get("guardrails")
+    if isinstance(guardrails, list):
+        normalized["guardrails"] = [str(item) for item in guardrails]
+    else:
+        normalized["guardrails"] = []
+
+    warnings = normalized.get("integrity_warnings")
+    if isinstance(warnings, list):
+        normalized["integrity_warnings"] = [str(item) for item in warnings]
+    else:
+        normalized["integrity_warnings"] = []
+
     return normalized
 
 
