@@ -5,6 +5,7 @@ import json
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -138,6 +139,28 @@ class ReportLoader:
         if report_id not in self._reports_by_id:
             self.scan_reports()
         return self._reports_by_id.get(report_id)
+
+    def load_viewer_payload(self, report: Report) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+        viewer_path = self._resolve_viewer_payload_path(report.file_path)
+        if not viewer_path.exists():
+            return None, "viewer_payload not available"
+
+        try:
+            with viewer_path.open("r", encoding="utf-8") as handle:
+                viewer_payload = json.load(handle)
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            return None, f"viewer_payload load error: {exc}"
+
+        if not isinstance(viewer_payload, dict):
+            return None, "Invalid viewer_payload root: expected object"
+
+        return viewer_payload, None
+
+    def load_viewer_payload_by_report_id(self, report_id: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+        report = self.get_report_by_id(report_id)
+        if report is None:
+            return None, "Report not found"
+        return self.load_viewer_payload(report)
 
     def get_list_summary(self) -> Dict[str, Any]:
         reports = self.scan_reports()
@@ -464,7 +487,20 @@ class ReportLoader:
         }
 
     def _build_finding_preview(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        request_obj = row.get("request") if isinstance(row.get("request"), dict) else {}
+        raw_export_match_obj = row.get("raw_export_match") if isinstance(row.get("raw_export_match"), dict) else {}
+        log_time = (
+            first_non_empty(
+                row.get("log_time"),
+                row.get("timestamp"),
+                request_obj.get("log_time"),
+                request_obj.get("timestamp"),
+            )
+            or "unknown"
+        )
         return {
+            "log_time": log_time,
+            "display_time": _format_display_time(log_time),
             "severity": str(row.get("severity") or "unknown"),
             "verdict": str(row.get("verdict") or row.get("verdict_hint") or "unknown"),
             "category": str(row.get("category") or "unknown"),
@@ -475,6 +511,15 @@ class ReportLoader:
             "request_id": str(row.get("request_id") or "-"),
             "confidence": str(row.get("confidence") or "unknown"),
             "context_only": bool(row.get("context_only")),
+            "reasoning_summary": str(row.get("reasoning_summary") or "N/A"),
+            "evidence_fields": self._ensure_str_listish(row.get("evidence_fields")),
+            "reason_hints": self._ensure_str_listish(row.get("reason_hints")),
+            "recommended_actions": self._ensure_str_listish(row.get("recommended_actions")),
+            "raw_export_match": {
+                "source_table": str(raw_export_match_obj.get("source_table") or "N/A"),
+                "log_id": str(raw_export_match_obj.get("log_id") or "N/A"),
+                "request_id": str(raw_export_match_obj.get("request_id") or "N/A"),
+            },
         }
 
     def _build_context_preview(self, row: Dict[str, Any]) -> Dict[str, Any]:
@@ -491,6 +536,14 @@ class ReportLoader:
         if not isinstance(value, list):
             return []
         return [str(item) for item in value if str(item).strip()]
+
+    def _ensure_str_listish(self, value: Any) -> List[str]:
+        if isinstance(value, list):
+            return [str(item) for item in value if str(item).strip()]
+        if value in (None, ""):
+            return []
+        text = str(value).strip()
+        return [text] if text else []
 
 
 def make_report_id(file_path: Path) -> str:
@@ -618,6 +671,59 @@ def _safe_int(value: Any, default: int = 0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _format_display_time(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "unknown"
+
+    if text.lower() == "unknown":
+        return "unknown"
+
+    minute_fraction_match = re.search(r"[T ](\d{2}):(\d{2})\.\d+", text)
+    if minute_fraction_match:
+        hour, minute = minute_fraction_match.groups()
+        return f"{hour}:{minute}"
+
+    candidates = [text]
+
+    # Normalize " ... 09:00" into "...+09:00" for permissive parsing.
+    if not re.search(r"[+-]\d{2}:\d{2}$", text):
+        spaced_tz = re.sub(r"\s+(\d{2}:\d{2})$", r"+\1", text)
+        if spaced_tz != text:
+            candidates.append(spaced_tz)
+
+    normalized_candidates: List[str] = []
+    for candidate in candidates:
+        if candidate.endswith("Z"):
+            normalized_candidates.append(candidate[:-1] + "+00:00")
+        else:
+            normalized_candidates.append(candidate)
+
+        # Handle minute+fraction style like "2026-05-03T19:37.182+09:00".
+        with_seconds = re.sub(
+            r"(T\d{2}:\d{2})\.(\d+)([+-]\d{2}:\d{2})$",
+            r"\1:00.\2\3",
+            candidate,
+        )
+        if with_seconds != candidate:
+            normalized_candidates.append(with_seconds)
+
+    for candidate in normalized_candidates:
+        try:
+            parsed = datetime.fromisoformat(candidate)
+            return parsed.strftime("%H:%M:%S")
+        except ValueError:
+            continue
+
+    # Last fallback: extract readable HH:MM[:SS] token directly.
+    match = re.search(r"(\d{2}):(\d{2})(?::(\d{2}))?", text)
+    if match:
+        hour, minute, second = match.groups()
+        return f"{hour}:{minute}:{second}" if second is not None else f"{hour}:{minute}"
+
+    return "unknown"
 
 
 def extract_timeframe_from_string(text: str) -> str:

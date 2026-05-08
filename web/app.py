@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -146,6 +147,51 @@ def report_detail(request: Request, report_id: str):
             "key_findings": key_findings,
             "source_ips": source_ips,
             **nav_context, # 컨텍스트 병합
+        },
+    )
+
+
+@app.get("/report/{report_id}/payload")
+def report_payload_detail(request: Request, report_id: str):
+    all_reports = loader.scan_reports()
+    report = next((r for r in all_reports if r.report_id == report_id), None)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    qa_result = lint_for_report(report)
+    detail = report.to_detail()
+    detail["known_asset_ips"] = normalize_known_asset_ips(report.meta.get("known_asset_ips", []))
+    payload_summary = sanitize_viewer_payload_summary(detail.get("viewer_payload_summary", {}))
+    detail["viewer_payload_summary"] = payload_summary
+
+    payload_obj, payload_load_error = loader.load_viewer_payload(report)
+    payload_error = payload_load_error or str(detail.get("viewer_payload_error") or "")
+    if payload_obj is None:
+        payload_obj = {}
+
+    findings = sanitize_payload_findings(
+        payload_obj.get("findings"),
+        payload_summary.get("findings_preview"),
+    )
+    contexts_preview = sanitize_payload_contexts(
+        payload_obj.get("contexts"),
+        payload_summary.get("contexts_preview"),
+    )
+
+    nav_context = _calculate_navigation(all_reports, report_id)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="payload_detail.html",
+        context={
+            "report": detail,
+            "qa_result": qa_result,
+            "payload": payload_obj,
+            "payload_summary": payload_summary,
+            "payload_error": str(mask_value(payload_error)) if payload_error else "",
+            "findings": findings,
+            "contexts_preview": contexts_preview,
+            **nav_context,
         },
     )
 
@@ -553,6 +599,121 @@ def sanitize_viewer_payload_summary(summary: Any) -> Dict[str, Any]:
         normalized["integrity_warnings"] = []
 
     return normalized
+
+
+def sanitize_payload_findings(rows: Any, fallback_rows: Any = None) -> List[Dict[str, Any]]:
+    source_rows = rows if isinstance(rows, list) else fallback_rows if isinstance(fallback_rows, list) else []
+
+    findings: List[Dict[str, Any]] = []
+    for row in source_rows[:200]:
+        if not isinstance(row, dict):
+            continue
+
+        request_obj = row.get("request") if isinstance(row.get("request"), dict) else {}
+        raw_match_obj = row.get("raw_export_match") if isinstance(row.get("raw_export_match"), dict) else {}
+        log_time = _first_non_empty_text(
+            row.get("log_time"),
+            row.get("timestamp"),
+            request_obj.get("log_time"),
+            request_obj.get("timestamp"),
+        ) or "unknown"
+
+        findings.append(
+            {
+                "display_time": _format_payload_display_time(log_time),
+                "log_time": str(log_time),
+                "severity": str(row.get("severity") or "unknown"),
+                "verdict": str(row.get("verdict") or row.get("verdict_hint") or "unknown"),
+                "category": str(row.get("category") or "unknown"),
+                "src_ip": str(mask_value(row.get("src_ip") or "-")),
+                "method": str(row.get("method") or "-"),
+                "uri": str(row.get("uri") or "-"),
+                "status_code": str(row.get("status_code")) if row.get("status_code") not in (None, "") else "-",
+                "request_id": str(row.get("request_id") or "-"),
+                "confidence": str(row.get("confidence") or "unknown"),
+                "reasoning_summary": str(row.get("reasoning_summary") or "N/A"),
+                "evidence_fields": _normalize_text_list(row.get("evidence_fields")),
+                "reason_hints": _normalize_text_list(row.get("reason_hints")),
+                "recommended_actions": _normalize_text_list(row.get("recommended_actions")),
+                "raw_export_match": {
+                    "source_table": str(raw_match_obj.get("source_table") or "N/A"),
+                    "log_id": str(raw_match_obj.get("log_id") or "N/A"),
+                    "request_id": str(raw_match_obj.get("request_id") or "N/A"),
+                },
+            }
+        )
+    return findings
+
+
+def sanitize_payload_contexts(rows: Any, fallback_rows: Any = None) -> List[Dict[str, Any]]:
+    source_rows = rows if isinstance(rows, list) else fallback_rows if isinstance(fallback_rows, list) else []
+
+    contexts: List[Dict[str, Any]] = []
+    for row in source_rows[:15]:
+        if not isinstance(row, dict):
+            continue
+
+        contexts.append(
+            {
+                "context_type": str(row.get("context_type") or row.get("category") or "unknown"),
+                "src_ip": str(mask_value(row.get("src_ip") or "-")),
+                "request_count": str(row.get("request_count")) if row.get("request_count") not in (None, "") else "-",
+                "context_only": bool(row.get("context_only")),
+                "should_promote_to_candidate": bool(row.get("should_promote_to_candidate")),
+            }
+        )
+    return contexts
+
+
+def _first_non_empty_text(*values: Any) -> str:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def _normalize_text_list(value: Any) -> List[str]:
+    if isinstance(value, list):
+        return [str(item) for item in value if str(item).strip()]
+    if value in (None, ""):
+        return []
+    text = str(value).strip()
+    return [text] if text else []
+
+
+def _format_payload_display_time(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "unknown"
+    if text.lower() == "unknown":
+        return "unknown"
+
+    minute_fraction_match = re.search(r"[T ](\d{2}):(\d{2})\.\d+", text)
+    if minute_fraction_match:
+        hour, minute = minute_fraction_match.groups()
+        return f"{hour}:{minute}"
+
+    candidates = [text]
+    if not re.search(r"[+-]\d{2}:\d{2}$", text):
+        spaced_tz = re.sub(r"\s+(\d{2}:\d{2})$", r"+\1", text)
+        if spaced_tz != text:
+            candidates.append(spaced_tz)
+
+    for candidate in candidates:
+        normalized = candidate[:-1] + "+00:00" if candidate.endswith("Z") else candidate
+        normalized = re.sub(r"(T\d{2}:\d{2})\.(\d+)([+-]\d{2}:\d{2})$", r"\1:00.\2\3", normalized)
+        try:
+            parsed = datetime.fromisoformat(normalized)
+            return parsed.strftime("%H:%M:%S")
+        except ValueError:
+            continue
+
+    match = re.search(r"(\d{2}):(\d{2})(?::(\d{2}))?", text)
+    if match:
+        hour, minute, second = match.groups()
+        return f"{hour}:{minute}:{second}" if second is not None else f"{hour}:{minute}"
+    return "unknown"
 
 
 def mask_value(value: Any) -> Any:

@@ -1,0 +1,406 @@
+{% extends "base.html" %}
+
+{% block title %}{{ report.filename }} | Viewer Payload Dashboard{% endblock %}
+
+{% block content %}
+<section class="section payload-dashboard">
+  {% set summary = payload_summary if payload_summary else {} %}
+  {% set schema_version = summary.get('schema_version') or 'viewer_payload.v1' %}
+  {% set guardrails = summary.get('guardrails') if summary.get('guardrails') is sequence and summary.get('guardrails') is not string else [] %}
+  {% set source_of_truth = summary.get('source_of_truth') if summary.get('source_of_truth') is mapping else {} %}
+  {% set total_requests = summary.get('total_request_count') or summary.get('request_count') or source_of_truth.get('total_requests') or source_of_truth.get('request_count') or 'unknown' %}
+
+  <header class="payload-dashboard-header card">
+    <div>
+      <h2>Apache Log Intrusion Report Viewer</h2>
+      <p class="payload-subtitle">Viewer Payload Dashboard</p>
+      <p class="payload-source is-muted">report: {{ report.filename }}</p>
+      {% if report.viewer_payload_path %}
+        <p class="payload-source is-muted">source: {{ report.viewer_payload_path }}</p>
+      {% endif %}
+    </div>
+    <div class="payload-dashboard-badges">
+      <span class="badge payload-badge payload-badge-version">{{ schema_version }}</span>
+      <span class="badge payload-badge payload-badge-readonly">read-only</span>
+      <span class="badge payload-badge payload-badge-context">context-only guardrail</span>
+      {% if qa_result and qa_result.verdict %}
+        <span class="badge payload-badge payload-badge-default">lint {{ qa_result.verdict }}</span>
+      {% endif %}
+      <a href="/report/{{ report.report_id }}" class="action-link">Back To Stage2 Detail</a>
+    </div>
+  </header>
+
+  {% if payload_error %}
+  <section class="section card payload-inline-warning">
+    <p class="is-muted">Viewer payload load note: {{ payload_error }}</p>
+  </section>
+  {% endif %}
+
+  <section class="payload-summary-cards">
+    <article class="payload-summary-card">
+      <p class="payload-summary-label">Total Requests</p>
+      <p class="payload-summary-value">{{ total_requests }}</p>
+      <p class="payload-summary-meta">source-of-truth summary</p>
+    </article>
+    <article class="payload-summary-card">
+      <p class="payload-summary-label">Findings</p>
+      <p class="payload-summary-value">{{ summary.get('finding_count') or findings|length }}</p>
+      <p class="payload-summary-meta">incident candidates</p>
+    </article>
+    <article class="payload-summary-card">
+      <p class="payload-summary-label">Contexts</p>
+      <p class="payload-summary-value">{{ summary.get('context_count') or contexts_preview|length }}</p>
+      <p class="payload-summary-meta">context-only signals</p>
+    </article>
+    <article class="payload-summary-card">
+      <p class="payload-summary-label">Supporting Events</p>
+      <p class="payload-summary-value">{{ summary.get('supporting_event_count') or 0 }}</p>
+      <p class="payload-summary-meta">drill-down follow-up</p>
+    </article>
+    <article class="payload-summary-card">
+      <p class="payload-summary-label">Generated At</p>
+      <p class="payload-summary-value payload-summary-time">{{ summary.get('generated_at') or 'unknown' }}</p>
+      <p class="payload-summary-meta">{{ summary.get('report_title') or 'N/A' }}</p>
+    </article>
+  </section>
+
+  {% if summary.get('overall_assessment') and summary.get('overall_assessment') != 'N/A' %}
+  <section class="section card payload-overall">
+    <h3>Overall Assessment</h3>
+    <p>{{ summary.get('overall_assessment') }}</p>
+  </section>
+  {% endif %}
+
+  <section class="section payload-main-grid">
+    <section class="card payload-event-panel">
+      <h3>Event Timeline</h3>
+      <div class="table-wrapper payload-event-table-wrap">
+        <table class="table table-compact payload-event-table">
+          <thead>
+            <tr>
+              <th class="col-time">time</th>
+              <th class="col-source-ip">source_ip</th>
+              <th class="col-method">method</th>
+              <th class="col-uri">uri</th>
+              <th class="col-status">status</th>
+              <th class="col-category">category</th>
+              <th class="col-severity">severity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if findings %}
+              {% for finding in findings %}
+              {% set severity_token = (finding.severity or 'unknown')|lower %}
+              <tr
+                class="payload-finding-row{% if loop.first %} is-selected{% endif %}"
+                data-finding-index="{{ loop.index0 }}"
+                tabindex="0"
+                role="button"
+                aria-label="Select finding {{ loop.index }}"
+                aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
+              >
+                <td class="payload-time col-time"><span title="{{ finding.log_time or 'unknown' }}">{{ finding.display_time or finding.log_time or 'unknown' }}</span></td>
+                <td class="col-source-ip">{{ finding.src_ip or '-' }}</td>
+                <td class="col-method"><span class="badge payload-badge payload-badge-method">{{ finding.method or '-' }}</span></td>
+                <td class="payload-uri col-uri" title="{{ finding.uri or '-' }}">{{ finding.uri or '-' }}</td>
+                <td class="col-status"><span class="badge payload-badge payload-badge-status">{{ finding.status_code or '-' }}</span></td>
+                <td class="col-category"><span class="badge payload-badge payload-badge-default payload-category-badge">{{ finding.category or 'unknown' }}</span></td>
+                <td class="col-severity"><span class="badge payload-badge payload-badge-severity payload-badge-severity-{{ severity_token }}">{{ finding.severity or 'unknown' }}</span></td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="7" class="is-empty">No findings in viewer payload.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="card payload-detail-panel" id="payload-detail-panel">
+      <div class="payload-detail-empty" id="pd-detail-empty">No finding selected.</div>
+      <div class="payload-detail-content is-hidden" id="pd-detail-content">
+        <header class="payload-detail-header">
+          <h3 id="pd-detail-title">Selected Event Detail</h3>
+          <div class="payload-detail-badges">
+            <span id="pd-badge-severity" class="badge payload-badge payload-badge-severity payload-badge-severity-unknown">unknown</span>
+            <span id="pd-badge-verdict" class="badge payload-badge payload-badge-default">unknown</span>
+            <span id="pd-badge-category" class="badge payload-badge payload-badge-default">unknown</span>
+            <span class="badge payload-badge payload-badge-readonly">read-only</span>
+            <span class="badge payload-badge payload-badge-context">no success inferred</span>
+          </div>
+        </header>
+
+        <section class="payload-detail-section">
+          <h4>Request</h4>
+          <p><span class="meta-label">Time</span> <span id="pd-display-time">N/A</span></p>
+          <p><span class="meta-label">Source IP</span> <span id="pd-source-ip">N/A</span></p>
+          <p><span class="meta-label">Method</span> <span id="pd-method">N/A</span></p>
+          <p><span class="meta-label">URI</span> <span id="pd-uri">N/A</span></p>
+          <p><span class="meta-label">Status</span> <span id="pd-status-code">N/A</span></p>
+          <p><span class="meta-label">Confidence</span> <span id="pd-confidence">N/A</span></p>
+        </section>
+
+        <section class="payload-detail-section">
+          <h4>Analysis Note</h4>
+          <p id="pd-reasoning-summary">N/A</p>
+        </section>
+
+        <section class="payload-detail-section">
+          <h4>Evidence</h4>
+          <ul id="pd-evidence-fields" class="payload-detail-list"></ul>
+          <p id="pd-evidence-more" class="payload-detail-more is-hidden"></p>
+        </section>
+
+        <section class="payload-detail-section">
+          <details class="payload-technical-details">
+            <summary>Technical details</summary>
+            <div class="payload-technical-body">
+              <p><span class="meta-label">request_id</span> <span id="pd-request-id">N/A</span></p>
+              <p><span class="meta-label">log_time (raw)</span> <span id="pd-log-time">N/A</span></p>
+              <p class="meta-label">reason_hints</p>
+              <ul id="pd-reason-hints" class="payload-detail-list"></ul>
+              <p class="meta-label">recommended_actions</p>
+              <ul id="pd-recommended-actions" class="payload-detail-list"></ul>
+              <p class="meta-label">raw_export_match</p>
+              <ul class="payload-detail-list">
+                <li>source_table: <span id="pd-raw-source-table">N/A</span></li>
+                <li>log_id: <span id="pd-raw-log-id">N/A</span></li>
+                <li>request_id: <span id="pd-raw-request-id">N/A</span></li>
+              </ul>
+            </div>
+          </details>
+        </section>
+      </div>
+    </aside>
+  </section>
+
+  <section class="section card payload-contexts">
+    <h3>Contexts Preview <span class="badge payload-badge payload-badge-context-only">context-only</span></h3>
+    <div class="table-wrapper">
+      <table class="table table-compact">
+        <thead>
+          <tr>
+            <th>type</th>
+            <th>source_ip</th>
+            <th>request_count</th>
+            <th>context_only</th>
+            <th>should_promote_to_candidate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if contexts_preview %}
+            {% for context in contexts_preview %}
+            <tr>
+              <td><span class="badge payload-badge payload-badge-context-only">{{ context.context_type or 'unknown' }}</span></td>
+              <td>{{ context.src_ip or '-' }}</td>
+              <td>{{ context.request_count or '-' }}</td>
+              <td>
+                {% if context.context_only %}
+                <span class="badge payload-badge payload-badge-context-only">true</span>
+                {% else %}
+                <span class="badge payload-badge payload-badge-default">false</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if context.should_promote_to_candidate %}
+                <span class="badge payload-badge payload-badge-verdict-warn">true</span>
+                {% else %}
+                <span class="badge payload-badge payload-badge-default">false</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="5" class="is-empty">No contexts preview.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+    <p class="is-muted">Supporting events drill-down is follow-up.</p>
+  </section>
+
+  <section class="payload-guardrail">
+    <p>
+      Guardrail: status_code, content_type, response size, route name, or lab user-agent is not treated as proof of breach or success.
+    </p>
+    {% if guardrails %}
+      <ul>
+        {% for item in guardrails %}
+          <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+</section>
+
+<script type="application/json" id="payload-findings-data">{{ findings | tojson }}</script>
+<script>
+  (function () {
+    const scriptEl = document.getElementById("payload-findings-data");
+    const panel = document.getElementById("payload-detail-panel");
+    if (!scriptEl || !panel) return;
+
+    let findings = [];
+    try {
+      const parsed = JSON.parse(scriptEl.textContent || "[]");
+      findings = Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      findings = [];
+    }
+
+    const emptyState = document.getElementById("pd-detail-empty");
+    const detailContent = document.getElementById("pd-detail-content");
+    const rowNodes = Array.from(document.querySelectorAll(".payload-finding-row"));
+
+    function asText(value, fallback = "N/A") {
+      if (value === null || value === undefined) return fallback;
+      const text = String(value).trim();
+      return text ? text : fallback;
+    }
+
+    function asList(value) {
+      if (Array.isArray(value)) return value.map((item) => asText(item, "")).filter(Boolean);
+      if (value === null || value === undefined) return [];
+      const text = String(value).trim();
+      return text ? [text] : [];
+    }
+
+    function renderList(targetId, items) {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      target.innerHTML = "";
+      if (!items.length) {
+        const li = document.createElement("li");
+        li.className = "is-muted";
+        li.textContent = "N/A";
+        target.appendChild(li);
+        return;
+      }
+      items.forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = asText(item);
+        target.appendChild(li);
+      });
+    }
+
+    function renderEvidence(items) {
+      const list = Array.isArray(items) ? items : [];
+      const primary = list.slice(0, 5);
+      const extra = Math.max(list.length - 5, 0);
+      renderList("pd-evidence-fields", primary);
+      const more = document.getElementById("pd-evidence-more");
+      if (!more) return;
+      if (extra > 0) {
+        more.textContent = `+${extra} more`;
+        more.classList.remove("is-hidden");
+      } else {
+        more.textContent = "";
+        more.classList.add("is-hidden");
+      }
+    }
+
+    function setText(id, value, fallback = "N/A") {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = asText(value, fallback);
+    }
+
+    function updateSeverityBadge(text) {
+      const el = document.getElementById("pd-badge-severity");
+      if (!el) return;
+      const token = String(text || "unknown").toLowerCase();
+      el.className = "badge payload-badge payload-badge-severity";
+      el.classList.add("payload-badge-severity-" + token);
+      el.textContent = asText(text, "unknown");
+    }
+
+    function updateVerdictBadge(text) {
+      const el = document.getElementById("pd-badge-verdict");
+      if (!el) return;
+      const token = String(text || "").toLowerCase();
+      el.className = "badge payload-badge";
+      if (token.includes("fail")) {
+        el.classList.add("payload-badge-verdict-fail");
+      } else if (token.includes("warn")) {
+        el.classList.add("payload-badge-verdict-warn");
+      } else if (token.includes("pass")) {
+        el.classList.add("payload-badge-verdict-pass");
+      } else {
+        el.classList.add("payload-badge-default");
+      }
+      el.textContent = asText(text, "unknown");
+    }
+
+    function updateCategoryBadge(text) {
+      const el = document.getElementById("pd-badge-category");
+      if (!el) return;
+      el.textContent = asText(text, "unknown");
+    }
+
+    function renderDetail(index) {
+      if (index < 0 || index >= findings.length) {
+        if (emptyState) emptyState.classList.remove("is-hidden");
+        if (detailContent) detailContent.classList.add("is-hidden");
+        rowNodes.forEach((row) => {
+          row.classList.remove("is-selected");
+          row.setAttribute("aria-selected", "false");
+        });
+        return;
+      }
+
+      const finding = findings[index] && typeof findings[index] === "object" ? findings[index] : {};
+      const raw = finding.raw_export_match && typeof finding.raw_export_match === "object" ? finding.raw_export_match : {};
+
+      if (emptyState) emptyState.classList.add("is-hidden");
+      if (detailContent) detailContent.classList.remove("is-hidden");
+
+      rowNodes.forEach((row) => {
+        const selected = row.getAttribute("data-finding-index") === String(index);
+        row.classList.toggle("is-selected", selected);
+        row.setAttribute("aria-selected", selected ? "true" : "false");
+      });
+
+      setText("pd-detail-title", asText(finding.category, asText(finding.verdict, "Selected Event Detail")));
+      updateSeverityBadge(finding.severity);
+      updateVerdictBadge(finding.verdict);
+      updateCategoryBadge(finding.category);
+
+      setText("pd-display-time", finding.display_time || finding.log_time);
+      setText("pd-source-ip", finding.src_ip);
+      setText("pd-method", finding.method);
+      setText("pd-uri", finding.uri);
+      setText("pd-status-code", finding.status_code);
+      setText("pd-confidence", finding.confidence);
+      setText("pd-reasoning-summary", finding.reasoning_summary);
+      renderEvidence(asList(finding.evidence_fields));
+      renderList("pd-reason-hints", asList(finding.reason_hints));
+      renderList("pd-recommended-actions", asList(finding.recommended_actions));
+
+      setText("pd-request-id", finding.request_id);
+      setText("pd-log-time", finding.log_time);
+      setText("pd-raw-source-table", raw.source_table);
+      setText("pd-raw-log-id", raw.log_id);
+      setText("pd-raw-request-id", raw.request_id);
+    }
+
+    rowNodes.forEach((row) => {
+      row.addEventListener("click", function () {
+        const index = Number(row.getAttribute("data-finding-index"));
+        renderDetail(Number.isNaN(index) ? -1 : index);
+      });
+      row.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        const index = Number(row.getAttribute("data-finding-index"));
+        renderDetail(Number.isNaN(index) ? -1 : index);
+      });
+    });
+
+    renderDetail(findings.length > 0 ? 0 : -1);
+  })();
+</script>
+{% endblock %}
