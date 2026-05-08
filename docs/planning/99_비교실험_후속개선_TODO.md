@@ -22,6 +22,9 @@
 - Web UI Phase 2A filter 브라우저 spot check 완료(423px viewport에서 form/chips/result count/group card/no-result 확인, 가로 스크롤/텍스트 잘림 없음, lint filter group-level ANY 로직 정상 확인)
 - Web UI execution scope review 완료(`docs/design/99_web_ui_report_viewer_execution_scope_review.md`)
 - `run_analysis_pipeline.py` 사용자 runner UX review 문서 추가 완료(`docs/design/99_run_analysis_pipeline_user_runner_ux_review.md`)
+- viewer payload 최소 도입 완료(`src/viewer_payload_builder.py` 추가, Stage2 이후 자동 생성 연결)
+- `run_analysis_pipeline.py`에서 Stage2 이후 viewer payload 자동 생성 완료(`--viewer-payload`/`--no-viewer-payload`, `--include-raw-log` opt-in)
+- latest manifest / run별 manifest 분리 1차 반영 완료(`<work-dir>/pipeline_manifest.json` latest 유지 + `reports/<base>_pipeline_manifest.json` 추가)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -115,18 +118,18 @@
   - live progress
   - regression run button
   - scheduling/alert/dashboard
-- [ ] `viewer_payload` 최소 도입 구현 검토
-  - flat output 구조(`data/raw/`, `data/processed/`, `reports/`)는 유지
-  - `reports/<base>_viewer_payload.json` 생성 후보 검토
-  - `reports/<base>_pipeline_manifest.json` run별 manifest 추가 후보 검토
-  - `<work-dir>/pipeline_manifest.json`은 latest manifest로 유지
-  - `data/runs/<run_id>/`, `data/latest` 전환은 후속 보류
-- [ ] `run_analysis_pipeline.py` one-shot runner UX 코드 반영 여부 검토
-  - 기본 입력은 export JSON 1개 방향 우선 검토
-  - `--llm-input`, `--stage1-results` 등 resume 옵션은 즉시 제거/deprecate하지 않음
-- [ ] Web UI `viewer_payload` read-only 표시 후보 검토
-  - Overview / Findings / Context / Evidence / Noise 표시 후보 정리
-  - pipeline execution 기능과 분리 유지
+- [ ] Web UI `viewer_payload` read-only 표시 설계/구현 검토
+  - Overview / Findings / Context / Evidence / Noise 표시
+  - pipeline execution과 분리 유지
+- [ ] `viewer_payload_builder.py` 최소 단위 테스트 추가 여부 검토
+  - reason_hints list/string/None 처리
+  - noise_summary list/dict 처리
+  - raw_log opt-in 확인
+  - context_only summary가 findings로 섞이지 않는지 확인
+- [ ] `run_analysis_pipeline.py` 사용자용 one-shot runner UX/help 문구 정리 검토
+  - export JSON 기본 흐름
+  - resume 옵션은 즉시 제거하지 않고 advanced/debug 성격으로 유지
+- [ ] run_dir / data latest / manifest 기반 full runner 전환은 후속 후보로 보류
 
 QA v4 보조 스크립트 관리:
 
