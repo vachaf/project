@@ -28,6 +28,7 @@
 - Web UI viewer_payload display plan 작성 완료(`docs/design/99_web_ui_viewer_payload_display_plan.md`)
 - Web UI viewer_payload read-only dashboard MVP 구현 완료(`/report/{report_id}/payload` route, 기존 detail fallback/link 유지)
 - `run_analysis_pipeline.py` CLI help/UX 정리 완료(`--export-input` 기본 진입점 명시, resume 옵션 advanced 유지)
+- payload dashboard Selected Event Detail의 Supporting Events 제한적 preview 구현 완료(details + related count/context-only badge + compact table)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -121,12 +122,11 @@
   - live progress
   - regression run button
   - scheduling/alert/dashboard
-- [ ] Supporting Events accordion / drill-down 개선 검토
-  - 현재는 count/follow-up 수준
-  - full drill-down은 후속
-- [ ] Finding -> Supporting Events / Contexts 연결 고도화 검토
+- [ ] Finding -> Contexts 연결 고도화 검토
   - request_id, incident_group_key, context_role, supporting_role 기반 연결 후보
-  - graph viewer 또는 복잡한 interaction은 보류
+  - severity/category/verdict 재계산 금지
+- [ ] Supporting Events full drill-down / graph viewer는 장기 후보로 보류
+  - 현재는 selected finding related preview 수준 유지
 - [ ] viewer_payload compare/history 후보 검토
   - 기존 Stage2 compare와 분리
   - 장기 후보로 유지
