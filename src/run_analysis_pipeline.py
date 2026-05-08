@@ -33,52 +33,143 @@ ALLOWED_STOP_AFTER = {"prepare", "stage1", "stage2"}
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="LLM 분석 파이프라인 실행기")
+    parser = argparse.ArgumentParser(
+        description=(
+            "LLM 분석 파이프라인 실행기\n"
+            "기본 권장 흐름: --export-input 1개로 prepare -> stage1 -> stage2 one-shot 실행"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
-    input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument("--export-input", help="export_db_logs_cli.py 결과 JSON 에서 시작")
-    input_group.add_argument("--llm-input", help="prepare_llm_input.py 결과 <base>_llm_input.json 에서 시작")
-    input_group.add_argument("--stage1-results", help="llm_stage1_classifier.py 결과 <base>_stage1_results.json 에서 시작")
+    input_group_container = parser.add_argument_group("Input")
+    input_group = input_group_container.add_mutually_exclusive_group(required=True)
+    input_group.add_argument(
+        "--export-input",
+        help="사용자용 기본 입력: export_db_logs_cli.py가 만든 export JSON에서 전체 pipeline 실행",
+    )
+    input_group.add_argument(
+        "--llm-input",
+        help="[advanced/resume] prepare 결과 <base>_llm_input.json에서 재개",
+    )
+    input_group.add_argument(
+        "--stage1-results",
+        help="[advanced/resume] Stage1 결과 <base>_stage1_results.json에서 재개",
+    )
 
-    parser.add_argument("--scripts-dir", default=None, help="개별 파이프라인 스크립트가 있는 디렉터리 (기본값: 현재 스크립트 디렉터리)")
-    parser.add_argument("--work-dir", default=".", help="작업 루트 디렉터리")
-    parser.add_argument("--processed-dir", default=None, help="중간 산출물 디렉터리 (기본값: <work-dir>/data/processed)")
-    parser.add_argument("--reports-dir", default=None, help="최종 보고서 디렉터리 (기본값: <work-dir>/reports)")
-    parser.add_argument("--base-name", default=None, help="산출물 파일명 접두어")
-    parser.add_argument("--mode", default="routine", choices=sorted(ALLOWED_MODES), help="모델 사용 모드")
-    parser.add_argument("--stop-after", default="stage2", choices=sorted(ALLOWED_STOP_AFTER), help="어느 단계까지 실행할지 지정")
+    paths_output = parser.add_argument_group("Paths / output")
+    paths_output.add_argument(
+        "--scripts-dir",
+        default=None,
+        help="개별 파이프라인 스크립트 디렉터리 (기본값: 현재 스크립트 디렉터리)",
+    )
+    paths_output.add_argument(
+        "--work-dir",
+        default=".",
+        help="작업 루트 디렉터리 (기본 output root, 기본값: 현재 디렉터리)",
+    )
+    paths_output.add_argument(
+        "--processed-dir",
+        default=None,
+        help="중간 산출물 디렉터리 override (기본값: <work-dir>/data/processed)",
+    )
+    paths_output.add_argument(
+        "--reports-dir",
+        default=None,
+        help="최종 보고서 디렉터리 override (기본값: <work-dir>/reports)",
+    )
+    paths_output.add_argument(
+        "--base-name",
+        default=None,
+        help="산출물 파일명 접두어 (미지정 시 입력 파일 stem 기반 자동 추론)",
+    )
 
-    parser.add_argument("--prepare-min-score", type=int, default=4, help="prepare_llm_input.py --min-score")
-    parser.add_argument("--prepare-min-repeat-aggregate", type=int, default=3, help="prepare_llm_input.py --min-repeat-aggregate")
-    parser.add_argument("--prepare-source-tables", default="security", help="prepare 단계에서 포함할 source table 쉼표 목록 (기본값: security)")
-    parser.add_argument("--write-filtered-out", action="store_true", help="prepare 단계에서 filtered_out_rows 저장")
-
-    parser.add_argument("--stage1-model", default=None, help="1차 분류 모델 override")
-    parser.add_argument("--stage1-candidate-limit", type=int, default=0, help="1차 분류 상위 N개 후보만 처리 (0은 전체)")
-    parser.add_argument("--stage1-max-evidence-items", type=int, default=8, help="1차 분류 evidence_fields 최대 개수")
-    parser.add_argument("--stage1-sleep-sec", type=float, default=0.0, help="1차 분류 API 호출 사이 대기 시간")
-    parser.add_argument("--stage1-timeout-sec", type=int, default=180, help="1차 분류 HTTP 타임아웃")
-
-    parser.add_argument("--llm-provider", choices=SUPPORTED_PROVIDERS, default=None, help="stage1/stage2 LLM provider (기본값: LLM_PROVIDER 또는 openai)")
-    parser.add_argument("--stage2-model", default=None, help="2차 보고서 모델 override")
-    parser.add_argument("--stage2-top-incidents", type=int, default=12, help="2차 보고서 상위 incident 수")
-    parser.add_argument("--stage2-top-noise-groups", type=int, default=8, help="2차 보고서 상위 noise group 수")
-    parser.add_argument("--stage2-top-ips", type=int, default=8, help="2차 보고서 상위 src_ip 수")
-    parser.add_argument("--stage2-timeout-sec", type=int, default=180, help="2차 보고서 HTTP 타임아웃")
-    parser.add_argument(
+    run_mode = parser.add_argument_group("Run mode")
+    run_mode.add_argument("--mode", default="routine", choices=sorted(ALLOWED_MODES), help="모델 사용 모드")
+    run_mode.add_argument("--stop-after", default="stage2", choices=sorted(ALLOWED_STOP_AFTER), help="어느 단계까지 실행할지 지정")
+    run_mode.add_argument(
+        "--llm-provider",
+        choices=SUPPORTED_PROVIDERS,
+        default=None,
+        help="stage1/stage2 LLM provider (기본값: LLM_PROVIDER 또는 openai)",
+    )
+    run_mode.add_argument(
         "--known-asset-ips",
         default=None,
         help="stage2 에 전달할 known asset IP 쉼표 목록 (.env 의 KNOWN_ASSET_IPS fallback 사용 가능)",
     )
+    run_mode.add_argument("--pretty", action="store_true", help="산출 JSON pretty 출력")
+    run_mode.add_argument("--dry-run", action="store_true", help="실제 LLM API 호출 없이 파이프라인 구조/산출물 검증")
+    run_mode.add_argument("--keep-going", action="store_true", help="오류가 나도 가능한 범위까지 manifest를 남기고 종료")
 
-    parser.add_argument("--store", action="store_true", help="Responses API store=true 사용")
-    parser.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high", "xhigh"], default="none", help="선택적 reasoning effort")
-    parser.add_argument("--pretty", action="store_true", help="JSON pretty 출력")
-    parser.add_argument("--dry-run", action="store_true", help="실제 API 호출 없이 dry-run 산출물만 생성")
-    parser.add_argument("--keep-going", action="store_true", help="오류가 나도 가능한 범위까지 manifest 를 남기고 종료")
-    parser.add_argument("--viewer-payload", dest="viewer_payload", action="store_true", help="stage2 이후 viewer payload 생성 (기본값: 사용)")
-    parser.add_argument("--no-viewer-payload", dest="viewer_payload", action="store_false", help="stage2 이후 viewer payload 생략")
-    parser.add_argument("--include-raw-log", action="store_true", help="viewer payload 에 raw_export 의 raw_log 포함")
+    viewer_output = parser.add_argument_group("Viewer payload output")
+    viewer_output.add_argument(
+        "--viewer-payload",
+        dest="viewer_payload",
+        action="store_true",
+        help="Stage2 이후 Web UI용 viewer_payload 생성 (기본값: enabled)",
+    )
+    viewer_output.add_argument(
+        "--no-viewer-payload",
+        dest="viewer_payload",
+        action="store_false",
+        help="viewer_payload 생성 생략",
+    )
+    viewer_output.add_argument(
+        "--include-raw-log",
+        action="store_true",
+        help="[debug] viewer_payload에 raw_export raw_log 포함 (기본값: disabled)",
+    )
+
+    prepare_advanced = parser.add_argument_group("Prepare advanced options")
+    prepare_advanced.add_argument("--prepare-min-score", type=int, default=4, help="prepare_llm_input.py --min-score")
+    prepare_advanced.add_argument("--prepare-min-repeat-aggregate", type=int, default=3, help="prepare_llm_input.py --min-repeat-aggregate")
+    prepare_advanced.add_argument("--prepare-source-tables", default="security", help="prepare 단계에서 포함할 source table 쉼표 목록 (기본값: security)")
+    prepare_advanced.add_argument("--write-filtered-out", action="store_true", help="prepare 단계에서 filtered_out_rows 저장")
+
+    stage1_advanced = parser.add_argument_group("Stage1 advanced options")
+    stage1_advanced.add_argument("--stage1-model", default=None, help="1차 분류 모델 override")
+    stage1_advanced.add_argument("--stage1-candidate-limit", type=int, default=0, help="1차 분류 상위 N개 후보만 처리 (0은 전체)")
+    stage1_advanced.add_argument("--stage1-max-evidence-items", type=int, default=8, help="1차 분류 evidence_fields 최대 개수")
+    stage1_advanced.add_argument("--stage1-sleep-sec", type=float, default=0.0, help="1차 분류 API 호출 사이 대기 시간")
+    stage1_advanced.add_argument("--stage1-timeout-sec", type=int, default=180, help="1차 분류 HTTP 타임아웃")
+
+    stage2_advanced = parser.add_argument_group("Stage2 advanced options")
+    stage2_advanced.add_argument("--stage2-model", default=None, help="2차 보고서 모델 override")
+    stage2_advanced.add_argument("--stage2-top-incidents", type=int, default=12, help="2차 보고서 상위 incident 수")
+    stage2_advanced.add_argument("--stage2-top-noise-groups", type=int, default=8, help="2차 보고서 상위 noise group 수")
+    stage2_advanced.add_argument("--stage2-top-ips", type=int, default=8, help="2차 보고서 상위 src_ip 수")
+    stage2_advanced.add_argument("--stage2-timeout-sec", type=int, default=180, help="2차 보고서 HTTP 타임아웃")
+
+    llm_api_debug = parser.add_argument_group("LLM/API debug options")
+    llm_api_debug.add_argument("--store", action="store_true", help="Responses API store=true 사용")
+    llm_api_debug.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high", "xhigh"], default="none", help="선택적 reasoning effort")
+
+    parser.epilog = """
+Typical usage:
+python3 src/run_analysis_pipeline.py \
+  --llm-provider openai \
+  --export-input data/raw/security_2026-04-30_13-55-00_to_2026-04-30_13-56-00_kst.json \
+  --work-dir /opt/web_log_analysis \
+  --mode routine \
+  --pretty
+
+Default outputs:
+data/processed/<base>_llm_input.json
+data/processed/<base>_analysis_candidates.json
+data/processed/<base>_noise_summary.json
+data/processed/<base>_stage1_results.json
+reports/<base>_stage2_report.json
+reports/<base>_stage2_report.md
+reports/<base>_viewer_payload.json
+reports/<base>_pipeline_manifest.json
+pipeline_manifest.json
+
+Notes:
+- --export-input is the normal one-shot entry point.
+- --llm-input and --stage1-results are advanced resume inputs.
+- viewer_payload is a read-only Web UI artifact; it does not create new security meaning.
+- Web UI remains read-only; this runner does not add a web execution console.
+"""
     parser.set_defaults(viewer_payload=True)
     return parser.parse_args()
 
