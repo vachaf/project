@@ -1061,6 +1061,68 @@ summary:focus-visible {
   color: #5e7390;
 }
 
+.payload-supporting-events-summary {
+  border: 1px solid #d7e1ee;
+  border-radius: 8px;
+  background: #f6f9fd;
+  padding: 0.35rem 0.45rem;
+}
+
+.payload-supporting-events-summary > summary {
+  cursor: pointer;
+  color: #3c5a7b;
+  font-size: 0.81rem;
+  font-weight: 600;
+}
+
+.payload-supporting-events-empty {
+  margin: 0.45rem 0 0;
+  color: #5c728f;
+  font-size: 0.82rem;
+}
+
+.payload-supporting-events-table {
+  margin-top: 0.45rem;
+}
+
+.payload-supporting-events-table th,
+.payload-supporting-events-table td {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.3rem;
+  vertical-align: top;
+}
+
+.payload-supporting-events-table th {
+  background: #edf3fb;
+}
+
+.payload-supporting-events-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: #607797;
+}
+
+.payload-supporting-role {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.payload-supporting-uri {
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.payload-match-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.76rem;
+  color: #657c99;
+}
+
 .payload-technical-details {
   border: 1px solid #dbe4f2;
   border-radius: 8px;

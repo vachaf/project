@@ -5,10 +5,12 @@
 {% block content %}
 <section class="section payload-dashboard">
   {% set summary = payload_summary if payload_summary else {} %}
+  {% set payload_obj = payload if payload is mapping else {} %}
   {% set schema_version = summary.get('schema_version') or 'viewer_payload.v1' %}
   {% set guardrails = summary.get('guardrails') if summary.get('guardrails') is sequence and summary.get('guardrails') is not string else [] %}
   {% set source_of_truth = summary.get('source_of_truth') if summary.get('source_of_truth') is mapping else {} %}
   {% set total_requests = summary.get('total_request_count') or summary.get('request_count') or source_of_truth.get('total_requests') or source_of_truth.get('request_count') or 'unknown' %}
+  {% set supporting_events = payload_obj.get('supporting_events') if payload_obj.get('supporting_events') is sequence and payload_obj.get('supporting_events') is not string else [] %}
 
   <header class="payload-dashboard-header card">
     <div>
@@ -153,6 +155,35 @@
           <p id="pd-evidence-more" class="payload-detail-more is-hidden"></p>
         </section>
 
+        <section class="payload-detail-section payload-supporting-events">
+          <h4>
+            Related Supporting Events
+            <span id="pd-supporting-related-badge" class="badge payload-badge payload-badge-default">0 related</span>
+            <span class="badge payload-badge payload-badge-context-only">context-only</span>
+          </h4>
+          <details class="payload-supporting-events-summary">
+            <summary id="pd-supporting-summary">Related Supporting Events (0)</summary>
+            <p id="pd-supporting-events-empty" class="payload-supporting-events-empty is-hidden">No related supporting events in payload.</p>
+            <div id="pd-supporting-events-table-wrap" class="table-wrapper is-hidden">
+              <table class="table table-compact payload-supporting-events-table">
+                <thead>
+                  <tr>
+                    <th>time</th>
+                    <th>role</th>
+                    <th>method</th>
+                    <th>uri</th>
+                    <th>status</th>
+                    <th>request_id</th>
+                  </tr>
+                </thead>
+                <tbody id="pd-supporting-events-body"></tbody>
+              </table>
+            </div>
+            <p id="pd-supporting-events-more" class="payload-supporting-events-note is-hidden"></p>
+            <p class="payload-match-note">Display-only association; do not promote supporting events into findings.</p>
+          </details>
+        </section>
+
         <section class="payload-detail-section">
           <details class="payload-technical-details">
             <summary>Technical details</summary>
@@ -238,19 +269,29 @@
 </section>
 
 <script type="application/json" id="payload-findings-data">{{ findings | tojson }}</script>
+<script type="application/json" id="payload-supporting-events-data">{{ supporting_events | tojson }}</script>
 <script>
   (function () {
     const scriptEl = document.getElementById("payload-findings-data");
+    const supportingScriptEl = document.getElementById("payload-supporting-events-data");
     const panel = document.getElementById("payload-detail-panel");
     if (!scriptEl || !panel) return;
 
     let findings = [];
+    let supportingEvents = [];
     try {
       const parsed = JSON.parse(scriptEl.textContent || "[]");
       findings = Array.isArray(parsed) ? parsed : [];
     } catch (err) {
       findings = [];
     }
+    try {
+      const parsedSupporting = JSON.parse((supportingScriptEl && supportingScriptEl.textContent) || "[]");
+      supportingEvents = Array.isArray(parsedSupporting) ? parsedSupporting : [];
+    } catch (err) {
+      supportingEvents = [];
+    }
+    supportingEvents = supportingEvents.filter((event) => event && typeof event === "object");
 
     const emptyState = document.getElementById("pd-detail-empty");
     const detailContent = document.getElementById("pd-detail-content");
@@ -307,6 +348,174 @@
       const el = document.getElementById(id);
       if (!el) return;
       el.textContent = asText(value, fallback);
+    }
+
+    function asLowerText(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function safeWord(value) {
+      return asLowerText(value).replace(/\s+/g, " ").trim();
+    }
+
+    function getEventTime(event) {
+      if (!event || typeof event !== "object") return "unknown";
+      return asText(event.log_time || event.timestamp || event.event_time, "unknown");
+    }
+
+    function getEventRole(event) {
+      if (!event || typeof event !== "object") return "unknown";
+      return asText(event.supporting_role || event.context_role || event.supporting_reason, "unknown");
+    }
+
+    function keywordInRole(roleText, keywords) {
+      return keywords.some((keyword) => roleText.includes(keyword));
+    }
+
+    // Display-only association; do not promote supporting events into findings.
+    function getRelatedSupportingEvents(finding, events) {
+      if (!finding || typeof finding !== "object" || !Array.isArray(events) || !events.length) {
+        return [];
+      }
+
+      const findingRequestId = asLowerText(finding.request_id);
+      const findingGroupKey = asLowerText(finding.incident_group_key);
+      const findingSrcIp = asLowerText(finding.src_ip);
+      const findingUri = asLowerText(finding.uri);
+      const findingMethod = asLowerText(finding.method);
+      const findingCategory = asLowerText(finding.category);
+
+      const matches = [];
+      events.forEach((event, idx) => {
+        if (!event || typeof event !== "object") return;
+
+        const eventRequestId = asLowerText(event.request_id);
+        const eventGroupKey = asLowerText(event.incident_group_key);
+        const eventSrcIp = asLowerText(event.src_ip);
+        const eventUri = asLowerText(event.uri);
+        const eventMethod = asLowerText(event.method);
+        const roleText = safeWord([event.supporting_role, event.context_role, event.supporting_reason].filter(Boolean).join(" "));
+
+        let score = 0;
+        if (findingRequestId && eventRequestId && findingRequestId === eventRequestId) {
+          score = Math.max(score, 100);
+        }
+        if (findingGroupKey && eventGroupKey && findingGroupKey === eventGroupKey) {
+          score = Math.max(score, 90);
+        }
+        if (findingSrcIp && findingUri && eventSrcIp && eventUri) {
+          if (findingSrcIp === eventSrcIp && findingUri === eventUri) {
+            score = Math.max(score, 70);
+            if (findingMethod && eventMethod && findingMethod === eventMethod) {
+              score = Math.max(score, 80);
+            }
+          }
+        }
+
+        const sensitiveCategory = findingCategory.includes("sensitive") || findingCategory.includes("file") || findingCategory.includes("probe");
+        if (sensitiveCategory && keywordInRole(roleText, ["sensitive", "probe", "probing"])) {
+          score = Math.max(score, 40);
+        }
+        if (findingCategory.includes("auth") && keywordInRole(roleText, ["auth", "login"])) {
+          score = Math.max(score, 40);
+        }
+        if (findingCategory.includes("method") && keywordInRole(roleText, ["method", "verb"])) {
+          score = Math.max(score, 40);
+        }
+
+        if (score > 0) {
+          matches.push({ event, score, idx });
+        }
+      });
+
+      matches.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.idx - b.idx;
+      });
+      return matches;
+    }
+
+    function renderSupportingEvents(finding) {
+      const summaryEl = document.getElementById("pd-supporting-summary");
+      const badgeEl = document.getElementById("pd-supporting-related-badge");
+      const emptyEl = document.getElementById("pd-supporting-events-empty");
+      const tableWrapEl = document.getElementById("pd-supporting-events-table-wrap");
+      const tbodyEl = document.getElementById("pd-supporting-events-body");
+      const moreEl = document.getElementById("pd-supporting-events-more");
+      if (!summaryEl || !badgeEl || !emptyEl || !tableWrapEl || !tbodyEl || !moreEl) return;
+
+      tbodyEl.innerHTML = "";
+      moreEl.classList.add("is-hidden");
+      moreEl.textContent = "";
+
+      if (!supportingEvents.length) {
+        summaryEl.textContent = "Related Supporting Events (0)";
+        badgeEl.textContent = "0 related";
+        emptyEl.textContent = "No supporting events in this viewer payload.";
+        emptyEl.classList.remove("is-hidden");
+        tableWrapEl.classList.add("is-hidden");
+        return;
+      }
+
+      const matched = getRelatedSupportingEvents(finding, supportingEvents);
+      const matchedCount = matched.length;
+      const preview = matched.slice(0, 10);
+      const hiddenCount = Math.max(matchedCount - preview.length, 0);
+
+      summaryEl.textContent = `Related Supporting Events (${matchedCount})`;
+      badgeEl.textContent = `${matchedCount} related`;
+
+      if (!preview.length) {
+        emptyEl.textContent = "No related supporting events for this finding.";
+        emptyEl.classList.remove("is-hidden");
+        tableWrapEl.classList.add("is-hidden");
+        return;
+      }
+
+      emptyEl.classList.add("is-hidden");
+      tableWrapEl.classList.remove("is-hidden");
+
+      preview.forEach(({ event }) => {
+        const row = document.createElement("tr");
+        const roleText = getEventRole(event);
+
+        const timeCell = document.createElement("td");
+        timeCell.textContent = asText(getEventTime(event), "unknown");
+
+        const roleCell = document.createElement("td");
+        const roleBadge = document.createElement("span");
+        roleBadge.className = "badge payload-badge payload-badge-context-only payload-supporting-role";
+        roleBadge.textContent = asText(roleText, "unknown");
+        roleCell.appendChild(roleBadge);
+
+        const methodCell = document.createElement("td");
+        methodCell.textContent = asText(event.method, "-");
+
+        const uriCell = document.createElement("td");
+        const uriText = asText(event.uri, "-");
+        uriCell.className = "payload-supporting-uri";
+        uriCell.title = uriText;
+        uriCell.textContent = uriText;
+
+        const statusCell = document.createElement("td");
+        statusCell.textContent = asText(event.status_code, "-");
+
+        const requestIdCell = document.createElement("td");
+        requestIdCell.textContent = asText(event.request_id, "-");
+
+        row.appendChild(timeCell);
+        row.appendChild(roleCell);
+        row.appendChild(methodCell);
+        row.appendChild(uriCell);
+        row.appendChild(statusCell);
+        row.appendChild(requestIdCell);
+        tbodyEl.appendChild(row);
+      });
+
+      if (hiddenCount > 0) {
+        moreEl.textContent = `+${hiddenCount} more not shown`;
+        moreEl.classList.remove("is-hidden");
+      }
     }
 
     function updateSeverityBadge(text) {
@@ -377,6 +586,7 @@
       setText("pd-confidence", finding.confidence);
       setText("pd-reasoning-summary", finding.reasoning_summary);
       renderEvidence(asList(finding.evidence_fields));
+      renderSupportingEvents(finding);
       renderList("pd-reason-hints", asList(finding.reason_hints));
       renderList("pd-recommended-actions", asList(finding.recommended_actions));
 
