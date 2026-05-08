@@ -27,6 +27,7 @@
 - latest manifest / run별 manifest 분리 1차 반영 완료(`<work-dir>/pipeline_manifest.json` latest 유지 + `reports/<base>_pipeline_manifest.json` 추가)
 - Web UI viewer_payload display plan 작성 완료(`docs/design/99_web_ui_viewer_payload_display_plan.md`)
 - Web UI viewer_payload read-only dashboard MVP 구현 완료(`/report/{report_id}/payload` route, 기존 detail fallback/link 유지)
+- `run_analysis_pipeline.py` CLI help/UX 정리 완료(`--export-input` 기본 진입점 명시, resume 옵션 advanced 유지)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -135,10 +136,6 @@
   - raw_log opt-in 확인
   - context_only summary가 findings로 섞이지 않는지 확인
   - 필수 키 누락 시 graceful 처리
-- [ ] `run_analysis_pipeline.py` 사용자용 one-shot runner UX/help 문구 정리 검토
-  - argparse argument_group으로 standard/developer options 분리 후보
-  - export JSON 기본 흐름
-  - resume 옵션은 즉시 제거하지 않고 advanced/debug 성격으로 유지
 - [ ] run_dir / data latest / manifest 기반 full runner 전환은 후속 후보로 보류
 
 QA v4 보조 스크립트 관리:
