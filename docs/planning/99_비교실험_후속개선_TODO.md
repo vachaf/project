@@ -29,6 +29,7 @@
 - Web UI viewer_payload read-only dashboard MVP 구현 완료(`/report/{report_id}/payload` route, 기존 detail fallback/link 유지)
 - `run_analysis_pipeline.py` CLI help/UX 정리 완료(`--export-input` 기본 진입점 명시, resume 옵션 advanced 유지)
 - payload dashboard Selected Event Detail의 Supporting Events 제한적 preview 구현 완료(details + related count/context-only badge + compact table)
+- `run_analysis_pipeline.py` export/pipeline table 불일치 해소 완료(`--prepare-source-tables` 기본값 auto, export `table_option/counts/data` 기반 자동 해석, commit `e0fcdaece33f0f580f4877be121f09c7192a1904`)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -137,6 +138,8 @@
   - context_only summary가 findings로 섞이지 않는지 확인
   - 필수 키 누락 시 graceful 처리
 - [ ] run_dir / data latest / manifest 기반 full runner 전환은 후속 후보로 보류
+- [ ] `run_analysis_pipeline.py --help` 예시의 table auto resolution 안내 보강 필요 여부 검토
+- [ ] lab traffic `--table all` export 기준 E2E smoke test 시나리오 정리
 
 QA v4 보조 스크립트 관리:
 

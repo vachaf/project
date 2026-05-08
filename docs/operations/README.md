@@ -9,7 +9,7 @@
 
 - 전체 흐름/실행
   - [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md): 전체 파이프라인 흐름 요약
-  - [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md): 운영 기준과 실행 절차
+  - [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md): 운영 기준과 실행 절차(`export --table`과 pipeline auto prepare source table 해석 포함)
   - [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md): 통합 스크립트 설명
 - 프로젝트/실험 대상
   - [01_프로젝트_방향과_실험대상.md](./01_프로젝트_방향과_실험대상.md): 프로젝트 방향과 실험 대상 정리
@@ -21,7 +21,7 @@
 - 로그/DB/export
   - [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md): 로그 표준과 DB 구조
   - [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md): 로그 적재와 운영
-  - [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md): export와 LLM 분석 전략
+  - [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md): export와 LLM 분석 전략(`table_option/counts/data` 기반 auto resolution 설명 포함)
   - [99_output_retention_policy.md](./99_output_retention_policy.md): 산출물 보존/정리 기준
 
 ## 읽는 순서

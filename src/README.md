@@ -24,6 +24,9 @@ export -> prepare -> stage1 -> stage2
   - Stage2 prompt는 Apache logs-only guard를 섹션화한 compact prompt 구조를 사용한다.
 - `run_analysis_pipeline.py`
   - `export/prepare/stage1/stage2` 흐름을 통합 실행한다.
+  - `--export-input` one-shot 실행에서는 `--prepare-source-tables=auto`가 기본이며 export JSON의 `meta.table_option`, `counts`, `data`를 기준으로 prepare 대상 source table을 자동 결정한다.
+  - 사용자가 `--prepare-source-tables`를 명시하면 explicit override가 우선한다.
+  - `--llm-input`/`--stage1-results` resume 시작점에서는 기존 호환성을 위해 `security` fallback을 사용한다.
 
 ## prepare 하위 모듈
 
@@ -98,9 +101,10 @@ python3 -m pytest tests/test_stage2_report_quality.py
 현재 기준:
 
 ```text
-prepare regression: pass=18 warn=0 fail=0
-stage dry-run regression: pass=12 warn=0 fail=0
+prepare regression: pass=25 warn=0 fail=0
+stage dry-run regression: pass=19 warn=0 fail=0
 Stage2 report quality lint tests: 14 passed
+table resolution tests: 8 passed
 ```
 
 ## 관련 문서

@@ -35,6 +35,11 @@ llm_stage2_reporter.py
 
 - `run_analysis_pipeline.py`는 prepare -> stage1 -> stage2를 묶는 통합 실행 입구다.
 - `run_analysis_pipeline.py`는 `--export-input`, `--llm-input`, `--stage1-results`에서 시작할 수 있다.
+- `--export-input` one-shot 실행에서는 `--prepare-source-tables=auto`가 기본이다.
+  - `meta.table_option=security/access/error`이면 해당 table로 고정
+  - `meta.table_option=all`이면 `counts > 0` 우선, 없으면 `data` row 존재 기준으로 포함 table을 자동 선택
+  - resume 시작점 또는 export JSON read 실패 시 `security` fallback
+  - 사용자가 `--prepare-source-tables`를 명시하면 explicit override가 우선
 - `--dry-run`으로 실제 LLM API 호출 없이 구조 검증이 가능하다.
 - 실행 후 `pipeline_manifest.json`을 생성한다.
 
@@ -44,8 +49,9 @@ llm_stage2_reporter.py
 - `error`: 5xx 또는 `request_id`/`error_link_id` 연계 확인용 보조 입력
 - `access`: 운영 확인과 기준선 비교용 보조 입력
 
-- 기본 prepare 입력은 `security`다.
-- `error`와 `access`는 필요 시 `--include-source-tables`로 포함 범위를 조정할 수 있다.
+- 수동 `prepare_llm_input.py` 기준 기본 prepare 입력은 `security`다.
+- `run_analysis_pipeline.py --export-input` 경로에서는 `--prepare-source-tables=auto`가 기본이며 export JSON `meta.table_option/counts/data`로 prepare 포함 table을 결정한다.
+- `error`와 `access`는 수동 prepare에서는 `--include-source-tables`, pipeline에서는 `--prepare-source-tables`(explicit override)로 포함 범위를 조정할 수 있다.
 - `access`를 현재 주 입력처럼 보지 않는다.
 
 ## 3. export 기준

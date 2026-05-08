@@ -17,6 +17,7 @@
 
 1. 현재 상태를 먼저 볼 때는 [진행상황.md](./진행상황.md)를 본다.
 2. 전체 흐름과 실행 순서를 볼 때는 [00_전체_흐름_요약_가이드.md](./operations/00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./operations/01_운영_기준_실행_가이드.md)를 본다.
+  - `export --table`과 pipeline `prepare_source_tables` 자동 해석(`run_analysis_pipeline.py --prepare-source-tables=auto`)은 01/05 문서에서 확인한다.
 3. 실험 세트 문서는 `experiments/` 아래의 `A_set/` ~ `H_set/`을 본다.
 4. 실험 표준과 결과 기록 양식은 `standards/`를 본다.
 5. 설계, 회귀 검증, 해석 한계, 보류 결정은 `design/`을 본다.
