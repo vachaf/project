@@ -22,6 +22,15 @@
 
 - Phase 1A/1B/2A는 완료 상태로 본다.
 - `web/`은 report list/detail/compare/filter를 제공한다.
+- 단기 read-only Web UI가 읽는 주요 산출물 기준은 다음과 같다.
+  - Stage2 report JSON
+  - Stage2 report Markdown
+  - `viewer_payload` JSON
+  - pipeline manifest
+  - Stage2 quality lint result
+- `web/`은 위 산출물을 읽어 보여주는 역할이며, pipeline 실행이나 report rewrite를 수행하지 않는다.
+- `viewer_payload`는 웹 표시용 파생 산출물이며, 원본 report의 보안 의미를 새로 생성하지 않는다.
+- pipeline manifest는 run metadata, artifact path, 상태 확인용 산출물이며 보안 판정 결과가 아니다.
 - `web/`은 read-only 원칙을 유지한다.
   - pipeline 실행 없음
   - report rewrite 없음
@@ -47,24 +56,36 @@
 
 ## 4. 서버 역할
 
-- Web/App Server
-  - read-only viewer UI 제공(list/detail/compare/filter)
-  - report 파일 조회와 렌더링을 담당
+- Target App Server / Web Service Server
+  - Juice Shop, OpenCart 등 대상 웹 애플리케이션과 Apache가 동작한다.
+  - Apache access/security/error log를 생성한다.
+  - `apache_log_shipper.py`가 로그를 수집/전송한다.
 - Log DB Server
-  - Apache 로그 저장/조회 및 export 대상 데이터 원천 제공
-  - 웹 viewer가 직접 DB를 제어하지 않는다
+  - MariaDB에 Apache 로그를 저장한다.
+  - 분석 대상 원천 데이터를 보관한다.
 - Analysis/LLM Server
-  - export → prepare → stage1 → stage2 pipeline 실행 담당
-  - report 생성/manifest 기록/검증 절차 담당
+  - DB export, `prepare`, Stage1, Stage2, `viewer_payload` 생성을 담당한다.
+  - read-only Web UI를 실행한다.
+- 운영 관점 정리
+  - 사용자에게는 하나의 콘솔처럼 보이지만 서버 역할은 운영상 분리된다.
 - 사용자 관점 UX
   - 위 구성은 내부적으로 분리되더라도 사용자에게는 하나의 `Security Analysis Console`로 보이게 설계한다.
 
 ## 5. 단기 운영 흐름
 
 - 분석 엔지니어가 CLI로 export JSON 기반 pipeline을 실행한다.
-- 생성된 결과(report/viewer payload/manifest)를 저장하고 품질 검증을 수행한다.
-- 일반 분석 사용자는 웹에서 report viewer를 조회한다.
-- 단기 운영 기준에서 `web/`은 read-only를 유지한다.
+- 생성된 결과(report JSON/Markdown, `viewer_payload`, manifest, lint result)를 저장하고 품질 검증을 수행한다.
+- 일반 분석 사용자는 웹에서 기존 산출물을 탐색/비교한다.
+- 단기 `Security Analysis Console`은 read-only console이다.
+- 단기 console은 아래를 수행하지 않는다.
+  - pipeline 실행
+  - DB export 실행
+  - regression 실행
+  - report rewrite
+  - raw JSON/body full search
+  - source IP raw search
+  - API key/config 노출
+- New Analysis / pipeline run button / live progress / regression run button은 Phase 2C 후보로 보류한다.
 
 ## 6. 중기 후보: New Analysis / Job Runner
 
@@ -78,10 +99,10 @@
 
 ## 7. `run_analysis_pipeline.py` UX 후보
 
-- 사용자용 one-shot runner 방향은 검토 가치가 있다.
-- 기본 입력을 export JSON 1개로 단순화하는 방향을 우선 검토한다.
-- 중간 산출물 재개(resume)는 개발/디버그 용도로 분리하거나 별도 UX로 검토한다.
-- 본 문서에서는 runner UX를 확정하지 않는다.
+- 향후 사용자용 runner 방향으로 export JSON one-shot 실행을 우선 후보로 검토한다.
+- 이는 확정된 CLI 변경이 아니라 후보 방향으로 둔다.
+- 기존 중간 산출물 재개(resume) 옵션은 개발/디버그 흐름과 연결되어 있으므로 즉시 제거하거나 deprecate하지 않는다.
+- 본 문서에서는 runner UX를 확정하지 않고 계속 검토 대상으로 둔다.
 
 ## 8. Execution Console Risk
 
@@ -111,4 +132,3 @@
 - New Analysis / pipeline execution은 별도 risk review 전까지 보류한다.
 - 사용자 UX는 하나의 Security Analysis Console로 유지하되, 운영 역할(Web/App, DB, Analysis)은 분리해 관리한다.
 - Apache logs-only 원칙과 credential 비노출 원칙은 execution 기능 검토 단계에서도 완화하지 않는다.
-
