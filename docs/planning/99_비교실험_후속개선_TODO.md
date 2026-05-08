@@ -29,6 +29,7 @@
 - Web UI viewer_payload read-only dashboard MVP 구현 완료(`/report/{report_id}/payload` route, 기존 detail fallback/link 유지)
 - `run_analysis_pipeline.py` CLI help/UX 정리 완료(`--export-input` 기본 진입점 명시, resume 옵션 advanced 유지)
 - payload dashboard Selected Event Detail의 Supporting Events 제한적 preview 구현 완료(details + related count/context-only badge + compact table)
+- payload dashboard Selected Event Detail의 Related Contexts 제한적 preview 구현 완료(display-only association, 기본 접힘 preview)
 - `run_analysis_pipeline.py` export/pipeline table 불일치 해소 완료(`--prepare-source-tables` 기본값 auto, export `table_option/counts/data` 기반 자동 해석, commit `e0fcdaece33f0f580f4877be121f09c7192a1904`)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
@@ -124,10 +125,12 @@
   - regression run button
   - scheduling/alert/dashboard
 - [ ] Finding -> Contexts 연결 고도화 검토
-  - request_id, incident_group_key, context_role, supporting_role 기반 연결 후보
-  - severity/category/verdict 재계산 금지
+  - 현재는 Related Contexts preview 완료 상태이며 full graph/advanced relationship은 장기 후보로 보류
+  - severity/category/verdict 재계산 금지 원칙 유지
 - [ ] Supporting Events full drill-down / graph viewer는 장기 후보로 보류
   - 현재는 selected finding related preview 수준 유지
+- [ ] Context graph / advanced relationship view는 장기 후보로 보류
+  - 현재는 Related Contexts preview 수준 유지
 - [ ] viewer_payload compare/history 후보 검토
   - 기존 Stage2 compare와 분리
   - 장기 후보로 유지
