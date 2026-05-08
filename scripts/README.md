@@ -92,3 +92,8 @@ verdict=PASS
 - Stage2 report quality lint 후보 검토: `../docs/design/99_stage2_report_quality_lint_candidate_review.md`
 - Stage2 report quality lint tuning: `../docs/design/99_stage2_report_quality_lint_tuning_plan.md`
 - Stage2 prompt compaction: `../docs/design/99_stage2_prompt_compaction_plan.md`
+
+- `generate_lab_traffic.py` (v2)
+  - authorized lab 전용 로그 원천 데이터 생성기다.
+  - 실제 exploit 성공/침해/권한획득 검증 도구가 아니다.
+  - GET/HEAD/OPTIONS 중심, fragment 금지, 시나리오 기반 marker/context 로그 생성에 사용한다.
