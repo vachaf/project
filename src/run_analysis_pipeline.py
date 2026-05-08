@@ -30,6 +30,7 @@ from llm_stage2_reporter import resolve_known_asset_ips
 
 ALLOWED_MODES = {"routine", "milestone", "presentation"}
 ALLOWED_STOP_AFTER = {"prepare", "stage1", "stage2"}
+KNOWN_SOURCE_TABLES = ["security", "access", "error"]
 
 
 def parse_args() -> argparse.Namespace:
@@ -123,7 +124,14 @@ def parse_args() -> argparse.Namespace:
     prepare_advanced = parser.add_argument_group("Prepare advanced options")
     prepare_advanced.add_argument("--prepare-min-score", type=int, default=4, help="prepare_llm_input.py --min-score")
     prepare_advanced.add_argument("--prepare-min-repeat-aggregate", type=int, default=3, help="prepare_llm_input.py --min-repeat-aggregate")
-    prepare_advanced.add_argument("--prepare-source-tables", default="security", help="prepare 단계에서 포함할 source table 쉼표 목록 (기본값: security)")
+    prepare_advanced.add_argument(
+        "--prepare-source-tables",
+        default="auto",
+        help=(
+            "prepare 단계에서 포함할 source table 쉼표 목록 "
+            "(기본값: auto, export JSON meta.table_option/counts/data 기반 자동 결정)"
+        ),
+    )
     prepare_advanced.add_argument("--write-filtered-out", action="store_true", help="prepare 단계에서 filtered_out_rows 저장")
 
     stage1_advanced = parser.add_argument_group("Stage1 advanced options")
@@ -231,6 +239,76 @@ def dump_json(path: Path, payload: Any, pretty: bool) -> None:
 def load_json(path: Path) -> Any:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def _normalize_table_list(values: List[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
+    for key in KNOWN_SOURCE_TABLES:
+        if key in values and key not in seen:
+            seen.add(key)
+            ordered.append(key)
+    for key in values:
+        if key not in seen:
+            seen.add(key)
+            ordered.append(key)
+    return ordered
+
+
+def _resolve_tables_from_all_export(payload: Dict[str, Any]) -> List[str]:
+    def _as_count(value: Any) -> int:
+        try:
+            return int(value or 0)
+        except Exception:
+            return 0
+
+    counts = payload.get("counts")
+    if isinstance(counts, dict):
+        from_counts = [name for name in KNOWN_SOURCE_TABLES if _as_count(counts.get(name)) > 0]
+        if from_counts:
+            return from_counts
+
+    data = payload.get("data")
+    if isinstance(data, dict):
+        from_data = [name for name in KNOWN_SOURCE_TABLES if isinstance(data.get(name), list) and len(data.get(name)) > 0]
+        if from_data:
+            return from_data
+    return []
+
+
+def resolve_prepare_source_tables(
+    source_input: str,
+    requested_prepare_source_tables: Optional[str],
+    resume_from: str,
+) -> tuple[str, str]:
+    requested = (requested_prepare_source_tables or "").strip()
+    if requested and requested.lower() != "auto":
+        return requested, "user_requested_explicit"
+
+    if resume_from != "export":
+        return "security", f"resume_from_{resume_from}_fallback_security"
+
+    try:
+        payload = load_json(Path(source_input))
+    except Exception:
+        return "security", "export_json_unreadable_fallback_security"
+    if not isinstance(payload, dict):
+        return "security", "export_json_not_dict_fallback_security"
+
+    meta = payload.get("meta")
+    table_option = ""
+    if isinstance(meta, dict):
+        table_option = str(meta.get("table_option") or "").strip().lower()
+
+    if table_option in {"security", "access", "error"}:
+        return table_option, f"resolved_from_table_option_{table_option}"
+    if table_option == "all":
+        resolved = _resolve_tables_from_all_export(payload)
+        if resolved:
+            return ",".join(_normalize_table_list(resolved)), "resolved_from_table_option_all_counts_or_data"
+        return "security", "table_option_all_but_empty_fallback_security"
+
+    return "security", "missing_or_unknown_table_option_fallback_security"
 
 
 def save_manifests(manifest_path: Path, run_manifest_path: Optional[Path], payload: Any, pretty: bool) -> None:
@@ -348,6 +426,13 @@ def main() -> int:
         print("[ERROR] 시작 입력 파일을 찾을 수 없습니다.", file=sys.stderr)
         return 2
 
+    resolved_prepare_source_tables, prepare_resolution_reason = resolve_prepare_source_tables(
+        source_input=source_input,
+        requested_prepare_source_tables=args.prepare_source_tables,
+        resume_from=resume_from,
+    )
+    print(f"[INFO] prepare_source_tables resolved: {resolved_prepare_source_tables} ({prepare_resolution_reason})")
+
     paths = build_paths(base_name, processed_dir=processed_dir, reports_dir=reports_dir, write_filtered_out=args.write_filtered_out)
     run_manifest_path = paths["pipeline_manifest_run"]
 
@@ -375,7 +460,10 @@ def main() -> int:
             "work_dir": str(work_dir),
             "processed_dir": str(processed_dir),
             "reports_dir": str(reports_dir),
-            "prepare_source_tables": args.prepare_source_tables,
+            "prepare_source_tables_requested": args.prepare_source_tables,
+            "prepare_source_tables_resolved": resolved_prepare_source_tables,
+            "prepare_source_tables_resolution_reason": prepare_resolution_reason,
+            "prepare_source_tables": resolved_prepare_source_tables,
             "llm_provider": llm_provider,
             "known_asset_ips": known_asset_ips,
             "manifest_role": "latest_and_run_copy",
@@ -404,7 +492,7 @@ def main() -> int:
                 "--base-name", base_name,
                 "--min-score", str(args.prepare_min_score),
                 "--min-repeat-aggregate", str(args.prepare_min_repeat_aggregate),
-                "--include-source-tables", args.prepare_source_tables,
+                "--include-source-tables", resolved_prepare_source_tables,
             ]
             if args.write_filtered_out:
                 cmd.append("--write-filtered-out")
