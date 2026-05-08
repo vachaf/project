@@ -1068,6 +1068,74 @@ summary:focus-visible {
   padding: 0.35rem 0.45rem;
 }
 
+.payload-related-contexts-summary {
+  border: 1px solid #d7e1ee;
+  border-radius: 8px;
+  background: #f5f9ff;
+  padding: 0.35rem 0.45rem;
+}
+
+.payload-related-contexts-summary > summary {
+  cursor: pointer;
+  color: #3b5a7f;
+  font-size: 0.81rem;
+  font-weight: 600;
+}
+
+.payload-context-empty {
+  margin: 0.45rem 0 0;
+  color: #5c728f;
+  font-size: 0.82rem;
+}
+
+.payload-related-contexts-list {
+  margin-top: 0.45rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.payload-related-context-card {
+  border: 1px solid #dbe5f2;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.4rem 0.45rem;
+}
+
+.payload-related-context-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.24rem;
+  margin-bottom: 0.22rem;
+}
+
+.payload-related-context-card p {
+  margin: 0.1rem 0;
+  font-size: 0.8rem;
+  color: #2f4968;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.payload-context-type {
+  max-width: 100%;
+}
+
+.payload-context-sample span:last-child {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.payload-context-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: #607797;
+}
+
+.payload-context-badge {
+  opacity: 0.9;
+}
+
 .payload-supporting-events-summary > summary {
   cursor: pointer;
   color: #3c5a7b;

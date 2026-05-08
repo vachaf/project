@@ -11,6 +11,7 @@
   {% set source_of_truth = summary.get('source_of_truth') if summary.get('source_of_truth') is mapping else {} %}
   {% set total_requests = summary.get('total_request_count') or summary.get('request_count') or source_of_truth.get('total_requests') or source_of_truth.get('request_count') or 'unknown' %}
   {% set supporting_events = payload_obj.get('supporting_events') if payload_obj.get('supporting_events') is sequence and payload_obj.get('supporting_events') is not string else [] %}
+  {% set contexts_data = payload_obj.get('contexts') if payload_obj.get('contexts') is sequence and payload_obj.get('contexts') is not string else [] %}
 
   <header class="payload-dashboard-header card">
     <div>
@@ -155,6 +156,21 @@
           <p id="pd-evidence-more" class="payload-detail-more is-hidden"></p>
         </section>
 
+        <section class="payload-detail-section payload-related-contexts">
+          <h4>
+            Related Contexts
+            <span id="pd-contexts-related-badge" class="badge payload-badge payload-badge-default">0 related</span>
+            <span class="badge payload-badge payload-badge-context-only">context-only</span>
+          </h4>
+          <details class="payload-related-contexts-summary">
+            <summary id="pd-contexts-summary">Related Contexts (0)</summary>
+            <p id="pd-contexts-empty" class="payload-context-empty is-hidden">No related contexts for this finding.</p>
+            <div id="pd-contexts-list" class="payload-related-contexts-list is-hidden"></div>
+            <p id="pd-contexts-more" class="payload-context-note is-hidden"></p>
+            <p class="payload-match-note">Display-only association; do not promote contexts into findings.</p>
+          </details>
+        </section>
+
         <section class="payload-detail-section payload-supporting-events">
           <h4>
             Related Supporting Events
@@ -269,15 +285,18 @@
 </section>
 
 <script type="application/json" id="payload-findings-data">{{ findings | tojson }}</script>
+<script type="application/json" id="payload-contexts-data">{{ contexts_data | tojson }}</script>
 <script type="application/json" id="payload-supporting-events-data">{{ supporting_events | tojson }}</script>
 <script>
   (function () {
     const scriptEl = document.getElementById("payload-findings-data");
+    const contextsScriptEl = document.getElementById("payload-contexts-data");
     const supportingScriptEl = document.getElementById("payload-supporting-events-data");
     const panel = document.getElementById("payload-detail-panel");
     if (!scriptEl || !panel) return;
 
     let findings = [];
+    let contexts = [];
     let supportingEvents = [];
     try {
       const parsed = JSON.parse(scriptEl.textContent || "[]");
@@ -286,11 +305,18 @@
       findings = [];
     }
     try {
+      const parsedContexts = JSON.parse((contextsScriptEl && contextsScriptEl.textContent) || "[]");
+      contexts = Array.isArray(parsedContexts) ? parsedContexts : [];
+    } catch (err) {
+      contexts = [];
+    }
+    try {
       const parsedSupporting = JSON.parse((supportingScriptEl && supportingScriptEl.textContent) || "[]");
       supportingEvents = Array.isArray(parsedSupporting) ? parsedSupporting : [];
     } catch (err) {
       supportingEvents = [];
     }
+    contexts = contexts.filter((item) => item && typeof item === "object");
     supportingEvents = supportingEvents.filter((event) => event && typeof event === "object");
 
     const emptyState = document.getElementById("pd-detail-empty");
@@ -370,6 +396,209 @@
 
     function keywordInRole(roleText, keywords) {
       return keywords.some((keyword) => roleText.includes(keyword));
+    }
+
+    function pickContextType(ctx) {
+      return asText(ctx.context_type || ctx.category || ctx.context_role, "unknown");
+    }
+
+    function pickContextWindow(ctx) {
+      const start = asText(ctx.window_start || ctx.start, "");
+      const end = asText(ctx.window_end || ctx.end, "");
+      if (start && end) return `${start} ~ ${end}`;
+      if (start) return start;
+      if (end) return end;
+      return "N/A";
+    }
+
+    function normalizeHintPrefix(item) {
+      const text = asLowerText(item);
+      if (!text) return "";
+      const idx = text.indexOf(":");
+      return idx > 0 ? text.slice(0, idx) : text;
+    }
+
+    function sameHintPrefix(findingHints, contextHints) {
+      const left = new Set(asList(findingHints).map(normalizeHintPrefix).filter(Boolean));
+      if (!left.size) return false;
+      return asList(contextHints).some((hint) => left.has(normalizeHintPrefix(hint)));
+    }
+
+    function includesAny(text, tokens) {
+      return tokens.some((token) => text.includes(token));
+    }
+
+    // Display-only association; do not promote contexts into findings.
+    function getRelatedContexts(finding, contextItems) {
+      if (!finding || typeof finding !== "object" || !Array.isArray(contextItems) || !contextItems.length) {
+        return [];
+      }
+
+      const findingRequestId = asLowerText(finding.request_id);
+      const findingSrcIp = asLowerText(finding.src_ip);
+      const findingUri = asLowerText(finding.uri);
+      const findingCategory = asLowerText(finding.category);
+      const findingHints = finding.reason_hints;
+
+      const byKey = new Map();
+      contextItems.forEach((ctx, idx) => {
+        if (!ctx || typeof ctx !== "object") return;
+
+        const sampleRequestIds = asList(ctx.sample_request_ids).map((v) => asLowerText(v));
+        const samplePaths = asList(ctx.sample_paths).map((v) => asLowerText(v));
+        const pathCounts = ctx.path_counts && typeof ctx.path_counts === "object" ? Object.keys(ctx.path_counts).map((k) => asLowerText(k)) : [];
+        const ctxSrcIp = asLowerText(ctx.src_ip);
+        const ctxType = safeWord([ctx.context_type, ctx.category, ctx.context_role, ctx.aggregate_scope].filter(Boolean).join(" "));
+
+        let score = 0;
+        if (findingRequestId && sampleRequestIds.includes(findingRequestId)) {
+          score = Math.max(score, 100);
+        }
+
+        const uriPathMatch = findingUri && (samplePaths.includes(findingUri) || pathCounts.includes(findingUri));
+        if (findingSrcIp && ctxSrcIp && findingSrcIp === ctxSrcIp && uriPathMatch) {
+          score = Math.max(score, 90);
+        }
+
+        const authCategory = includesAny(findingCategory, ["auth"]);
+        const methodCategory = includesAny(findingCategory, ["method"]);
+        const sensitiveCategory = includesAny(findingCategory, ["sensitive_path", "file_disclosure", "path_traversal", "traversal", "sqli", "xss", "probe"]);
+        const fileDisclosureCategory = includesAny(findingCategory, ["file_disclosure_candidate"]);
+
+        if (findingSrcIp && ctxSrcIp && findingSrcIp === ctxSrcIp) {
+          if (authCategory && includesAny(ctxType, ["auth", "ip_behavior"])) {
+            score = Math.max(score, 70);
+          }
+          if (methodCategory && includesAny(ctxType, ["method", "ip_behavior"])) {
+            score = Math.max(score, 70);
+          }
+          if (sensitiveCategory && includesAny(ctxType, ["sensitive_path", "probing_sequence", "mixed_baseline_scanner", "ip_behavior"])) {
+            score = Math.max(score, 70);
+          }
+          if (fileDisclosureCategory && includesAny(ctxType, ["sensitive_path_probe", "probing_sequence", "ip_behavior", "mixed_baseline_scanner"])) {
+            score = Math.max(score, 70);
+          }
+          score = Math.max(score, 20);
+        }
+
+        if (sameHintPrefix(findingHints, ctx.reason_hints)) {
+          score = Math.max(score, 50);
+        }
+
+        if (score <= 0) return;
+        const key = asText(ctx.dedup_key || ctx.context_key || `${pickContextType(ctx)}|${ctxSrcIp}|${idx}`, `${idx}`);
+        const prev = byKey.get(key);
+        if (!prev || score > prev.score) {
+          byKey.set(key, { ctx, score, idx });
+        }
+      });
+
+      return Array.from(byKey.values()).sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.idx - b.idx;
+      });
+    }
+
+    function appendContextMetaLine(container, label, value, className = "") {
+      const p = document.createElement("p");
+      if (className) p.className = className;
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "meta-label";
+      labelSpan.textContent = label;
+      const valueSpan = document.createElement("span");
+      valueSpan.textContent = asText(value, "N/A");
+      p.appendChild(labelSpan);
+      p.appendChild(document.createTextNode(" "));
+      p.appendChild(valueSpan);
+      container.appendChild(p);
+    }
+
+    function renderRelatedContexts(finding) {
+      const summaryEl = document.getElementById("pd-contexts-summary");
+      const badgeEl = document.getElementById("pd-contexts-related-badge");
+      const emptyEl = document.getElementById("pd-contexts-empty");
+      const listEl = document.getElementById("pd-contexts-list");
+      const moreEl = document.getElementById("pd-contexts-more");
+      if (!summaryEl || !badgeEl || !emptyEl || !listEl || !moreEl) return;
+
+      listEl.innerHTML = "";
+      moreEl.classList.add("is-hidden");
+      moreEl.textContent = "";
+
+      if (!contexts.length) {
+        summaryEl.textContent = "Related Contexts (0)";
+        badgeEl.textContent = "0 related";
+        emptyEl.textContent = "No contexts in this viewer payload.";
+        emptyEl.classList.remove("is-hidden");
+        listEl.classList.add("is-hidden");
+        return;
+      }
+
+      const matched = getRelatedContexts(finding, contexts);
+      const count = matched.length;
+      const preview = matched.slice(0, 6);
+      const hidden = Math.max(count - preview.length, 0);
+
+      summaryEl.textContent = `Related Contexts (${count})`;
+      badgeEl.textContent = `${count} related`;
+
+      if (!preview.length) {
+        emptyEl.textContent = "No related contexts for this finding.";
+        emptyEl.classList.remove("is-hidden");
+        listEl.classList.add("is-hidden");
+        return;
+      }
+
+      emptyEl.classList.add("is-hidden");
+      listEl.classList.remove("is-hidden");
+
+      preview.forEach(({ ctx }) => {
+        const card = document.createElement("article");
+        card.className = "payload-related-context-card";
+
+        const head = document.createElement("div");
+        head.className = "payload-related-context-head";
+        const typeBadge = document.createElement("span");
+        typeBadge.className = "badge payload-badge payload-badge-context-only payload-context-type";
+        typeBadge.textContent = pickContextType(ctx);
+        const contextOnlyBadge = document.createElement("span");
+        contextOnlyBadge.className = "badge payload-badge payload-badge-context-only payload-context-badge";
+        contextOnlyBadge.textContent = "context-only";
+        head.appendChild(typeBadge);
+        head.appendChild(contextOnlyBadge);
+        card.appendChild(head);
+
+        appendContextMetaLine(card, "source_ip", ctx.src_ip);
+        appendContextMetaLine(card, "request_count", ctx.request_count);
+        appendContextMetaLine(card, "window", pickContextWindow(ctx));
+        appendContextMetaLine(card, "promote", ctx.should_promote_to_candidate ? "true" : "false");
+        appendContextMetaLine(card, "context_only", ctx.context_only === false ? "false" : "true");
+        appendContextMetaLine(card, "note", ctx.interpretation_limit || ctx.guardrail_note, "payload-context-note");
+
+        const samples = asList(ctx.sample_paths).slice(0, 3);
+        const sampleReqIds = asList(ctx.sample_request_ids).slice(0, 3);
+        const sampleLine = document.createElement("p");
+        sampleLine.className = "payload-context-sample";
+        const sampleLabel = document.createElement("span");
+        sampleLabel.className = "meta-label";
+        sampleLabel.textContent = "sample";
+        const sampleValue = document.createElement("span");
+        const sampleParts = [];
+        if (samples.length) sampleParts.push(`paths: ${samples.join(", ")}`);
+        if (sampleReqIds.length) sampleParts.push(`request_ids: ${sampleReqIds.join(", ")}`);
+        sampleValue.textContent = sampleParts.length ? sampleParts.join(" | ") : "N/A";
+        sampleLine.appendChild(sampleLabel);
+        sampleLine.appendChild(document.createTextNode(" "));
+        sampleLine.appendChild(sampleValue);
+        card.appendChild(sampleLine);
+
+        listEl.appendChild(card);
+      });
+
+      if (hidden > 0) {
+        moreEl.textContent = `+${hidden} more contexts not shown`;
+        moreEl.classList.remove("is-hidden");
+      }
     }
 
     // Display-only association; do not promote supporting events into findings.
@@ -586,6 +815,7 @@
       setText("pd-confidence", finding.confidence);
       setText("pd-reasoning-summary", finding.reasoning_summary);
       renderEvidence(asList(finding.evidence_fields));
+      renderRelatedContexts(finding);
       renderSupportingEvents(finding);
       renderList("pd-reason-hints", asList(finding.reason_hints));
       renderList("pd-recommended-actions", asList(finding.recommended_actions));
