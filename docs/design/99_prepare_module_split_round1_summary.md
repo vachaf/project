@@ -9,8 +9,8 @@
 - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
 - [99_prepare_context_summary_contract.md](./99_prepare_context_summary_contract.md)
 - [99_prepare_context_summary_split_candidate.md](./99_prepare_context_summary_split_candidate.md)
-- [99_prepare_static_baseline_split_plan.md](./99_prepare_static_baseline_split_plan.md)
-- [99_prepare_crawler_baseline_split_plan.md](./99_prepare_crawler_baseline_split_plan.md)
+- [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md)
+- [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md)
 - [99_prepare_sensitive_path_probe_split_plan.md](./99_prepare_sensitive_path_probe_split_plan.md)
 
 ## 1. 결론

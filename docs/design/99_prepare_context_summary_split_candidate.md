@@ -302,7 +302,7 @@ UA 관련 guard와 연결되므로 method/protocol/auth/static 이후로 늦춘�
 추천 문서:
 
 ```text
-docs/design/99_prepare_method_summary_split_plan.md
+docs/design/99_prepare_module_split_round2_summary.md
 ```
 
 작성 내용:
@@ -353,5 +353,5 @@ candidate / filtered_out / supporting_events 수 변화 없음
 
 - 다음 코드는 아직 분리하지 않는다.
 - 다음 후보는 `method_behavior_summaries` 계열로 본다.
-- 다음 작업은 `docs/design/99_prepare_method_summary_split_plan.md` 작성이다.
+- 다음 작업은 `docs/design/99_prepare_module_split_round2_summary.md` 작성이다.
 - 그 문서에서 실제 함수명/호출 위치/출력 key를 확정한 뒤 코드 분리를 진행한다.

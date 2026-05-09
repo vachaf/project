@@ -42,19 +42,19 @@
 
 ## 4. 요약 후 삭제 후보 목록
 
-1. `docs/design/99_prepare_method_summary_split_plan.md`
+1. `docs/design/99_prepare_module_split_round2_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md` prepare module split 섹션에 “method summary split 완료 + contract 불변조건 유지” 1줄.
 
-2. `docs/design/99_prepare_protocol_anomaly_split_plan.md`
+2. `docs/design/99_prepare_module_split_round2_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md`에 “protocol anomaly split 완료, output key/fixture 계약 유지” 1줄.
 
-3. `docs/design/99_prepare_auth_behavior_split_plan.md`
+3. `docs/design/99_prepare_module_split_round1_summary.md`
 - 삭제 전 요약 제안: `docs/진행상황.md`에 “auth behavior split 완료, POST body 미가시성 해석 제한 유지” 1줄.
 
-4. `docs/design/99_prepare_static_baseline_split_plan.md`
+4. `docs/design/99_prepare_module_split_round1_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md`에 “static baseline split 완료, context-only 유지” 1줄.
 
-5. `docs/design/99_prepare_crawler_baseline_split_plan.md`
+5. `docs/design/99_prepare_module_split_round1_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md`에 “crawler baseline split 완료 및 fixture 계약 유지” 1줄.
 
 6. `docs/design/99_prepare_sqli_hints_split_plan.md`
