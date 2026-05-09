@@ -7,7 +7,8 @@
   <link rel="stylesheet" href="/static/style.css">
   {% block extra_head %}{% endblock %}
 </head>
-<body class="page">c
+<body class="page {% block body_class %}{% endblock %}">
+  {% block app_header %}
   <header class="header">
     <div class="container">
       <h1>Security Intelligence Console</h1>
@@ -17,13 +18,16 @@
       </nav>
     </div>
   </header>
+  {% endblock %}
 
-  <main class="container">
+  <main class="{% block main_class %}container{% endblock %}">
     {% block content %}{% endblock %}
   </main>
 
+  {% block app_footer %}
   <footer class="container is-muted">
     Phase 1A: Report Viewer | localhost only
   </footer>
+  {% endblock %}
 </body>
 </html>

@@ -45,6 +45,7 @@
   letter-spacing: 0;
 }
 
+.payload-dashboard,
 .payload-dashboard h1,
 .payload-dashboard h2,
 .payload-dashboard h3,
@@ -63,19 +64,21 @@
 
 /* Page shell */
 .payload-dashboard {
-  width: min(1452px, calc(100vw - 44px));
+  --pd-dashboard-width: min(1452px, calc(100vw - 44px));
+
+  width: var(--pd-dashboard-width);
   max-width: none;
-  margin: 10px auto 28px;
+  margin-top: 10px;
+  margin-bottom: 24px;
+  margin-left: calc(50% - var(--pd-dashboard-width) / 2);
+  margin-right: calc(50% - var(--pd-dashboard-width) / 2);
+
   transform: none;
   color: var(--pd-text);
-  font-family:
-    Inter,
-    "Noto Sans KR",
-    "Segoe UI",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
+  font-family: var(--pd-font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0;
 }
 
 /* Header */
@@ -735,9 +738,14 @@
 /* Mobile: table -> incident feed/card */
 @media (max-width: 768px) {
   .payload-dashboard {
-    width: min(100% - 24px, 1452px);
+    --pd-dashboard-width: calc(100vw - 24px);
+
+    width: var(--pd-dashboard-width);
     margin-top: 8px;
+    margin-left: calc(50% - var(--pd-dashboard-width) / 2);
+    margin-right: calc(50% - var(--pd-dashboard-width) / 2);
   }
+}
 
   .payload-dashboard-header {
     padding: 16px;
@@ -839,7 +847,6 @@
     min-height: 46px;
     font-size: 13px;
   }
-}
 
 @media (max-width: 520px) {
   .payload-summary-cards {
