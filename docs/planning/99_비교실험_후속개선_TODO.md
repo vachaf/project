@@ -30,6 +30,10 @@
 - `run_analysis_pipeline.py` CLI help/UX 정리 완료(`--export-input` 기본 진입점 명시, resume 옵션 advanced 유지)
 - payload dashboard Selected Event Detail의 Supporting Events 제한적 preview 구현 완료(details + related count/context-only badge + compact table)
 - payload dashboard Selected Event Detail의 Related Contexts 제한적 preview 구현 완료(display-only association, 기본 접힘 preview)
+- viewer_payload dashboard Finding -> Contexts 연결성 원인 분리 및 source IP display toggle 반영 완료
+  - 원인: finding/context 간 src_ip masking 불일치로 JS matching 실패
+  - 조치: dashboard 기본 raw src_ip 표시 + `mask_src_ip` query toggle 추가
+  - 원칙: matching은 raw data 기준 유지, display-only association 유지
 - `run_analysis_pipeline.py` export/pipeline table 불일치 해소 완료(`--prepare-source-tables` 기본값 auto, export `table_option/counts/data` 기반 자동 해석, commit `e0fcdaece33f0f580f4877be121f09c7192a1904`)
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
@@ -124,23 +128,15 @@
   - live progress
   - regression run button
   - scheduling/alert/dashboard
-- [ ] Finding -> Contexts 연결성 원인 분리
-  - lab traffic v2 security export E2E smoke test에서 `findings=10`, `contexts=6`, `supporting_events=0` 확인
-  - Contexts Preview는 표시되지만 selected finding의 Related Contexts는 0으로 표시됨
-  - 먼저 prepare 산출물의 context summary에 `context_id`/`sample_request_ids`/`linked_context_ids`에 해당하는 연결 근거가 존재하는지 확인
-  - 다음으로 `stage2_report_input` 또는 `llm_input`까지 해당 연결 필드가 보존되는지 확인
-  - 이후 `viewer_payload_builder.py`가 기존 연결 필드를 누락/renaming/flattening하는지 확인
-  - 마지막으로 Web UI template/JS가 payload에 있는 필드만 read-only로 표시하는지 확인
-  - 연결 필드가 없을 경우 UI에서 새 관계를 추론하지 않고, prepare/stage2 입력 설계 보강 필요 여부를 별도 판단
-  - context-only summary를 finding/incident로 승격하지 않으며 severity/category/verdict 재계산도 하지 않는다
-- [ ] Supporting Events 생성/보존 경로 원인 분리
-  - 같은 smoke test에서 viewer_payload JSON의 `supporting_events` length가 0임을 확인
-  - prepare 단계에서 supporting_events 생성 조건이 충족되지 않은 것인지 먼저 확인
-  - prepare에는 있는데 `stage2_report_input` 또는 `llm_input` 생성 과정에서 빠지는지 확인
-  - Stage2 결과에는 있는데 `viewer_payload_builder.py`가 top-level `supporting_events`를 보존하지 않는지 확인
-  - Web UI는 `supporting_events=[]` 또는 missing payload에서도 fallback-safe empty state만 표시해야 한다
-  - full drill-down/graph viewer 이전에 데이터 생성/보존 경로를 먼저 확인
-  - supporting event나 context-only item을 incident/finding으로 승격하지 않는다
+- [ ] Related Contexts matching 과잉/누락 관찰
+  - source IP display toggle 반영 후 `v1_test_security`에서는 Related Contexts 표시가 복구됨
+  - 향후 여러 source IP / `--table all` / mixed payload에서 과매칭 여부만 관찰
+  - 새 관계 추론, context-only 승격, severity/category/verdict 재계산은 하지 않음
+- [ ] Supporting Events 생성 조건 관찰
+  - `v1_test_security`에서는 prepare 단계부터 `supporting_events=0`으로 확인됨
+  - viewer_payload_builder/Web UI 누락 문제는 아닌 것으로 분리됨
+  - generator 시나리오 특성상 강한 marker는 candidate로, 약한 흐름은 context/noise로 분리되어 supporting event가 없을 수 있음
+  - 별도 fixture나 생성 조건 변경은 반복 필요가 확인될 때만 검토
 - [ ] 원인 분리 후 `viewer_payload_builder.py` 최소 단위 테스트 추가 여부 검토
   - existing payload field preservation: `context_id`, `linked_context_ids`, `sample_request_ids`, `request_id`, `incident_group_key`
   - `supporting_events` top-level 보존 및 empty/missing fallback
