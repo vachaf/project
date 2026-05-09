@@ -8,12 +8,12 @@
 
 - [99_prepare_constants_ownership_map.md](./99_prepare_constants_ownership_map.md)
 - [99_prepare_constants_mini_move_candidate_review.md](./99_prepare_constants_mini_move_candidate_review.md)
-- [99_prepare_protocol_anomaly_constants_move_plan.md](./99_prepare_protocol_anomaly_constants_move_plan.md)
-- [99_prepare_ip_behavior_constants_move_plan.md](./99_prepare_ip_behavior_constants_move_plan.md)
-- [99_prepare_method_behavior_constants_move_plan.md](./99_prepare_method_behavior_constants_move_plan.md)
-- [99_prepare_static_baseline_constants_move_plan.md](./99_prepare_static_baseline_constants_move_plan.md)
-- [99_prepare_auth_behavior_constants_move_plan.md](./99_prepare_auth_behavior_constants_move_plan.md)
-- [99_prepare_crawler_baseline_constants_move_plan.md](./99_prepare_crawler_baseline_constants_move_plan.md)
+- [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)
+- [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)
+- [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)
+- [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)
+- [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)
+- [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)
 - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md)
 - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
 

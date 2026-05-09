@@ -69,22 +69,22 @@
 9. `docs/design/99_prepare_hints_split_summary.md`
 - 삭제 전 요약 제안: `docs/진행상황.md`에 “traversal/CMDI hints split 완료, execution/success 단정 금지 유지” 1줄.
 
-10. `docs/design/99_prepare_protocol_anomaly_constants_move_plan.md`
+10. `docs/design/99_prepare_constants_mini_move_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “PROTOCOL_ANOMALY 상수 mini-move 완료” 1줄.
 
-11. `docs/design/99_prepare_ip_behavior_constants_move_plan.md`
+11. `docs/design/99_prepare_constants_mini_move_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “IP_BEHAVIOR 상수 mini-move 완료” 1줄.
 
-12. `docs/design/99_prepare_method_behavior_constants_move_plan.md`
+12. `docs/design/99_prepare_constants_mini_move_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “method constants 부분 이동, STANDARD_HTTP_METHODS 보류” 1줄.
 
-13. `docs/design/99_prepare_static_baseline_constants_move_plan.md`
+13. `docs/design/99_prepare_constants_mini_move_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “static constants 부분 이동, path/classification 상수 보류” 1줄.
 
-14. `docs/design/99_prepare_auth_behavior_constants_move_plan.md`
+14. `docs/design/99_prepare_constants_mini_move_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “auth constants/patterns 이동 완료” 1줄.
 
-15. `docs/design/99_prepare_crawler_baseline_constants_move_plan.md`
+15. `docs/design/99_prepare_constants_mini_move_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “crawler constants/patterns 이동 완료” 1줄.
 
 ## 5. 보존 후보 목록
