@@ -168,6 +168,7 @@ def report_payload_detail(request: Request, report_id: str):
     payload_error = payload_load_error or str(detail.get("viewer_payload_error") or "")
     if payload_obj is None:
         payload_obj = {}
+    mask_src_ip = _is_mask_src_ip_enabled(request.query_params.get("mask_src_ip"))
 
     findings = sanitize_payload_findings(
         payload_obj.get("findings"),
@@ -177,6 +178,8 @@ def report_payload_detail(request: Request, report_id: str):
         payload_obj.get("contexts"),
         payload_summary.get("contexts_preview"),
     )
+    findings_display = _apply_src_ip_display_mode(findings, mask_src_ip)
+    contexts_preview_display = _apply_src_ip_display_mode(contexts_preview, mask_src_ip)
 
     nav_context = _calculate_navigation(all_reports, report_id)
 
@@ -190,7 +193,10 @@ def report_payload_detail(request: Request, report_id: str):
             "payload_summary": payload_summary,
             "payload_error": str(mask_value(payload_error)) if payload_error else "",
             "findings": findings,
+            "findings_display": findings_display,
             "contexts_preview": contexts_preview,
+            "contexts_preview_display": contexts_preview_display,
+            "mask_src_ip": mask_src_ip,
             **nav_context,
         },
     )
@@ -562,7 +568,7 @@ def sanitize_viewer_payload_summary(summary: Any) -> Dict[str, Any]:
             if not isinstance(row, dict):
                 continue
             safe_row = dict(row)
-            safe_row["src_ip"] = str(mask_value(row.get("src_ip") or "-"))
+            safe_row["src_ip"] = str(row.get("src_ip") or "-")
             safe_findings.append(safe_row)
         normalized["findings_preview"] = safe_findings
     else:
@@ -575,7 +581,7 @@ def sanitize_viewer_payload_summary(summary: Any) -> Dict[str, Any]:
             if not isinstance(row, dict):
                 continue
             safe_row = dict(row)
-            safe_row["src_ip"] = str(mask_value(row.get("src_ip") or "-"))
+            safe_row["src_ip"] = str(row.get("src_ip") or "-")
             safe_contexts.append(safe_row)
         normalized["contexts_preview"] = safe_contexts
     else:
@@ -625,7 +631,7 @@ def sanitize_payload_findings(rows: Any, fallback_rows: Any = None) -> List[Dict
                 "severity": str(row.get("severity") or "unknown"),
                 "verdict": str(row.get("verdict") or row.get("verdict_hint") or "unknown"),
                 "category": str(row.get("category") or "unknown"),
-                "src_ip": str(mask_value(row.get("src_ip") or "-")),
+                "src_ip": str(row.get("src_ip") or "-"),
                 "method": str(row.get("method") or "-"),
                 "uri": str(row.get("uri") or "-"),
                 "status_code": str(row.get("status_code")) if row.get("status_code") not in (None, "") else "-",
@@ -656,7 +662,7 @@ def sanitize_payload_contexts(rows: Any, fallback_rows: Any = None) -> List[Dict
         contexts.append(
             {
                 "context_type": str(row.get("context_type") or row.get("category") or "unknown"),
-                "src_ip": str(mask_value(row.get("src_ip") or "-")),
+                "src_ip": str(row.get("src_ip") or "-"),
                 "request_count": str(row.get("request_count")) if row.get("request_count") not in (None, "") else "-",
                 "context_only": bool(row.get("context_only")),
                 "should_promote_to_candidate": bool(row.get("should_promote_to_candidate")),
@@ -671,6 +677,26 @@ def _first_non_empty_text(*values: Any) -> str:
         if text:
             return text
     return ""
+
+
+def _is_mask_src_ip_enabled(value: Any) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _apply_src_ip_display_mode(rows: List[Dict[str, Any]], mask_src_ip: bool) -> List[Dict[str, Any]]:
+    if not isinstance(rows, list):
+        return []
+    if not mask_src_ip:
+        return [dict(row) for row in rows if isinstance(row, dict)]
+
+    displayed: List[Dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        copied = dict(row)
+        copied["src_ip"] = str(mask_value(copied.get("src_ip") or "-"))
+        displayed.append(copied)
+    return displayed
 
 
 def _normalize_text_list(value: Any) -> List[str]:

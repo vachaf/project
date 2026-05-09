@@ -12,6 +12,7 @@
   {% set total_requests = summary.get('total_request_count') or summary.get('request_count') or source_of_truth.get('total_requests') or source_of_truth.get('request_count') or 'unknown' %}
   {% set supporting_events = payload_obj.get('supporting_events') if payload_obj.get('supporting_events') is sequence and payload_obj.get('supporting_events') is not string else [] %}
   {% set contexts_data = payload_obj.get('contexts') if payload_obj.get('contexts') is sequence and payload_obj.get('contexts') is not string else [] %}
+  {% set src_ip_mask_enabled = mask_src_ip|default(false) %}
 
   <header class="payload-dashboard-header card">
     <div>
@@ -28,6 +29,11 @@
       <span class="badge payload-badge payload-badge-context">context-only guardrail</span>
       {% if qa_result and qa_result.verdict %}
         <span class="badge payload-badge payload-badge-default">lint {{ qa_result.verdict }}</span>
+      {% endif %}
+      {% if src_ip_mask_enabled %}
+        <a href="/report/{{ report.report_id }}/payload?mask_src_ip=0" class="action-link">Show full source IP</a>
+      {% else %}
+        <a href="/report/{{ report.report_id }}/payload?mask_src_ip=1" class="action-link">Mask source IP</a>
       {% endif %}
       <a href="/report/{{ report.report_id }}" class="action-link">Back To Stage2 Detail</a>
     </div>
@@ -91,8 +97,8 @@
             </tr>
           </thead>
           <tbody>
-            {% if findings %}
-              {% for finding in findings %}
+            {% if findings_display %}
+              {% for finding in findings_display %}
               {% set severity_token = (finding.severity or 'unknown')|lower %}
               <tr
                 class="payload-finding-row{% if loop.first %} is-selected{% endif %}"
@@ -237,8 +243,8 @@
           </tr>
         </thead>
         <tbody>
-          {% if contexts_preview %}
-            {% for context in contexts_preview %}
+          {% if contexts_preview_display %}
+            {% for context in contexts_preview_display %}
             <tr>
               <td><span class="badge payload-badge payload-badge-context-only">{{ context.context_type or 'unknown' }}</span></td>
               <td>{{ context.src_ip or '-' }}</td>
@@ -287,12 +293,14 @@
 <script type="application/json" id="payload-findings-data">{{ findings | tojson }}</script>
 <script type="application/json" id="payload-contexts-data">{{ contexts_data | tojson }}</script>
 <script type="application/json" id="payload-supporting-events-data">{{ supporting_events | tojson }}</script>
+<script type="application/json" id="payload-src-ip-mask-mode">{{ {"mask_src_ip": src_ip_mask_enabled}|tojson }}</script>
 <script>
   (function () {
     const scriptEl = document.getElementById("payload-findings-data");
     const contextsScriptEl = document.getElementById("payload-contexts-data");
     const supportingScriptEl = document.getElementById("payload-supporting-events-data");
     const panel = document.getElementById("payload-detail-panel");
+    const srcIpModeScriptEl = document.getElementById("payload-src-ip-mask-mode");
     if (!scriptEl || !panel) return;
 
     let findings = [];
@@ -315,6 +323,13 @@
       supportingEvents = Array.isArray(parsedSupporting) ? parsedSupporting : [];
     } catch (err) {
       supportingEvents = [];
+    }
+    let maskSrcIp = false;
+    try {
+      const parsedMode = JSON.parse((srcIpModeScriptEl && srcIpModeScriptEl.textContent) || "{}");
+      maskSrcIp = !!(parsedMode && parsedMode.mask_src_ip);
+    } catch (err) {
+      maskSrcIp = false;
     }
     contexts = contexts.filter((item) => item && typeof item === "object");
     supportingEvents = supportingEvents.filter((event) => event && typeof event === "object");
@@ -378,6 +393,18 @@
 
     function asLowerText(value) {
       return String(value || "").trim().toLowerCase();
+    }
+
+    function maskSourceIp(value) {
+      const text = asText(value, "-");
+      const match = text.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+      if (!match) return text;
+      return `${match[1]}.${match[2]}.${match[3]}.***`;
+    }
+
+    function displaySourceIp(value) {
+      const text = asText(value, "-");
+      return maskSrcIp ? maskSourceIp(text) : text;
     }
 
     function safeWord(value) {
@@ -568,7 +595,7 @@
         head.appendChild(contextOnlyBadge);
         card.appendChild(head);
 
-        appendContextMetaLine(card, "source_ip", ctx.src_ip);
+        appendContextMetaLine(card, "source_ip", displaySourceIp(ctx.src_ip));
         appendContextMetaLine(card, "request_count", ctx.request_count);
         appendContextMetaLine(card, "window", pickContextWindow(ctx));
         appendContextMetaLine(card, "promote", ctx.should_promote_to_candidate ? "true" : "false");
@@ -808,7 +835,7 @@
       updateCategoryBadge(finding.category);
 
       setText("pd-display-time", finding.display_time || finding.log_time);
-      setText("pd-source-ip", finding.src_ip);
+      setText("pd-source-ip", displaySourceIp(finding.src_ip));
       setText("pd-method", finding.method);
       setText("pd-uri", finding.uri);
       setText("pd-status-code", finding.status_code);
