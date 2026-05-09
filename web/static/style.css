@@ -969,7 +969,7 @@ summary:focus-visible {
   border-right-color: #9eb8dd;
 }
 
-.payload-event-table .col-time { width: 90px; }
+.payload-event-table .col-time { width: 65px; }
 .payload-event-table .col-source-ip { width: 120px; }
 .payload-event-table .col-method { width: 72px; }
 .payload-event-table-wrap {
@@ -977,7 +977,7 @@ summary:focus-visible {
 }
 
 .payload-event-table {
-  min-width: 980px;
+  min-width: 800px;
   table-layout: fixed;
 }
 
@@ -987,12 +987,12 @@ summary:focus-visible {
 }
 
 .payload-event-table .col-uri {
-  min-width: 80px;
-  width: 360px;
+  min-width: 30px;
+  width: 70px;
   max-width: 360px;
 }
 .payload-event-table .col-status { width: 72px; }
-.payload-event-table .col-category { width: 210px; min-width: 190px; }
+.payload-event-table .col-category { width: 170px; min-width: 130px; }
 .payload-event-table .col-severity { width: 80px; }
 
 .payload-event-table td.col-category {
