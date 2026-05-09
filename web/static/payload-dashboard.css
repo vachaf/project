@@ -939,6 +939,82 @@
   }
 }
 
+@media (max-width: 768px) {
+  .payload-page .payload-contexts .payload-contexts-table-wrapper {
+    overflow-x: visible;
+  }
+
+  .payload-page .payload-contexts .payload-contexts-table {
+    width: 100%;
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .payload-page .payload-contexts .payload-contexts-table thead {
+    display: none;
+  }
+
+  .payload-page .payload-contexts .payload-contexts-table,
+  .payload-page .payload-contexts .payload-contexts-table tbody,
+  .payload-page .payload-contexts .payload-contexts-table tr,
+  .payload-page .payload-contexts .payload-contexts-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .payload-page .payload-contexts .payload-contexts-table tr {
+    margin-bottom: 10px;
+    border: 1px solid var(--pd-line);
+    border-radius: 10px;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  .payload-page .payload-contexts .payload-contexts-table td {
+    display: grid;
+    grid-template-columns: minmax(118px, 38%) minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    border: 0;
+    border-bottom: 1px solid var(--pd-line-soft);
+    padding: 8px 10px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .payload-page .payload-contexts .payload-contexts-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .payload-page .payload-contexts .payload-contexts-table td::before {
+    content: attr(data-label);
+    color: var(--pd-muted);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .payload-page .payload-contexts .payload-contexts-table .badge,
+  .payload-page .payload-contexts .payload-contexts-table .payload-badge {
+    max-width: 100%;
+    white-space: normal;
+    height: auto;
+    min-height: 22px;
+    line-height: 1.25;
+  }
+
+  .payload-page .payload-contexts .payload-contexts-table td.is-empty {
+    display: block;
+  }
+
+  .payload-page .payload-contexts .payload-contexts-table td.is-empty::before {
+    content: "";
+  }
+}
+
 /* Typography refinement */
 .payload-dashboard {
   -webkit-font-smoothing: antialiased;

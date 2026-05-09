@@ -275,8 +275,8 @@
 
   <section class="section card payload-contexts">
     <h3>Contexts Preview <span class="badge payload-badge payload-badge-context-only">context-only</span></h3>
-    <div class="table-wrapper">
-      <table class="table table-compact">
+    <div class="table-wrapper payload-contexts-table-wrapper">
+      <table class="table table-compact payload-contexts-table">
         <thead>
           <tr>
             <th>type</th>
@@ -290,17 +290,17 @@
           {% if contexts_preview_display %}
             {% for context in contexts_preview_display %}
             <tr>
-              <td><span class="badge payload-badge payload-badge-context-only">{{ context.context_type or 'unknown' }}</span></td>
-              <td>{{ context.src_ip or '-' }}</td>
-              <td>{{ context.request_count or '-' }}</td>
-              <td>
+              <td data-label="type"><span class="badge payload-badge payload-badge-context-only">{{ context.context_type or 'unknown' }}</span></td>
+              <td data-label="source_ip">{{ context.src_ip or '-' }}</td>
+              <td data-label="request_count">{{ context.request_count or '-' }}</td>
+              <td data-label="context_only">
                 {% if context.context_only %}
                 <span class="badge payload-badge payload-badge-context-only">true</span>
                 {% else %}
                 <span class="badge payload-badge payload-badge-default">false</span>
                 {% endif %}
               </td>
-              <td>
+              <td data-label="should_promote_to_candidate">
                 {% if context.should_promote_to_candidate %}
                 <span class="badge payload-badge payload-badge-verdict-warn">true</span>
                 {% else %}

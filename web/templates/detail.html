@@ -171,10 +171,10 @@
   {% endif %}
 </section>
 
-<section class="section card">
+<section class="section card report-table-section report-table-section-notable-incidents">
   <h3>notable_incidents</h3>
-  <div class="table-wrapper">
-    <table class="table table-compact">
+  <div class="table-wrapper report-mobile-table-wrapper">
+    <table class="table table-compact report-mobile-table report-table-notable-incidents">
       <thead>
         <tr>
           <th>severity</th>
@@ -191,14 +191,14 @@
         {% if incidents %}
           {% for row in incidents %}
           <tr>
-            <td>{{ row.severity }}</td>
-            <td>{{ row.verdict }}</td>
-            <td>{{ row.incident_ref }}</td>
-            <td>{{ row.title }}</td>
-            <td>{{ row.why_it_matters }}</td>
-            <td>{{ row.source_ip }}</td>
-            <td>{{ row.request_count }}</td>
-            <td>{{ row.recommended_action }}</td>
+            <td data-label="severity">{{ row.severity }}</td>
+            <td data-label="verdict">{{ row.verdict }}</td>
+            <td data-label="incident_ref">{{ row.incident_ref }}</td>
+            <td data-label="summary">{{ row.title }}</td>
+            <td data-label="why_it_matters">{{ row.why_it_matters }}</td>
+            <td data-label="source_ip">{{ row.source_ip }}</td>
+            <td data-label="request_count">{{ row.request_count }}</td>
+            <td data-label="recommended_action">{{ row.recommended_action }}</td>
           </tr>
           {% endfor %}
         {% else %}
@@ -211,10 +211,10 @@
   </div>
 </section>
 
-<section class="section card">
+<section class="section card report-table-section report-table-section-notable-source-ips">
   <h3>notable_source_ips</h3>
-  <div class="table-wrapper">
-    <table class="table table-compact">
+  <div class="table-wrapper report-mobile-table-wrapper">
+    <table class="table table-compact report-mobile-table report-table-notable-source-ips">
       <thead>
         <tr>
           <th>Source IP</th>
@@ -225,8 +225,8 @@
         {% if source_ips %}
           {% for row in source_ips %}
           <tr>
-            <td>{{ row.source_ip }}</td>
-            <td>{{ row.reason }}</td>
+            <td data-label="Source IP">{{ row.source_ip }}</td>
+            <td data-label="Reason">{{ row.reason }}</td>
           </tr>
           {% endfor %}
         {% else %}
@@ -239,10 +239,10 @@
   </div>
 </section>
 
-<section class="section card">
+<section class="section card report-table-section report-table-section-recommended-actions">
   <h3>recommended_actions</h3>
-  <div class="table-wrapper">
-    <table class="table table-compact">
+  <div class="table-wrapper report-mobile-table-wrapper">
+    <table class="table table-compact report-mobile-table report-table-recommended-actions">
       <thead>
         <tr>
           <th>priority</th>
@@ -254,9 +254,9 @@
         {% if actions %}
           {% for row in actions %}
           <tr>
-            <td>{{ row.priority }}</td>
-            <td>{{ row.action }}</td>
-            <td>{{ row.why }}</td>
+            <td data-label="priority">{{ row.priority }}</td>
+            <td data-label="action">{{ row.action }}</td>
+            <td data-label="why">{{ row.why }}</td>
           </tr>
           {% endfor %}
         {% else %}
