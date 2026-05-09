@@ -180,12 +180,13 @@ runs/<run_id>/
 ### Phase 0
 
 - 문서화만 수행한다.
-- 기존 flat output을 그대로 유지한다.
+- 기존 flat/lab 산출물을 그대로 유지한다.
 
 ### Phase 1
 
 - run_dir 병행 생성 옵션을 검토한다.
 - 기존 `reports/`, `data/processed/` 출력은 유지한다.
+- 기존 `lab/**/reports/`, `lab/**/data/processed/` 산출물도 유지한다.
 - manifest에 flat path와 run_dir path를 모두 기록하는 방안을 검토한다.
 - `src/export_db_logs_cli.py`는 기존처럼 export JSON을 생성한다.
   - 예: `security_2026-05-09_kst.json`
@@ -193,10 +194,12 @@ runs/<run_id>/
 - `src/run_analysis_pipeline.py --export-input <json>`은 해당 export JSON의 stem을 기본 run_id로 사용해 run_dir 후보를 만든다.
 - 기존 `reports/`, `data/processed/`, `pipeline_manifest.json`, `reports/<base>_pipeline_manifest.json` 계약을 깨지 않는다.
 - Web UI loader(`web/services/report_loader.py`)는 수정하지 않는다.
+- Web UI loader는 전환 초기에는 flat 중심 동작을 유지한다.
 
 ### Phase 2
 
-- Web UI loader가 flat + run_dir를 모두 읽는 호환 모드를 검토한다.
+- Web UI loader에서 `runs/` 기본 scan 전환을 검토한다.
+- legacy flat/lab archive는 opt-in 또는 archive mode 분리를 검토한다.
 - 중복 `report_id`/`run_id` dedupe 규칙을 검토한다.
 - `web/services/report_loader.py`, `web/config.py`, `web/app.py`에서 run_dir 호환 읽기와 중복 처리 규칙을 검토한다.
 - UI list/detail/payload route 회귀를 수행한다.
@@ -204,6 +207,7 @@ runs/<run_id>/
 ### Phase 3
 
 - 안정화 이후 run_dir를 기본 출력 구조로 전환할지 판단한다.
+- `reports/`, `data/processed/`, `lab/` legacy 산출물의 backup/cleanup/retention 정책을 별도로 검토한다.
 
 ## 6. Non-goals
 
@@ -211,9 +215,14 @@ runs/<run_id>/
 
 - 구현 수행 없음
 - 기존 flat output 제거 없음
+- 기존 flat/lab 산출물 삭제 정책 확정 없음
 - Web UI loader 수정 없음
+- Web UI scan 정책 구현 없음
 - pipeline 실행 방식 변경 없음
 - 분석 로직/보안 판정 변경 없음
+- lab/ 산출물 즉시 이동/삭제 없음
+- legacy flat output 즉시 제거 없음
+- archive/backup 자동화 구현 없음
 - report rewrite/DB/SQLite history 구현 없음
 
 ## 7. 의사결정 체크포인트
@@ -225,6 +234,32 @@ runs/<run_id>/
 - flat 경로와 run_dir 경로 동시 기록 규약
 - 실패/중단 run의 최소 산출물 기록 기준(`pipeline.log`, partial manifest)
 - retention/cleanup 스크립트와의 호환 기준
+
+### 7.1 충돌 정책 (확정 권장)
+
+- 기본 정책은 fail-fast로 한다.
+- `runs/<run_id>/`가 이미 존재하면 기본적으로 에러를 내고 중단한다.
+- 예시 메시지:
+
+```text
+[ERROR] run_dir already exists: runs/<run_id>
+Use --run-id to choose another run id or --overwrite to replace it.
+```
+
+- `--overwrite`가 명시된 경우에만 기존 run_dir 덮어쓰기/재생성을 허용한다.
+- 단, `--overwrite`의 실제 동작은 구현 단계에서 별도 확정한다.
+  - 후보 A: 기존 run_dir 삭제 후 재생성
+  - 후보 B: known output file만 덮어쓰기
+- 안전성 관점에서는 non-empty run_dir 기본 실패를 유지한다.
+
+### 7.2 명시 옵션 후보 (미확정)
+
+아래는 문서상 구현 후보이며, 이번 단계에서 구현하지 않는다.
+
+- `--run-id <name>`: export stem 대신 명시적 run_id 사용
+- `--run-dir <path>`: 전체 출력 디렉터리 직접 지정
+- `--overwrite`: 기존 run_dir 충돌 시 명시적으로 덮어쓰기 허용
+- 기본값: 자동 run_id + fail-fast
 
 ## 8. 도입 전 영향 범위 조사 결과
 
@@ -327,34 +362,98 @@ Phase 2:
 - `--export-input` stem 기반 run_id 중복 가능성이 있다.
 - `lab/` archive 구조와 일반 `runs/` 구조가 섞일 가능성이 있다.
 - Phase 2에서 flat + run_dir를 동시에 읽으면 중복 report가 생길 수 있다.
+- lab/ 산출물은 viewer_payload가 없는 경우가 많아 기본 Web UI scan에 포함하면 UI noise가 커질 수 있다.
+- legacy 산출물과 active 산출물이 섞이면 최신 분석 상태를 파악하기 어려울 수 있다.
+- legacy/lab을 성급히 삭제하면 과거 비교 실험 재현 근거를 잃을 수 있다.
 
-### 7.1 충돌 정책 (확정 권장)
+## 9. Legacy / Archive Output Policy
 
-- 기본 정책은 fail-fast로 한다.
-- `runs/<run_id>/`가 이미 존재하면 기본적으로 에러를 내고 중단한다.
-- 예시 메시지:
+### 9.1 출력 영역 역할 구분
+
+- `runs/`
+  - 현재 viewer-ready 분석 산출물의 기본 위치
+  - 앞으로 Web UI 기본 대상이 될 후보
+  - manifest 중심으로 export, llm_input, stage1, stage2, viewer_payload를 연결
+- `reports/`, `data/processed/`
+  - 기존 flat output 호환/수동 비교용
+  - 과거 실험 산출물과 현재 실행 산출물이 섞일 수 있음
+  - run_dir 안정화 이후 active Web UI 기본 scan 대상에서 제외하는 방향 검토
+  - 초기 전환에서는 삭제하지 않음
+- `lab/`
+  - experiment archive / regression reference
+  - 오래된 비교 실험 산출물 보관 위치
+  - viewer_payload가 없거나 현재 Web UI dashboard 구조와 맞지 않는 산출물이 많을 수 있음
+  - run_dir 전환 이후 기본 Web UI scan 대상에서 제외하고 archive mode/opt-in으로만 읽는 방향 검토
+
+### 9.2 Active / Legacy / Archive 분류
 
 ```text
-[ERROR] run_dir already exists: runs/<run_id>
-Use --run-id to choose another run id or --overwrite to replace it.
+Active / Current:
+- runs/<run_id>/
+- 현재 viewer-ready 분석 산출물
+- 장기적으로 Web UI 기본 scan 대상
+
+Legacy flat output:
+- reports/
+- data/processed/
+- 기존 pipeline flat output 호환용
+- 수동 비교/이전 workflow 호환용
+- 기본 Web UI scan에서는 제외 후보
+
+Lab archive:
+- lab/
+- 실험/회귀 참고 archive
+- 기본 Web UI scan에서는 제외 후보
+- 필요 시 별도 archive mode 또는 explicit include 옵션으로 접근
 ```
 
-- `--overwrite`가 명시된 경우에만 기존 run_dir 덮어쓰기/재생성을 허용한다.
-- 단, `--overwrite`의 실제 동작은 구현 단계에서 별도 확정한다.
-  - 후보 A: 기존 run_dir 삭제 후 재생성
-  - 후보 B: known output file만 덮어쓰기
-- 안전성 관점에서는 non-empty run_dir 기본 실패를 유지한다.
+### 9.3 Web UI scan policy 후보 (Phase 2+)
 
-### 7.2 명시 옵션 후보 (미확정)
+기본 정책 후보:
 
-아래는 문서상 구현 후보이며, 이번 단계에서 구현하지 않는다.
+```text
+Default scan:
+- runs/*/manifest.json
 
-- `--run-id <name>`: export stem 대신 명시적 run_id 사용
-- `--run-dir <path>`: 전체 출력 디렉터리 직접 지정
-- `--overwrite`: 기존 run_dir 충돌 시 명시적으로 덮어쓰기 허용
-- 기본값: 자동 run_id + fail-fast
+Legacy opt-in:
+- reports/*_stage2_report.json
+- reports/*_viewer_payload.json
 
-## 9. 결론
+Lab archive opt-in:
+- lab/**/reports/*_stage2_report.json
+- lab/**/reports/*_viewer_payload.json
+```
+
+미확정 설정 후보:
+
+```text
+REPORT_SCAN_MODE=active
+REPORT_SCAN_MODE=legacy
+REPORT_SCAN_MODE=all
+```
+
+또는:
+
+```text
+include_legacy_reports = false
+include_lab_archives = false
+```
+
+권장 기본값:
+
+- active only
+- legacy/lab은 opt-in
+
+### 9.4 삭제 정책 보류
+
+- 기존 flat/lab 산출물은 당장 삭제하지 않는다.
+- 이유:
+  - 과거 regression/비교 근거로 남아 있음
+  - 문서에서 참조하는 파일이 있을 수 있음
+  - Web UI/loader가 아직 flat 구조를 기본으로 보고 있음
+  - run_dir 구현 전 삭제하면 검증 기준이 흔들릴 수 있음
+- 삭제/정리/백업은 run_dir 안정화 이후 별도 cleanup/retention 정책에서 다룬다.
+## 10. 결론
 
 단기적으로는 flat output 호환을 유지하면서 run_dir 병행 생성을 검토하는 것이 가장 안전하다.
 
