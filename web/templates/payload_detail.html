@@ -16,10 +16,43 @@
 <section class="section payload-dashboard">
   {% set summary = payload_summary if payload_summary else {} %}
   {% set payload_obj = payload if payload is mapping else {} %}
+  {% set payload_summary_obj = payload_obj.get('summary') if payload_obj.get('summary') is mapping else {} %}
+  {% set summary_source_of_truth = summary.get('source_of_truth') if summary.get('source_of_truth') is mapping else {} %}
+  {% set payload_summary_source_of_truth = payload_summary_obj.get('source_of_truth') if payload_summary_obj.get('source_of_truth') is mapping else {} %}
+  {% set payload_source_of_truth = payload_obj.get('source_of_truth') if payload_obj.get('source_of_truth') is mapping else {} %}
+  {% set source_of_truth = summary_source_of_truth or payload_summary_source_of_truth or payload_source_of_truth %}
+  {% set payload_counts = payload_obj.get('counts') if payload_obj.get('counts') is mapping else {} %}
+  {% set payload_meta = payload_obj.get('meta') if payload_obj.get('meta') is mapping else {} %}
+  {% set payload_meta_counts = payload_meta.get('counts') if payload_meta.get('counts') is mapping else {} %}
+  {% set summary_pipeline_counts = summary.get('pipeline_counts') if summary.get('pipeline_counts') is mapping else {} %}
+  {% set payload_summary_pipeline_counts = payload_summary_obj.get('pipeline_counts') if payload_summary_obj.get('pipeline_counts') is mapping else {} %}
   {% set schema_version = summary.get('schema_version') or 'viewer_payload.v1' %}
   {% set guardrails = summary.get('guardrails') if summary.get('guardrails') is sequence and summary.get('guardrails') is not string else [] %}
-  {% set source_of_truth = summary.get('source_of_truth') if summary.get('source_of_truth') is mapping else {} %}
-  {% set total_requests = summary.get('total_request_count') or summary.get('request_count') or source_of_truth.get('total_requests') or source_of_truth.get('request_count') or 'unknown' %}
+  {% set total_requests =
+    summary.get('total_request_count')
+    or summary.get('request_count')
+    or payload_summary_obj.get('total_request_count')
+    or payload_summary_obj.get('request_count')
+    or summary_source_of_truth.get('total_requests')
+    or summary_source_of_truth.get('request_count')
+    or payload_summary_source_of_truth.get('total_requests')
+    or payload_summary_source_of_truth.get('request_count')
+    or payload_source_of_truth.get('total_requests')
+    or payload_source_of_truth.get('request_count')
+    or payload_counts.get('total_exported_rows')
+    or payload_counts.get('total_rows')
+    or payload_counts.get('request_count')
+    or payload_meta_counts.get('total_exported_rows')
+    or payload_meta_counts.get('total_rows')
+    or payload_meta_counts.get('request_count')
+    or summary_pipeline_counts.get('total_exported_rows')
+    or summary_pipeline_counts.get('total_rows')
+    or summary_pipeline_counts.get('request_count')
+    or payload_summary_pipeline_counts.get('total_exported_rows')
+    or payload_summary_pipeline_counts.get('total_rows')
+    or payload_summary_pipeline_counts.get('request_count')
+    or 'unknown'
+  %}
   {% set supporting_events = payload_obj.get('supporting_events') if payload_obj.get('supporting_events') is sequence and payload_obj.get('supporting_events') is not string else [] %}
   {% set contexts_data = payload_obj.get('contexts') if payload_obj.get('contexts') is sequence and payload_obj.get('contexts') is not string else [] %}
   {% set src_ip_mask_enabled = mask_src_ip|default(false) %}
