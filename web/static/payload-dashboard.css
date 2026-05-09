@@ -289,7 +289,7 @@
 
 .payload-event-table {
   width: 100%;
-  min-width: 900px;
+  min-width: 680px;
   border-collapse: separate;
   border-spacing: 0 4px;
   table-layout: fixed;
@@ -363,33 +363,33 @@
 }
 
 .payload-event-table .col-time {
-  width: 80px;
+  width: 68px;
 }
 
 .payload-event-table .col-source-ip {
-  width: 130px;
+  width: 104px;
 }
 
 .payload-event-table .col-method {
-  width: 80px;
+  width: 56px;
 }
 
 .payload-event-table .col-uri {
-  width: 260px;
-  min-width: 220px;
-  max-width: 300px;
+  width: auto;
+  min-width: 72px;
+  max-width: none;
 }
 
 .payload-event-table .col-status {
-  width: 84px;
+  width: 56px;
 }
 
 .payload-event-table .col-category {
-  width: 190px;
+  width: 170px;
 }
 
 .payload-event-table .col-severity {
-  width: 96px;
+  width: 76px;
 }
 
 .payload-time,
@@ -753,6 +753,150 @@
 
   .payload-detail-panel.card {
     max-height: none;
+  }
+}
+
+@media (min-width: 1181px) and (max-width: 1280px) {
+  .payload-page .payload-main-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(340px, 0.82fr);
+  }
+
+  .payload-page .payload-event-table {
+    min-width: 680px;
+  }
+
+  .payload-page .payload-event-table .col-time {
+    width: 68px;
+  }
+
+  .payload-page .payload-event-table .col-source-ip {
+    width: 104px;
+  }
+
+  .payload-page .payload-event-table .col-method {
+    width: 56px;
+  }
+
+  .payload-page .payload-event-table .col-status {
+    width: 56px;
+  }
+
+  .payload-page .payload-event-table .col-category {
+    width: 170px;
+  }
+
+  .payload-page .payload-event-table .col-severity {
+    width: 76px;
+  }
+
+  .payload-page .payload-event-table .col-uri {
+    width: auto;
+    min-width: 72px;
+    max-width: none;
+  }
+}
+
+/* Event Timeline: card layout from <=960px */
+@media (max-width: 960px) {
+  .payload-page .payload-event-table-wrap {
+    overflow-x: visible;
+  }
+
+  .payload-page .payload-event-table {
+    width: 100%;
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+  }
+
+  .payload-page .payload-event-table thead {
+    display: none;
+  }
+
+  .payload-page .payload-event-table,
+  .payload-page .payload-event-table tbody,
+  .payload-page .payload-event-table tr,
+  .payload-page .payload-event-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .payload-page .payload-event-table .col-time,
+  .payload-page .payload-event-table .col-source-ip,
+  .payload-page .payload-event-table .col-method,
+  .payload-page .payload-event-table .col-uri,
+  .payload-page .payload-event-table .col-status,
+  .payload-page .payload-event-table .col-category,
+  .payload-page .payload-event-table .col-severity {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .payload-page .payload-event-table tr {
+    position: relative;
+    margin-bottom: 12px;
+    padding: 14px;
+    border: 1px solid var(--pd-line);
+    border-radius: 14px;
+    background: #ffffff;
+  }
+
+  .payload-page .payload-event-table td {
+    display: grid;
+    grid-template-columns: minmax(96px, 30%) minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    height: auto;
+    padding: 6px 0;
+    border: 0;
+    background: transparent;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    min-width: 0;
+  }
+
+  .payload-page .payload-event-table tbody tr:hover td,
+  .payload-page .payload-finding-row.is-selected td {
+    background: transparent;
+    border: 0;
+  }
+
+  .payload-page .payload-finding-row.is-selected td:first-child {
+    box-shadow: none;
+  }
+
+  .payload-page .payload-event-table td::before {
+    content: attr(data-label);
+    color: var(--pd-muted);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+  }
+
+  .payload-page .payload-event-table td[data-label="uri"] {
+    margin-top: 4px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+
+  .payload-page .payload-uri {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .payload-page .payload-category-badge,
+  .payload-page .payload-badge {
+    max-width: 100%;
   }
 }
 
