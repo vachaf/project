@@ -9,9 +9,9 @@
 
 ## 1. 검토 목적
 
-`docs/design/` 내 완료된 작업 계획서/체크리스트 문서를 정리 후보로 분류해, 이후 문서 슬림화(삭제/요약 통합) 시 안전한 1차 판단 근거를 제공한다.
+`docs/design/` 내 완료된 작업 계획서/체크리스트 문서를 정리 후보로 분류하고, 요약 흡수 후 실제 삭제 반영 상태를 기록한다.
 
-이번 문서는 검토 전용이며 실제 삭제는 수행하지 않는다.
+이번 문서는 검토 결과 + 삭제 완료 반영 상태 문서다.
 
 ## 2. 삭제 판단 기준
 
@@ -21,71 +21,44 @@
 - 보존 후보
   - Apache logs-only, evidence boundary, 성공 단정 금지, Web UI read-only 범위, 계약(contract)/fixture 같은 운영 판단 근거를 담음
   - 현재 TODO/진행상황/README에서 직접 참조되거나 재검토 가능성이 높음
-- 요약 후 삭제 후보
-  - 개별 파일 삭제는 가능하나, 삭제 전 README/진행상황에 1~3줄 요약을 남기면 안전
+- 요약 후 삭제
+  - 개별 파일 삭제 전 README/진행상황/summary에 완료 요약을 흡수한 뒤 삭제
 - 판단 보류
   - split 기록 문서이지만 supporting_events/context-only 경계 등 현재 운영 판단과 연결되어 즉시 삭제 판단이 위험
 
-## 3. 삭제 후보 목록
+## 3. 삭제 후보 목록 (삭제 완료)
 
 1. `docs/design/99_prepare_module_split_round2_candidate_review.md`
-- 이유: 후보 비교 문서이며 결과가 `99_prepare_module_split_round2_summary.md`와 진행상황 요약으로 흡수됨.
-- 완료 요약 위치: `docs/design/99_prepare_module_split_round2_summary.md`, `docs/진행상황.md`.
-
 2. `docs/design/99_prepare_constants_mini_move_candidate_review.md`
-- 이유: 후보 비교 성격, 완료 결과가 `99_prepare_constants_mini_move_summary.md`로 정리됨.
-- 완료 요약 위치: `docs/design/99_prepare_constants_mini_move_summary.md`, `docs/진행상황.md`.
-
 3. `docs/design/99_prepare_hints_split_candidate_review.md`
-- 이유: 후보 비교 문서이며 완료 상태가 `99_prepare_hints_split_summary.md`와 진행상황에 반영됨.
-- 완료 요약 위치: `docs/design/99_prepare_hints_split_summary.md`, `docs/진행상황.md`.
 
-## 4. 요약 후 삭제 후보 목록
+## 4. 요약 후 삭제 완료 목록
 
-1. `docs/design/99_prepare_module_split_round2_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md` prepare module split 섹션에 “method summary split 완료 + contract 불변조건 유지” 1줄.
-
-2. `docs/design/99_prepare_module_split_round2_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md`에 “protocol anomaly split 완료, output key/fixture 계약 유지” 1줄.
-
-3. `docs/design/99_prepare_module_split_round1_summary.md`
-- 삭제 전 요약 제안: `docs/진행상황.md`에 “auth behavior split 완료, POST body 미가시성 해석 제한 유지” 1줄.
-
-4. `docs/design/99_prepare_module_split_round1_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md`에 “static baseline split 완료, context-only 유지” 1줄.
-
-5. `docs/design/99_prepare_module_split_round1_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md`에 “crawler baseline split 완료 및 fixture 계약 유지” 1줄.
-
-6. `docs/design/99_prepare_hints_split_summary.md`
-- 삭제 전 요약 제안: `docs/진행상황.md`에 “SQLi hints split 완료, DB 성공 단정 금지 유지” 1줄.
-
-7. `docs/design/99_prepare_hints_split_summary.md`
-- 삭제 전 요약 제안: `docs/진행상황.md`에 “XSS hints split 완료, browser execution 단정 금지 유지” 1줄.
-
-8. `docs/design/99_prepare_hints_split_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md`에 “file disclosure hints split 완료, suspicious verdict 경계 유지” 1줄.
-
-9. `docs/design/99_prepare_hints_split_summary.md`
-- 삭제 전 요약 제안: `docs/진행상황.md`에 “traversal/CMDI hints split 완료, execution/success 단정 금지 유지” 1줄.
-
-10. `docs/design/99_prepare_constants_mini_move_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “PROTOCOL_ANOMALY 상수 mini-move 완료” 1줄.
-
-11. `docs/design/99_prepare_constants_mini_move_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “IP_BEHAVIOR 상수 mini-move 완료” 1줄.
-
-12. `docs/design/99_prepare_constants_mini_move_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “method constants 부분 이동, STANDARD_HTTP_METHODS 보류” 1줄.
-
-13. `docs/design/99_prepare_constants_mini_move_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “static constants 부분 이동, path/classification 상수 보류” 1줄.
-
-14. `docs/design/99_prepare_constants_mini_move_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “auth constants/patterns 이동 완료” 1줄.
-
-15. `docs/design/99_prepare_constants_mini_move_summary.md`
-- 삭제 전 요약 제안: `docs/design/README.md` constants 섹션에 “crawler constants/patterns 이동 완료” 1줄.
+- prepare summary split plan 5개 삭제 완료
+  - `docs/design/99_prepare_method_summary_split_plan.md`
+  - `docs/design/99_prepare_protocol_anomaly_split_plan.md`
+  - `docs/design/99_prepare_auth_behavior_split_plan.md`
+  - `docs/design/99_prepare_static_baseline_split_plan.md`
+  - `docs/design/99_prepare_crawler_baseline_split_plan.md`
+- prepare hints split plan 4개 삭제 완료
+  - `docs/design/99_prepare_sqli_hints_split_plan.md`
+  - `docs/design/99_prepare_xss_hints_split_plan.md`
+  - `docs/design/99_prepare_file_disclosure_hints_split_plan.md`
+  - `docs/design/99_prepare_traversal_cmdi_hints_split_plan.md`
+- prepare constants move plan 6개 삭제 완료
+  - `docs/design/99_prepare_protocol_anomaly_constants_move_plan.md`
+  - `docs/design/99_prepare_ip_behavior_constants_move_plan.md`
+  - `docs/design/99_prepare_method_behavior_constants_move_plan.md`
+  - `docs/design/99_prepare_static_baseline_constants_move_plan.md`
+  - `docs/design/99_prepare_auth_behavior_constants_move_plan.md`
+  - `docs/design/99_prepare_crawler_baseline_constants_move_plan.md`
+- 완료 요약 흡수 위치
+  - `docs/design/README.md`
+  - `docs/진행상황.md`
+  - `docs/design/99_prepare_module_split_round1_summary.md`
+  - `docs/design/99_prepare_module_split_round2_summary.md`
+  - `docs/design/99_prepare_hints_split_summary.md`
+  - `docs/design/99_prepare_constants_mini_move_summary.md`
 
 ## 5. 보존 후보 목록
 
@@ -138,17 +111,12 @@
 
 ## 7. 권장 후속 작업
 
-- 1차 삭제 커밋 후보
-  - 우선 `삭제 후보 3건`만 단일 커밋으로 정리
-
-- README 정리 후보
-  - `요약 후 삭제 후보` 삭제 전, `docs/design/README.md`에 split/mini-move 완료 이력을 1~3줄 집약 문장으로 통합
-
-- TODO/진행상황 축소 후보
-  - `docs/진행상황.md`의 완료 이력 중 split/mini-move/hints 항목을 “완료 묶음 요약”으로 축약
-  - `docs/planning/99_비교실험_후속개선_TODO.md`는 완료 이력 나열을 더 줄이고 실제 미완료 TODO만 유지
+- 완료: 삭제 후보 3개 삭제
+- 완료: 요약 후 삭제 후보 15개 삭제
+- 남은 작업: 판단 보류 4개는 당분간 유지
+- 남은 작업: `docs/design/README.md`와 `docs/진행상황.md`는 필요 시 추가 축약만 검토
 
 ## 8. 비고
 
-- 본 문서는 검토 결과만 기록한다.
-- 이번 작업에서 파일 삭제/이동/수정(코드/테스트/파이프라인)은 수행하지 않았다.
+- 본 문서는 검토 결과와 삭제 완료 반영 상태를 기록한다.
+- 이번 정리에서 추가 파일 삭제/복구 및 코드/테스트/파이프라인 수정은 수행하지 않았다.
