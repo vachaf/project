@@ -125,9 +125,22 @@
 
   <section class="section payload-main-grid">
     <section class="card payload-event-panel">
-      <h3>Event Timeline</h3>
-      <p class="payload-panel-subtitle">Grouped suspicious request patterns</p>
-      <div class="table-wrapper payload-event-table-wrap">
+      <div class="payload-event-panel-header">
+        <div>
+          <h3>Event Timeline</h3>
+          <p class="payload-panel-subtitle">Grouped suspicious request patterns</p>
+        </div>
+        <button
+          type="button"
+          id="payload-event-collapse-toggle"
+          class="payload-event-collapse-toggle"
+          aria-expanded="true"
+          aria-controls="payload-event-table-wrap"
+        >
+          선택 항목만 보기
+        </button>
+      </div>
+      <div class="table-wrapper payload-event-table-wrap" id="payload-event-table-wrap">
         <table class="table table-compact payload-event-table">
           <thead>
             <tr>
@@ -381,6 +394,8 @@
     const emptyState = document.getElementById("pd-detail-empty");
     const detailContent = document.getElementById("pd-detail-content");
     const rowNodes = Array.from(document.querySelectorAll(".payload-finding-row"));
+    const eventPanel = document.querySelector(".payload-event-panel");
+    const collapseToggle = document.getElementById("payload-event-collapse-toggle");
 
     function asText(value, fallback = "N/A") {
       if (value === null || value === undefined) return fallback;
@@ -910,6 +925,26 @@
         renderDetail(Number.isNaN(index) ? -1 : index);
       });
     });
+
+    function hasSelectedFindingRow() {
+      return !!document.querySelector(".payload-finding-row.is-selected");
+    }
+
+    function setTimelineCollapsed(collapsed) {
+      if (!eventPanel || !collapseToggle) return;
+      eventPanel.classList.toggle("is-timeline-collapsed", collapsed);
+      collapseToggle.textContent = collapsed ? "전체 목록 보기" : "선택 항목만 보기";
+      collapseToggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    }
+
+    if (eventPanel && collapseToggle) {
+      collapseToggle.addEventListener("click", function () {
+        const nextCollapsed = !eventPanel.classList.contains("is-timeline-collapsed");
+        if (nextCollapsed && !hasSelectedFindingRow()) return;
+        setTimelineCollapsed(nextCollapsed);
+      });
+      setTimelineCollapsed(false);
+    }
 
     renderDetail(findings.length > 0 ? 0 : -1);
   })();
