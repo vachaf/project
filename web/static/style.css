@@ -1845,6 +1845,155 @@ summary:focus-visible {
   color: var(--muted);
 }
 
+@media (min-width: 801px) {
+  /* Report detail: desktop column balance for notable_incidents only */
+  body.page .report-table-notable-incidents {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  body.page .report-table-notable-incidents th,
+  body.page .report-table-notable-incidents td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* severity */
+  body.page .report-table-notable-incidents th:nth-child(1),
+  body.page .report-table-notable-incidents td:nth-child(1) {
+    width: 7%;
+  }
+
+  /* verdict */
+  body.page .report-table-notable-incidents th:nth-child(2),
+  body.page .report-table-notable-incidents td:nth-child(2) {
+    width: 13%;
+  }
+
+  /* incident_ref: keep readable but prevent it from dominating the table */
+  body.page .report-table-notable-incidents th:nth-child(3),
+  body.page .report-table-notable-incidents td:nth-child(3) {
+    width: 24%;
+    font-size: 0.82rem;
+  }
+
+  /* summary */
+  body.page .report-table-notable-incidents th:nth-child(4),
+  body.page .report-table-notable-incidents td:nth-child(4) {
+    width: 6%;
+  }
+
+  /* why_it_matters: primary narrative column */
+  body.page .report-table-notable-incidents th:nth-child(5),
+  body.page .report-table-notable-incidents td:nth-child(5) {
+    width: 32%;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  /* source_ip */
+  body.page .report-table-notable-incidents th:nth-child(6),
+  body.page .report-table-notable-incidents td:nth-child(6) {
+    width: 8%;
+  }
+
+  /* request_count */
+  body.page .report-table-notable-incidents th:nth-child(7),
+  body.page .report-table-notable-incidents td:nth-child(7) {
+    width: 4%;
+  }
+
+  /* recommended_action */
+  body.page .report-table-notable-incidents th:nth-child(8),
+  body.page .report-table-notable-incidents td:nth-child(8) {
+    width: 6%;
+  }
+}
+
+@media (max-width: 800px) {
+  body.page .report-table-section-notable-incidents .report-mobile-table-wrapper {
+    overflow-x: visible;
+  }
+
+  body.page .report-table-notable-incidents {
+    width: 100%;
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+  }
+
+  body.page .report-table-notable-incidents thead {
+    display: none;
+  }
+
+  body.page .report-table-notable-incidents,
+  body.page .report-table-notable-incidents tbody,
+  body.page .report-table-notable-incidents tr,
+  body.page .report-table-notable-incidents td {
+    display: block;
+    width: 100%;
+  }
+
+  body.page .report-table-notable-incidents tr {
+    margin-bottom: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  body.page .report-table-notable-incidents td {
+    display: grid;
+    grid-template-columns: minmax(104px, 32%) minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: start;
+    border: 0;
+    border-bottom: 1px solid #e5eaf0;
+    padding: 0.55rem 0.65rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    min-width: 0;
+  }
+
+  body.page .report-table-notable-incidents td:last-child {
+    border-bottom: 0;
+  }
+
+  body.page .report-table-notable-incidents td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+  }
+
+  body.page .report-table-notable-incidents td.is-empty {
+    display: block;
+  }
+
+  body.page .report-table-notable-incidents td.is-empty::before {
+    content: "";
+  }
+
+  body.page .report-table-notable-incidents td[data-label="verdict"],
+  body.page .report-table-notable-incidents td[data-label="incident_ref"],
+  body.page .report-table-notable-incidents td[data-label="source_ip"] {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  body.page .report-table-notable-incidents td[data-label="why_it_matters"] {
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+}
+
 /* 모바일 대응 미디어 쿼리 */
 @media (max-width: 600px) {
   .navigation-controls {
@@ -1902,6 +2051,11 @@ summary:focus-visible {
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
+  }
+
+  body.page .report-table-notable-incidents td {
+    grid-template-columns: minmax(104px, 32%) minmax(0, 1fr);
+    word-break: normal;
   }
 
   body.page .report-mobile-table td:last-child {
