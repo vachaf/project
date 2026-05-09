@@ -338,19 +338,19 @@
 }
 
 .payload-event-table .col-time {
-  width: 82px;
+  width: 80px;
 }
 
 .payload-event-table .col-source-ip {
-  width: 132px;
+  width: 130px;
 }
 
 .payload-event-table .col-method {
-  width: 88px;
+  width: 80px;
 }
 
 .payload-event-table .col-uri {
-  width: 300px;
+  width: 260px;
   min-width: 220px;
   max-width: 300px;
 }
@@ -360,7 +360,7 @@
 }
 
 .payload-event-table .col-category {
-  width: 210px;
+  width: 190px;
 }
 
 .payload-event-table .col-severity {
