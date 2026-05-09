@@ -46,6 +46,12 @@
 - probing_sequence_summaries `sample_request_ids` 부재가 Finding ↔ Contexts 연결 약화 원인이었음을 확인했고, 보존 추가를 완료했다(커밋 `a774976dea35503bef61b55f94641e41482a436a`).
 - viewer payload 재생성/화면 확인에서 Related Contexts 표시 정상화(`Related Contexts (6)`, context card `request_ids` 표시)를 확인했다.
 - 위 연결은 display-only association이며 context-only 승격, 새 보안 판정 생성, severity/category/verdict 재계산은 수행하지 않는다.
+- Web UI layout/mobile readability 개선 완료
+  - `/report/{report_id}`: notable_incidents/notable_source_ips/recommended_actions 모바일 카드형 표시 개선
+  - `/report/{report_id}/payload`: Contexts Preview 모바일 카드형 표시 개선
+  - Payload Event Timeline: 960px 이하 카드형 전환 유지, 1181~1280px 폭 압박 완화, category badge 잘림 완화
+  - Payload Event Timeline 표시 순서 time 오름차순 정렬 반영(`log_time -> display_time`, unknown/미파싱은 뒤)
+  - 관련 커밋: `eec6d81`, `a5b4a76`, `6ff5563`, `f0b845d`
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -190,6 +196,12 @@
   - `Mixed_Context_Heavy` + security export 기준 E2E smoke test는 성공
   - all export 중복 영향과 security export 기준 결과 차이는 필요 시 별도 smoke로 비교
   - 후속은 `--table all` E2E smoke와 security-only 결과 비교 정도로 유지
+- [ ] Web UI layout regression fixture 후보 검토
+  - `notable_incidents.summary/request_count/recommended_action`이 채워진 fixture를 별도로 둘지 검토
+  - pipeline 생성 로그 표준(`scripts/generate_lab_traffic.py`)과 UI layout fixture는 목적을 분리
+- [ ] Stage2 산출물 field completeness 관찰
+  - 실제 산출물에서 `notable_incidents.summary/request_count/recommended_action` 공백 비율을 관찰
+  - 필요 시 Stage2 reporter schema/field completeness 검토는 별도 후속 과제로 분리
 
 QA v4 보조 스크립트 관리:
 
