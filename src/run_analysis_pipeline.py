@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -82,6 +83,11 @@ def parse_args() -> argparse.Namespace:
         "--base-name",
         default=None,
         help="산출물 파일명 접두어 (미지정 시 입력 파일 stem 기반 자동 추론)",
+    )
+    paths_output.add_argument(
+        "--run-dir",
+        default=None,
+        help="opt-in run 단위 병행 산출물 디렉터리 (미지정 시 비활성)",
     )
 
     run_mode = parser.add_argument_group("Run mode")
@@ -317,6 +323,69 @@ def save_manifests(manifest_path: Path, run_manifest_path: Optional[Path], paylo
         dump_json(run_manifest_path, payload, pretty=pretty)
 
 
+def build_flat_files(manifest_path: Path, run_manifest_path: Optional[Path], paths: Dict[str, Optional[Path]]) -> Dict[str, Optional[str]]:
+    return {
+        "export": None,
+        "llm_input": str(paths["llm_input"]) if paths.get("llm_input") else None,
+        "stage1_results": str(paths["stage1_results"]) if paths.get("stage1_results") else None,
+        "stage2_report_input": str(paths["stage2_report_input"]) if paths.get("stage2_report_input") else None,
+        "stage2_report_json": str(paths["stage2_report_json"]) if paths.get("stage2_report_json") else None,
+        "stage2_report_md": str(paths["stage2_report_md"]) if paths.get("stage2_report_md") else None,
+        "viewer_payload": str(paths["viewer_payload"]) if paths.get("viewer_payload") else None,
+        "noise_summary": str(paths["noise_summary"]) if paths.get("noise_summary") else None,
+        "pipeline_manifest_latest": str(manifest_path),
+        "pipeline_manifest": str(run_manifest_path) if run_manifest_path else None,
+    }
+
+
+def sync_run_dir_outputs(
+    run_dir: Path,
+    run_dir_enabled: bool,
+    source_input: str,
+    resume_from: str,
+    manifest: Dict[str, Any],
+    paths: Dict[str, Optional[Path]],
+    pretty: bool,
+) -> Dict[str, Optional[str]]:
+    if not run_dir_enabled:
+        return {}
+
+    run_dir.mkdir(parents=True, exist_ok=False)
+    run_dir_files: Dict[str, Optional[str]] = {
+        "export": None,
+        "llm_input": None,
+        "stage1_results": None,
+        "stage2_report_input": None,
+        "stage2_report_json": None,
+        "stage2_report_md": None,
+        "viewer_payload": None,
+        "noise_summary": None,
+        "manifest": str(run_dir / "manifest.json"),
+    }
+
+    copy_plan: List[tuple[str, Optional[Path], str]] = [
+        ("llm_input", paths.get("llm_input"), "llm_input.json"),
+        ("stage1_results", paths.get("stage1_results"), "stage1_results.json"),
+        ("stage2_report_input", paths.get("stage2_report_input"), "stage2_report_input.json"),
+        ("stage2_report_json", paths.get("stage2_report_json"), "stage2_report.json"),
+        ("stage2_report_md", paths.get("stage2_report_md"), "stage2_report.md"),
+        ("viewer_payload", paths.get("viewer_payload"), "viewer_payload.json"),
+        ("noise_summary", paths.get("noise_summary"), "noise_summary.json"),
+    ]
+    if resume_from == "export":
+        copy_plan.insert(0, ("export", Path(source_input), "export.json"))
+
+    for alias, src, dst_name in copy_plan:
+        if not src or not src.exists():
+            continue
+        dst = run_dir / dst_name
+        shutil.copy2(src, dst)
+        run_dir_files[alias] = str(dst)
+
+    dump_json(run_dir / "manifest.json", manifest, pretty=pretty)
+    return run_dir_files
+
+
 def build_stage1_dry_run_placeholder(llm_input_path: Path, output_path: Path, pretty: bool, mode: str, selected_model: Optional[str]) -> None:
     payload = load_json(llm_input_path)
     candidates = payload.get("analysis_candidates") or []
@@ -399,14 +468,17 @@ def main() -> int:
     processed_dir = Path(args.processed_dir).expanduser().resolve() if args.processed_dir else work_dir / "data" / "processed"
     reports_dir = Path(args.reports_dir).expanduser().resolve() if args.reports_dir else work_dir / "reports"
     manifest_path = work_dir / "pipeline_manifest.json"
+    run_dir_path = Path(args.run_dir).expanduser().resolve() if args.run_dir else None
+    run_dir_enabled = run_dir_path is not None
+    run_id = run_dir_path.name if run_dir_path else None
 
-    work_dir.mkdir(parents=True, exist_ok=True)
-    processed_dir.mkdir(parents=True, exist_ok=True)
-    reports_dir.mkdir(parents=True, exist_ok=True)
-
-    prepare_script = ensure_script(scripts_dir / "prepare_llm_input.py")
-    stage1_script = ensure_script(scripts_dir / "llm_stage1_classifier.py")
-    stage2_script = ensure_script(scripts_dir / "llm_stage2_reporter.py")
+    if run_dir_enabled and run_dir_path.exists():
+        print(
+            f"[ERROR] run_dir already exists: {run_dir_path}\n"
+            "Use a different --run-dir path. --overwrite is not implemented in Phase 1A.",
+            file=sys.stderr,
+        )
+        return 2
 
     source_input: str
     if args.export_input:
@@ -425,6 +497,14 @@ def main() -> int:
     if not source_input or not Path(source_input).exists():
         print("[ERROR] 시작 입력 파일을 찾을 수 없습니다.", file=sys.stderr)
         return 2
+
+    work_dir.mkdir(parents=True, exist_ok=True)
+    processed_dir.mkdir(parents=True, exist_ok=True)
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    prepare_script = ensure_script(scripts_dir / "prepare_llm_input.py")
+    stage1_script = ensure_script(scripts_dir / "llm_stage1_classifier.py")
+    stage2_script = ensure_script(scripts_dir / "llm_stage2_reporter.py")
 
     resolved_prepare_source_tables, prepare_resolution_reason = resolve_prepare_source_tables(
         source_input=source_input,
@@ -476,11 +556,35 @@ def main() -> int:
             "source_input": source_input,
             "base_name": base_name,
         },
+        "run_dir_enabled": run_dir_enabled,
+        "run_id": run_id,
+        "run_dir": str(run_dir_path) if run_dir_path else None,
+        "run_dir_collision_policy": "fail_fast" if run_dir_enabled else None,
+        "source_export_path": source_input if resume_from == "export" else None,
         "steps": [],
         "artifacts": {k: (str(v) if v else None) for k, v in paths.items()},
+        "flat_files": {},
+        "run_dir_files": {},
     }
+    manifest["flat_files"] = build_flat_files(manifest_path, run_manifest_path, paths)
+    manifest["flat_files"]["export"] = source_input if resume_from == "export" else None
 
     rc = 0
+
+    def persist_all() -> None:
+        save_manifests(manifest_path, run_manifest_path, manifest, pretty=args.pretty)
+        if run_dir_enabled and run_dir_path:
+            manifest["run_dir_files"] = sync_run_dir_outputs(
+                run_dir=run_dir_path,
+                run_dir_enabled=run_dir_enabled,
+                source_input=source_input,
+                resume_from=resume_from,
+                manifest=manifest,
+                paths=paths,
+                pretty=args.pretty,
+            )
+            save_manifests(manifest_path, run_manifest_path, manifest, pretty=args.pretty)
+            dump_json(run_dir_path / "manifest.json", manifest, pretty=args.pretty)
 
     try:
         if resume_from == "export":
@@ -504,7 +608,7 @@ def main() -> int:
                 rc = step_rc
                 raise RuntimeError("prepare 단계 실패")
             if args.stop_after == "prepare":
-                save_manifests(manifest_path, run_manifest_path, manifest, pretty=args.pretty)
+                persist_all()
                 print(f"\n[OK] manifest: {manifest_path}")
                 if run_manifest_path:
                     print(f"[OK] run_manifest: {run_manifest_path}")
@@ -560,7 +664,7 @@ def main() -> int:
             if step_rc != 0 and not args.keep_going:
                 raise RuntimeError("stage1 단계 실패")
             if args.stop_after == "stage1":
-                save_manifests(manifest_path, run_manifest_path, manifest, pretty=args.pretty)
+                persist_all()
                 print(f"\n[OK] manifest: {manifest_path}")
                 if run_manifest_path:
                     print(f"[OK] run_manifest: {run_manifest_path}")
@@ -669,14 +773,14 @@ def main() -> int:
         if rc == 0:
             rc = 1
         if not args.keep_going:
-            save_manifests(manifest_path, run_manifest_path, manifest, pretty=args.pretty)
+            persist_all()
             print(f"\n[ERROR] {e}", file=sys.stderr)
             print(f"[INFO] manifest: {manifest_path}")
             if run_manifest_path:
                 print(f"[INFO] run_manifest: {run_manifest_path}")
             return rc
 
-    save_manifests(manifest_path, run_manifest_path, manifest, pretty=args.pretty)
+    persist_all()
 
     print("\n[OK] pipeline complete")
     print(f"[OK] manifest:            {manifest_path}")
