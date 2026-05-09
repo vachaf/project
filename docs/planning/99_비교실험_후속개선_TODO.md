@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-08
+- 기준 시점: 2026-05-09
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 원칙: 완료된 항목은 이 문서에 길게 유지하지 않는다.
 
@@ -35,6 +35,13 @@
   - 조치: dashboard 기본 raw src_ip 표시 + `mask_src_ip` query toggle 추가
   - 원칙: matching은 raw data 기준 유지, display-only association 유지
 - `run_analysis_pipeline.py` export/pipeline table 불일치 해소 완료(`--prepare-source-tables` 기본값 auto, export `table_option/counts/data` 기반 자동 해석, commit `e0fcdaece33f0f580f4877be121f09c7192a1904`)
+- viewer_payload dashboard UI polish 완료
+  - payload 전용 shell 적용, 기존 Security Intelligence Console header/footer 분리
+  - 상단 dashboard header + summary cards + Event Timeline + Selected Event Detail 구조 정리
+  - Event Timeline hover/selected/모바일 카드형 표시 보정, mask toggle/guardrail 유지
+- Total Requests `unknown` fallback 보강 완료
+  - `payload_summary` 외 `payload_obj.summary/source_of_truth/counts/meta.counts`, `summary.pipeline_counts` 확인 경로 반영
+  - 브라우저 확인에서 Total Requests `40` 표시 정상화 확인
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -131,11 +138,15 @@
 - [ ] Related Contexts matching 과잉/누락 관찰
   - source IP display toggle 반영 후 `v1_test_security`에서는 Related Contexts 표시가 복구됨
   - 향후 여러 source IP / `--table all` / mixed payload에서 과매칭 여부만 관찰
-  - 새 관계 추론, context-only 승격, severity/category/verdict 재계산은 하지 않음
+  - jq 관찰 기준: contexts에 `sample_paths/src_ip/context_type/reason_hints`는 있으나 `context_id/sample_request_ids/linked_context_ids`가 없는 payload가 있음
+  - jq 관찰 기준: findings에는 `request_id/incident_group_key/src_ip/uri/category/reason_hints`가 있어, 필드 보존/누락 경계를 payload별로 분리 확인 필요
+  - Web UI에서 새 관계를 추론해 연결을 보정하는 방식은 금지
+  - context-only 승격, severity/category/verdict 재계산은 하지 않음
 - [ ] Supporting Events 생성 조건 관찰
   - `v1_test_security`에서는 prepare 단계부터 `supporting_events=0`으로 확인됨
   - viewer_payload_builder/Web UI 누락 문제는 아닌 것으로 분리됨
   - generator 시나리오 특성상 강한 marker는 candidate로, 약한 흐름은 context/noise로 분리되어 supporting event가 없을 수 있음
+  - payload별로 `supporting_events=0`/`1`이 혼재하므로 생성 조건/보존 경로를 payload 단위로 비교
   - 별도 fixture나 생성 조건 변경은 반복 필요가 확인될 때만 검토
 - [ ] 원인 분리 후 `viewer_payload_builder.py` 최소 단위 테스트 추가 여부 검토
   - existing payload field preservation: `context_id`, `linked_context_ids`, `sample_request_ids`, `request_id`, `incident_group_key`
@@ -147,7 +158,7 @@
   - 필수 키 누락 시 graceful 처리
   - 테스트도 새 관계 추론, severity/category/verdict 재계산, context-only 승격을 하지 않는 방향으로 작성
 - [ ] Context graph / advanced relationship view는 장기 후보로 보류
-  - Related Contexts/Supporting Events의 연결 필드 유무와 표시 가능성 확인 이후에만 재검토
+  - Related Contexts/Supporting Events의 연결 필드 유무와 보존 경로 확인 이후에만 재검토
 - [ ] viewer_payload compare/history 후보 검토
   - 기존 Stage2 compare와 분리
   - 장기 후보로 유지
