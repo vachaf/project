@@ -42,7 +42,9 @@
 - Total Requests `unknown` fallback 보강 완료
   - `payload_summary` 외 `payload_obj.summary/source_of_truth/counts/meta.counts`, `summary.pipeline_counts` 확인 경로 반영
   - 브라우저 확인에서 Total Requests `40` 표시 정상화 확인
-- probing_sequence_summaries에 sample_request_ids 보존을 추가해 viewer payload Related Contexts의 display-only association 근거를 보강했다. 이 변경은 context-only metadata 보존이며, finding 승격이나 severity/category/verdict 재계산은 하지 않는다.
+- probing_sequence_summaries `sample_request_ids` 부재가 Finding ↔ Contexts 연결 약화 원인이었음을 확인했고, 보존 추가를 완료했다(커밋 `a774976dea35503bef61b55f94641e41482a436a`).
+- viewer payload 재생성/화면 확인에서 Related Contexts 표시 정상화(`Related Contexts (6)`, context card `request_ids` 표시)를 확인했다.
+- 위 연결은 display-only association이며 context-only 승격, 새 보안 판정 생성, severity/category/verdict 재계산은 수행하지 않는다.
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -145,11 +147,13 @@
   - context-only 승격, severity/category/verdict 재계산은 하지 않음
 - [ ] Supporting Events 생성 조건 관찰
   - `v1_test_security`에서는 prepare 단계부터 `supporting_events=0`으로 확인됨
-  - viewer_payload_builder/Web UI 누락 문제는 아닌 것으로 분리됨
-  - generator 시나리오 특성상 강한 marker는 candidate로, 약한 흐름은 context/noise로 분리되어 supporting event가 없을 수 있음
-  - payload별로 `supporting_events=0`/`1`이 혼재하므로 생성 조건/보존 경로를 payload 단위로 비교
+  - 05-03 payload에는 `sensitive_path_probe_support` supporting event가 존재해 `0/1` 혼재가 확인됨
+  - viewer_payload_builder/Web UI 누락 문제가 아니라 prepare 생성 조건 차이 확인이 다음 작업임
+  - `build_supporting_events`, `reduce_repeated_auth_candidates`, `reduce_repeated_sensitive_path_candidates` 조건 차이를 payload 단위로 비교
   - 별도 fixture나 생성 조건 변경은 반복 필요가 확인될 때만 검토
 - [ ] 원인 분리 후 `viewer_payload_builder.py` 최소 단위 테스트 추가 여부 검토
+  - 이번 이슈는 builder preservation 결함이 아니라 prepare 단계 `sample_request_ids` 생성/보존 부재 이슈였음을 전제로 검토
+  - `sample_request_ids` 보존 회귀 테스트가 필요한지 여부를 후속 판단
   - existing payload field preservation: `context_id`, `linked_context_ids`, `sample_request_ids`, `request_id`, `incident_group_key`
   - `supporting_events` top-level 보존 및 empty/missing fallback
   - reason_hints list/string/None 처리
