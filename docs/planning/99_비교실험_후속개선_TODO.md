@@ -48,10 +48,11 @@
 - 위 연결은 display-only association이며 context-only 승격, 새 보안 판정 생성, severity/category/verdict 재계산은 수행하지 않는다.
 - Web UI layout/mobile readability 개선 완료
   - `/report/{report_id}`: notable_incidents/notable_source_ips/recommended_actions 모바일 카드형 표시 개선
-  - `/report/{report_id}/payload`: Contexts Preview 모바일 카드형 표시 개선
+  - `/report/{report_id}/payload`: Contexts Preview 모바일 카드형 표시 개선 + breakpoint 960px 정리
   - Payload Event Timeline: 960px 이하 카드형 전환 유지, 1181~1280px 폭 압박 완화, category badge 잘림 완화
+  - Payload Event Timeline: selected-only toggle(`선택 항목만 보기`/`전체 목록 보기`) 및 선택 카드 강조 스타일 보강
   - Payload Event Timeline 표시 순서 time 오름차순 정렬 반영(`log_time -> display_time`, unknown/미파싱은 뒤)
-  - 관련 커밋: `eec6d81`, `a5b4a76`, `6ff5563`, `f0b845d`
+  - 관련 커밋: `eec6d81`, `a5b4a76`, `6ff5563`, `f0b845d`, `5f393d8`, `1826ddc`
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 
@@ -197,7 +198,8 @@
   - all export 중복 영향과 security export 기준 결과 차이는 필요 시 별도 smoke로 비교
   - 후속은 `--table all` E2E smoke와 security-only 결과 비교 정도로 유지
 - [ ] Web UI layout regression fixture 후보 검토
-  - `notable_incidents.summary/request_count/recommended_action`이 채워진 fixture를 별도로 둘지 검토
+  - Event Timeline selected-only toggle, Contexts Preview 카드형, Report Detail 모바일 카드형을 한 번에 확인할 수 있는 fixture 검토
+  - `notable_incidents.summary/request_count/recommended_action`이 채워진 샘플 포함 여부 검토
   - pipeline 생성 로그 표준(`scripts/generate_lab_traffic.py`)과 UI layout fixture는 목적을 분리
 - [ ] Stage2 산출물 field completeness 관찰
   - 실제 산출물에서 `notable_incidents.summary/request_count/recommended_action` 공백 비율을 관찰
