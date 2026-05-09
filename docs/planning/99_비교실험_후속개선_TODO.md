@@ -25,6 +25,7 @@
 - viewer payload 최소 도입 완료(`src/viewer_payload_builder.py` 추가, Stage2 이후 자동 생성 연결)
 - `run_analysis_pipeline.py`에서 Stage2 이후 viewer payload 자동 생성 완료(`--viewer-payload`/`--no-viewer-payload`, `--include-raw-log` opt-in)
 - latest manifest / run별 manifest 분리 1차 반영 완료(`<work-dir>/pipeline_manifest.json` latest 유지 + `reports/<base>_pipeline_manifest.json` 추가)
+- Web UI run_dir loader Phase 2 설계 문서 작성 완료(`docs/design/99_web_ui_run_dir_loader_phase2_plan.md`, commit `98cef47849defa359ddf9688ff41c566ddc80131`)
 - Web UI viewer_payload display plan 작성 완료(`docs/design/99_web_ui_viewer_payload_display_plan.md`)
 - Web UI viewer_payload read-only dashboard MVP 구현 완료(`/report/{report_id}/payload` route, 기존 detail fallback/link 유지)
 - `run_analysis_pipeline.py` CLI help/UX 정리 완료(`--export-input` 기본 진입점 명시, resume 옵션 advanced 유지)
@@ -174,15 +175,16 @@
   - operations 문서 반영 완료: `docs: document run directory operation flow` (`4e295879ab062d94716ef9b328519bd034b2e2bc`)
   - Phase 1A smoke 관찰 완료: `security_2026-04-30_13-55-00_to_2026-04-30_13-56-00_kst` + `--dry-run --run-dir /tmp/web-log-analysis-run-dir-smoke-2`에서 `pipeline complete`, flat output 유지, run_dir 표준 파일 생성, manifest dual-path(`flat_files`/`run_dir_files`) 기록 확인
   - 후보 비교 문서 작성 완료: `docs/design/99_pipeline_run_dir_phase1b_phase2_candidate_review.md`
-  - 우선순위(즉시 구현 승격 아님): `P1 --run-id 필요성 관찰` -> `P2 --overwrite 보류/정책 판단` -> `P3 Web UI loader run_dir scan Phase 2 설계` -> `P4 legacy/lab opt-in scan 정책 설계`
+  - 우선순위(즉시 구현 승격 아님): `P1 --run-id 필요성 관찰` -> `P2 --overwrite 보류/정책 판단` -> `P3 Phase 2A/2B 후보 검토(문서/fixture/회귀 설계)` -> `P4 legacy/lab opt-in scan 정책 검토`
   - 남은 TODO(run_dir 전용):
     - [ ] `--run-id` 필요성 관찰
     - [ ] `--overwrite` 정책 보류(필요 시점에만 확정)
-    - [ ] Web UI loader run_dir scan Phase 2 설계 문서 작성 후보: `docs/design/99_web_ui_run_dir_loader_phase2_plan.md`
-      - 범위 후보: `runs/*/manifest.json` scan, flat `reports/`와 run_dir dedupe, `report_id`/`run_id` 관계, legacy/lab opt-in scan, viewer_payload 없는 run 처리, list/detail/payload route 회귀 점검
-    - [ ] legacy/lab archive opt-in scan 정책은 Phase 2 설계와 함께 검토
+    - [ ] Web UI loader run_dir scan Phase 2A/2B 후보 검토(설계 완료, 구현 전)
+      - 기준 문서: `docs/design/99_web_ui_run_dir_loader_phase2_plan.md`
+      - 후보 유지: loader 입력 모델 정리(2A), fixture/회귀 테스트 설계(2B/2C), 구현 승격 여부는 별도 판단
+    - [ ] legacy/lab archive opt-in scan 정책은 Phase 2 후속 검토 항목으로 유지
     - [ ] `docs/operations/*`에 flat+run_dir 병행 운영 정책 반영
-  - 원칙 유지: Phase 2를 즉시 구현으로 승격하지 않으며, Web UI loader 파일 수정 없이 설계 후보로만 유지한다. Web UI는 현재 run_dir scan 대상이 아니며, context-only 승격/새 보안 판정/severity/category/verdict 재계산은 하지 않음
+  - 원칙 유지: Phase 2 설계는 완료됐지만 구현은 아직 시작하지 않았다. Web UI loader 파일 수정 없이 후속 설계 후보로만 유지하며, Web UI는 현재 run_dir scan 대상이 아니다. context-only 승격/새 보안 판정/severity/category/verdict 재계산은 하지 않음
 - [ ] `run_analysis_pipeline.py --help` 예시의 table auto resolution 안내 보강 필요 여부 검토
 - [ ] lab traffic E2E smoke test 기록 정리
   - `Mixed_Context_Heavy` + security export 기준 E2E smoke test는 성공
