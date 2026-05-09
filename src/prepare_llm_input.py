@@ -1238,6 +1238,7 @@ def build_probing_sequence_summaries(
         get_status_code=get_status_code,
         get_resp_content_type=get_resp_content_type,
         get_response_body_bytes=get_response_body_bytes,
+        get_sample_request_id_fn=get_sample_request_id,
         safe_int=safe_int,
     )
 

@@ -42,6 +42,7 @@
 - Total Requests `unknown` fallback 보강 완료
   - `payload_summary` 외 `payload_obj.summary/source_of_truth/counts/meta.counts`, `summary.pipeline_counts` 확인 경로 반영
   - 브라우저 확인에서 Total Requests `40` 표시 정상화 확인
+- probing_sequence_summaries에 sample_request_ids 보존을 추가해 viewer payload Related Contexts의 display-only association 근거를 보강했다. 이 변경은 context-only metadata 보존이며, finding 승격이나 severity/category/verdict 재계산은 하지 않는다.
 
 ## P1. 실제 LLM 샘플 검증 체계 관리
 

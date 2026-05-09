@@ -61,6 +61,17 @@ def finalize_probing_sequence_bucket(
         append_unique_hint(reason_hints, "dir_probe:repeated_fallback_like_html")
 
     sorted_items = sorted(items, key=lambda item: normalize_text(item.get("log_time")))
+    sample_request_ids: List[str] = []
+    seen_request_ids = set()
+    for item in sorted_items:
+        request_id = normalize_text(item.get("request_id"))
+        if not request_id or request_id in seen_request_ids:
+            continue
+        seen_request_ids.add(request_id)
+        sample_request_ids.append(request_id)
+        if len(sample_request_ids) >= sample_path_limit:
+            break
+
     return {
         "category": "low_signal_dir_probe_burst",
         "policy": "context_only",
@@ -71,6 +82,7 @@ def finalize_probing_sequence_bucket(
         "request_count": len(items),
         "distinct_path_count": len(distinct_paths),
         "sample_paths": distinct_paths[:sample_path_limit],
+        "sample_request_ids": sample_request_ids,
         "status_counts": dict(sorted(status_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
         "content_type_counts": dict(sorted(content_type_counts.items(), key=lambda kv: (-safe_int(kv[1]), kv[0]))),
         "response_size_repetition": response_size_repetition,
@@ -100,6 +112,7 @@ def build_probing_sequence_summaries(
     get_status_code: Callable[[Dict[str, Any]], int],
     get_resp_content_type: Callable[[Dict[str, Any]], str],
     get_response_body_bytes: Callable[[Dict[str, Any]], int],
+    get_sample_request_id_fn: Callable[[Dict[str, Any]], str],
     safe_int: Callable[[Any, int], int],
 ) -> List[Dict[str, Any]]:
     probe_rows_by_ip: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
@@ -127,6 +140,7 @@ def build_probing_sequence_summaries(
                 "status_code": get_status_code(row),
                 "resp_content_type": get_resp_content_type(row),
                 "response_body_bytes": get_response_body_bytes(row),
+                "request_id": get_sample_request_id_fn(row),
             }
         )
 
