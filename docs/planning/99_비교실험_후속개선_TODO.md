@@ -170,8 +170,14 @@
   - 기존 Stage2 compare와 분리
   - 장기 후보로 유지
 - [ ] run_dir / data latest / manifest 기반 full runner 전환은 후속 후보로 보류
-  - `docs/design/99_pipeline_run_dir_output_layout_plan.md` 작성 완료(설계만, 구현 미착수)
-  - 초기 구현은 flat output 유지 + run_dir 병행 생성 방향으로, Supporting Events/Related Contexts 안정화 이후 재검토
+  - Phase 1A 완료: `--run-dir <path>` opt-in 병행 산출물 생성 구현 완료(기존 flat output 계약 유지, fail-fast 충돌 정책, manifest 확장 반영)
+  - 남은 TODO(run_dir 전용):
+    - [ ] `--run-id` 지원 여부 판단
+    - [ ] `--overwrite` 정책/동작(삭제 후 재생성 vs known file overwrite) 확정
+    - [ ] Web UI loader run_dir scan Phase 2 설계/구현(`web/services/report_loader.py`, `web/config.py`, `web/app.py`)
+    - [ ] legacy/lab archive opt-in scan 정책 정리
+    - [ ] `docs/operations/*`에 flat+run_dir 병행 운영 정책 반영
+  - 원칙 유지: Web UI는 현재 run_dir scan 대상이 아니며, context-only 승격/새 보안 판정/severity/category/verdict 재계산은 하지 않음
 - [ ] `run_analysis_pipeline.py --help` 예시의 table auto resolution 안내 보강 필요 여부 검토
 - [ ] lab traffic E2E smoke test 기록 정리
   - `Mixed_Context_Heavy` + security export 기준 E2E smoke test는 성공

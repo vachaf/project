@@ -12,7 +12,10 @@
 > 구현 상태 메모 (2026-05-09):
 > Phase 1A opt-in `--run-dir` 병행 산출물 생성이 `src/run_analysis_pipeline.py`에 반영되었다.
 > 기존 flat output(`data/processed`, `reports`, `pipeline_manifest.json`, `reports/<base>_pipeline_manifest.json`)은 유지되며, Web UI loader는 수정하지 않았다.
-> run_dir 충돌 정책은 fail-fast이고, `--run-id`/`--overwrite`는 후속 후보로 유지한다.
+> 구현 방식은 flat 산출물 생성 후 run_dir 표준 파일명 복사(A안)이며, 충돌 정책은 fail-fast다.
+> manifest는 기존 key를 유지한 채 `run_dir_enabled`, `run_id`, `run_dir`, `run_dir_collision_policy`, `source_export_path`, `flat_files`, `run_dir_files`를 확장 반영했다.
+> 검증은 `py_compile`, runner/viewer pytest, prepare/stage dry-run strict 회귀, run_dir smoke로 통과 확인했다.
+> `--run-id`, `--overwrite`, Web UI loader run_dir scan은 Phase 2+ 후속 후보로 유지한다.
 
 현재 파이프라인 산출물은 flat 구조 중심으로 여러 위치에 분산되어 있다.
 
