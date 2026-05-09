@@ -12,7 +12,7 @@
 - [99_prepare_open_redirect_coverage_plan.md](./99_prepare_open_redirect_coverage_plan.md)
 - [99_prepare_ssrf_log4shell_coverage_plan.md](./99_prepare_ssrf_log4shell_coverage_plan.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
-- [99_prepare_file_disclosure_hints_split_plan.md](./99_prepare_file_disclosure_hints_split_plan.md)
+- [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_deferred_split_items.md](./99_prepare_deferred_split_items.md)
 - [../../src/prepare/README.md](../../src/prepare/README.md)
 - [../진행상황.md](../진행상황.md)

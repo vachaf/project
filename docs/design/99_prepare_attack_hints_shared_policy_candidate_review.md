@@ -8,9 +8,9 @@
 
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_hints_split_candidate_review.md](./99_prepare_hints_split_candidate_review.md)
-- [99_prepare_sqli_hints_split_plan.md](./99_prepare_sqli_hints_split_plan.md)
-- [99_prepare_xss_hints_split_plan.md](./99_prepare_xss_hints_split_plan.md)
-- [99_prepare_file_disclosure_hints_split_plan.md](./99_prepare_file_disclosure_hints_split_plan.md)
+- [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
+- [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
+- [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)
 - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md)
 - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
@@ -438,7 +438,7 @@ grep -n "def detect_decoded_attack_hints\|detect_decoded_attack_hints\|encoding:
 그 결과에 따라 아래 중 하나를 선택한다.
 
 ```text
-A. docs/design/99_prepare_traversal_cmdi_hints_split_plan.md 작성
+A. docs/design/99_prepare_hints_split_summary.md 작성
 B. docs/design/99_prepare_automation_ua_hints_split_plan.md 작성
 C. shared attack/search policy는 보류 유지
 D. detect_decoded_attack_hints는 보류 유지

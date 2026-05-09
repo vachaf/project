@@ -57,16 +57,16 @@
 5. `docs/design/99_prepare_module_split_round1_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md`에 “crawler baseline split 완료 및 fixture 계약 유지” 1줄.
 
-6. `docs/design/99_prepare_sqli_hints_split_plan.md`
+6. `docs/design/99_prepare_hints_split_summary.md`
 - 삭제 전 요약 제안: `docs/진행상황.md`에 “SQLi hints split 완료, DB 성공 단정 금지 유지” 1줄.
 
-7. `docs/design/99_prepare_xss_hints_split_plan.md`
+7. `docs/design/99_prepare_hints_split_summary.md`
 - 삭제 전 요약 제안: `docs/진행상황.md`에 “XSS hints split 완료, browser execution 단정 금지 유지” 1줄.
 
-8. `docs/design/99_prepare_file_disclosure_hints_split_plan.md`
+8. `docs/design/99_prepare_hints_split_summary.md`
 - 삭제 전 요약 제안: `docs/design/README.md`에 “file disclosure hints split 완료, suspicious verdict 경계 유지” 1줄.
 
-9. `docs/design/99_prepare_traversal_cmdi_hints_split_plan.md`
+9. `docs/design/99_prepare_hints_split_summary.md`
 - 삭제 전 요약 제안: `docs/진행상황.md`에 “traversal/CMDI hints split 완료, execution/success 단정 금지 유지” 1줄.
 
 10. `docs/design/99_prepare_protocol_anomaly_constants_move_plan.md`

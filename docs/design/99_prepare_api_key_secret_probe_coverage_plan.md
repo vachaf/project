@@ -8,7 +8,7 @@
 
 - [99_prepare_p2_attack_coverage_candidate_review.md](./99_prepare_p2_attack_coverage_candidate_review.md)
 - [99_prepare_new_attack_coverage_candidate_review.md](./99_prepare_new_attack_coverage_candidate_review.md)
-- [99_prepare_file_disclosure_hints_split_plan.md](./99_prepare_file_disclosure_hints_split_plan.md)
+- [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_xxe_coverage_plan.md](./99_prepare_xxe_coverage_plan.md)
 - [99_prepare_ssti_coverage_plan.md](./99_prepare_ssti_coverage_plan.md)
 - [99_prepare_open_redirect_coverage_plan.md](./99_prepare_open_redirect_coverage_plan.md)

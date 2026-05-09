@@ -11,8 +11,8 @@
 - [99_prepare_ssrf_log4shell_fixture_plan.md](./99_prepare_ssrf_log4shell_fixture_plan.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_sensitive_path_probe_split_plan.md](./99_prepare_sensitive_path_probe_split_plan.md)
-- [99_prepare_file_disclosure_hints_split_plan.md](./99_prepare_file_disclosure_hints_split_plan.md)
-- [99_prepare_traversal_cmdi_hints_split_plan.md](./99_prepare_traversal_cmdi_hints_split_plan.md)
+- [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
+- [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [../../src/prepare/README.md](../../src/prepare/README.md)
 - [../진행상황.md](../진행상황.md)
 

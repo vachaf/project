@@ -11,7 +11,7 @@
 - [99_prepare_p2_attack_coverage_candidate_review.md](./99_prepare_p2_attack_coverage_candidate_review.md)
 - [99_prepare_api_key_secret_probe_coverage_plan.md](./99_prepare_api_key_secret_probe_coverage_plan.md)
 - [99_prepare_new_attack_coverage_candidate_review.md](./99_prepare_new_attack_coverage_candidate_review.md)
-- [99_prepare_traversal_cmdi_hints_split_plan.md](./99_prepare_traversal_cmdi_hints_split_plan.md)
+- [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_deferred_split_items.md](./99_prepare_deferred_split_items.md)
 - [../../src/prepare/README.md](../../src/prepare/README.md)

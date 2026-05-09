@@ -10,7 +10,7 @@
 - [99_prepare_deferred_split_reentry_review.md](./99_prepare_deferred_split_reentry_review.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_shared_attack_policy_boundary_review.md](./99_prepare_shared_attack_policy_boundary_review.md)
-- [99_prepare_sqli_hints_split_plan.md](./99_prepare_sqli_hints_split_plan.md)
+- [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_hints_split_candidate_review.md](./99_prepare_hints_split_candidate_review.md)
 - [../../src/prepare/README.md](../../src/prepare/README.md)
 - [../진행상황.md](../진행상황.md)
