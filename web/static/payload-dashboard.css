@@ -291,7 +291,7 @@
   width: 100%;
   min-width: 900px;
   border-collapse: separate;
-  border-spacing: 0;
+  border-spacing: 0 4px;
   table-layout: fixed;
   font-size: 13px;
 }
@@ -315,13 +315,28 @@
   height: 42px;
   padding: 0 8px;
   border: 0;
+  border-top: 1px solid transparent;
   border-bottom: 1px solid var(--pd-line-soft);
   color: #243044;
   vertical-align: middle;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
 }
 
 .payload-event-table tbody tr:hover td {
   background: #f8fbff;
+}
+
+.payload-event-table tbody tr:hover td:first-child {
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+
+.payload-event-table tbody tr:hover td:last-child {
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
 }
 
 .payload-finding-row {
@@ -330,11 +345,21 @@
 
 .payload-finding-row.is-selected td {
   background: #edf6ff;
+  border-top-color: #c8def7;
   border-bottom-color: #c8def7;
 }
 
 .payload-finding-row.is-selected td:first-child {
+  border-left: 1px solid #c8def7;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
   box-shadow: inset 3px 0 0 #5b8fd6;
+}
+
+.payload-finding-row.is-selected td:last-child {
+  border-right: 1px solid #c8def7;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
 }
 
 .payload-event-table .col-time {
@@ -770,6 +795,7 @@
   .payload-event-table {
     min-width: 0;
     border-collapse: separate;
+    border-spacing: 0;
   }
 
   .payload-event-table thead {
@@ -784,22 +810,78 @@
     width: 100%;
   }
 
+  .payload-event-table .col-time,
+  .payload-event-table .col-source-ip,
+  .payload-event-table .col-method,
+  .payload-event-table .col-uri,
+  .payload-event-table .col-status,
+  .payload-event-table .col-category,
+  .payload-event-table .col-severity {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+
   .payload-event-table tr {
-    margin-bottom: 10px;
-    padding: 12px;
+    position: relative;
+    margin-bottom: 12px;
+    padding: 14px;
     border: 1px solid var(--pd-line);
-    border-radius: 12px;
+    border-radius: 14px;
     background: #ffffff;
+    transition:
+      border-color 0.14s ease,
+      background-color 0.14s ease,
+      box-shadow 0.14s ease;
+  }
+
+  .payload-event-table tr::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 14px;
+    width: 3px;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .payload-event-table tr:hover {
+    border-color: #b8d3f4;
+    background: #f8fbff;
+  }
+
+  .payload-finding-row.is-selected {
+    border-color: #5b8fd6;
+    border-width: 2px;
+    background: #f3f8ff;
+    box-shadow: 0 0 0 3px rgba(91, 143, 214, 0.14);
+  }
+
+  .payload-finding-row.is-selected::before {
+    background: #5b8fd6;
   }
 
   .payload-event-table td {
     display: grid;
-    grid-template-columns: 88px minmax(0, 1fr);
-    gap: 8px;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
     height: auto;
-    padding: 5px 0;
+    padding: 6px 0;
     border: 0;
+    background: transparent;
     white-space: normal;
+  }
+
+  .payload-event-table tbody tr:hover td,
+  .payload-finding-row.is-selected td {
+    background: transparent;
+    border: 0;
+  }
+
+  .payload-finding-row.is-selected td:first-child {
+    box-shadow: none;
   }
 
   .payload-event-table td::before {
@@ -811,22 +893,27 @@
     letter-spacing: 0.04em;
   }
 
-  .payload-finding-row.is-selected {
-    border-color: #5b8fd6;
-    border-width: 2px;
-    background: #f3f8ff;
-    box-shadow: 0 0 0 3px rgba(91, 143, 214, 0.14);
-  }
-
-  .payload-finding-row.is-selected td:first-child {
-    box-shadow: none;
+  .payload-event-table td[data-label="uri"] {
+    margin-top: 4px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #f8fafc;
   }
 
   .payload-uri,
-  .payload-category-badge {
-    max-width: none;
+  .payload-category-badge,
+  .payload-badge {
+    max-width: 100%;
+  }
+
+  .payload-uri {
     white-space: normal;
     overflow-wrap: anywhere;
+  }
+
+  .payload-category-badge {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .payload-detail-panel.card,
