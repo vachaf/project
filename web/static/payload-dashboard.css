@@ -15,15 +15,15 @@
   --pd-red: #b4232a;
   --pd-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 
-  --pd-font-sans:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    "Noto Sans KR",
-    "Apple SD Gothic Neo",
-    "Malgun Gothic",
-    system-ui,
-    sans-serif;
+--pd-font-sans:
+  -apple-system,
+  BlinkMacSystemFont,
+  "Segoe UI",
+  "Malgun Gothic",
+  "Apple SD Gothic Neo",
+  "Noto Sans KR",
+  system-ui,
+  sans-serif; 
 
   --pd-font-mono:
     "SFMono-Regular",
@@ -936,4 +936,44 @@
   .payload-summary-cards {
     grid-template-columns: 1fr;
   }
+}
+
+/* Typography refinement */
+.payload-dashboard {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Keep monospace only for technical IDs/log identifiers. */
+#pd-request-id,
+#pd-log-time,
+.payload-supporting-uri {
+  font-family: var(--pd-font-mono);
+}
+
+.payload-time,
+.payload-uri,
+.payload-detail-panel #pd-uri,
+#pd-source-ip,
+#pd-display-time {
+  font-family: var(--pd-font-sans);
+}
+
+/* Korean/body text readability */
+.payload-overall p,
+.payload-detail-section p,
+.payload-detail-list {
+  font-size: 14px;
+  line-height: 1.75;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* Reduce cramped uppercase labels */
+.payload-event-table th,
+.payload-contexts .table th,
+.payload-detail-section h4,
+.payload-summary-label {
+  letter-spacing: 0.08em;
+  font-weight: 700;
 }
