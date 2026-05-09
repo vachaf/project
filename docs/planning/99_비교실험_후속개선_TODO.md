@@ -124,28 +124,37 @@
   - live progress
   - regression run button
   - scheduling/alert/dashboard
-- [ ] Finding -> Contexts 연결성 원인 확인
+- [ ] Finding -> Contexts 연결성 원인 분리
   - lab traffic v2 security export E2E smoke test에서 `findings=10`, `contexts=6`, `supporting_events=0` 확인
   - Contexts Preview는 표시되지만 selected finding의 Related Contexts는 0으로 표시됨
-  - 우선 `viewer_payload_builder.py`/stage2 input에서 `linked_context_ids`/`context_id` 등 기존 연결 필드가 보존되는지 확인
-  - Web UI는 기존 payload 필드를 read-only로 표시만 하며 새 관계를 추론하거나 context-only를 finding으로 승격하지 않는다
-  - severity/category/verdict 재계산 금지 원칙 유지
-- [ ] Supporting Events 생성/연결성 원인 확인
+  - 먼저 prepare 산출물의 context summary에 `context_id`/`sample_request_ids`/`linked_context_ids`에 해당하는 연결 근거가 존재하는지 확인
+  - 다음으로 `stage2_report_input` 또는 `llm_input`까지 해당 연결 필드가 보존되는지 확인
+  - 이후 `viewer_payload_builder.py`가 기존 연결 필드를 누락/renaming/flattening하는지 확인
+  - 마지막으로 Web UI template/JS가 payload에 있는 필드만 read-only로 표시하는지 확인
+  - 연결 필드가 없을 경우 UI에서 새 관계를 추론하지 않고, prepare/stage2 입력 설계 보강 필요 여부를 별도 판단
+  - context-only summary를 finding/incident로 승격하지 않으며 severity/category/verdict 재계산도 하지 않는다
+- [ ] Supporting Events 생성/보존 경로 원인 분리
   - 같은 smoke test에서 viewer_payload JSON의 `supporting_events` length가 0임을 확인
-  - prepare/stage2_report_input/llm_input에서 supporting_events가 생성됐는지, builder 단계에서 누락됐는지 구분
+  - prepare 단계에서 supporting_events 생성 조건이 충족되지 않은 것인지 먼저 확인
+  - prepare에는 있는데 `stage2_report_input` 또는 `llm_input` 생성 과정에서 빠지는지 확인
+  - Stage2 결과에는 있는데 `viewer_payload_builder.py`가 top-level `supporting_events`를 보존하지 않는지 확인
+  - Web UI는 `supporting_events=[]` 또는 missing payload에서도 fallback-safe empty state만 표시해야 한다
   - full drill-down/graph viewer 이전에 데이터 생성/보존 경로를 먼저 확인
-  - context-only supporting events를 incidents로 승격하지 않는다
+  - supporting event나 context-only item을 incident/finding으로 승격하지 않는다
+- [ ] 원인 분리 후 `viewer_payload_builder.py` 최소 단위 테스트 추가 여부 검토
+  - existing payload field preservation: `context_id`, `linked_context_ids`, `sample_request_ids`, `request_id`, `incident_group_key`
+  - `supporting_events` top-level 보존 및 empty/missing fallback
+  - reason_hints list/string/None 처리
+  - noise_summary list/dict 처리
+  - raw_log opt-in 확인
+  - context-only summary가 findings로 섞이지 않는지 확인
+  - 필수 키 누락 시 graceful 처리
+  - 테스트도 새 관계 추론, severity/category/verdict 재계산, context-only 승격을 하지 않는 방향으로 작성
 - [ ] Context graph / advanced relationship view는 장기 후보로 보류
   - Related Contexts/Supporting Events의 연결 필드 유무와 표시 가능성 확인 이후에만 재검토
 - [ ] viewer_payload compare/history 후보 검토
   - 기존 Stage2 compare와 분리
   - 장기 후보로 유지
-- [ ] `viewer_payload_builder.py` 최소 단위 테스트 추가 여부 검토
-  - reason_hints list/string/None 처리
-  - noise_summary list/dict 처리
-  - raw_log opt-in 확인
-  - context_only summary가 findings로 섞이지 않는지 확인
-  - 필수 키 누락 시 graceful 처리
 - [ ] run_dir / data latest / manifest 기반 full runner 전환은 후속 후보로 보류
 - [ ] `run_analysis_pipeline.py --help` 예시의 table auto resolution 안내 보강 필요 여부 검토
 - [ ] lab traffic E2E smoke test 기록 정리
