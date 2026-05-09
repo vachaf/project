@@ -1180,7 +1180,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 960px) {
   .payload-page .payload-contexts .payload-contexts-table-wrapper {
     overflow-x: visible;
   }
