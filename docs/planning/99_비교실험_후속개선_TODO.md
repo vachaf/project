@@ -170,6 +170,8 @@
   - 기존 Stage2 compare와 분리
   - 장기 후보로 유지
 - [ ] run_dir / data latest / manifest 기반 full runner 전환은 후속 후보로 보류
+  - `docs/design/99_pipeline_run_dir_output_layout_plan.md` 작성 완료(설계만, 구현 미착수)
+  - 초기 구현은 flat output 유지 + run_dir 병행 생성 방향으로, Supporting Events/Related Contexts 안정화 이후 재검토
 - [ ] `run_analysis_pipeline.py --help` 예시의 table auto resolution 안내 보강 필요 여부 검토
 - [ ] lab traffic E2E smoke test 기록 정리
   - `Mixed_Context_Heavy` + security export 기준 E2E smoke test는 성공
