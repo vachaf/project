@@ -53,7 +53,7 @@ run_dir 구조 도입의 목표는 다음과 같다.
 
 ```text
 runs/
-  2026-05-09_12-08-13_v1_test_security/
+  <run_id>/
     manifest.json
     export.json
     llm_input.json
@@ -71,6 +71,7 @@ runs/
 - 경로가 단순하고 짧다.
 - run_id 자체로 실행 단위를 즉시 식별할 수 있다.
 - manifest 기준 파일 매핑이 직관적이다.
+- run_dir 내부 파일명을 표준 고정 이름으로 단순화할 수 있다.
 
 ### 3.2 후보 B
 
@@ -94,6 +95,25 @@ runs/
 - 후보 A는 초기 구현 및 운영 단순성 측면에서 우선 검토한다.
 - 후보 B는 날짜별 보관 정책이 강하게 필요해질 때 재검토한다.
 
+### 3.4 run_id/run_dir 기본 규약 (확정 권장)
+
+`src/run_analysis_pipeline.py --export-input <export_json>` 실행 시 기본 run_id는 export input 파일명의 stem을 사용한다.
+
+- 예시 1:
+  - export input: `security_2026-05-09_kst.json`
+  - run_id: `security_2026-05-09_kst`
+  - run_dir: `runs/security_2026-05-09_kst/`
+- 예시 2(시간 범위 export):
+  - export input: `security_2026-05-09_12-08-13_to_2026-05-09_12-09-27_kst.json`
+  - run_id: `security_2026-05-09_12-08-13_to_2026-05-09_12-09-27_kst`
+  - run_dir: `runs/security_2026-05-09_12-08-13_to_2026-05-09_12-09-27_kst/`
+
+중요 규칙:
+
+- run_dir 이름에는 `.json` 확장자를 포함하지 않는다.
+- 피해야 할 구조: `runs/security_2026-05-09_kst.json/`
+- 권장 구조: `runs/security_2026-05-09_kst/`
+
 ## 4. manifest 초안
 
 manifest는 run 산출물의 단일 인덱스이자 source-of-truth로 사용한다.
@@ -115,7 +135,9 @@ manifest는 run 산출물의 단일 인덱스이자 source-of-truth로 사용한
 
 ```json
 {
-  "run_id": "2026-05-09_12-08-13_v1_test_security",
+  "run_id": "security_2026-05-09_kst",
+  "run_dir": "runs/security_2026-05-09_kst",
+  "source_export_path": "reports/security_2026-05-09_kst.json",
   "created_at": "2026-05-09T12:08:13+09:00",
   "mode": "dry-run",
   "files": {
@@ -135,7 +157,23 @@ manifest는 run 산출물의 단일 인덱스이자 source-of-truth로 사용한
 }
 ```
 
-초기 병행 생성 단계(Phase 1)에서는 `files` 내부에 flat 경로와 run_dir 상대 경로를 함께 기록하는 방안을 검토한다.
+초기 병행 생성 단계(Phase 1)에서는 manifest에 원본 export path(`source_export_path`)와 run_dir 내부 표준 파일 경로(`files`)를 함께 기록하는 방안을 검토한다.
+
+run_dir 내부 파일명은 원본 export 파일명이 길어도 다음 표준 이름을 고정 사용한다.
+
+```text
+runs/<run_id>/
+  manifest.json
+  export.json
+  llm_input.json
+  stage1_results.json
+  stage2_report_input.json
+  stage2_report.json
+  stage2_report.md
+  viewer_payload.json
+  noise_summary.json
+  pipeline.log
+```
 
 ## 5. 단계별 전환 계획
 
@@ -149,6 +187,10 @@ manifest는 run 산출물의 단일 인덱스이자 source-of-truth로 사용한
 - run_dir 병행 생성 옵션을 검토한다.
 - 기존 `reports/`, `data/processed/` 출력은 유지한다.
 - manifest에 flat path와 run_dir path를 모두 기록하는 방안을 검토한다.
+- `src/export_db_logs_cli.py`는 기존처럼 export JSON을 생성한다.
+  - 예: `security_2026-05-09_kst.json`
+  - 예: `security_2026-05-09_12-08-13_to_2026-05-09_12-09-27_kst.json`
+- `src/run_analysis_pipeline.py --export-input <json>`은 해당 export JSON의 stem을 기본 run_id로 사용해 run_dir 후보를 만든다.
 
 ### Phase 2
 
@@ -179,6 +221,32 @@ manifest는 run 산출물의 단일 인덱스이자 source-of-truth로 사용한
 - flat 경로와 run_dir 경로 동시 기록 규약
 - 실패/중단 run의 최소 산출물 기록 기준(`pipeline.log`, partial manifest)
 - retention/cleanup 스크립트와의 호환 기준
+
+### 7.1 충돌 정책 (확정 권장)
+
+- 기본 정책은 fail-fast로 한다.
+- `runs/<run_id>/`가 이미 존재하면 기본적으로 에러를 내고 중단한다.
+- 예시 메시지:
+
+```text
+[ERROR] run_dir already exists: runs/<run_id>
+Use --run-id to choose another run id or --overwrite to replace it.
+```
+
+- `--overwrite`가 명시된 경우에만 기존 run_dir 덮어쓰기/재생성을 허용한다.
+- 단, `--overwrite`의 실제 동작은 구현 단계에서 별도 확정한다.
+  - 후보 A: 기존 run_dir 삭제 후 재생성
+  - 후보 B: known output file만 덮어쓰기
+- 안전성 관점에서는 non-empty run_dir 기본 실패를 유지한다.
+
+### 7.2 명시 옵션 후보 (미확정)
+
+아래는 문서상 구현 후보이며, 이번 단계에서 구현하지 않는다.
+
+- `--run-id <name>`: export stem 대신 명시적 run_id 사용
+- `--run-dir <path>`: 전체 출력 디렉터리 직접 지정
+- `--overwrite`: 기존 run_dir 충돌 시 명시적으로 덮어쓰기 허용
+- 기본값: 자동 run_id + fail-fast
 
 ## 8. 결론
 
