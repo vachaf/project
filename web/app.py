@@ -174,6 +174,7 @@ def report_payload_detail(request: Request, report_id: str):
         payload_obj.get("findings"),
         payload_summary.get("findings_preview"),
     )
+    findings = sort_payload_findings_for_timeline(findings)
     contexts_preview = sanitize_payload_contexts(
         payload_obj.get("contexts"),
         payload_summary.get("contexts_preview"),
@@ -669,6 +670,58 @@ def sanitize_payload_contexts(rows: Any, fallback_rows: Any = None) -> List[Dict
             }
         )
     return contexts
+
+
+def sort_payload_findings_for_timeline(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not isinstance(rows, list):
+        return []
+    indexed_rows = [(index, row) for index, row in enumerate(rows) if isinstance(row, dict)]
+    indexed_rows.sort(key=lambda item: _payload_timeline_sort_key(item[0], item[1]))
+    return [dict(row) for _, row in indexed_rows]
+
+
+def _payload_timeline_sort_key(index: int, row: Dict[str, Any]) -> tuple:
+    log_time = str(row.get("log_time") or "").strip()
+    display_time = str(row.get("display_time") or "").strip()
+    primary = log_time if log_time.lower() != "unknown" else ""
+    fallback = display_time if display_time.lower() != "unknown" else ""
+    candidate = primary or fallback
+
+    if not candidate:
+        return (1, "", index)
+
+    parsed = _parse_payload_timeline_sort_value(candidate)
+    if parsed is None:
+        return (1, "", index)
+    return (0, parsed, index)
+
+
+def _parse_payload_timeline_sort_value(text: str) -> Optional[str]:
+    normalized = str(text or "").strip()
+    if not normalized:
+        return None
+
+    candidates = [normalized]
+    if normalized.endswith("Z"):
+        candidates.append(normalized[:-1] + "+00:00")
+    if not re.search(r"[+-]\d{2}:\d{2}$", normalized):
+        spaced_tz = re.sub(r"\s+(\d{2}:\d{2})$", r"+\1", normalized)
+        if spaced_tz != normalized:
+            candidates.append(spaced_tz)
+
+    for candidate in candidates:
+        try:
+            parsed = datetime.fromisoformat(candidate)
+            return parsed.isoformat(timespec="microseconds")
+        except ValueError:
+            continue
+
+    time_match = re.search(r"^(\d{2}):(\d{2})(?::(\d{2}))?$", normalized)
+    if time_match:
+        hour, minute, second = time_match.groups()
+        second = second or "00"
+        return f"1970-01-01T{hour}:{minute}:{second}.000000"
+    return None
 
 
 def _first_non_empty_text(*values: Any) -> str:
