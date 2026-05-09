@@ -33,10 +33,21 @@
     monospace;
 }
 
+.payload-page {
+  background: var(--pd-bg);
+}
+
+.payload-main {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 36px;
+}
+
 .payload-dashboard {
   width: min(1452px, calc(100vw - 44px));
   max-width: none;
-  margin: 10px auto 24px;
+  margin: 20px auto 24px;
   transform: none;
   color: var(--pd-text);
   font-family: var(--pd-font-sans);
@@ -62,24 +73,7 @@
   font-family: var(--pd-font-sans);
 }
 
-/* Page shell */
-.payload-dashboard {
-  --pd-dashboard-width: min(1452px, calc(100vw - 44px));
-
-  width: var(--pd-dashboard-width);
-  max-width: none;
-  margin-top: 10px;
-  margin-bottom: 24px;
-  margin-left: calc(50% - var(--pd-dashboard-width) / 2);
-  margin-right: calc(50% - var(--pd-dashboard-width) / 2);
-
-  transform: none;
-  color: var(--pd-text);
-  font-family: var(--pd-font-sans);
-  font-size: 14px;
-  line-height: 1.5;
-  letter-spacing: 0;
-}
+/* Page shell handled by .payload-main + .payload-dashboard above */
 
 /* Header */
 .payload-dashboard-header {
@@ -534,7 +528,8 @@
 
 .payload-related-contexts-list,
 .payload-technical-body,
-.payload-supporting-events-table {
+.payload-supporting-events-table,
+.pd-details-content {
   padding: 10px 12px;
 }
 
@@ -738,14 +733,11 @@
 /* Mobile: table -> incident feed/card */
 @media (max-width: 768px) {
   .payload-dashboard {
-    --pd-dashboard-width: calc(100vw - 24px);
-
-    width: var(--pd-dashboard-width);
+    width: calc(100vw - 24px);
     margin-top: 8px;
-    margin-left: calc(50% - var(--pd-dashboard-width) / 2);
-    margin-right: calc(50% - var(--pd-dashboard-width) / 2);
+    margin-left: auto;
+    margin-right: auto;
   }
-}
 
   .payload-dashboard-header {
     padding: 16px;
@@ -848,14 +840,13 @@
     font-size: 13px;
   }
 
-@media (max-width: 520px) {
-  .payload-summary-cards {
-    grid-template-columns: 1fr;
+  .payload-guardrail {
+    position: static;
   }
 }
 
-@media (max-width: 768px) {
-  .payload-guardrail {
-    position: static;
+@media (max-width: 520px) {
+  .payload-summary-cards {
+    grid-template-columns: 1fr;
   }
 }

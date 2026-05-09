@@ -2,6 +2,11 @@
 
 {% block title %}{{ report.filename }} | Viewer Payload Dashboard{% endblock %}
 
+{% block body_class %}payload-page{% endblock %}
+{% block app_header %}{% endblock %}
+{% block main_class %}payload-main{% endblock %}
+{% block app_footer %}{% endblock %}
+
 {% block extra_head %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', path='payload-dashboard.css') }}">
@@ -20,7 +25,7 @@
   {% set src_ip_mask_enabled = mask_src_ip|default(false) %}
 
   <header class="payload-dashboard-header card">
-    <div>
+    <div class="payload-dashboard-title-block">
       <h2>Apache Log Intrusion Report Viewer</h2>
       <p class="payload-subtitle">Viewer Payload Dashboard</p>
       <p class="payload-source is-muted">report: {{ report.filename }}</p>
@@ -88,6 +93,7 @@
   <section class="section payload-main-grid">
     <section class="card payload-event-panel">
       <h3>Event Timeline</h3>
+      <p class="payload-panel-subtitle">Grouped suspicious request patterns</p>
       <div class="table-wrapper payload-event-table-wrap">
         <table class="table table-compact payload-event-table">
           <thead>
@@ -113,13 +119,13 @@
                 aria-label="Select finding {{ loop.index }}"
                 aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
               >
-                <td class="payload-time col-time"><span title="{{ finding.log_time or 'unknown' }}">{{ finding.display_time or finding.log_time or 'unknown' }}</span></td>
-                <td class="col-source-ip">{{ finding.src_ip or '-' }}</td>
-                <td class="col-method"><span class="badge payload-badge payload-badge-method">{{ finding.method or '-' }}</span></td>
-                <td class="payload-uri col-uri" title="{{ finding.uri or '-' }}">{{ finding.uri or '-' }}</td>
-                <td class="col-status"><span class="badge payload-badge payload-badge-status">{{ finding.status_code or '-' }}</span></td>
-                <td class="col-category"><span class="badge payload-badge payload-badge-default payload-category-badge">{{ finding.category or 'unknown' }}</span></td>
-                <td class="col-severity"><span class="badge payload-badge payload-badge-severity payload-badge-severity-{{ severity_token }}">{{ finding.severity or 'unknown' }}</span></td>
+                <td data-label="time" class="payload-time col-time"><span title="{{ finding.log_time or 'unknown' }}">{{ finding.display_time or finding.log_time or 'unknown' }}</span></td>
+                <td data-label="source_ip" class="col-source-ip">{{ finding.src_ip or '-' }}</td>
+                <td data-label="method" class="col-method"><span class="badge payload-badge payload-badge-method">{{ finding.method or '-' }}</span></td>
+                <td data-label="uri" class="payload-uri col-uri" title="{{ finding.uri or '-' }}">{{ finding.uri or '-' }}</td>
+                <td data-label="status" class="col-status"><span class="badge payload-badge payload-badge-status">{{ finding.status_code or '-' }}</span></td>
+                <td data-label="category" class="col-category"><span class="badge payload-badge payload-badge-default payload-category-badge">{{ finding.category or 'unknown' }}</span></td>
+                <td data-label="severity" class="col-severity"><span class="badge payload-badge payload-badge-severity payload-badge-severity-{{ severity_token }}">{{ finding.severity or 'unknown' }}</span></td>
               </tr>
               {% endfor %}
             {% else %}
@@ -173,10 +179,10 @@
             <span id="pd-contexts-related-badge" class="badge payload-badge payload-badge-default">0 related</span>
             <span class="badge payload-badge payload-badge-context-only">context-only</span>
           </h4>
-          <details class="payload-related-contexts-summary">
-            <summary id="pd-contexts-summary">Related Contexts (0)</summary>
+          <details class="payload-related-contexts-summary pd-details-group">
+            <summary id="pd-contexts-summary" class="pd-summary-header">Related Contexts (0)</summary>
             <p id="pd-contexts-empty" class="payload-context-empty is-hidden">No related contexts for this finding.</p>
-            <div id="pd-contexts-list" class="payload-related-contexts-list is-hidden"></div>
+            <div id="pd-contexts-list" class="payload-related-contexts-list pd-details-content is-hidden"></div>
             <p id="pd-contexts-more" class="payload-context-note is-hidden"></p>
             <p class="payload-match-note">Display-only association; do not promote contexts into findings.</p>
           </details>
@@ -188,10 +194,10 @@
             <span id="pd-supporting-related-badge" class="badge payload-badge payload-badge-default">0 related</span>
             <span class="badge payload-badge payload-badge-context-only">context-only</span>
           </h4>
-          <details class="payload-supporting-events-summary">
-            <summary id="pd-supporting-summary">Related Supporting Events (0)</summary>
+          <details class="payload-supporting-events-summary pd-details-group">
+            <summary id="pd-supporting-summary" class="pd-summary-header">Related Supporting Events (0)</summary>
             <p id="pd-supporting-events-empty" class="payload-supporting-events-empty is-hidden">No related supporting events in payload.</p>
-            <div id="pd-supporting-events-table-wrap" class="table-wrapper is-hidden">
+            <div id="pd-supporting-events-table-wrap" class="table-wrapper pd-details-content is-hidden">
               <table class="table table-compact payload-supporting-events-table">
                 <thead>
                   <tr>
@@ -212,9 +218,9 @@
         </section>
 
         <section class="payload-detail-section">
-          <details class="payload-technical-details">
-            <summary>Technical details</summary>
-            <div class="payload-technical-body">
+          <details class="payload-technical-details pd-details-group">
+            <summary class="pd-summary-header">Technical details</summary>
+            <div class="payload-technical-body pd-details-content">
               <p><span class="meta-label">request_id</span> <span id="pd-request-id">N/A</span></p>
               <p><span class="meta-label">log_time (raw)</span> <span id="pd-log-time">N/A</span></p>
               <p class="meta-label">reason_hints</p>
