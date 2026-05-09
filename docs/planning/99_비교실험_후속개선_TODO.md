@@ -146,11 +146,13 @@
   - Web UI에서 새 관계를 추론해 연결을 보정하는 방식은 금지
   - context-only 승격, severity/category/verdict 재계산은 하지 않음
 - [ ] Supporting Events 생성 조건 관찰
-  - `v1_test_security`에서는 prepare 단계부터 `supporting_events=0`으로 확인됨
-  - 05-03 payload에는 `sensitive_path_probe_support` supporting event가 존재해 `0/1` 혼재가 확인됨
-  - viewer_payload_builder/Web UI 누락 문제가 아니라 prepare 생성 조건 차이 확인이 다음 작업임
-  - `build_supporting_events`, `reduce_repeated_auth_candidates`, `reduce_repeated_sensitive_path_candidates` 조건 차이를 payload 단위로 비교
-  - 별도 fixture나 생성 조건 변경은 반복 필요가 확인될 때만 검토
+  - 1차 원인 분리 완료: `v1_test_security=0`, 05-03=`1`(`sensitive_path_probe_support`) 확인
+  - 동일 값이 `llm_input`/`stage2_report_input`에도 존재해 `viewer_payload_builder` 보존 문제 가능성은 낮음
+  - 현재 판단은 prepare 단계 생성 조건 차이이며, `supporting_events`는 항상 생성되는 필드가 아닌 조건부 `context-only` 보조 이벤트
+  - `v1_test_security=0`은 traversal/sqli 중심 후보 특성상 현 로직에서 정상 가능성이 높음
+  - 남은 TODO: 필요 시 생성 조건을 테스트/문서로 명시할지 판단
+  - 남은 TODO: `build_supporting_events`/`reduce_repeated_auth_candidates`/`reduce_repeated_sensitive_path_candidates` 조건을 별도 설계 문서로 정리할지 검토
+  - 남은 TODO: `supporting_events`를 억지 생성하거나 UI에서 새 관계를 추론하지 않음
 - [ ] 원인 분리 후 `viewer_payload_builder.py` 최소 단위 테스트 추가 여부 검토
   - 이번 이슈는 builder preservation 결함이 아니라 prepare 단계 `sample_request_ids` 생성/보존 부재 이슈였음을 전제로 검토
   - `sample_request_ids` 보존 회귀 테스트가 필요한지 여부를 후속 판단
