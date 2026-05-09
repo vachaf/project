@@ -42,6 +42,8 @@ llm_stage2_reporter.py
   - 사용자가 `--prepare-source-tables`를 명시하면 explicit override가 우선
 - `--dry-run`으로 실제 LLM API 호출 없이 구조 검증이 가능하다.
 - 실행 후 `pipeline_manifest.json`을 생성한다.
+- `--run-dir <path>`를 지정하면 기존 flat output(`data/processed`, `reports`, `<work-dir>/pipeline_manifest.json`, `reports/<base>_pipeline_manifest.json`)을 유지한 상태에서, 실행 1회 단위 산출물을 run_dir에도 표준 파일명으로 병행 생성할 수 있다.
+- run_dir는 분석 의미를 바꾸는 기능이 아니라 산출물 정리/추적용 opt-in 출력 레이어다.
 
 ## 2. 로그 역할
 
@@ -79,6 +81,13 @@ llm_stage2_reporter.py
 - `{table}_{start}_to_{end}_kst.json`
 
 실제 명령은 [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)를 우선한다.
+
+pipeline 연계 시:
+
+- `export_db_logs_cli.py`가 생성한 export JSON을 `run_analysis_pipeline.py --export-input`으로 전달한다.
+- 필요하면 `--run-dir`를 함께 지정해 해당 실행의 산출물을 별도 디렉터리로 묶어 보관한다.
+- run_dir 내부에서는 표준 파일명(`manifest.json`, `export.json`, `llm_input.json`, `stage1_results.json`, `stage2_report_input.json`, `stage2_report.json`, `stage2_report.md`, `viewer_payload.json`, `noise_summary.json`)으로 정리된다.
+- run_dir의 `manifest.json`은 run_dir 내부 파일과 기존 flat output 경로를 함께 연결하는 메타데이터를 담는다.
 
 ## 4. prepare 기준
 
