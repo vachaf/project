@@ -17,13 +17,9 @@
   - [99_output_cleanup_script_설계.md](./99_output_cleanup_script_설계.md): output cleanup script 안전 설계 기준
 - prepare module split
   - [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md): round1 prepare 모듈 분리 완료 요약
-  - [99_prepare_module_split_round2_candidate_review.md](./99_prepare_module_split_round2_candidate_review.md): round2 후보 비교와 다음 후보 결정
   - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md): round2 prepare 모듈 분리 완료 요약
-  - [99_prepare_method_summary_split_plan.md](./99_prepare_method_summary_split_plan.md): method behavior summary 분리 전 함수·출력·fixture 검토
-  - [99_prepare_protocol_anomaly_split_plan.md](./99_prepare_protocol_anomaly_split_plan.md): protocol anomaly summary 분리 전 함수·출력·fixture 검토
-  - [99_prepare_auth_behavior_split_plan.md](./99_prepare_auth_behavior_split_plan.md): auth behavior summary 분리 전 함수·출력·fixture 검토
-  - [99_prepare_static_baseline_split_plan.md](./99_prepare_static_baseline_split_plan.md): static baseline summary 분리 전 함수·출력·fixture 검토
-  - [99_prepare_crawler_baseline_split_plan.md](./99_prepare_crawler_baseline_split_plan.md): crawler baseline summary 분리 전 함수·출력·fixture 검토
+  - method/protocol anomaly/auth/static baseline/crawler baseline summary split 완료: output key와 fixture/contract, Apache logs-only 해석 한계를 유지한 mechanical refactor로 반영
+  - 완료된 세부 split plan 문서는 cleanup review 기준으로 요약 흡수 후 삭제 후보로 관리
   - [99_prepare_sensitive_path_probe_split_plan.md](./99_prepare_sensitive_path_probe_split_plan.md): sensitive path probe summary 분리 완료 기록
   - [99_prepare_ip_behavior_aggregates_split_plan.md](./99_prepare_ip_behavior_aggregates_split_plan.md): IP behavior aggregate split 계획/완료 기록
   - [99_prepare_probing_sequence_split_plan.md](./99_prepare_probing_sequence_split_plan.md): probing sequence summary split 계획/완료 기록
@@ -35,21 +31,15 @@
   - [99_prepare_search_false_positive_policy_reentry_review.md](./99_prepare_search_false_positive_policy_reentry_review.md): normal search false-positive handling 재진입 검토
 - prepare constants ownership / mini-move
   - [99_prepare_constants_ownership_map.md](./99_prepare_constants_ownership_map.md): prepare constants ownership과 이동 가능성 지도
-  - [99_prepare_constants_mini_move_candidate_review.md](./99_prepare_constants_mini_move_candidate_review.md): safe constants mini-move 후보 검토
   - [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md): constants mini-move 완료 요약
-  - [99_prepare_protocol_anomaly_constants_move_plan.md](./99_prepare_protocol_anomaly_constants_move_plan.md): protocol anomaly constants 이동 계획/완료 기록
-  - [99_prepare_ip_behavior_constants_move_plan.md](./99_prepare_ip_behavior_constants_move_plan.md): IP behavior constants 이동 계획/완료 기록
-  - [99_prepare_method_behavior_constants_move_plan.md](./99_prepare_method_behavior_constants_move_plan.md): method behavior constants 부분 이동 계획/완료 기록
-  - [99_prepare_static_baseline_constants_move_plan.md](./99_prepare_static_baseline_constants_move_plan.md): static baseline constants 부분 이동 계획/완료 기록
-  - [99_prepare_auth_behavior_constants_move_plan.md](./99_prepare_auth_behavior_constants_move_plan.md): auth behavior constants/patterns 이동 계획/완료 기록
-  - [99_prepare_crawler_baseline_constants_move_plan.md](./99_prepare_crawler_baseline_constants_move_plan.md): crawler baseline constants/patterns 이동 계획/완료 기록
+  - protocol anomaly/IP behavior/method behavior 일부/static baseline 일부/auth behavior/crawler baseline constants mini-move 완료
+  - shared attack/search policy, decoded hints, scoring/filtering, supporting_events, `constants.py` 대량 분리는 보류 유지
+  - 완료된 세부 constants move plan 문서는 cleanup review 기준으로 요약 흡수 후 삭제 후보로 관리
 - prepare hints split / evidence boundary
-  - [99_prepare_hints_split_candidate_review.md](./99_prepare_hints_split_candidate_review.md): SQLi/XSS/file disclosure 등 hint split 후보 비교
   - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md): prepare hint split 완료 요약
-  - [99_prepare_sqli_hints_split_plan.md](./99_prepare_sqli_hints_split_plan.md): SQLi hint split 계획/완료 기록
-  - [99_prepare_xss_hints_split_plan.md](./99_prepare_xss_hints_split_plan.md): XSS hint split 계획/완료 기록
-  - [99_prepare_file_disclosure_hints_split_plan.md](./99_prepare_file_disclosure_hints_split_plan.md): file disclosure hint split 계획/완료 기록
-  - [99_prepare_traversal_cmdi_hints_split_plan.md](./99_prepare_traversal_cmdi_hints_split_plan.md): traversal/CMDI hint split 계획/완료 기록
+  - SQLi/XSS/file disclosure/traversal-CMDI hints split 완료
+  - SQLi DB 성공 단정 금지, XSS browser execution 단정 금지, file disclosure 실제 노출 단정 금지, CMDI execution/success 단정 금지 원칙 유지
+  - 완료된 세부 hints split plan 문서는 cleanup review 기준으로 요약 흡수 후 삭제 후보로 관리
   - [99_prepare_attack_hints_shared_policy_candidate_review.md](./99_prepare_attack_hints_shared_policy_candidate_review.md): attack hints와 shared policy 후보 비교
   - [99_prepare_shared_attack_policy_boundary_review.md](./99_prepare_shared_attack_policy_boundary_review.md): automation UA, shared attack/search policy, decoded hints 보류 경계 검토
   - [99_prepare_new_attack_coverage_candidate_review.md](./99_prepare_new_attack_coverage_candidate_review.md): 새 공격 커버리지 후보와 장기 roadmap 검토
