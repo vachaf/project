@@ -14,7 +14,51 @@
   --pd-yellow: #9a5b00;
   --pd-red: #b4232a;
   --pd-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --pd-shadow-raised: 0 12px 28px rgba(15, 23, 42, 0.08);
+
+  --pd-font-sans:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Noto Sans KR",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    system-ui,
+    sans-serif;
+
+  --pd-font-mono:
+    "SFMono-Regular",
+    "Cascadia Code",
+    Consolas,
+    Menlo,
+    monospace;
+}
+
+.payload-dashboard {
+  width: min(1452px, calc(100vw - 44px));
+  max-width: none;
+  margin: 10px auto 24px;
+  transform: none;
+  color: var(--pd-text);
+  font-family: var(--pd-font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.payload-dashboard h1,
+.payload-dashboard h2,
+.payload-dashboard h3,
+.payload-dashboard h4,
+.payload-dashboard p,
+.payload-dashboard th,
+.payload-dashboard td,
+.payload-dashboard span,
+.payload-dashboard summary,
+.payload-dashboard a,
+.payload-dashboard li,
+.payload-dashboard input,
+.payload-dashboard button {
+  font-family: var(--pd-font-sans);
 }
 
 /* Page shell */
@@ -332,13 +376,9 @@
 #pd-source-ip,
 #pd-display-time,
 #pd-request-id,
-#pd-log-time {
-  font-family:
-    "SFMono-Regular",
-    "Cascadia Code",
-    Consolas,
-    Menlo,
-    monospace;
+#pd-log-time,
+.payload-supporting-uri {
+  font-family: var(--pd-font-mono);
 }
 
 .payload-uri,
