@@ -171,6 +171,7 @@
   - 장기 후보로 유지
 - [ ] run_dir / data latest / manifest 기반 full runner 전환은 후속 후보로 보류
   - Phase 1A 완료: `--run-dir <path>` opt-in 병행 산출물 생성 구현 완료(기존 flat output 계약 유지, fail-fast 충돌 정책, manifest 확장 반영)
+  - Phase 1A smoke 관찰 완료: `security_2026-04-30_13-55-00_to_2026-04-30_13-56-00_kst` + `--dry-run --run-dir /tmp/web-log-analysis-run-dir-smoke-2`에서 `pipeline complete`, flat output 유지, run_dir 표준 파일 생성, manifest dual-path(`flat_files`/`run_dir_files`) 기록 확인
   - 남은 TODO(run_dir 전용):
     - [ ] `--run-id` 지원 여부 판단
     - [ ] `--overwrite` 정책/동작(삭제 후 재생성 vs known file overwrite) 확정
