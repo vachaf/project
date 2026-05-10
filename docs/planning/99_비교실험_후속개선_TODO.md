@@ -83,8 +83,17 @@
   - partial group에서는 metadata 2-column 배치
   - 모바일/좁은 폭 1-column fallback 유지
   - both provider 2-column 비교 레이아웃 유지
+- q 검색 대상 확장 완료
+  - `run_id`/`display_label`/`display_subtitle`/`repo_relative_path` 포함
+  - run_id 대표 label과 검색 동작 일치 보강
+  - 검증: `tests/test_web_loader_run_dir_scan.py`: `6 passed`
+- Search & Filters responsive breakpoint 조정 완료
+  - `751~960px` compact 2열 + `q` full-width
+  - `<=750px` 1열 모바일형
+  - 900px 전후 과도한 1열 누적 완화
+  - 검증: `tests/test_web_payload_src_ip_mode.py`: `5 passed`, 관련 `py_compile` 통과
 - UI polish 검증 기준
-  - `tests/test_web_loader_run_dir_scan.py`: `5 passed`
+  - `tests/test_web_loader_run_dir_scan.py`: `6 passed`
   - `tests/test_web_payload_src_ip_mode.py`: `5 passed`
   - `tests/test_web_report_detail_columns.py`: `5 passed`
   - 관련 `py_compile` 통과
