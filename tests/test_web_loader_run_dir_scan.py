@@ -109,3 +109,31 @@ def test_run_dir_report_id_resolves_detail_and_payload(tmp_path: Path) -> None:
     assert error is None
     assert viewer_payload is not None
     assert viewer_payload.get("schema_version") == "viewer_payload.v1"
+
+
+def test_query_filter_matches_run_id_display_label_and_path(tmp_path: Path) -> None:
+    fixture_root = build_web_loader_phase2_fixture_root(tmp_path)
+    loader = _build_loader_for_run_dir_manifest_scan(fixture_root)
+
+    reports = loader.scan_reports()
+    groups = loader.group_by_timeframe(reports)
+
+    by_run_id = loader.filter_groups(groups, {"q": "run_dir_valid_basic"})
+    assert len(by_run_id) == 1
+    assert any(
+        report.get("run_id") == "run_dir_valid_basic"
+        for group in by_run_id.values()
+        for report in group.get("reports", [])
+    )
+
+    by_display_label = loader.filter_groups(groups, {"q": "valid_basic"})
+    assert len(by_display_label) == 1
+
+    by_path = loader.filter_groups(groups, {"q": "runs/run_dir_valid_basic"})
+    assert len(by_path) == 1
+
+    by_filename = loader.filter_groups(groups, {"q": "stage2_report"})
+    assert len(by_filename) == len(groups)
+
+    no_match = loader.filter_groups(groups, {"q": "not-existing-value"})
+    assert no_match == {}

@@ -346,16 +346,30 @@ class ReportLoader:
         return items
 
     def _matches_query(self, group: Dict[str, Any], query: str) -> bool:
-        # Group-level scenario fields are checked first per Phase 2A contract.
-        if _contains_text(group.get("scenario"), query) or _contains_text(group.get("scenario_key"), query):
+        # Group-level fields are checked first per Phase 2A contract.
+        group_fields = (
+            group.get("scenario"),
+            group.get("scenario_key"),
+            group.get("timeframe"),
+            group.get("timeframe_id"),
+        )
+        if any(_contains_text(value, query) for value in group_fields):
             return True
 
         for report in self._iter_group_reports(group):
-            if _contains_text(report.get("filename"), query):
-                return True
-            if _contains_text(report.get("scenario"), query) or _contains_text(report.get("scenario_key"), query):
-                return True
-            if _contains_text(report.get("report_id"), query):
+            report_fields = (
+                report.get("filename"),
+                report.get("repo_relative_path"),
+                report.get("scenario"),
+                report.get("scenario_key"),
+                report.get("timeframe"),
+                report.get("timeframe_label"),
+                report.get("report_id"),
+                report.get("run_id"),
+                report.get("display_label"),
+                report.get("display_subtitle"),
+            )
+            if any(_contains_text(value, query) for value in report_fields):
                 return True
         return False
 
