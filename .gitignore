@@ -18,6 +18,7 @@ pipeline_manifest.json
 /lab/**/*analysis_candidates.json
 /lab/**/*llm_input.json
 /lab/**/*stage2_report_input.json
+/runs/
 
 # python
 __pycache__/
