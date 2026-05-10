@@ -17,13 +17,15 @@
   - `tests/helpers/web_loader_phase2_fixtures.py`
   - `tests/test_web_loader_run_dir_scan.py`
 - 초기 xfail 5개 테스트가 Phase 2D-1~2D-5에서 단계적으로 pass 전환됨
-- 현재 `tests/test_web_loader_run_dir_scan.py`: `5 passed`
+- 현재 `tests/test_web_loader_run_dir_scan.py`: `6 passed`
+- `q` 검색 확장 테스트가 추가되어 `run_id`/display label/path 검색 회귀를 포함한다.
 - Phase 2D에서 완료된 항목:
   - `runs/*/manifest.json -> stage2_report.json` manifest scan 최소 구현
   - run_dir 표준 `viewer_payload.json` resolve
   - missing payload fallback: `viewer_payload_error="MISSING_FILE"`
   - malformed payload fallback: `viewer_payload_error="MALFORMED_JSON"`
   - 기본 `REPORT_GLOBS=["runs/*/manifest.json"]` 전환
+- UI polish 후속으로 Search & Filters breakpoint 조정이 반영되었다(본 문서의 핵심 테스트 범위에는 미포함).
 - 기본 정책:
   - `reports/`/`lab/` legacy glob은 `LEGACY_REPORT_GLOBS`로 보존
   - 기본 scan에서는 제외

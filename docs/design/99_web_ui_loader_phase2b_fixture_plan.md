@@ -10,6 +10,17 @@
   - `docs/design/99_pipeline_run_dir_phase1b_phase2_candidate_review.md`
   - `docs/planning/99_비교실험_후속개선_TODO.md`
 
+## 0. 현재 상태 업데이트 (2026-05-10)
+
+- 본 문서는 Phase 2B fixture/test 설계 문서이며, 이후 runtime fixture helper와 초기 테스트가 실제 추가되었다.
+- 추가 완료 파일:
+  - `tests/helpers/web_loader_phase2_fixtures.py`
+  - `tests/test_web_loader_run_dir_scan.py`
+- Phase 2D 구현과 함께 초기 fixture/test는 pass 전환되었고, 현재 `tests/test_web_loader_run_dir_scan.py`는 `6 passed`다.
+- 기본 scan 전환(`REPORT_GLOBS=["runs/*/manifest.json"]`)과 run_dir manifest 기반 로딩 검증에 본 fixture plan이 사용되었다.
+- 후순위 fixture(`huge text/layout`, `schema incomplete`, `archive duplicate`)는 아직 보류 상태다.
+- Web UI read-only invariant는 유지된다.
+
 ## 1. 목적
 
 Phase 2B의 목적은 Web UI loader 구현을 바로 시작하는 것이 아니라, 구현 전에 반드시 통과해야 할 입력 케이스를 fixture 수준에서 정의하는 것이다.

@@ -10,6 +10,16 @@
   - `docs/planning/99_비교실험_후속개선_TODO.md`
   - `docs/operations/README.md`
 
+## 0. 현재 상태 업데이트 (2026-05-10)
+
+- 본 문서는 Phase 2A 입력 모델 후보를 정리한 설계 문서이며, 이후 Phase 2D 구현에 핵심 후보가 반영되었다.
+- `runs/*/manifest.json -> stage2_report.json` discover/normalize와 run_dir `viewer_payload.json` resolve가 구현 완료되었다.
+- 입력 모델 후보 중 `storage_type`, `run_id`, `manifest_path`, `viewer_payload_available` 계열은 loader/UI 동작에 일부 반영되었다.
+- payload fallback은 `MISSING_FILE`/`MALFORMED_JSON` 기준으로 반영되었다.
+- 후속 UI polish로 `run_id` 표시/검색, partial provider compact, `notable_incidents` 가독성 개선이 반영되었다.
+- archive opt-in, flat/run_dir dedupe, canonical_report_key는 여전히 보류 상태다.
+- Web UI read-only invariant는 유지된다.
+
 ## 1. 목적
 
 Phase 2A의 목적은 `runs/*/manifest.json` scan 구현이 아니라, 현재 Web UI loader가 어떤 입력을 기준으로 list/detail/payload 화면을 구성하는지 명시적으로 고정하는 것이다.
