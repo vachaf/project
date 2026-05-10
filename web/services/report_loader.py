@@ -49,12 +49,16 @@ class Report:
 
     def to_summary(self) -> Dict[str, Any]:
         meta = self.meta if isinstance(self.meta, dict) else {}
+        run_id = str(meta.get("run_id") or "")
+        display_label = run_id or self.filename
         return {
             "report_id": self.report_id,
             "filename": self.filename,
             "repo_relative_path": self.repo_relative_path,
-            "run_id": str(meta.get("run_id") or ""),
+            "run_id": run_id,
             "storage_type": str(meta.get("storage_type") or "unknown"),
+            "display_label": display_label,
+            "display_subtitle": self.filename,
             "provider": self.provider,
             "model": self.model,
             "scenario": self.scenario,
@@ -76,14 +80,18 @@ class Report:
 
     def to_detail(self) -> Dict[str, Any]:
         meta = self.meta if isinstance(self.meta, dict) else {}
+        run_id = str(meta.get("run_id") or "")
+        display_label = run_id or self.filename
         return {
             "report_id": self.report_id,
             "filename": self.filename,
             "repo_relative_path": self.repo_relative_path,
-            "run_id": str(meta.get("run_id") or ""),
+            "run_id": run_id,
             "storage_type": str(meta.get("storage_type") or "unknown"),
             "manifest_path": str(meta.get("manifest_path") or ""),
             "run_dir": str(meta.get("run_dir") or ""),
+            "display_label": display_label,
+            "display_subtitle": self.filename,
             "provider": self.provider,
             "model": self.model,
             "scenario": self.scenario,

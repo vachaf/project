@@ -96,8 +96,12 @@ def test_run_dir_report_id_resolves_detail_and_payload(tmp_path: Path) -> None:
     detail_obj = detail.to_detail()
     assert summary_obj.get("run_id") == "run_dir_valid_basic"
     assert summary_obj.get("storage_type") == "run_dir"
+    assert summary_obj.get("display_label") == "run_dir_valid_basic"
+    assert summary_obj.get("display_subtitle") == "stage2_report.json"
     assert detail_obj.get("run_id") == "run_dir_valid_basic"
     assert detail_obj.get("storage_type") == "run_dir"
+    assert detail_obj.get("display_label") == "run_dir_valid_basic"
+    assert detail_obj.get("display_subtitle") == "stage2_report.json"
     assert detail_obj.get("manifest_path")
     assert detail_obj.get("run_dir")
 

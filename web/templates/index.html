@@ -105,10 +105,21 @@
 {% if result_count > 0 %}
   {% for group in summary.groups.values() %}
   <section class="section card">
+    {% set primary_report = group.reports[0] if group.reports else None %}
+    {% set primary_label = primary_report.display_label if primary_report and primary_report.display_label else '' %}
+    {% set primary_has_run_id = primary_report.run_id if primary_report and primary_report.run_id else '' %}
     <div class="group-head">
       <p class="group-title">
-        <strong>{{ group.timeframe or 'unknown' }}</strong>
-        <span class="is-muted">/ {{ group.scenario or 'unknown' }}</span>
+        {% if primary_label %}
+          <strong>{{ primary_label }}</strong>
+        {% else %}
+          <strong>{{ group.timeframe or 'unknown' }}</strong>
+        {% endif %}
+        {% if primary_has_run_id %}
+          <span class="is-muted">/ {{ group.timeframe or 'unknown' }} | {{ group.scenario or 'unknown' }}</span>
+        {% else %}
+          <span class="is-muted">/ {{ group.scenario or 'unknown' }}</span>
+        {% endif %}
       </p>
       <p class="group-id is-muted">timeframe_id={{ group.timeframe_id }}</p>
     </div>
@@ -135,11 +146,12 @@
           {% else %}
             <span class="badge badge-provider-unknown">unknown</span>
           {% endif %}
-          <strong>{{ report.filename }}</strong>
+          <strong>{{ report.display_label or report.filename }}</strong>
         </p>
 
         <p class="provider-path is-muted">{{ report.repo_relative_path }}</p>
         <div class="meta-compact">
+          <p><span class="meta-label">file</span><span>{{ report.filename }}</span></p>
           {% if report.run_id %}
           <p><span class="meta-label">run_id</span><span>{{ report.run_id }}</span></p>
           {% endif %}
@@ -226,11 +238,12 @@
       <article class="card provider-card {% if not report.is_valid %}is-invalid{% endif %}">
         <p class="provider-title">
           <span class="badge badge-provider-unknown">unknown</span>
-          <strong>{{ report.filename }}</strong>
+          <strong>{{ report.display_label or report.filename }}</strong>
         </p>
 
         <p class="provider-path is-muted">{{ report.repo_relative_path }}</p>
         <div class="meta-compact">
+          <p><span class="meta-label">file</span><span>{{ report.filename }}</span></p>
           {% if report.run_id %}
           <p><span class="meta-label">run_id</span><span>{{ report.run_id }}</span></p>
           {% endif %}
