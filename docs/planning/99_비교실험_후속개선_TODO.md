@@ -67,6 +67,27 @@
   - viewer_payload 수치 확인: `finding_count=2`, `context_count=3`, `supporting_event_count=0`
   - `Missing pair`/`Compare partial`은 단일 provider(openai) 결과 기준 정상
   - read-only invariant 유지
+- Web UI run_id 표시 보강 완료
+  - list/detail/payload run_id 표시
+  - list 대표 label run_id 우선 표시
+  - dry-run/actual run 구분성 개선
+- Report Detail notable_incidents 빈 optional 컬럼 숨김 완료
+  - `summary/title`, `request_count`, `recommended_action`이 모든 row에서 비어 있으면 컬럼 숨김
+  - 핵심 컬럼(`severity`, `verdict`, `incident_ref`, `why_it_matters`, `source_ip`) 유지
+- notable_incidents 컬럼 폭 key class 기반 조정 완료
+  - `severity 7%`, `verdict 13%`, `incident_ref 22%`, `why_it_matters 48%`, `source_ip 10%`
+- partial provider missing panel compact 처리 완료
+  - missing provider large panel 제거
+  - group action row inline chip(`openai missing`/`anthropic missing`) 표시
+- partial provider card metadata 2-column layout 보강 완료
+  - partial group에서는 metadata 2-column 배치
+  - 모바일/좁은 폭 1-column fallback 유지
+  - both provider 2-column 비교 레이아웃 유지
+- UI polish 검증 기준
+  - `tests/test_web_loader_run_dir_scan.py`: `5 passed`
+  - `tests/test_web_payload_src_ip_mode.py`: `5 passed`
+  - `tests/test_web_report_detail_columns.py`: `5 passed`
+  - 관련 `py_compile` 통과
 - Web UI layout/mobile readability 개선 완료
   - `/report/{report_id}`: notable_incidents/notable_source_ips/recommended_actions 모바일 카드형 표시 개선
   - `/report/{report_id}/payload`: Contexts Preview 모바일 카드형 표시 개선 + breakpoint 960px 정리
@@ -203,15 +224,13 @@
   - operations 문서 반영 완료: `docs: document run directory operation flow` (`4e295879ab062d94716ef9b328519bd034b2e2bc`)
   - Phase 1A smoke 관찰 완료: `security_2026-04-30_13-55-00_to_2026-04-30_13-56-00_kst` + `--dry-run --run-dir /tmp/web-log-analysis-run-dir-smoke-2`에서 `pipeline complete`, flat output 유지, run_dir 표준 파일 생성, manifest dual-path(`flat_files`/`run_dir_files`) 기록 확인
   - 후보 비교 문서 작성 완료: `docs/design/99_pipeline_run_dir_phase1b_phase2_candidate_review.md`
-  - 우선순위(즉시 구현 승격 아님): `P1 --run-id 필요성 관찰` -> `P2 --overwrite 보류/정책 판단` -> `P3 list/detail run_id/storage_type 표시 필요성 검토` -> `P4 archive opt-in scan 정책 검토`
+  - 우선순위(즉시 구현 승격 아님): `P1 --run-id 필요성 관찰` -> `P2 --overwrite 보류/정책 판단` -> `P3 archive opt-in scan 정책 검토`
   - 남은 TODO(run_dir 전용):
     - [ ] `--run-id` 필요성 관찰
     - [ ] `--overwrite` 정책 보류(필요 시점에만 확정)
-    - [ ] list/detail에서 `run_id`/`storage_type` 표시 필요성 검토
     - [ ] legacy/lab archive opt-in scan 정책/구현 여부 후속 검토
     - [ ] flat/run_dir dedupe는 archive opt-in 필요가 확인될 때만 검토
     - [ ] canonical_report_key는 후속 후보로 보류
-    - [ ] `docs/operations/*`에 run_dir default scan 정책 반영 필요성 검토
   - 원칙 유지: Phase 2D backend 전환은 완료됐지만 execution console/live progress는 열린 범위가 아니다. Web UI는 read-only viewer 범위를 유지하며 context-only 승격/새 보안 판정/severity/category/verdict 재계산은 하지 않음
 - [ ] `run_analysis_pipeline.py --help` 예시의 table auto resolution 안내 보강 필요 여부 검토
 - [ ] lab traffic E2E smoke test 기록 정리
@@ -225,6 +244,8 @@
 - [ ] Stage2 산출물 field completeness 관찰
   - 실제 산출물에서 `notable_incidents.summary/request_count/recommended_action` 공백 비율을 관찰
   - 필요 시 Stage2 reporter schema/field completeness 검토는 별도 후속 과제로 분리
+- [ ] Detail 버튼 위치/partial provider metadata 균형은 필요 시 추가 polish 후보로 검토
+- [ ] provider 비교 구조 일반화(openai/anthropic 고정 -> N-provider)는 장기 후보로 유지
 
 QA v4 보조 스크립트 관리:
 
