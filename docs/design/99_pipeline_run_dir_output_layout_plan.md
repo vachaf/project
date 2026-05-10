@@ -7,6 +7,27 @@
   - `docs/design/99_run_analysis_pipeline_user_runner_ux_review.md`
   - `docs/design/99_web_ui_report_viewer_execution_scope_review.md`
 
+## 0. 현재 상태 업데이트 (2026-05-10)
+
+- 본 문서는 run_dir output layout 초기 설계 및 Phase 1 검토 시점(구현 전/초기 구현 직후)의 기록 문서다.
+- 이후 Web UI loader Phase 2D backend 전환이 완료되어, 현재 Web UI 기본 scan 기준은 `runs/*/manifest.json`이다.
+- 현재 Web UI discovery entry는 `runs/<run_id>/manifest.json`이며, loader 계층에서 manifest 기반 discover/normalize를 수행한다.
+- run_dir 표준 파일 구성은 다음을 기준으로 운영한다.
+  - `manifest.json`
+  - `export.json`
+  - `llm_input.json`
+  - `stage1_results.json`
+  - `stage2_report_input.json`
+  - `stage2_report.json`
+  - `stage2_report.md`
+  - `viewer_payload.json`
+  - `noise_summary.json`
+- `reports/` flat output은 제거되지 않았고 호환/수동 확인용 병행 산출물로 유지될 수 있다.
+- 단, 현재 Web UI 기본 목록 기준은 flat output이 아니라 run_dir manifest 중심이다.
+- legacy flat/lab glob은 `LEGACY_REPORT_GLOBS`로 보존되지만 기본 scan에서는 제외된다.
+- archive opt-in, flat/run_dir dedupe, canonical_report_key는 아직 후속 후보로 보류 상태다.
+- Web UI read-only invariant는 유지된다.
+
 ## 1. 현재 문제
 
 > 구현 상태 메모 (2026-05-09):

@@ -4,6 +4,21 @@
 - 문서 목적: run_dir Phase 1A 구현/스모크 확인 이후 다음 후보(`--run-id`, `--overwrite`, Web UI run_dir scan Phase 2, legacy/lab opt-in scan)의 우선순위와 착수 시점을 비교한다.
 - 결론 요약: 현재는 즉시 구현보다 관찰/설계 우선이 적절하다.
 
+## 0. 현재 상태 업데이트 (2026-05-10)
+
+- 본 문서는 Phase 1B/Phase 2 후보 비교를 위해 작성된 당시 기준 문서다.
+- 이후 일부 후보는 구현/문서화가 완료되었다.
+  - Phase 2A input model review 완료
+  - Phase 2B fixture plan 완료
+  - Phase 2C test plan + fixture helper/tests 완료
+  - Phase 2D run_dir manifest default scan 완료
+- 현재 Web UI 기본 scan은 run_dir manifest 기준(`REPORT_GLOBS=["runs/*/manifest.json"]`)이다.
+- flat-only output은 분석 산출물로는 유효하지만, 현재 정책상 Web UI 기본 목록 기준은 아니다.
+- 기본 운영 흐름은 `run_analysis_pipeline.py --run-dir runs/<run_id>` 사용이다.
+- legacy flat/lab glob은 `LEGACY_REPORT_GLOBS`로 보존되며 기본 scan에서는 제외된다.
+- 남은 후보(보류): archive opt-in, flat/run_dir dedupe, canonical_report_key, `--run-id`, `--overwrite` 필요성 관찰.
+- Web UI read-only invariant는 유지된다.
+
 ## 배경
 
 - Phase 1A 완료 상태
