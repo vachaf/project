@@ -156,62 +156,66 @@
         </p>
 
         <p class="provider-path is-muted">{{ report.repo_relative_path }}</p>
-        <div class="meta-compact">
-          <p><span class="meta-label">file</span><span>{{ report.filename }}</span></p>
-          {% if report.run_id %}
-          <p><span class="meta-label">run_id</span><span>{{ report.run_id }}</span></p>
-          {% endif %}
-          <p><span class="meta-label">model</span><span>{{ report.model or 'unknown' }}</span></p>
-          <p><span class="meta-label">generated_at</span><span>{{ report.generated_at or 'unknown' }}</span></p>
-          <p><span class="meta-label">scenario</span><span>{{ report.scenario or 'unknown' }}</span></p>
-          <p><span class="meta-label">incidents</span><span>{{ report.incident_count }}</span></p>
-        </div>
-
-        <p class="provider-badge-row">
-          <span class="meta-label">severity</span>
-          {% if report.severity_counts %}
-            {% set has_visible_severity = false %}
-            {% for severity, count in report.severity_counts.items() %}
-              {% if count > 0 %}
-                {% set has_visible_severity = true %}
-              {% endif %}
-            {% endfor %}
-            {% for severity, count in report.severity_counts.items() %}
-              {% if count > 0 %}
-                {% set severity_class = 'badge-severity-info' %}
-                {% if severity == 'critical' or severity == 'high' %}
-                  {% set severity_class = 'badge-severity-high' %}
-                {% elif severity == 'medium' %}
-                  {% set severity_class = 'badge-severity-medium' %}
-                {% elif severity == 'low' %}
-                  {% set severity_class = 'badge-severity-low' %}
-                {% endif %}
-                <span class="badge {{ severity_class }}">{{ severity }}={{ count }}</span>
-              {% endif %}
-            {% endfor %}
-            {% if not has_visible_severity %}
-              <span class="badge badge-muted">none</span>
+        <div class="provider-card-meta-grid">
+          <div class="meta-compact">
+            <p><span class="meta-label">file</span><span>{{ report.filename }}</span></p>
+            {% if report.run_id %}
+            <p><span class="meta-label">run_id</span><span>{{ report.run_id }}</span></p>
             {% endif %}
-          {% else %}
-            <span class="badge badge-muted">none</span>
-          {% endif %}
-        </p>
+            <p><span class="meta-label">model</span><span>{{ report.model or 'unknown' }}</span></p>
+            <p><span class="meta-label">generated_at</span><span>{{ report.generated_at or 'unknown' }}</span></p>
+            <p><span class="meta-label">scenario</span><span>{{ report.scenario or 'unknown' }}</span></p>
+            <p><span class="meta-label">incidents</span><span>{{ report.incident_count }}</span></p>
+          </div>
 
-        <p class="provider-badge-row">
-          <span class="meta-label">lint</span>
-          {% set lint_verdict = report.lint.verdict|upper %}
-          {% if lint_verdict == 'PASS' %}
-            <span class="badge badge-lint-pass">PASS</span>
-          {% elif lint_verdict == 'WARN' %}
-            <span class="badge badge-lint-warn">WARN</span>
-          {% elif lint_verdict == 'FAIL' %}
-            <span class="badge badge-lint-fail">FAIL</span>
-          {% elif lint_verdict == 'ERROR' %}
-            <span class="badge badge-lint-error">ERROR</span>
-          {% else %}
-            <span class="badge badge-muted">UNKNOWN</span>
-          {% endif %}
-        </p>
+          <div class="provider-card-meta-right">
+            <p class="provider-badge-row">
+              <span class="meta-label">severity</span>
+              {% if report.severity_counts %}
+                {% set has_visible_severity = false %}
+                {% for severity, count in report.severity_counts.items() %}
+                  {% if count > 0 %}
+                    {% set has_visible_severity = true %}
+                  {% endif %}
+                {% endfor %}
+                {% for severity, count in report.severity_counts.items() %}
+                  {% if count > 0 %}
+                    {% set severity_class = 'badge-severity-info' %}
+                    {% if severity == 'critical' or severity == 'high' %}
+                      {% set severity_class = 'badge-severity-high' %}
+                    {% elif severity == 'medium' %}
+                      {% set severity_class = 'badge-severity-medium' %}
+                    {% elif severity == 'low' %}
+                      {% set severity_class = 'badge-severity-low' %}
+                    {% endif %}
+                    <span class="badge {{ severity_class }}">{{ severity }}={{ count }}</span>
+                  {% endif %}
+                {% endfor %}
+                {% if not has_visible_severity %}
+                  <span class="badge badge-muted">none</span>
+                {% endif %}
+              {% else %}
+                <span class="badge badge-muted">none</span>
+              {% endif %}
+            </p>
+
+            <p class="provider-badge-row">
+              <span class="meta-label">lint</span>
+              {% set lint_verdict = report.lint.verdict|upper %}
+              {% if lint_verdict == 'PASS' %}
+                <span class="badge badge-lint-pass">PASS</span>
+              {% elif lint_verdict == 'WARN' %}
+                <span class="badge badge-lint-warn">WARN</span>
+              {% elif lint_verdict == 'FAIL' %}
+                <span class="badge badge-lint-fail">FAIL</span>
+              {% elif lint_verdict == 'ERROR' %}
+                <span class="badge badge-lint-error">ERROR</span>
+              {% else %}
+                <span class="badge badge-muted">UNKNOWN</span>
+              {% endif %}
+            </p>
+          </div>
+        </div>
 
         {% if report.is_valid %}
           <p><a class="action-link" href="/report/{{ report.report_id }}">Detail</a></p>

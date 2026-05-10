@@ -204,8 +204,31 @@ a {
   margin: 0.38rem 0;
 }
 
+.provider-card-meta-grid {
+  display: block;
+}
+
+.provider-card-meta-right {
+  min-width: 0;
+}
+
 .card-grid > * {
   min-width: 0;
+}
+
+.card-grid.card-grid-provider-pair.is-partial .provider-card-meta-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.65rem 0.9rem;
+  align-items: start;
+}
+
+.card-grid.card-grid-provider-pair.is-partial .provider-badge-row {
+  margin: 0 0 0.45rem;
+}
+
+.card-grid.card-grid-provider-pair.is-partial .provider-badge-row:last-child {
+  margin-bottom: 0.1rem;
 }
 
 .report-title,
@@ -1725,6 +1748,10 @@ summary:focus-visible {
 
   .group-actions {
     flex-wrap: wrap;
+  }
+
+  .card-grid.card-grid-provider-pair.is-partial .provider-card-meta-grid {
+    grid-template-columns: 1fr;
   }
 
 }
