@@ -9,6 +9,32 @@
   - `docs/design/99_web_ui_run_dir_loader_phase2_plan.md`
   - `docs/planning/99_비교실험_후속개선_TODO.md`
 
+## 0. 구현 결과 업데이트 (2026-05-10)
+
+본 문서는 Phase 2C 시점의 설계 문서이며, 아래는 Phase 2D까지의 실제 구현/검증 결과를 기록한 상태 업데이트다.
+
+- Phase 2C 최소 fixture helper/테스트가 실제로 추가됨
+  - `tests/helpers/web_loader_phase2_fixtures.py`
+  - `tests/test_web_loader_run_dir_scan.py`
+- 초기 xfail 5개 테스트가 Phase 2D-1~2D-5에서 단계적으로 pass 전환됨
+- 현재 `tests/test_web_loader_run_dir_scan.py`: `5 passed`
+- Phase 2D에서 완료된 항목:
+  - `runs/*/manifest.json -> stage2_report.json` manifest scan 최소 구현
+  - run_dir 표준 `viewer_payload.json` resolve
+  - missing payload fallback: `viewer_payload_error="MISSING_FILE"`
+  - malformed payload fallback: `viewer_payload_error="MALFORMED_JSON"`
+  - 기본 `REPORT_GLOBS=["runs/*/manifest.json"]` 전환
+- 기본 정책:
+  - `reports/`/`lab/` legacy glob은 `LEGACY_REPORT_GLOBS`로 보존
+  - 기본 scan에서는 제외
+- 남은 후속 후보:
+  - archive opt-in
+  - flat/run_dir dedupe
+  - canonical_report_key
+  - schema incomplete 세부 처리
+  - huge text/layout fixture
+  - list UI의 `run_id`/`storage_type` 표시 여부
+
 ## 1. 목적
 
 Phase 2C의 목적은 `runs/*/manifest.json` scan 구현 전에 테스트 기준을 먼저 고정하는 것이다.
@@ -536,18 +562,18 @@ Phase 2C 테스트는 Phase 2D 구현 전에 작성될 수 있으므로 일부 �
 - long text fixture는 layout 압박 검증용이며 공격 성공 근거가 아니다.
 - lab 전용 UA나 특정 IP를 공격 성공 근거로 일반화하지 않는다.
 
-## 11. Phase 2D 진입 조건
+## 11. Phase 2D 진입 조건 충족 결과
 
-Phase 2D `runs/*/manifest.json` scan 구현으로 넘어가기 전에 아래가 준비되어야 한다.
+Phase 2D `runs/*/manifest.json` scan 구현 진입 전 조건은 아래와 같이 충족됐다.
 
-- 최소 fixture case 6개 확정
-- pytest `tmp_path` 기반 runtime fixture root 방식 확정
-- `tests/helpers/web_loader_phase2_fixtures.py` helper 방식 확정
-- 최소 테스트 5개 작성 또는 xfail로 고정
-- legacy flat/lab/data 기본 제외 기대값 고정
-- missing/malformed viewer_payload fallback 기대값 고정
-- malformed manifest/missing stage2 report skip 정책 고정
-- read-only invariant 위반 금지 항목 확인
+- 최소 fixture case 6개 확정: 충족
+- pytest `tmp_path` 기반 runtime fixture root 방식 확정: 충족
+- `tests/helpers/web_loader_phase2_fixtures.py` helper 방식 확정: 충족
+- 최소 테스트 5개 작성 또는 xfail로 고정: 충족(초기 xfail 5개 작성 후 단계 전환)
+- legacy flat/lab/data 기본 제외 기대값 고정: 충족
+- missing/malformed viewer_payload fallback 기대값 고정: 충족
+- malformed manifest/missing stage2 report skip 정책 고정: 충족
+- read-only invariant 위반 금지 항목 확인: 충족
 
 ## 12. 결정 사항 요약
 
@@ -565,7 +591,7 @@ Phase 2D `runs/*/manifest.json` scan 구현으로 넘어가기 전에 아래가 
 
 ## 13. 다음 단계
 
-1. 최소 fixture helper 문서/코드 후보 리뷰
-2. 최소 fixture 파일을 runtime helper로 생성
-3. 최소 테스트 5개 작성 또는 xfail 고정
-4. 이후 Phase 2D run_dir manifest scan 구현 검토
+1. 실제 run_dir smoke로 Web UI 목록/detail/payload 화면 확인
+2. list/detail에서 `run_id`/`storage_type` 표시 필요성 검토
+3. archive opt-in 정책/구현 필요성 판단
+4. archive opt-in 필요가 확인될 때 flat/run_dir dedupe와 canonical_report_key 검토
