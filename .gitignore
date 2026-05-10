@@ -26,4 +26,4 @@ __pycache__/
 .pytest_cache/
 
 #tmp_codex
-/file
+/file/runs/
