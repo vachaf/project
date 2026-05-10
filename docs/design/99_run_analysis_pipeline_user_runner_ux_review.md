@@ -9,6 +9,32 @@
   - `docs/planning/99_비교실험_후속개선_TODO.md`
   - `작업일지/0507.md`
 
+## 0. 현재 상태 업데이트 (2026-05-10)
+
+본 문서는 2026-05-08 시점의 runner UX 검토 문서였고, 이후 Web UI loader 정책이 run_dir 중심으로 전환되었다.
+
+- 현재 Web UI 기본 scan:
+  - `REPORT_GLOBS=["runs/*/manifest.json"]`
+- legacy flat/lab glob:
+  - `LEGACY_REPORT_GLOBS=["reports/*_stage2_report.json", "lab/**/reports/*_stage2_report.json"]`
+  - 기본 scan 제외, 호환/보존 후보로 유지
+- Web UI 표시를 운영 기본 흐름으로 사용할 때는 `run_analysis_pipeline.py --run-dir runs/<run_id>` 지정을 기준으로 둔다.
+- run_dir 표준 산출물:
+  - `manifest.json`
+  - `export.json`
+  - `llm_input.json`
+  - `stage1_results.json`
+  - `stage2_report_input.json`
+  - `stage2_report.json`
+  - `stage2_report.md`
+  - `viewer_payload.json`
+  - `noise_summary.json`
+- actual smoke 완료:
+  - `runs/webui_run_dir_smoke_actual_2026-05-10`
+  - security export 기준 actual LLM 실행
+  - Web UI list/detail/payload 확인 완료
+- `archive opt-in` / `flat-run_dir dedupe` / `canonical_report_key`는 후속 후보로 보류한다.
+
 ## 1. 목적
 
 이 문서는 Apache 웹 로그 기반 LLM 침입 로그 분석 파이프라인에서 `run_analysis_pipeline.py`를 어떤 사용자 UX로 제공할지 검토한다.
@@ -251,11 +277,9 @@ python ./src/run_analysis_pipeline.py \
 
 ## 6. 산출물 저장 기준
 
-### 6.1 단기 저장 구조
+### 6.1 과거 기준(2026-05-08)
 
-당장 run directory 구조로 전환하지 않는다.
-
-단기적으로는 기존 flat output 구조를 유지한다.
+작성 당시 단기 기준은 flat output 중심이었다.
 
 ```text
 <work-dir>/
@@ -280,7 +304,40 @@ python ./src/run_analysis_pipeline.py \
   pipeline_manifest.json
 ```
 
-### 6.2 디렉터리 역할
+### 6.2 현재 기준(2026-05-10)
+
+현재 Web UI 기본 표시 기준은 `runs/*/manifest.json` 기반 run directory 산출물이다.
+`reports/` flat 산출물은 pipeline 호환/병행 산출물로 남을 수 있으나, Web UI 기본 scan 대상은 아니다.
+Web UI에서 결과를 보이게 하려면 `run_analysis_pipeline.py --run-dir runs/<run_id>` 사용을 기본 운영 흐름으로 둔다.
+
+현재 run_dir 구조 예시:
+
+```text
+<work-dir>/
+  runs/
+    <run_id>/
+      manifest.json
+      export.json
+      llm_input.json
+      noise_summary.json
+      stage1_results.json
+      stage2_report_input.json
+      stage2_report.json
+      stage2_report.md
+      viewer_payload.json
+```
+
+병행 flat 산출물(호환/추적용):
+
+```text
+<work-dir>/
+  data/raw/
+  data/processed/
+  reports/
+  pipeline_manifest.json
+```
+
+### 6.3 디렉터리 역할
 
 #### `data/raw/`
 
@@ -301,10 +358,21 @@ python ./src/run_analysis_pipeline.py \
 
 역할:
 
-* 사람이 보거나 Web UI가 읽는 최종 산출물 보관
+* 사람이 보거나 운영 스크립트가 참조하는 최종 산출물 보관
 * Stage2 report JSON/Markdown 보관
-* viewer payload 보관
+* viewer payload flat 사본 보관
 * run별 manifest 보관
+
+주의:
+
+* 현재 Web UI 기본 목록 discovery 기준은 `reports/`가 아니라 `runs/*/manifest.json`이다.
+
+#### `runs/<run_id>/`
+
+역할:
+
+* Web UI 기본 목록 discovery 기준 entry(`manifest.json`)
+* list/detail/payload 조회용 표준 run artifact 묶음 보관
 
 #### `pipeline_manifest.json`
 
@@ -377,6 +445,7 @@ run_2026-05-08_15-20-00
 
 ```text
 reports/<base>_pipeline_manifest.json
+runs/<run_id>/manifest.json
 ```
 
 역할:
@@ -384,6 +453,7 @@ reports/<base>_pipeline_manifest.json
 * 특정 분석 실행의 산출물 추적
 * report/viewer payload와 같은 묶음으로 보존
 * 재현 및 검증용 metadata 제공
+* `runs/<run_id>/manifest.json`은 Web UI 기본 scan 기준의 primary manifest entry 역할을 수행
 
 특성:
 
@@ -462,6 +532,9 @@ Manifest는 다음을 위한 metadata다.
 
 Manifest를 근거로 공격 성공, 침해 성공, 유출 여부를 판단하지 않는다.
 
+현재 Web UI loader는 기본적으로 `runs/*/manifest.json`를 scan한다.
+따라서 run_dir manifest는 단순 보조 산출물이 아니라 Web UI 목록 discovery의 기준 entry다.
+
 ## 9. Viewer Payload 기준
 
 ### 9.1 역할
@@ -474,13 +547,21 @@ Manifest를 근거로 공격 성공, 침해 성공, 유출 여부를 판단하�
 * findings/context/evidence/noise를 Web UI에서 읽기 쉽게 제공한다.
 * 원본 report의 보안 의미를 새로 만들지 않는다.
 
-### 9.2 저장 위치
+### 9.2 저장 위치(현재 기준)
 
-단기 저장 위치:
+flat 병행 위치:
 
 ```text
 reports/<base>_viewer_payload.json
 ```
+
+Web UI default scan 기준 위치:
+
+```text
+runs/<run_id>/viewer_payload.json
+```
+
+현재 Web UI payload dashboard의 기본 입력은 run_dir `viewer_payload.json`이다.
 
 ### 9.3 생성 시점
 
@@ -515,7 +596,7 @@ raw export JSON
 
 ### 10.1 역할
 
-`lab/`은 일반 운영 산출물 저장소가 아니다.
+`lab/`은 일반 운영 산출물 저장소가 아니며, 현재 Web UI 기본 scan 대상도 아니다.
 
 `lab/`은 다음 용도로 유지한다.
 
@@ -533,6 +614,7 @@ raw export JSON
 <work-dir>/data/raw
 <work-dir>/data/processed
 <work-dir>/reports
+<work-dir>/runs
 ```
 
 `lab/`에 저장하려면 실험자가 명시적으로 `--work-dir` 또는 관련 경로를 지정한다.
@@ -553,6 +635,13 @@ python src/run_analysis_pipeline.py \
 * 기존 lab 산출물은 자동 마이그레이션하지 않는다.
 * 일반 운영 UX 개선을 이유로 lab 구조를 변경하지 않는다.
 * lab 산출물은 필요 시 별도 archive/fixture 정리 작업으로 다룬다.
+* legacy `lab/`/`reports/` 산출물을 Web UI가 직접 archive scan하는 방식은 현재 기본 운영 흐름으로 채택하지 않는다.
+  * 기존 산출물이 오래되었거나 `viewer_payload`가 없는 경우가 많아, 기본 목록 품질을 떨어뜨릴 수 있기 때문이다.
+* 과거 결과를 최신 Web UI에서 다시 보려면 다음 순서를 우선한다.
+  1. 보존된 raw export 존재 여부 확인
+  2. 최신 `run_analysis_pipeline.py --run-dir runs/<run_id>`로 재실행
+  3. 새 run_dir 산출물로 Web UI에서 조회
+* archive opt-in scan은 즉시 구현하지 않고 후속 후보로 보류한다.
 
 ## 11. Web UI와의 관계
 
@@ -562,11 +651,13 @@ python src/run_analysis_pipeline.py \
 
 역할:
 
-* report list
-* detail
+* report list(`runs/*/manifest.json` 기반)
+* detail(run_dir report 기준)
+* payload dashboard(run_dir `viewer_payload.json` 기준)
 * compare
 * filter
 * Stage2 quality lint result 표시
+* list/detail/payload에서 `run_id` 표시, partial provider compact UI 반영
 
 ### 11.2 Viewer Payload 기반 확장
 
@@ -587,6 +678,7 @@ python src/run_analysis_pipeline.py \
 * pipeline 실행
 * report rewrite
 * DB 제어
+* viewer_payload 재생성
 * 새 판정 생성
 * category/severity 재계산
 * raw body full search
@@ -666,27 +758,39 @@ Runner UX와 Web UI 표시 모두 Apache logs-only 원칙을 유지한다.
 * Web UI read-only scope 문서와 충돌 여부를 확인한다.
 * TODO/진행상황에 현재 상태를 반영한다.
 
-### Phase R2: viewer payload 최소 도입
+### Phase R2: viewer payload 최소 도입 (완료)
 
 * `src/viewer_payload_builder.py` 추가
 * Stage2 이후 `reports/<base>_viewer_payload.json` 생성
 * `run_analysis_pipeline.py`에서 viewer payload 생성 옵션 추가
 * latest manifest와 run별 manifest 분리
-* 기존 flat output 구조 유지
+* `--run-dir` 병행 산출물 경로 반영
 
-### Phase R3: runner UX 단순화 검토
+### Phase R3: runner UX 단순화 검토 (완료/반영)
 
 * `run_analysis_pipeline.py`의 일반 사용자 입력을 `--export-input` 중심으로 정리
 * `--llm-input`, `--stage1-results` resume 옵션의 유지/deprecate 여부 검토
 * 중간 산출물 재개는 개발/디버그 흐름으로 분리
 
-### Phase R4: Web UI viewer payload 표시
+### Phase R4: Web UI run_dir default scan + viewer payload 표시 (완료)
 
-* Web UI가 `viewer_payload.json`을 read-only로 스캔/표시
+* Web UI loader 기본 scan을 `runs/*/manifest.json`로 전환
+* run_dir `viewer_payload.json` resolve/fallback 반영
+* Web UI가 `viewer_payload.json`을 read-only로 표시
 * findings/context/evidence/noise 탭 또는 섹션 추가
 * 기존 Stage2 report detail/compare 기능과 충돌하지 않게 통합
+* actual run_dir smoke 완료:
+  - `runs/webui_run_dir_smoke_actual_2026-05-10`
+  - security export actual LLM 실행 + list/detail/payload 확인
 
-### Phase 2C 이후: execution console 후보
+### 후속 후보(미완료)
+
+* archive opt-in scan 정책/구현 여부 검토
+* flat/run_dir dedupe는 archive opt-in 필요 확인 시 검토
+* canonical_report_key는 후속 후보로 보류
+* provider 비교 구조 일반화(openai/anthropic 고정 -> N-provider)는 장기 후보
+
+### Phase 2C 이후: execution console 후보(비범위 유지)
 
 * New Analysis
 * Job Runner
@@ -702,12 +806,17 @@ Runner UX와 Web UI 표시 모두 Apache logs-only 원칙을 유지한다.
 
 * 단기적으로 일반 사용자는 Web UI에서 read-only 결과를 조회한다.
 * 단기적으로 분석 엔지니어가 CLI로 pipeline을 실행한다.
-* `run_analysis_pipeline.py`는 사용자용 one-shot runner 방향을 우선 후보로 둔다.
-* 기본 입력은 export JSON 1개가 가장 적절하다.
+* 현재 기본 실행 흐름은 `export JSON + --run-dir runs/<run_id>`다.
+* Web UI 기본 scan 기준은 `runs/*/manifest.json`이다.
+* `run_analysis_pipeline.py`는 사용자용 one-shot runner 방향을 유지한다.
+* 기본 입력은 export JSON 1개(`--export-input`)가 가장 적절하다.
 * 중간 산출물 resume은 즉시 제거하지 않고 개발/디버그 흐름과 분리 검토한다.
-* 산출물은 당장 flat output 구조를 유지한다.
-* `viewer_payload.json`은 `reports/<base>_viewer_payload.json`에 저장한다.
-* manifest는 latest와 run별 보존 manifest로 분리한다.
-* `lab/`은 실험 archive로 유지하고 일반 운영 출력과 섞지 않는다.
+* run_dir 산출물은 Web UI 기본 조회 기준이고, flat output은 병행/호환 산출물로 유지한다.
+* `viewer_payload.json`은 flat(`reports/<base>_viewer_payload.json`) + run_dir(`runs/<run_id>/viewer_payload.json`)를 함께 다룬다.
+* manifest는 latest + run별 보존 manifest로 분리하며, run_dir manifest는 Web UI discovery의 primary entry다.
+* legacy `lab/`/`reports/`는 보존하되 기본 scan에서 제외한다.
+* 과거 결과를 Web UI에서 다시 보려면 raw export 기반 재실행으로 run_dir 산출물을 생성하는 방식을 우선한다.
+* archive opt-in/dedupe/canonical_report_key는 후속 후보로 보류한다.
 * Web UI는 read-only viewer 원칙을 유지한다.
 * Phase 2C execution console은 별도 risk review 전까지 구현하지 않는다.
+* Apache logs-only 원칙을 유지한다.
