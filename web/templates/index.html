@@ -133,7 +133,7 @@
       {% endif %}
     </div>
 
-    <div class="card-grid card-grid-provider-pair">
+    <div class="card-grid card-grid-provider-pair {% if group.has_both %}has-both{% else %}is-partial{% endif %}">
       {% set provider_cards = [('openai', group.openai), ('anthropic', group.anthropic)] %}
       {% for provider_name, report in provider_cards %}
       {% if report %}
@@ -215,6 +215,7 @@
         {% endif %}
       </article>
       {% else %}
+      {% if group.has_both %}
       <article class="card provider-card provider-card-missing compare-panel-missing">
         <p class="provider-title">
           {% if provider_name == 'openai' %}
@@ -231,6 +232,16 @@
           <p><span class="meta-label">lint</span><span class="badge badge-missing-report">Missing report</span></p>
         </div>
       </article>
+      {% else %}
+      <div class="provider-missing-compact">
+        {% if provider_name == 'openai' %}
+          <span class="badge badge-provider-openai">openai</span>
+        {% else %}
+          <span class="badge badge-provider-anthropic">anthropic</span>
+        {% endif %}
+        <span class="badge badge-missing-report">missing</span>
+      </div>
+      {% endif %}
       {% endif %}
       {% endfor %}
 
