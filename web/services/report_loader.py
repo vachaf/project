@@ -480,7 +480,11 @@ class ReportLoader:
                     base_report.viewer_payload_available = True
                     base_report.viewer_payload_path = to_repo_relative_path(viewer_path, self.project_root)
                     base_report.viewer_payload_summary = self._build_viewer_payload_summary(viewer_payload)
-            except (OSError, json.JSONDecodeError, ValueError) as exc:
+            except json.JSONDecodeError:
+                # malformed payload는 report 자체를 invalid 처리하지 않는다.
+                base_report.viewer_payload_available = False
+                base_report.viewer_payload_error = "MALFORMED_JSON"
+            except (OSError, ValueError) as exc:
                 # viewer_payload 로드 실패는 report detail 자체를 invalid 처리하지 않는다.
                 base_report.viewer_payload_available = False
                 base_report.viewer_payload_error = f"viewer_payload load error: {exc}"

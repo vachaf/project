@@ -76,7 +76,6 @@ def test_missing_viewer_payload_keeps_report_valid(tmp_path: Path) -> None:
     assert target.viewer_payload_error == "MISSING_FILE"
 
 
-@RUN_DIR_SCAN_NOT_IMPLEMENTED
 def test_malformed_viewer_payload_is_fallback_safe(tmp_path: Path) -> None:
     fixture_root = build_web_loader_phase2_fixture_root(tmp_path)
     loader = _build_loader_for_run_dir_manifest_scan(fixture_root)
