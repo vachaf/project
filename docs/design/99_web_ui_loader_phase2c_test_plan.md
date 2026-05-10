@@ -145,9 +145,121 @@ tests/fixtures/web_loader_phase2/archive/
 - 테스트는 전용 fixture root를 주입할 수 있어야 한다.
 - fixture는 Apache logs-only guardrail을 깨는 문구를 포함하지 않는다.
 
-## 6. 테스트 축 상세
+## 6. 최소 fixture case 및 helper 방식 결정
 
-### 6.1 run_dir-only 기본 scan
+### 6.1 최소 fixture case 수
+
+Phase 2C 최소 fixture case는 6개로 고정한다.
+
+필수 run_dir fixture 5개:
+
+1. `run_dir_valid_basic`
+   - 정상 run_dir report
+   - list/detail/payload route contract와 metadata preservation의 기준 fixture
+
+2. `run_dir_missing_viewer_payload`
+   - stage2 report는 정상, viewer_payload 없음
+   - payload unavailable fallback 기준 fixture
+
+3. `run_dir_malformed_viewer_payload`
+   - stage2 report는 정상, viewer_payload JSON 파싱 실패
+   - malformed payload fallback 기준 fixture
+
+4. `run_dir_malformed_manifest`
+   - manifest JSON 파싱 실패 또는 root schema 오류
+   - manifest failure isolation 기준 fixture
+
+5. `run_dir_missing_stage2_report`
+   - manifest는 있으나 primary stage2 report 없음
+   - missing primary report skip 기준 fixture
+
+필수 archive fixture 1개:
+
+6. `archive_flat_legacy_without_viewer_payload`
+   - legacy flat/lab/data archive가 기본 scan에서 제외되는지 확인하는 fixture
+   - archive opt-in 구현 전에는 기본 exclusion 검증만 담당
+
+### 6.2 후순위 fixture
+
+아래 fixture는 초기 최소 세트에서 제외하고, 필요가 확인될 때 추가한다.
+
+- `run_dir_missing_optional_fields`
+  - schema incomplete/fallback 세부 검증용
+  - 초기 missing/malformed payload 테스트가 안정화된 뒤 추가
+
+- `run_dir_huge_text_report`
+  - layout/mobile smoke 검증용
+  - loader scan 구현과 직접 관련이 낮으므로 후순위
+
+- `archive_flat_and_run_dir_duplicate`
+  - archive opt-in + dedupe 검증용
+  - archive opt-in이 구현 후보로 승격될 때 추가
+
+### 6.3 fixture root 방식 결정
+
+초기 Phase 2C/2D 테스트는 커밋된 정적 JSON fixture 디렉터리를 대량으로 만들지 않고, pytest `tmp_path` 기반 runtime fixture root를 우선 사용한다.
+
+권장 runtime root:
+
+```text
+<tmp_path>/web_loader_phase2/
+  runs/
+    run_dir_valid_basic/
+    run_dir_missing_viewer_payload/
+    run_dir_malformed_viewer_payload/
+    run_dir_malformed_manifest/
+    run_dir_missing_stage2_report/
+  archive/
+    flat_legacy_without_viewer_payload/
+```
+
+이유:
+
+- 실제 repo의 `reports/`, `lab/`, `data/`와 테스트 입력을 분리할 수 있다.
+- fixture case별 파일 생성/누락/파손 상태를 테스트 안에서 명시적으로 만들 수 있다.
+- JSON fixture 파일 대량 커밋을 피할 수 있다.
+- run_dir scan 구현 전후로 path 주입 방식을 검증하기 쉽다.
+
+### 6.4 helper 방식 결정
+
+초기 helper는 전용 test helper module로 둔다.
+
+후보 경로:
+
+```text
+tests/helpers/web_loader_phase2_fixtures.py
+```
+
+helper 함수 후보:
+
+```python
+def build_web_loader_phase2_fixture_root(tmp_path) -> Path:
+    """Create the minimal Phase 2C fixture tree under tmp_path and return project_root."""
+
+
+def write_run_dir_case(root: Path, run_id: str, *, include_stage2: bool = True, include_payload: bool = True, malformed_manifest: bool = False, malformed_payload: bool = False) -> Path:
+    """Create a single run_dir fixture case."""
+
+
+def write_legacy_archive_case(root: Path) -> Path:
+    """Create a legacy flat report fixture that must be excluded by default scan."""
+```
+
+초기에는 helper를 지나치게 일반화하지 않는다. 최소 테스트 5개가 필요로 하는 JSON만 생성한다.
+
+### 6.5 정적 fixture 디렉터리 사용 기준
+
+정적 fixture 파일은 아래 경우에만 후속으로 검토한다.
+
+- browser/manual layout 확인용 huge text fixture가 필요해진 경우
+- 여러 테스트 파일에서 같은 payload를 반복 사용해 helper보다 정적 파일이 더 읽기 쉬운 경우
+- fixture 자체를 문서화된 sample artifact로 보존해야 하는 경우
+
+현재 단계에서는 runtime helper를 기본으로 한다.
+
+## 7. 테스트 축 상세
+
+### 7.1 run_dir-only 기본 scan
 
 목적:
 
@@ -173,7 +285,7 @@ tests/fixtures/web_loader_phase2/archive/
 - 이 테스트는 Phase 2D 구현 전에는 pending/xfail 후보로 둘 수 있다.
 - 구현 후에는 기본 회귀 테스트로 승격한다.
 
-### 6.2 legacy flat/lab/data 기본 제외
+### 7.2 legacy flat/lab/data 기본 제외
 
 목적:
 
@@ -182,7 +294,6 @@ tests/fixtures/web_loader_phase2/archive/
 필요 fixture:
 
 - `archive_flat_legacy_without_viewer_payload`
-- `archive_flat_and_run_dir_duplicate`
 
 기대 assertion:
 
@@ -193,8 +304,9 @@ tests/fixtures/web_loader_phase2/archive/
 후순위 assertion:
 
 - archive opt-in mode가 구현되면 해당 mode에서만 legacy report가 포함된다.
+- `archive_flat_and_run_dir_duplicate` fixture는 이때 추가한다.
 
-### 6.3 malformed manifest isolation
+### 7.3 malformed manifest isolation
 
 목적:
 
@@ -212,7 +324,7 @@ tests/fixtures/web_loader_phase2/archive/
 - 정상 run_dir report는 계속 포함된다.
 - diagnostic/invalid run list는 구현 전에는 필수로 요구하지 않는다.
 
-### 6.4 missing stage2 report skip
+### 7.4 missing stage2 report skip
 
 목적:
 
@@ -230,7 +342,7 @@ tests/fixtures/web_loader_phase2/archive/
 - viewer_payload만 있는 run은 일반 report로 승격되지 않는다.
 - stage2 report 부재는 새 보안 판정이나 synthetic report 생성으로 보정하지 않는다.
 
-### 6.5 missing viewer_payload fallback
+### 7.5 missing viewer_payload fallback
 
 목적:
 
@@ -250,7 +362,7 @@ tests/fixtures/web_loader_phase2/archive/
 - detail route는 표시 가능하다.
 - payload route는 crash 없이 unavailable 상태를 표시한다.
 
-### 6.6 malformed viewer_payload fallback
+### 7.6 malformed viewer_payload fallback
 
 목적:
 
@@ -268,7 +380,7 @@ tests/fixtures/web_loader_phase2/archive/
 - stage2 report 자체는 invalid 처리하지 않는다.
 - payload route는 fallback-safe하게 error를 표시한다.
 
-### 6.7 schema incomplete viewer_payload fallback
+### 7.7 schema incomplete viewer_payload fallback
 
 목적:
 
@@ -276,7 +388,7 @@ tests/fixtures/web_loader_phase2/archive/
 
 필요 fixture:
 
-- `run_dir_missing_optional_fields`
+- 후순위 `run_dir_missing_optional_fields`
 
 기대 assertion:
 
@@ -286,7 +398,7 @@ tests/fixtures/web_loader_phase2/archive/
 - schema가 너무 불완전하면 `viewer_payload_error_code=SCHEMA_INCOMPLETE` 후보를 검토한다.
 - report 자체는 invalid 처리하지 않는다.
 
-### 6.8 route contract 유지
+### 7.8 route contract 유지
 
 목적:
 
@@ -310,7 +422,7 @@ tests/fixtures/web_loader_phase2/archive/
 - `run_id` 전용 route는 이번 테스트 범위가 아니다.
 - 기존 route를 변경하지 않는다.
 
-### 6.9 metadata preservation
+### 7.9 metadata preservation
 
 목적:
 
@@ -329,7 +441,7 @@ tests/fixtures/web_loader_phase2/archive/
 - `viewer_payload_path`가 존재하는 경우 repo-relative path로 표시 가능
 - `canonical_report_key`는 구현 전 후보이며 필수 assertion으로 두지 않는다.
 
-### 6.10 read-only invariant
+### 7.10 read-only invariant
 
 목적:
 
@@ -357,7 +469,7 @@ tests/fixtures/web_loader_phase2/archive/
 - loader/UI에 새 보안 판정을 만드는 endpoint가 없다.
 - read-only 안내 또는 guardrail 문구는 유지된다.
 
-### 6.11 source IP display-only 유지
+### 7.11 source IP display-only 유지
 
 목적:
 
@@ -375,7 +487,7 @@ tests/fixtures/web_loader_phase2/archive/
 - Related Contexts matching은 raw data 기준을 유지한다.
 - UI가 새 관계를 추론해 보정하지 않는다.
 
-## 7. 최소 테스트 세트 제안
+## 8. 최소 테스트 세트 제안
 
 Phase 2D 구현 전에 최소로 고정할 테스트는 아래 5개다.
 
@@ -404,7 +516,7 @@ Phase 2D 구현 전에 최소로 고정할 테스트는 아래 5개다.
 - canonical_report_key fallback
 - read-only invariant HTML keyword 검사
 
-## 8. xfail/pending 운영 기준
+## 9. xfail/pending 운영 기준
 
 Phase 2C 테스트는 Phase 2D 구현 전에 작성될 수 있으므로 일부 테스트는 초기에는 실패할 수 있다.
 
@@ -415,7 +527,7 @@ Phase 2C 테스트는 Phase 2D 구현 전에 작성될 수 있으므로 일부 �
 - Phase 2D 구현 PR/커밋에서 xfail을 pass로 전환한다.
 - xfail 사유에는 `run_dir manifest scan not implemented yet`처럼 명시적 이유를 남긴다.
 
-## 9. 테스트 데이터 작성 원칙
+## 10. 테스트 데이터 작성 원칙
 
 - fixture 문구는 Apache logs-only evidence boundary를 유지한다.
 - `status_code=200`, `text/html`, `response_body_bytes`, route name, UA, IP만으로 성공/침해/유출을 단정하지 않는다.
@@ -424,21 +536,26 @@ Phase 2C 테스트는 Phase 2D 구현 전에 작성될 수 있으므로 일부 �
 - long text fixture는 layout 압박 검증용이며 공격 성공 근거가 아니다.
 - lab 전용 UA나 특정 IP를 공격 성공 근거로 일반화하지 않는다.
 
-## 10. Phase 2D 진입 조건
+## 11. Phase 2D 진입 조건
 
 Phase 2D `runs/*/manifest.json` scan 구현으로 넘어가기 전에 아래가 준비되어야 한다.
 
-- Phase 2B fixture case 이름과 최소 파일 구조 확정
-- fixture root 주입 방식 결정
+- 최소 fixture case 6개 확정
+- pytest `tmp_path` 기반 runtime fixture root 방식 확정
+- `tests/helpers/web_loader_phase2_fixtures.py` helper 방식 확정
 - 최소 테스트 5개 작성 또는 xfail로 고정
 - legacy flat/lab/data 기본 제외 기대값 고정
 - missing/malformed viewer_payload fallback 기대값 고정
 - malformed manifest/missing stage2 report skip 정책 고정
 - read-only invariant 위반 금지 항목 확인
 
-## 11. 결정 사항 요약
+## 12. 결정 사항 요약
 
 - Phase 2C는 fixture 생성 직후 바로 구현으로 가지 않고, 테스트 축을 먼저 고정하는 단계다.
+- 최소 fixture case는 6개로 고정한다.
+- 필수 run_dir fixture는 5개, 필수 archive exclusion fixture는 1개다.
+- 초기 fixture root는 커밋된 정적 JSON 디렉터리가 아니라 pytest `tmp_path` 기반 runtime root로 생성한다.
+- helper는 `tests/helpers/web_loader_phase2_fixtures.py` 후보로 둔다.
 - 기본 테스트 방향은 run_dir-only scan과 legacy exclusion이다.
 - viewer_payload 문제는 report invalid와 분리한다.
 - manifest 문제는 해당 run skip을 우선 정책으로 둔다.
@@ -446,11 +563,9 @@ Phase 2D `runs/*/manifest.json` scan 구현으로 넘어가기 전에 아래가 
 - archive opt-in과 duplicate dedupe는 후순위 테스트다.
 - Phase 2D 구현 전 최소 테스트 5개를 먼저 고정하는 것을 권장한다.
 
-## 12. 다음 단계
+## 13. 다음 단계
 
-1. Phase 2C test plan 리뷰
-2. 최소 fixture case 수 확정
-3. fixture root 및 helper 방식 결정
-4. 최소 fixture 파일 생성
-5. 최소 테스트 5개 작성
-6. 이후 Phase 2D run_dir manifest scan 구현 검토
+1. 최소 fixture helper 문서/코드 후보 리뷰
+2. 최소 fixture 파일을 runtime helper로 생성
+3. 최소 테스트 5개 작성 또는 xfail 고정
+4. 이후 Phase 2D run_dir manifest scan 구현 검토
