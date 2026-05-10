@@ -489,6 +489,13 @@ class ReportLoader:
 
     def _resolve_viewer_payload_path(self, stage2_report_path: Path) -> Path:
         base_name = stage2_report_path.name
+
+        # run_dir standard naming
+        if base_name == "stage2_report.json":
+            run_dir_payload = stage2_report_path.with_name("viewer_payload.json")
+            if run_dir_payload.exists():
+                return run_dir_payload
+
         if base_name.endswith(STAGE2_SUFFIX):
             stem = base_name[: -len(STAGE2_SUFFIX)]
             return stage2_report_path.with_name(f"{stem}_viewer_payload.json")
