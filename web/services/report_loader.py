@@ -484,6 +484,9 @@ class ReportLoader:
                 # viewer_payload 로드 실패는 report detail 자체를 invalid 처리하지 않는다.
                 base_report.viewer_payload_available = False
                 base_report.viewer_payload_error = f"viewer_payload load error: {exc}"
+        else:
+            base_report.viewer_payload_available = False
+            base_report.viewer_payload_error = "MISSING_FILE"
 
         return base_report
 
