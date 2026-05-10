@@ -30,6 +30,16 @@ LINT_OPTIONS = ("pass", "warn", "fail", "error")
 PAIR_OPTIONS = ("both", "partial")
 PROVIDER_OPTIONS = ("openai", "anthropic", "unknown")
 SORT_OPTIONS = ("time_desc", "time_asc", "severity_desc")
+NOTABLE_INCIDENT_COLUMNS: List[Dict[str, Any]] = [
+    {"key": "severity", "label": "severity", "always_visible": True},
+    {"key": "verdict", "label": "verdict", "always_visible": True},
+    {"key": "incident_ref", "label": "incident_ref", "always_visible": True},
+    {"key": "title", "label": "summary", "always_visible": False},
+    {"key": "why_it_matters", "label": "why_it_matters", "always_visible": True},
+    {"key": "source_ip", "label": "source_ip", "always_visible": True},
+    {"key": "request_count", "label": "request_count", "always_visible": False},
+    {"key": "recommended_action", "label": "recommended_action", "always_visible": False},
+]
 
 
 @app.get("/")
@@ -124,6 +134,7 @@ def report_detail(request: Request, report_id: str):
 
     report_payload = report.report if isinstance(report.report, dict) else {}
     incidents = sanitize_incidents(report_payload.get("notable_incidents", []))
+    visible_incident_columns = visible_columns_for_rows(incidents, NOTABLE_INCIDENT_COLUMNS)
     actions = sanitize_action_items(report_payload.get("recommended_actions", []))
     key_findings = sanitize_finding_items(report_payload.get("key_findings", []))
     source_ips = sanitize_source_ip_items(report_payload.get("notable_source_ips", []))
@@ -143,6 +154,7 @@ def report_detail(request: Request, report_id: str):
             "report": detail,
             "qa_result": qa_result,
             "incidents": incidents,
+            "visible_incident_columns": visible_incident_columns,
             "actions": actions,
             "key_findings": key_findings,
             "source_ips": source_ips,
@@ -499,6 +511,28 @@ def sanitize_incidents(rows: Any) -> List[Dict[str, str]]:
             }
         )
     return normalized
+
+
+def is_display_value(value: Any) -> bool:
+    if value is None:
+        return False
+    text = str(value).strip()
+    return text not in {"", "-"}
+
+
+def should_show_column(rows: List[Dict[str, Any]], key: str) -> bool:
+    return any(is_display_value(row.get(key)) for row in rows if isinstance(row, dict))
+
+
+def visible_columns_for_rows(rows: List[Dict[str, Any]], columns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    visible: List[Dict[str, Any]] = []
+    for column in columns:
+        key = str(column.get("key") or "").strip()
+        if not key:
+            continue
+        if bool(column.get("always_visible")) or should_show_column(rows, key):
+            visible.append(column)
+    return visible
 
 
 def sanitize_action_items(rows: Any) -> List[Dict[str, str]]:

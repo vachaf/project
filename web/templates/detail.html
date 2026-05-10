@@ -182,33 +182,23 @@
     <table class="table table-compact report-mobile-table report-table-notable-incidents">
       <thead>
         <tr>
-          <th>severity</th>
-          <th>verdict</th>
-          <th>incident_ref</th>
-          <th>summary</th>
-          <th>why_it_matters</th>
-          <th>source_ip</th>
-          <th>request_count</th>
-          <th>recommended_action</th>
+          {% for column in visible_incident_columns %}
+          <th>{{ column.label }}</th>
+          {% endfor %}
         </tr>
       </thead>
       <tbody>
         {% if incidents %}
           {% for row in incidents %}
           <tr>
-            <td data-label="severity">{{ row.severity }}</td>
-            <td data-label="verdict">{{ row.verdict }}</td>
-            <td data-label="incident_ref">{{ row.incident_ref }}</td>
-            <td data-label="summary">{{ row.title }}</td>
-            <td data-label="why_it_matters">{{ row.why_it_matters }}</td>
-            <td data-label="source_ip">{{ row.source_ip }}</td>
-            <td data-label="request_count">{{ row.request_count }}</td>
-            <td data-label="recommended_action">{{ row.recommended_action }}</td>
+            {% for column in visible_incident_columns %}
+            <td data-label="{{ column.label }}">{{ row[column.key] }}</td>
+            {% endfor %}
           </tr>
           {% endfor %}
         {% else %}
           <tr>
-            <td colspan="8" class="is-empty">N/A</td>
+            <td colspan="{{ visible_incident_columns|length }}" class="is-empty">N/A</td>
           </tr>
         {% endif %}
       </tbody>
