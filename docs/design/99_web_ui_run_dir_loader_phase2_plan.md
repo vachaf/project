@@ -9,6 +9,17 @@
   - `docs/planning/99_비교실험_후속개선_TODO.md`
   - `docs/operations/README.md`
 
+## 0. 현재 상태 업데이트 (2026-05-10)
+
+- 본 문서는 Web UI loader Phase 2 구현 전 작성한 설계/정책 문서다.
+- 이후 Phase 2A/2B/2C 문서화와 Phase 2D backend 구현이 완료되었다.
+- 현재 Web UI 기본 scan은 `runs/*/manifest.json` 기준이다.
+- 기존 `reports/`/`lab/` glob은 `LEGACY_REPORT_GLOBS`로 보존되며 기본 scan에서는 제외된다.
+- run_dir manifest에서 `stage2_report.json`을 resolve하고 기존 `Report` 모델로 normalize한다.
+- run_dir 표준 `viewer_payload.json` resolve 및 `MISSING_FILE`/`MALFORMED_JSON` fallback이 반영되었다.
+- route/template/app.py 변경 없이 loader 계층에서 전환했고, Web UI read-only invariant를 유지했다.
+- archive opt-in, flat/run_dir dedupe, canonical_report_key는 아직 구현하지 않았으며 후속 후보로 보류한다.
+
 ## 1. 목적
 
 - 본 문서는 Web UI loader의 Phase 2 후보( `runs/*/manifest.json` scan )를 구현 전에 명시적으로 설계한다.
@@ -17,7 +28,7 @@
 
 ## 2. 현재 상태 요약
 
-- Web UI의 현재 기준은 flat output(`reports/`)이다.
+- 작성 당시(2026-05-09) Web UI 기준은 flat output(`reports/`)이었다. 이후 기본 scan은 run_dir manifest 중심으로 전환되었으며, 최신 상태는 `0. 현재 상태 업데이트 (2026-05-10)`를 따른다.
 - `run_analysis_pipeline.py --run-dir <path>`는 opt-in 병행 산출물 생성 기능이며, 미지정 시 기존 flat output만 생성한다.
 - run_dir에는 아래 표준 파일명이 생성된다.
   - `manifest.json`
@@ -29,8 +40,8 @@
   - `stage2_report.md`
   - `viewer_payload.json`
   - `noise_summary.json`
-- Web UI loader는 아직 `runs/`를 scan하지 않는다.
-- run_dir는 현재 병행 산출물/추적용이며, 운영 기준은 여전히 flat output 우선이다.
+- 작성 당시 기준으로는 Web UI loader가 `runs/`를 scan하지 않는 상태였으나, 이후 `runs/*/manifest.json -> stage2_report.json` discover/normalize가 구현 완료되었다.
+- 작성 당시 운영 기준은 flat output 우선이었으나, 이후 기본 scan은 run_dir manifest 중심으로 전환되었다.
 
 ## 3. 설계 범위
 
@@ -58,8 +69,8 @@
 
 ### 5.1 기본 원칙
 
-- 기본 동작은 기존 flat `reports/` scan을 유지한다.
-- Phase 2에서 `runs/*/manifest.json` scan을 "추가 후보"로 검토한다.
+- 작성 당시 기본 동작은 기존 flat `reports/` scan 유지였다.
+- 작성 당시 Phase 2에서 `runs/*/manifest.json` scan은 "추가 후보"였으며, 이후 기본 scan으로 전환 구현이 완료되었다.
 - run_dir 결과를 읽더라도 Web UI는 read-only viewer 범위를 유지한다.
 
 ### 5.2 `runs/*/manifest.json` scan 후보
@@ -141,7 +152,7 @@ route 후보 비교(구현 아님):
 
 ## 9. 회귀 방지 체크리스트
 
-- 기존 flat reports 목록이 그대로 보여야 함
+- legacy flat/lab scan은 기본 제외 정책을 유지해야 하며, archive opt-in이 필요하면 별도 정책으로 검토해야 함
 - 기존 detail route가 깨지면 안 됨
 - 기존 viewer_payload route가 깨지면 안 됨
 - viewer_payload 없는 결과는 안전 처리해야 함
@@ -158,6 +169,9 @@ route 후보 비교(구현 아님):
 - Phase 2C: flat-only 회귀 테스트 보강
 - Phase 2D: run_dir manifest scan 구현
 - Phase 2E: legacy/lab opt-in scan 여부 재검토
+
+참고:
+- Phase 2A~2D는 이후 구현/검증이 완료되었고, 본 섹션은 작성 당시의 권장 단계 기록이다.
 
 ## 11. 검증 계획
 
