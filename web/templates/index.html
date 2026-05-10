@@ -130,6 +130,12 @@
       {% else %}
         <span class="badge badge-lint-warn">Missing pair</span>
         <a class="action-link" href="/compare/{{ group.timeframe_id }}">Compare partial</a>
+        {% if not group.openai %}
+          <span class="provider-missing-chip">openai missing</span>
+        {% endif %}
+        {% if not group.anthropic %}
+          <span class="provider-missing-chip">anthropic missing</span>
+        {% endif %}
       {% endif %}
     </div>
 
@@ -232,15 +238,6 @@
           <p><span class="meta-label">lint</span><span class="badge badge-missing-report">Missing report</span></p>
         </div>
       </article>
-      {% else %}
-      <div class="provider-missing-compact">
-        {% if provider_name == 'openai' %}
-          <span class="badge badge-provider-openai">openai</span>
-        {% else %}
-          <span class="badge badge-provider-anthropic">anthropic</span>
-        {% endif %}
-        <span class="badge badge-missing-report">missing</span>
-      </div>
       {% endif %}
       {% endif %}
       {% endfor %}

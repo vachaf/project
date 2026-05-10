@@ -119,14 +119,6 @@ a {
   border-style: dashed;
 }
 
-.provider-missing-compact {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.2rem 0;
-  min-height: 0;
-}
-
 .group-head {
   display: flex;
   flex-wrap: wrap;
@@ -152,6 +144,19 @@ a {
   align-items: center;
   gap: 0.45rem;
   margin-bottom: 0.65rem;
+}
+
+.provider-missing-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  line-height: 1;
+  padding: 0.3rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #d6dde8;
+  background: #eef3fb;
+  color: #41556f;
+  white-space: nowrap;
 }
 
 .provider-title {
