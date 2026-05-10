@@ -3,8 +3,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 from web.services.report_loader import ReportLoader
 
 TESTS_DIR = Path(__file__).resolve().parent
@@ -12,12 +10,6 @@ if str(TESTS_DIR) not in sys.path:
     sys.path.insert(0, str(TESTS_DIR))
 
 from helpers.web_loader_phase2_fixtures import build_web_loader_phase2_fixture_root
-
-
-RUN_DIR_SCAN_NOT_IMPLEMENTED = pytest.mark.xfail(
-    reason="run_dir manifest scan not implemented yet",
-    strict=False,
-)
 
 
 def _build_loader_for_run_dir_manifest_scan(fixture_root: Path) -> ReportLoader:
@@ -50,7 +42,6 @@ def test_run_dir_scan_includes_valid_run_only(tmp_path: Path) -> None:
     assert storage_types == {"run_dir"}
 
 
-@RUN_DIR_SCAN_NOT_IMPLEMENTED
 def test_default_scan_excludes_legacy_archive_outputs(tmp_path: Path) -> None:
     fixture_root = build_web_loader_phase2_fixture_root(tmp_path)
     loader = ReportLoader(project_root=fixture_root)

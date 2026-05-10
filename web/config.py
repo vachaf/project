@@ -3,6 +3,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 REPORT_GLOBS = [
+    "runs/*/manifest.json",
+]
+
+LEGACY_REPORT_GLOBS = [
     "reports/*_stage2_report.json",
     "lab/**/reports/*_stage2_report.json",
 ]
