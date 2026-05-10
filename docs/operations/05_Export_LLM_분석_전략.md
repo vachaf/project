@@ -44,6 +44,10 @@ llm_stage2_reporter.py
 - 실행 후 `pipeline_manifest.json`을 생성한다.
 - `--run-dir <path>`를 지정하면 기존 flat output(`data/processed`, `reports`, `<work-dir>/pipeline_manifest.json`, `reports/<base>_pipeline_manifest.json`)을 유지한 상태에서, 실행 1회 단위 산출물을 run_dir에도 표준 파일명으로 병행 생성할 수 있다.
 - run_dir는 분석 의미를 바꾸는 기능이 아니라 산출물 정리/추적용 opt-in 출력 레이어다.
+- Web UI 기본 목록 기준은 run_dir manifest scan이다.
+  - `REPORT_GLOBS=["runs/*/manifest.json"]`
+  - `LEGACY_REPORT_GLOBS=["reports/*_stage2_report.json", "lab/**/reports/*_stage2_report.json"]`
+  - flat `reports/`만 있는 산출물은 Web UI 기본 목록에 나오지 않는 것이 정상이다.
 
 ## 2. 로그 역할
 
@@ -88,6 +92,7 @@ pipeline 연계 시:
 - 필요하면 `--run-dir`를 함께 지정해 해당 실행의 산출물을 별도 디렉터리로 묶어 보관한다.
 - run_dir 내부에서는 표준 파일명(`manifest.json`, `export.json`, `llm_input.json`, `stage1_results.json`, `stage2_report_input.json`, `stage2_report.json`, `stage2_report.md`, `viewer_payload.json`, `noise_summary.json`)으로 정리된다.
 - run_dir의 `manifest.json`은 run_dir 내부 파일과 기존 flat output 경로를 함께 연결하는 메타데이터를 담는다.
+- 운영 기본 흐름에서 Web UI 표시 연동이 필요하면 `--run-dir runs/<run_id>` 지정이 권장된다.
 
 ## 4. prepare 기준
 
