@@ -34,7 +34,6 @@ def _find_report_by_run_id(reports: list, run_id: str):
     return None
 
 
-@RUN_DIR_SCAN_NOT_IMPLEMENTED
 def test_run_dir_scan_includes_valid_run_only(tmp_path: Path) -> None:
     fixture_root = build_web_loader_phase2_fixture_root(tmp_path)
     loader = _build_loader_for_run_dir_manifest_scan(fixture_root)

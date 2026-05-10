@@ -116,7 +116,9 @@ class ReportLoader:
         reports_by_id: Dict[str, Report] = {}
 
         for file_path in self._iter_unique_report_paths():
-            report = self._load_single_report(file_path)
+            report = self._load_report_from_candidate_path(file_path)
+            if report is None:
+                continue
             reports_by_id[report.report_id] = report
             reports.append(report)
 
@@ -134,6 +136,63 @@ class ReportLoader:
         self._ordered_ids = [report.report_id for report in reports]
         self._groups_by_timeframe_id = self.group_by_timeframe(reports)
         return reports
+
+    def _load_report_from_candidate_path(self, file_path: Path) -> Optional[Report]:
+        if file_path.name == "manifest.json":
+            return self._load_manifest_report(file_path)
+        return self._load_single_report(file_path)
+
+    def _load_manifest_report(self, manifest_path: Path) -> Optional[Report]:
+        try:
+            with manifest_path.open("r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+        except (OSError, json.JSONDecodeError, ValueError):
+            return None
+
+        if not isinstance(manifest, dict):
+            return None
+
+        stage2_report_path = self._resolve_run_dir_stage2_report_path(manifest_path, manifest)
+        if stage2_report_path is None:
+            return None
+
+        report = self._load_single_report(stage2_report_path)
+        self._augment_run_dir_metadata(report, manifest_path, manifest)
+        return report
+
+    def _resolve_run_dir_stage2_report_path(self, manifest_path: Path, manifest: Dict[str, Any]) -> Optional[Path]:
+        candidates: List[str] = []
+        run_dir_files = manifest.get("run_dir_files")
+        if isinstance(run_dir_files, dict):
+            for key in ("stage2_report", "stage2_report_json", "stage2_report_path"):
+                value = run_dir_files.get(key)
+                if isinstance(value, str) and value.strip():
+                    candidates.append(value.strip())
+
+        for key in ("stage2_report", "stage2_report_json", "stage2_report_path"):
+            value = manifest.get(key)
+            if isinstance(value, str) and value.strip():
+                candidates.append(value.strip())
+
+        candidates.append("stage2_report.json")
+
+        for raw_path in candidates:
+            candidate_path = Path(raw_path)
+            if not candidate_path.is_absolute():
+                candidate_path = manifest_path.parent / candidate_path
+            if candidate_path.is_file():
+                return candidate_path
+
+        return None
+
+    def _augment_run_dir_metadata(self, report: Report, manifest_path: Path, manifest: Dict[str, Any]) -> None:
+        meta = dict(report.meta) if isinstance(report.meta, dict) else {}
+        run_id = str(manifest.get("run_id") or "").strip() or manifest_path.parent.name
+        meta["run_id"] = run_id
+        meta["storage_type"] = "run_dir"
+        meta["manifest_path"] = to_repo_relative_path(manifest_path, self.project_root)
+        meta["run_dir"] = to_repo_relative_path(manifest_path.parent, self.project_root)
+        report.meta = meta
 
     def get_report_by_id(self, report_id: str) -> Optional[Report]:
         if report_id not in self._reports_by_id:
