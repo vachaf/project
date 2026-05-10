@@ -1,0 +1,618 @@
+{
+  "schema_version": "viewer_payload.v1",
+  "meta": {
+    "generated_at": "2026-05-10T11:36:27.767+09:00",
+    "source_of_truth": {
+      "findings": "stage2_report_input.top_incidents",
+      "contexts": "stage2_report_input + llm_input context-only collections",
+      "supporting_events": "stage2_report_input.supporting_events + llm_input.supporting_events"
+    },
+    "include_raw_log": false
+  },
+  "summary": {
+    "report_title": "Apache 웹 로그 사건형 분석 요약 (2026-05-10 11:29:44~11:30:56 KST)",
+    "overall_assessment": "같은 출발지 IP(192.168.56.1)에서 짧은 시간에 경로 이탈 시도와 SQLi 유사 요청이 각각 1건씩 관찰되었습니다. 다만 이 IP는 known asset로 분류되어 내부 테스트, 자체 호출, 운영 점검 가능성을 함께 고려해야 하며, Apache 로그 표면만으로 실제 파일 노출이나 DB 영향은 확인되지 않았습니다.",
+    "executive_summary": [
+      "분석 구간 동안 총 37건이 관찰됐고, 이 중 2건이 후보 사건으로 분류되었습니다.",
+      "핵심 후보는 `/view?file=../../etc/passwd` 형태의 경로 이탈 시도와 `/products?id=1 OR 1=1` 형태의 boolean 기반 SQLi 시도입니다.",
+      "동일 IP에서 robots.txt, sitemap.xml, 정적 자산, 제품/카테고리 탐색이 함께 보여 baseline/crawler 문맥도 존재합니다.",
+      "전체 맥락상 재현성 있는 탐색 패턴은 보이지만, Apache 로그만으로 성공적인 침해나 실제 유출은 단정할 수 없습니다."
+    ],
+    "pipeline_counts": {
+      "total_exported_rows": 37,
+      "candidate_rows": 2,
+      "distinct_incident_count": 2,
+      "filtered_out_rows": 35,
+      "filtered_out_non_aggregated_rows": 35,
+      "noise_group_count": 0,
+      "supporting_event_count": 0,
+      "false_positive_review_candidate_count": 0,
+      "probing_sequence_summary_count": 0,
+      "static_baseline_summary_count": 1,
+      "crawler_baseline_summary_count": 1,
+      "sensitive_path_probe_summary_count": 0,
+      "mixed_baseline_scanner_summary_count": 0,
+      "ip_behavior_aggregate_count": 1,
+      "auth_behavior_summary_count": 0,
+      "method_behavior_summary_count": 0,
+      "protocol_anomaly_summary_count": 0,
+      "stage1_success_count": 2,
+      "stage1_error_count": 0
+    },
+    "finding_count": 2,
+    "context_count": 3,
+    "supporting_event_count": 0
+  },
+  "report": {
+    "report_title": "Apache 웹 로그 사건형 분석 요약 (2026-05-10 11:29:44~11:30:56 KST)",
+    "overall_assessment": "같은 출발지 IP(192.168.56.1)에서 짧은 시간에 경로 이탈 시도와 SQLi 유사 요청이 각각 1건씩 관찰되었습니다. 다만 이 IP는 known asset로 분류되어 내부 테스트, 자체 호출, 운영 점검 가능성을 함께 고려해야 하며, Apache 로그 표면만으로 실제 파일 노출이나 DB 영향은 확인되지 않았습니다.",
+    "executive_summary": [
+      "분석 구간 동안 총 37건이 관찰됐고, 이 중 2건이 후보 사건으로 분류되었습니다.",
+      "핵심 후보는 `/view?file=../../etc/passwd` 형태의 경로 이탈 시도와 `/products?id=1 OR 1=1` 형태의 boolean 기반 SQLi 시도입니다.",
+      "동일 IP에서 robots.txt, sitemap.xml, 정적 자산, 제품/카테고리 탐색이 함께 보여 baseline/crawler 문맥도 존재합니다.",
+      "전체 맥락상 재현성 있는 탐색 패턴은 보이지만, Apache 로그만으로 성공적인 침해나 실제 유출은 단정할 수 없습니다."
+    ],
+    "key_findings": [
+      {
+        "title": "경로 이탈 시도 1건 관찰",
+        "detail": "`/view?file=../../etc/passwd` 형태의 디렉터리 이탈 패턴이 보이며, 응답은 200이지만 `text/html`과 fallback 정황이 함께 있어 실제 파일 노출 성공으로는 해석하지 않았습니다. known asset IP에서 발생했으므로 내부 테스트 또는 운영 점검 가능성도 함께 고려해야 합니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "boolean 기반 SQLi 시도 1건 관찰",
+        "detail": "`/products?id=1 OR 1=1` 형태의 전형적인 SQLi 패턴이 관찰되었습니다. 다만 200 응답과 HTML 응답만으로 DB 영향, 우회 성공, 데이터 노출은 확인되지 않아 시도 탐지 수준으로 보는 것이 적절합니다. 이 역시 known asset IP에서 발생했습니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "정상/준정상 탐색 문맥이 함께 존재",
+        "detail": "같은 IP에서 robots.txt, sitemap.xml, 정적 자산, 제품/카테고리 탐색이 다수 관찰되어 baseline 또는 crawler-like 문맥이 형성되어 있습니다. 이는 후보 사건의 존재를 약화시키는 근거라기보다, 같은 출발지에서 정상 탐색과 의심 요청이 혼재했음을 보여주는 보조 문맥입니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:af_tthajr9BZugnMrfrGxAAAAAQ|table:security|log_id:31918|candidate:0",
+        "request_id": "af_tthajr9BZugnMrfrGxAAAAAQ",
+        "src_ip": "192.168.56.1",
+        "verdict": "suspicious_path_traversal",
+        "severity": "medium",
+        "why_it_matters": "디렉터리 이탈 경로가 직접 포함된 요청으로, 파일 접근을 노린 시도로 해석할 수 있습니다. 다만 200 응답과 HTML fallback 정황이 있어 실제 파일 노출 성공은 확인되지 않았습니다."
+      },
+      {
+        "incident_ref": "request_id:af_ttxajr9BZugnMrfrGxQAAAAU|table:security|log_id:31919|candidate:1",
+        "request_id": "af_ttxajr9BZugnMrfrGxQAAAAU",
+        "src_ip": "192.168.56.1",
+        "verdict": "suspicious_sqli",
+        "severity": "medium",
+        "why_it_matters": "`OR 1=1` 구조의 SQLi 유사 패턴이 보이는 요청으로, 주입 시도 가능성이 높습니다. 하지만 Apache 로그만으로 DB 영향이나 우회 성공은 증명되지 않습니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.1",
+        "reason": "2건의 후보 사건이 모두 이 IP에서 발생했으며, 동시에 static/crawler baseline 문맥과 low-signal 탐색성 요청이 함께 관찰되었습니다. known asset로 분류되어 내부 테스트나 운영 점검 가능성을 반드시 함께 검토해야 합니다."
+      }
+    ],
+    "noise_interpretation": "후보 밖으로는 benign_normal_search 26건(74.3%), low_signal_fuzzing 9건(25.7%)이 걸러졌습니다. 즉, 전체 요청의 상당 부분은 정상 비교군 또는 낮은 신호의 탐색성 요청으로 정리되었고, 후보 사건 2건은 그 위에 얹혀 있는 의심 요청으로 해석하는 것이 적절합니다. 다만 filtered_out_breakdown이 존재하므로 후보 밖 요청 분포 자체도 무시하면 안 됩니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "두 후보 incident의 원본 로그를 request_id 기준으로 재검토하고, 같은 출발지 IP의 전후 요청과 묶어 시간 순서를 확인하십시오.",
+        "why": "경로 이탈과 SQLi 패턴이 같은 IP에서 연속 관찰되어 단발성 오입력인지, 내부 점검인지, 반복 탐색인지 구분이 필요합니다."
+      },
+      {
+        "priority": "P1",
+        "action": "192.168.56.1이 known asset인 점을 반영해 내부 테스트/운영 점검 여부를 우선 확인하십시오.",
+        "why": "known asset이면 외부 공격자 단정이 부적절하며, 실제 조치 방향이 달라질 수 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "애플리케이션의 `/view`와 `/products` 파라미터에 대해 경로 이탈/SQLi 방어 규칙이 실제로 적용되는지 점검하십시오.",
+        "why": "같은 패턴이 재발할 경우 실제 악용 시도로 이어질 수 있어 입력 검증과 파라미터 처리 방어를 확인할 필요가 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "같은 IP에서 관찰된 robots.txt, sitemap.xml, 정적 자산, 제품/카테고리 탐색 로그를 함께 보며 정상 탐색과 의심 요청의 혼재 여부를 확인하십시오.",
+        "why": "baseline/crawler 문맥이 함께 있어 단순 스캔인지, 운영 점검인지, 사용자 탐색인지 구분하는 데 도움이 됩니다."
+      },
+      {
+        "priority": "P3",
+        "action": "유사 요청에 대해 경보 룰을 유지하되, known asset에서는 낮은 우선순위 검토 또는 운영 점검 태그를 함께 사용하십시오.",
+        "why": "오탐 부담을 줄이면서도 반복 시도를 놓치지 않기 위한 운영적 균형이 필요합니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "신뢰도는 후보 패턴 식별에 한해서는 높지만, 실제 침해 성공 여부에 대해서는 낮습니다.",
+      "Apache 로그만으로는 response body 원문, DB 결과, 서버 내부 파일 내용, 브라우저 실행 여부를 확인할 수 없습니다.",
+      "같은 IP가 known asset이므로 내부 테스트, 자체 호출, 운영 점검 가능성을 반드시 함께 고려해야 합니다.",
+      "baseline/crawler 문맥과 의심 요청이 같은 시간창에 섞여 있어, 단일 공격 체인으로 과도하게 해석하지 않도록 주의가 필요합니다."
+    ],
+    "presentation_takeaway": "이번 구간에서는 known asset IP에서 경로 이탈과 SQLi 유사 요청이 각각 1건씩 관찰됐습니다. 다만 로그 표면상 성공 증거는 없고, 정상 탐색 문맥도 함께 있어 내부 테스트 가능성을 포함한 신중한 추가 확인이 필요합니다."
+  },
+  "findings": [
+    {
+      "source": "stage2_report_input.top_incidents",
+      "context_only": false,
+      "incident_ref": "request_id:af_tthajr9BZugnMrfrGxAAAAAQ|table:security|log_id:31918|candidate:0",
+      "incident_group_key": "rid:af_tthajr9BZugnMrfrGxAAAAAQ",
+      "dedup_key": "request_id:af_tthajr9BZugnMrfrGxAAAAAQ",
+      "request_id": "af_tthajr9BZugnMrfrGxAAAAAQ",
+      "source_table": "security",
+      "log_id": 31918,
+      "src_ip": "192.168.56.1",
+      "method": "GET",
+      "uri": "/view",
+      "query_string": "?file=../../etc/passwd",
+      "status_code": 200,
+      "log_time": "2026-05-10T11:30:14.160 09:00",
+      "severity": "medium",
+      "confidence": "high",
+      "verdict": "suspicious_path_traversal",
+      "verdict_hint": "path_traversal",
+      "category": "path_traversal_candidate",
+      "score": 10,
+      "reasoning_summary": "`/view?file=../../etc/passwd` 형태로 디렉터리 이탈 경로가 직접 포함되어 있어 path traversal 시도로 보는 것이 타당합니다. 다만 응답은 `text/html`이고 `likely_html_fallback_response`가 true이며 200 상태코드만으로 실제 파일 노출 성공은 단정할 수 없어, 성공 여부는 분리해 해석해야 합니다.",
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "special_char_ratio_high(+1)",
+        "traversal:html_fallback_like_response"
+      ],
+      "evidence_fields": [
+        "query_string의 `../../etc/passwd` 경로 이탈 패턴",
+        "raw_request에 동일한 traversal 시도",
+        "reason_hints의 `dotdot_slash`, `etc_passwd`",
+        "status_code 200이지만 `resp_content_type=text/html`",
+        "`likely_html_fallback_response=true`",
+        "response_body_bytes 75002로 HTML 페이지 가능성"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "watch"
+      ],
+      "response_body_bytes": 75002,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/view?file=..%2F..%2Fetc%2Fpasswd",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": true,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "user_agent": "Mozilla/5.0 (Linux; Android 14; SM-S928N) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        31918
+      ],
+      "raw_export_match": {
+        "source_table": "security",
+        "log_id": 31918,
+        "request_id": "af_tthajr9BZugnMrfrGxAAAAAQ"
+      }
+    },
+    {
+      "source": "stage2_report_input.top_incidents",
+      "context_only": false,
+      "incident_ref": "request_id:af_ttxajr9BZugnMrfrGxQAAAAU|table:security|log_id:31919|candidate:1",
+      "incident_group_key": "rid:af_ttxajr9BZugnMrfrGxQAAAAU",
+      "dedup_key": "request_id:af_ttxajr9BZugnMrfrGxQAAAAU",
+      "request_id": "af_ttxajr9BZugnMrfrGxQAAAAU",
+      "source_table": "security",
+      "log_id": 31919,
+      "src_ip": "192.168.56.1",
+      "method": "GET",
+      "uri": "/products",
+      "query_string": "?id=1 OR 1=1",
+      "status_code": 200,
+      "log_time": "2026-05-10T11:30:15.382 09:00",
+      "severity": "medium",
+      "confidence": "high",
+      "verdict": "suspicious_sqli",
+      "verdict_hint": "suspicious",
+      "category": "sqli_candidate",
+      "score": 5,
+      "reasoning_summary": "쿼리 문자열에 `id=1 OR 1=1` 형태의 전형적인 boolean-based SQLi 패턴이 보이고, 전처리 힌트도 `sqli:or_true`와 `sqli:boolean_true_condition`을 지지합니다. 다만 200 응답과 HTML 응답만으로 실제 영향이나 DB 오류는 확인되지 않아, 시도 탐지 수준으로 보는 것이 적절합니다.",
+      "reason_hints": [
+        "sqli:or_true(+4)",
+        "encoding:url_encoded_payload",
+        "special_char_ratio_high(+1)",
+        "sqli:boolean_true_condition"
+      ],
+      "evidence_fields": [
+        "query_string의 OR 1=1 패턴",
+        "raw_request의 boolean true 조건",
+        "reason_hints의 sqli:or_true",
+        "reason_hints의 sqli:boolean_true_condition",
+        "status_code 200",
+        "resp_content_type text/html",
+        "response_body_bytes 75002"
+      ],
+      "recommended_actions": [
+        "review_raw_log",
+        "correlate_request_id",
+        "correlate_src_ip",
+        "watch"
+      ],
+      "response_body_bytes": 75002,
+      "resp_content_type": "text/html",
+      "raw_request_target": "/products?id=1+OR+1%3D1",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/537.36 Chrome/123.0 Safari/537.36",
+      "merged_row_count": 1,
+      "merged_source_tables": [
+        "security"
+      ],
+      "merged_log_ids": [
+        31919
+      ],
+      "raw_export_match": {
+        "source_table": "security",
+        "log_id": 31919,
+        "request_id": "af_ttxajr9BZugnMrfrGxQAAAAU"
+      }
+    }
+  ],
+  "contexts": [
+    {
+      "context_role": "ip_behavior_context",
+      "aggregate_scope": "same_src_ip_time_window",
+      "should_promote_to_candidate": false,
+      "src_ip": "192.168.56.1",
+      "window_start": "2026-05-10T11:29:52.513 09:00",
+      "window_end": "2026-05-10T11:30:51.484 09:00",
+      "burst_window_sec": 300,
+      "request_count": 37,
+      "distinct_paths": 19,
+      "distinct_methods": 1,
+      "status_4xx_count": 0,
+      "status_4xx_ratio": 0.0,
+      "status_5xx_count": 0,
+      "distinct_user_agents": 10,
+      "attack_categories_attempted": [
+        "path_traversal",
+        "dir_probe",
+        "sqli"
+      ],
+      "sensitive_path_hits": [
+        "/config/backup"
+      ],
+      "sample_request_ids": [
+        "af_toBajr9BZugnMrfrGvAAAAA8",
+        "af_toRajr9BZugnMrfrGvQAAABE",
+        "af_tokEh768qVznB-SN_OQAAAEk",
+        "af_to0Eh768qVznB-SN_OgAAAEs",
+        "af_tpEEh768qVznB-SN_OwAAAE0",
+        "af_tpkEh768qVznB-SN_PAAAAE4",
+        "af_tqEEh768qVznB-SN_PQAAAFA",
+        "af_tqRajr9BZugnMrfrGvgAAABM",
+        "af_tqxajr9BZugnMrfrGvwAAABU",
+        "af_trRajr9BZugnMrfrGwAAAABY"
+      ],
+      "reason_hints": [
+        "ip_behavior:multi_path_burst",
+        "ip_behavior:multiple_attack_categories"
+      ],
+      "interpretation_limit": "context_only_no_success_inference",
+      "known_asset": true,
+      "context_type": "ip_behavior",
+      "context_only": true,
+      "guardrail_note": "Preserve should_promote_to_candidate as source metadata only; the viewer must not auto-promote this context into a candidate or finding."
+    },
+    {
+      "context_role": "static_baseline_context",
+      "aggregate_scope": "same_src_ip_static_baseline_time_window",
+      "should_promote_to_candidate": false,
+      "src_ip": "192.168.56.1",
+      "window_start": "2026-05-10T11:29:52.513 09:00",
+      "window_end": "2026-05-10T11:30:48.417 09:00",
+      "burst_window_sec": 300,
+      "request_count": 17,
+      "status_counts": {
+        "200": 17
+      },
+      "asset_categories_observed": [
+        "robots_txt",
+        "sitemap_xml",
+        "css_asset",
+        "health_check",
+        "javascript_asset",
+        "normal_get"
+      ],
+      "path_counts": {
+        "/assets/main.js": 4,
+        "/robots.txt": 4,
+        "/health": 3,
+        "/sitemap.xml": 3,
+        "/": 1,
+        "/assets/site.css": 1,
+        "/status": 1
+      },
+      "sample_request_ids": [
+        "af_toBajr9BZugnMrfrGvAAAAA8",
+        "af_tokEh768qVznB-SN_OQAAAEk",
+        "af_tqEEh768qVznB-SN_PQAAAFA",
+        "af_trxajr9BZugnMrfrGwQAAABg",
+        "af_tsEEh768qVznB-SN_PgAAAFI",
+        "af_tuBajr9BZugnMrfrGxgAAAAc",
+        "af_tuRajr9BZugnMrfrGxwAAAAk",
+        "af_tvBajr9BZugnMrfrGyAAAAAs",
+        "af_tvRajr9BZugnMrfrGyQAAAA0",
+        "af_tv0Eh768qVznB-SN_PwAAAFQ"
+      ],
+      "reason_hints": [
+        "baseline:robots_txt",
+        "baseline:no_crawler_policy_inference",
+        "baseline:sitemap_xml",
+        "baseline:no_site_structure_inference",
+        "baseline:static_asset",
+        "baseline:static_css",
+        "baseline:health_check",
+        "baseline:no_health_status_inference",
+        "baseline:static_js",
+        "baseline:no_js_execution_inference"
+      ],
+      "interpretation_limit": "static_content_not_visible_no_attack_inference",
+      "known_asset": true,
+      "context_type": "static_baseline",
+      "context_only": true,
+      "guardrail_note": "Preserve should_promote_to_candidate as source metadata only; the viewer must not auto-promote this context into a candidate or finding."
+    },
+    {
+      "context_role": "crawler_baseline_context",
+      "aggregate_scope": "same_src_ip_crawler_like_time_window",
+      "should_promote_to_candidate": false,
+      "src_ip": "192.168.56.1",
+      "window_start": "2026-05-10T11:29:52.513 09:00",
+      "window_end": "2026-05-10T11:30:51.484 09:00",
+      "burst_window_sec": 300,
+      "request_count": 22,
+      "status_counts": {
+        "200": 22
+      },
+      "crawler_like_user_agent_families": [
+        "googlebot_like",
+        "bingbot_like",
+        "generic_crawler"
+      ],
+      "path_categories_observed": [
+        "robots_txt",
+        "category_browse",
+        "sitemap_xml",
+        "product_browse",
+        "normal_get"
+      ],
+      "path_counts": {
+        "/robots.txt": 4,
+        "/sitemap.xml": 3,
+        "/api/products": 2,
+        "/category/18": 2,
+        "/product/2": 2,
+        "/": 1,
+        "/assets/main.js": 1,
+        "/assets/site.css": 1,
+        "/category/20": 1,
+        "/health": 1,
+        "/product/77": 1,
+        "/products": 1,
+        "/search": 1,
+        "/status": 1
+      },
+      "sample_request_ids": [
+        "af_toBajr9BZugnMrfrGvAAAAA8",
+        "af_toRajr9BZugnMrfrGvQAAABE",
+        "af_tokEh768qVznB-SN_OQAAAEk",
+        "af_to0Eh768qVznB-SN_OgAAAEs",
+        "af_tpEEh768qVznB-SN_OwAAAE0",
+        "af_tpkEh768qVznB-SN_PAAAAE4",
+        "af_tqEEh768qVznB-SN_PQAAAFA",
+        "af_tqxajr9BZugnMrfrGvwAAABU",
+        "af_trxajr9BZugnMrfrGwQAAABg",
+        "af_tsEEh768qVznB-SN_PgAAAFI"
+      ],
+      "reason_hints": [
+        "crawler_like:robots_txt",
+        "crawler_like:no_crawler_policy_inference",
+        "crawler_like:category_browse",
+        "crawler_like:no_page_existence_inference",
+        "crawler_like:sitemap_xml",
+        "crawler_like:no_site_structure_inference",
+        "crawler_like:googlebot_like_ua",
+        "crawler_like:ua_spoofable",
+        "crawler_like:no_crawler_authenticity_inference",
+        "crawler_like:product_browse"
+      ],
+      "interpretation_limit": "crawler_ua_spoofable_no_content_or_page_existence_inference",
+      "known_asset": true,
+      "context_type": "crawler_baseline",
+      "context_only": true,
+      "guardrail_note": "Preserve should_promote_to_candidate as source metadata only; the viewer must not auto-promote this context into a candidate or finding."
+    }
+  ],
+  "supporting_events": [],
+  "noise": {
+    "filtered_out_breakdown": {
+      "benign_normal_search": 26,
+      "low_signal_fuzzing": 9
+    },
+    "top_filtered_categories": [
+      {
+        "category": "benign_normal_search",
+        "count": 26,
+        "share_pct": 74.3
+      },
+      {
+        "category": "low_signal_fuzzing",
+        "count": 9,
+        "share_pct": 25.7
+      }
+    ],
+    "top_out_of_candidate_recon": [
+      {
+        "category": "low_signal_fuzzing",
+        "count": 9,
+        "share_pct": 25.7
+      }
+    ],
+    "noise_summary_file": [],
+    "llm_input_noise_summary": []
+  },
+  "policies": {
+    "policy_notes": {
+      "routine_model_default": "gpt-5.4-mini",
+      "milestone_presentation_model_default": "gpt-5.4",
+      "raw_db_logs_are_not_sent_directly": true,
+      "noise_is_aggregated_before_llm": true,
+      "filtered_out_breakdown_is_preserved": true,
+      "dedupe_rule": "request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 incident 병합",
+      "out_of_candidate_recon_policy": {
+        "default_action": "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않음",
+        "reporting_rule": "stage2 에서는 low_signal_fuzzing 과 low_signal_dir_probe 만 후보 밖 탐색성 요청으로 표기",
+        "promotion_review_rule": "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토"
+      },
+      "reference_baseline_policy": {
+        "default_action": "benign_normal_search 또는 normal_search_baseline 카테고리와 supporting_role=reference_baseline 은 정상 비교군으로 해석",
+        "reporting_rule": "후보 밖 탐색성 요청이나 low signal fuzzing 으로 표현하지 않고 같은 endpoint 의 정상 baseline 또는 reference baseline 으로 설명",
+        "comparison_rule": "정상 baseline 이 근접해 있어도 공격 candidate 의 의도나 심각도를 낮추지 않고 정상/공격 비교 문맥으로만 사용"
+      },
+      "probing_sequence_policy": {
+        "default_action": "probing_sequence_summaries 는 context-only 이며 개별 incident 로 승격하지 않음",
+        "interpretation_rule": "같은 src_ip, 짧은 시간 window, 여러 민감/관리/백업 경로 접근은 reconnaissance 또는 directory probing 정황으로만 설명",
+        "fallback_rule": "반복되는 200 text/html 동일 응답 크기는 fallback HTML 가능성으로만 설명하고 민감 리소스 노출 성공으로 단정하지 않음",
+        "blocked_rule": "예: /server-status 403 같은 차단 응답은 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급 가능"
+      },
+      "static_baseline_summary_policy": {
+        "default_action": "static_baseline_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+        "interpretation_rule": "favicon, robots.txt, sitemap.xml, static asset, health check, normal GET 은 baseline/static context 로만 설명",
+        "success_rule": "status_code, response_body_bytes, content_type 만으로 static file 내용, crawler policy, site structure, JS 실행, file exposure, health 상태를 단정하지 않음",
+        "visibility_rule": "Apache 로그 표면에서는 response body 원문, 브라우저 실행 여부, 서버 내부 파일 존재 여부를 확인할 수 없으므로 static/baseline outcome 은 관찰 문맥으로만 해석"
+      },
+      "crawler_baseline_summary_policy": {
+        "default_action": "crawler_baseline_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+        "interpretation_rule": "crawler-like User-Agent, robots.txt, sitemap.xml, product/category browse 요청은 crawler-like baseline 또는 low-signal crawl context 로만 설명",
+        "ua_rule": "Googlebot/Bingbot/GenericCrawler-like User-Agent 는 spoof 가능하므로 실제 crawler 정체를 단정하지 않음",
+        "success_rule": "status_code, response_body_bytes, content_type 만으로 robots policy, sitemap 내용, site structure, product/category page existence, 공격 성공을 단정하지 않음",
+        "visibility_rule": "Apache 로그 표면에서는 response body 원문, crawler verification, 서버 내부 page 존재 여부를 확인할 수 없으므로 crawler/browse outcome 은 관찰 문맥으로만 해석"
+      },
+      "sensitive_path_probe_summary_policy": {
+        "default_action": "sensitive_path_probe_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+        "interpretation_rule": "wp-login/wp-admin/.env/phpinfo/server-status/backup.zip 같은 path 는 scanner-like sensitive path probing context 로만 설명",
+        "success_rule": "status_code, response_body_bytes, content_type 만으로 WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 단정하지 않음",
+        "visibility_rule": "Apache 로그 표면에서는 response body 원문, 서버 내부 파일 존재 여부, 애플리케이션 종류를 확인할 수 없으므로 sensitive path outcome 은 관찰 문맥으로만 해석"
+      },
+      "mixed_baseline_scanner_summary_policy": {
+        "default_action": "mixed_baseline_scanner_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+        "interpretation_rule": "baseline/static/crawler-like 요청과 scanner-like sensitive path 가 같은 window 에 함께 있어도 단일 공격 성공으로 합치지 않고 각각의 문맥을 분리해서 설명",
+        "separation_rule": "normal/static/crawler-like baseline 과 sensitive path probe context 를 구분해 설명",
+        "success_rule": "status_code, response_body_bytes, content_type 만으로 file exposure, app presence, crawler authenticity, page existence, attack success 를 단정하지 않음",
+        "visibility_rule": "Apache 로그 표면에서는 response body 원문, crawler verification, 서버 내부 파일 존재 여부를 확인할 수 없으므로 mixed context 는 관찰 문맥으로만 해석"
+      },
+      "behavior_scope_separation_policy": {
+        "static_scope_rule": "static_baseline_summaries 의 request_count 는 같은 src_ip 와 static/health/browse baseline 시간창 기준 관찰 수를 뜻함",
+        "crawler_scope_rule": "crawler_baseline_summaries 의 request_count 는 같은 src_ip 와 crawler-like UA/browse baseline 시간창 기준 관찰 수를 뜻함",
+        "sensitive_path_scope_rule": "sensitive_path_probe_summaries 의 request_count 는 같은 src_ip 와 sensitive path 시간창 기준 관찰 수를 뜻함",
+        "mixed_scope_rule": "mixed_baseline_scanner_summaries 의 request_count 는 같은 src_ip 와 mixed baseline/scanner 시간창 기준 관찰 수를 뜻함",
+        "auth_scope_rule": "auth_behavior_summaries 의 request_count/auth_request_count 는 같은 src_ip 와 auth endpoint family 시간창 기준 auth 요청 수를 뜻함",
+        "method_scope_rule": "method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수를 뜻함",
+        "protocol_scope_rule": "protocol_anomaly_summaries 의 request_count 는 같은 src_ip 와 protocol anomaly relevant row 시간창 기준 관찰 수를 뜻함",
+        "ip_scope_rule": "ip_behavior_aggregates 의 request_count 는 같은 src_ip 와 시간창 기준 전체 또는 관련 요청 문맥 수를 뜻함",
+        "non_merge_rule": "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 scope 가 다르므로 48~51건 같은 range 표현이나 직접 합산으로 설명하지 않음",
+        "context_only_rule": "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 모두 context-only 이며 candidate 승격 근거가 아님"
+      },
+      "key_finding_severity_policy": {
+        "max_top_incident_severity": "medium",
+        "max_candidate_severity": "medium",
+        "ceiling_rule": "명시적인 non-context-only 근거가 없으면 key_findings severity 를 top_incidents 의 최대 severity 보다 높이지 않음",
+        "context_only_non_elevation_rule": "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 severity 상향의 단독 근거가 아님",
+        "low_incident_rule": "top_incidents 가 없거나 모두 info/low 이고 관찰 근거가 context-only summary 중심이면 key_findings severity 는 info 또는 low 를 사용",
+        "medium_high_rule": "medium/high 는 report_input 에 medium/high top_incident 가 있거나, 반복적인 고신뢰 candidate incident 또는 다른 명시적 non-context-only candidate evidence 가 있을 때만 사용"
+      },
+      "ip_behavior_aggregate_policy": {
+        "default_action": "ip_behavior_aggregates 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+        "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 incident 후보로 승격된 것으로 해석하지 않음",
+        "interpretation_rule": "같은 src_ip, 짧은 시간 window, 높은 4xx 비율, 다중 attempted category, 민감 경로 접근은 reconnaissance/scanning-like context 로만 설명",
+        "category_rule": "attack_categories_attempted 는 시도 유형 요약이지 성공한 공격 목록이 아님",
+        "sensitive_path_rule": "sensitive_path_hits 는 민감 경로 접근 시도 문맥일 뿐 실제 파일 노출 또는 침해 성공 근거가 아님",
+        "success_rule": "status_code=200, text/html, response_body_bytes, status_5xx_count 만으로 공격 성공, 침해 성공, 파일 노출, XSS 실행, DB 유출을 단정하지 않음",
+        "identity_rule": "동일 src_ip 는 scanning-like behavior 가 관찰된 출발지로만 표현하고 공격자나 침해 주체로 단정하지 않음"
+      },
+      "auth_behavior_summary_policy": {
+        "default_action": "auth_behavior_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+        "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 auth row 도 이 summary 때문에 incident 후보로 승격된 것으로 해석하지 않음",
+        "interpretation_rule": "같은 src_ip, auth endpoint family, 짧은 시간 window 안의 반복 401, rapid burst, 401/200 혼재, 단독 200 baseline 을 auth behavior context 로만 설명",
+        "visibility_rule": "Apache 로그 표면에서는 raw POST body 와 인증 결과 원문이 보이지 않을 수 있으므로 POST body 미확인 상태로 해석",
+        "mixed_status_rule": "401 과 200 이 함께 있어도 HTTP 200 observed after repeated 401 정도로만 설명하고 로그인 성공, 계정 탈취, credential stuffing 성공으로 단정하지 않음",
+        "success_rule": "status_code=200, response_body_bytes, resp_content_type 만으로 인증 성공이나 침해 성공 근거로 사용하지 않음",
+        "identity_rule": "동일 src_ip 는 auth behavior sequence 가 관찰된 출발지로만 표현하고 공격자나 계정 탈취 주체로 단정하지 않음"
+      },
+      "method_behavior_summary_policy": {
+        "default_action": "method_behavior_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+        "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 method row 도 이 summary 때문에 incident 후보로 승격된 것으로 해석하지 않음",
+        "interpretation_rule": "같은 src_ip, 짧은 시간 window 안에서 risky method 와 baseline method 가 섞여 관찰된 method probing 또는 baseline context 로만 설명",
+        "success_rule": "OPTIONS, TRACE, PUT, DELETE, PATCH 의 status_code=200/201/204, response_body_bytes, status_counts 만으로 method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점을 단정하지 않음",
+        "baseline_rule": "HEAD 와 GET 은 method baseline 또는 reference context 로만 설명하고 candidate 로 재승격하지 않음",
+        "visibility_rule": "Apache 로그 표면에서는 response body 원문, request body 원문, 서버 내부 상태를 확인할 수 없으므로 method outcome 은 시도 문맥으로만 해석"
+      },
+      "protocol_anomaly_summary_policy": {
+        "default_action": "protocol_anomaly_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+        "interpretation_rule": "invalid method, bad protocol version, missing/odd Host, long path 는 request parsing/protocol surface 관찰 문맥으로만 설명",
+        "success_rule": "status_code=200/400/405/408/414/500/501/505 또는 response_body_bytes 만으로 우회 성공, 침해 성공, 서버 취약점 성공을 단정하지 않음",
+        "visibility_rule": "Apache 로그 표면에서는 response body 원문, request body 원문, 서버 내부 상태를 확인할 수 없으므로 protocol anomaly outcome 은 시도/관찰 문맥으로만 해석"
+      },
+      "user_agent_interpretation_policy": {
+        "default_action": "User-Agent 는 보조 evidence 로만 사용",
+        "generalization_rule": "lab-* 같은 실험 prefix 자체를 탐지 근거로 사용하지 않고, 비브라우저성 UA, 반복적 UA 패턴, 자동화 또는 테스트성 UA 가능성처럼 일반화해서 설명",
+        "evidence_rule": "raw evidence 로 실제 user_agent 값을 표시할 수는 있지만 prefix 자체에 공격 의미를 과도하게 부여하지 않음",
+        "stage1_carryover_rule": "Stage1 의 evidence_fields 또는 reasoning_summary 에 lab-* 또는 실험용 User-Agent 관련 표현이 남아 있어도 이를 공격 증거로 재해석하거나 severity 상향 근거로 사용하지 않음",
+        "known_asset_rule": "known asset IP 와 결합되면 내부 테스트 또는 운영 점검 가능성을 함께 병기"
+      },
+      "file_disclosure_policy": {
+        "php_wrapper_rule": "php://filter/convert.base64-encode/resource=... 구조는 PHP stream wrapper 를 통해 대상 파일을 base64 인코딩된 형태로 읽도록 유도하는 source/config disclosure attempt 또는 LFI-like file disclosure attempt 로 설명 가능",
+        "wrapper_vs_traversal_rule": "이는 단순 ../ path traversal 과 구분되는 PHP wrapper 기반 file disclosure 또는 source disclosure 시도이며, suspicious_file_disclosure verdict 또는 file_disclosure:* hint 가 있으면 해당 의미를 우선 설명",
+        "hint_interpretation_rule": "file_disclosure:* reason_hints 는 의도/시도 근거이지 성공/유출 근거가 아님",
+        "success_rule": "Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공을 확정하지 않음",
+        "status_200_rule": "status_code=200, text/html, response_body_bytes 또는 200 empty body 는 정상 라우팅, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답 가능성을 함께 검토하며 file disclosure 성공 근거로 사용하지 않음",
+        "direct_config_rule": "/config.php, /admin/config.php 직접 접근은 sensitive config path probing context 로 설명하고, wrapper payload 와 동일한 강한 file disclosure 시도로 과장하지 않으며 response body 원문 없이는 노출 성공으로 단정하지 않음",
+        "empty_body_rule": "response_body_bytes=0 은 직접 접근 시도 또는 라우팅 성공 가능성만 시사하며 본문 노출 증거는 아님"
+      },
+      "supporting_events_policy": {
+        "default_action": "supporting_events 는 개별 incident 가 아니라 문맥 정보로만 해석",
+        "temporal_rule": "같은 src_ip 와 같은 uri 또는 endpoint family 의 근접 시계열로 해석",
+        "reference_baseline_rule": "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 이면 같은 endpoint 의 정상 요청 예시로만 설명",
+        "auth_behavior_rule": "supporting_role=auth_behavior_support 또는 supporting_reason=covered_by_auth_behavior_summary 이면 반복 auth 실패 row 가 top-level auth_behavior_summaries 에 의해 대표 사건 밖 문맥으로 정리된 것이라고 해석",
+        "decoded_hint_rule": "encoding:* reason_hints 는 우회성 인코딩 시도 보조 근거로만 사용",
+        "educational_sql_rule": "교육/문서 검색 문맥 hint 가 있으면 SQLi 단정을 낮추고 자연어 질의 가능성을 함께 검토"
+      },
+      "false_positive_review_policy": {
+        "default_action": "false_positive_review_candidates 는 incident 로 승격하지 않고 prepare 단계에서 걸러진 자연어 검색 검토용으로만 사용",
+        "reporting_rule": "LLM 이 낮춘 오탐인지 prepare 단계에서 제외된 오탐성 질의인지 구분할 때만 보조적으로 활용"
+      }
+    },
+    "apache_logs_only": true,
+    "guardrails": [
+      "Apache logs alone do not prove exploit success, login success, account takeover, credential stuffing success, lockout, upload/delete success, XST/CORS success, file exposure, DB access, browser execution, static file existence, crawler identity, or server compromise.",
+      "status_code, content_type, response_body_bytes, route name, and lab-* UA are evidence fields, not success proof."
+    ]
+  },
+  "source_files": {
+    "stage2_report": "/opt/web_log_analysis/reports/webui_run_dir_smoke_actual_2026-05-10_stage2_report.json",
+    "stage2_report_input": "/opt/web_log_analysis/reports/webui_run_dir_smoke_actual_2026-05-10_stage2_report_input.json",
+    "stage1_results": "/opt/web_log_analysis/data/processed/webui_run_dir_smoke_actual_2026-05-10_stage1_results.json",
+    "llm_input": "/opt/web_log_analysis/data/processed/webui_run_dir_smoke_actual_2026-05-10_llm_input.json",
+    "raw_export": "/opt/web_log_analysis/data/raw/webui_run_dir_smoke_security_2026-05-10_kst.json",
+    "noise_summary": "/opt/web_log_analysis/data/processed/webui_run_dir_smoke_actual_2026-05-10_noise_summary.json",
+    "out": "/opt/web_log_analysis/reports/webui_run_dir_smoke_actual_2026-05-10_viewer_payload.json"
+  },
+  "integrity": {
+    "finding_count": 2,
+    "context_count": 3,
+    "supporting_event_count": 0,
+    "warnings": []
+  }
+}

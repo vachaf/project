@@ -1,0 +1,628 @@
+{
+  "analysis_context": {
+    "query_timezone": "Asia/Seoul",
+    "window": {
+      "start": "2026-05-10T11:29:44.000+09:00",
+      "end_exclusive": "2026-05-10T11:30:56.000+09:00"
+    },
+    "source_exported_at": "2026-05-10T11:31:18.779+09:00",
+    "source_prepared_at": "2026-05-10T11:32:52.382+09:00",
+    "stage1_generated_at": "2026-05-10T11:32:52.445+09:00",
+    "mode": "routine",
+    "selected_model": "dry-run-placeholder"
+  },
+  "pipeline_counts": {
+    "total_exported_rows": 74,
+    "candidate_rows": 4,
+    "distinct_incident_count": 4,
+    "filtered_out_rows": 70,
+    "filtered_out_non_aggregated_rows": 70,
+    "noise_group_count": 0,
+    "supporting_event_count": 0,
+    "false_positive_review_candidate_count": 0,
+    "probing_sequence_summary_count": 0,
+    "static_baseline_summary_count": 1,
+    "crawler_baseline_summary_count": 1,
+    "sensitive_path_probe_summary_count": 0,
+    "mixed_baseline_scanner_summary_count": 0,
+    "ip_behavior_aggregate_count": 1,
+    "auth_behavior_summary_count": 0,
+    "method_behavior_summary_count": 0,
+    "protocol_anomaly_summary_count": 0,
+    "stage1_success_count": 4,
+    "stage1_error_count": 0
+  },
+  "distributions": {
+    "verdicts": {
+      "inconclusive": 2,
+      "suspicious_scan": 2
+    },
+    "severities": {
+      "high": 2,
+      "low": 2
+    },
+    "source_tables": {
+      "security": 2,
+      "access": 2
+    },
+    "recommended_actions": {
+      "manual_review": 4
+    },
+    "filtered_out_breakdown": {
+      "benign_normal_search": 48,
+      "low_signal_fuzzing": 17,
+      "static_asset": 5
+    }
+  },
+  "top_incidents": [
+    {
+      "rank": 1,
+      "incident_ref": "request_id:af_tthajr9BZugnMrfrGxAAAAAQ|table:security|log_id:31918|candidate:0",
+      "dedup_key": "request_id:af_tthajr9BZugnMrfrGxAAAAAQ",
+      "duplicate_count": 1,
+      "request_id": "af_tthajr9BZugnMrfrGxAAAAAQ",
+      "src_ip": "192.168.56.1",
+      "verdict": "inconclusive",
+      "severity": "high",
+      "confidence": "low",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "-",
+      "uri": "/view",
+      "status_code": 200,
+      "score": 10,
+      "log_time": "2026-05-10T11:30:14.160 09:00",
+      "response_body_bytes": 0,
+      "resp_content_type": "",
+      "raw_request_target": "",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "special_char_ratio_high(+1)",
+        "traversal:html_fallback_like_response"
+      ],
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "special_char_ratio_high(+1)",
+        "traversal:html_fallback_like_response"
+      ],
+      "user_agent": "Mozilla/5.0 (Linux; Android 14; SM-S928N) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36",
+      "raw_request": "GET /view?file=../../etc/passwd HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-05-10T02:30:14.160 0000 request_id=af_tthajr9BZugnMrfrGxAAAAAQ error_link_id=- vhost=localhost src_ip=192.168.56.1 peer_ip=192.168.56.1 method=GET raw_request=\"GET /view?file=../../etc/passwd HTTP/1.1\" uri=\"/view\" query_string=\"?file=../../etc/passwd\" protocol=HT...",
+      "recommended_actions": [
+        "manual_review"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 2,
+      "incident_ref": "fallback:192.168.56.1|-|/view|200|2026-05-10T11:30:14.000 09:00|table:access|log_id:71650|candidate:1",
+      "dedup_key": "fallback:192.168.56.1|-|/view|200|2026-05-10T11:30:14.000 09:00",
+      "duplicate_count": 1,
+      "request_id": "-",
+      "src_ip": "192.168.56.1",
+      "verdict": "inconclusive",
+      "severity": "high",
+      "confidence": "low",
+      "source_table": "access",
+      "source_tables": [
+        "access"
+      ],
+      "method": "-",
+      "uri": "/view",
+      "status_code": 200,
+      "score": 10,
+      "log_time": "2026-05-10T11:30:14.000 09:00",
+      "response_body_bytes": 0,
+      "resp_content_type": "",
+      "raw_request_target": "",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "special_char_ratio_high(+1)"
+      ],
+      "reason_hints": [
+        "traversal:dotdot_slash(+4)",
+        "traversal:etc_passwd(+5)",
+        "special_char_ratio_high(+1)"
+      ],
+      "user_agent": "Mozilla/5.0 (Linux; Android 14; SM-S928N) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36",
+      "raw_request": "GET /view?file=../../etc/passwd HTTP/1.1",
+      "raw_log_excerpt": "192.168.56.1 - - [10/May/2026:02:30:14 0000] \"GET /view?file=../../etc/passwd HTTP/1.1\" 200 75002 \"-\" \"Mozilla/5.0 (Linux; Android 14; SM-S928N) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36\" \"192.168.56.105\" localhost",
+      "recommended_actions": [
+        "manual_review"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 3,
+      "incident_ref": "request_id:af_ttxajr9BZugnMrfrGxQAAAAU|table:security|log_id:31919|candidate:2",
+      "dedup_key": "request_id:af_ttxajr9BZugnMrfrGxQAAAAU",
+      "duplicate_count": 1,
+      "request_id": "af_ttxajr9BZugnMrfrGxQAAAAU",
+      "src_ip": "192.168.56.1",
+      "verdict": "suspicious_scan",
+      "severity": "low",
+      "confidence": "low",
+      "source_table": "security",
+      "source_tables": [
+        "security"
+      ],
+      "method": "-",
+      "uri": "/products",
+      "status_code": 200,
+      "score": 5,
+      "log_time": "2026-05-10T11:30:15.382 09:00",
+      "response_body_bytes": 0,
+      "resp_content_type": "",
+      "raw_request_target": "",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:or_true(+4)",
+        "encoding:url_encoded_payload",
+        "special_char_ratio_high(+1)",
+        "sqli:boolean_true_condition"
+      ],
+      "reason_hints": [
+        "sqli:or_true(+4)",
+        "encoding:url_encoded_payload",
+        "special_char_ratio_high(+1)",
+        "sqli:boolean_true_condition"
+      ],
+      "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/537.36 Chrome/123.0 Safari/537.36",
+      "raw_request": "GET /products?id=1 OR 1=1 HTTP/1.1",
+      "raw_log_excerpt": "log_time=2026-05-10T02:30:15.382 0000 request_id=af_ttxajr9BZugnMrfrGxQAAAAU error_link_id=- vhost=localhost src_ip=192.168.56.1 peer_ip=192.168.56.1 method=GET raw_request=\"GET /products?id=1 OR 1=1 HTTP/1.1\" uri=\"/products\" query_string=\"?id=1 OR 1=1\" protocol=HTTP/1.1 statu...",
+      "recommended_actions": [
+        "manual_review"
+      ],
+      "known_asset": true
+    },
+    {
+      "rank": 4,
+      "incident_ref": "fallback:192.168.56.1|-|/products|200|2026-05-10T11:30:15.000 09:00|table:access|log_id:71651|candidate:3",
+      "dedup_key": "fallback:192.168.56.1|-|/products|200|2026-05-10T11:30:15.000 09:00",
+      "duplicate_count": 1,
+      "request_id": "-",
+      "src_ip": "192.168.56.1",
+      "verdict": "suspicious_scan",
+      "severity": "low",
+      "confidence": "low",
+      "source_table": "access",
+      "source_tables": [
+        "access"
+      ],
+      "method": "-",
+      "uri": "/products",
+      "status_code": 200,
+      "score": 5,
+      "log_time": "2026-05-10T11:30:15.000 09:00",
+      "response_body_bytes": 0,
+      "resp_content_type": "",
+      "raw_request_target": "",
+      "path_normalized_from_raw_request": false,
+      "likely_html_fallback_response": false,
+      "hpp_detected": false,
+      "hpp_param_names": [],
+      "embedded_attack_hint": "",
+      "reasoning_summary": "dry-run placeholder generated from analysis_candidates without live API call",
+      "evidence_fields": [
+        "sqli:or_true(+4)",
+        "encoding:url_encoded_payload",
+        "special_char_ratio_high(+1)",
+        "sqli:boolean_true_condition"
+      ],
+      "reason_hints": [
+        "sqli:or_true(+4)",
+        "encoding:url_encoded_payload",
+        "special_char_ratio_high(+1)",
+        "sqli:boolean_true_condition"
+      ],
+      "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/537.36 Chrome/123.0 Safari/537.36",
+      "raw_request": "GET /products?id=1 OR 1=1 HTTP/1.1",
+      "raw_log_excerpt": "192.168.56.1 - - [10/May/2026:02:30:15 0000] \"GET /products?id=1 OR 1=1 HTTP/1.1\" 200 75002 \"https://docs.local/search?q=guide\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/537.36 Chrome/123.0 Safari/537.36\" \"192.168.56.105\" localhost",
+      "recommended_actions": [
+        "manual_review"
+      ],
+      "known_asset": true
+    }
+  ],
+  "top_src_ips": [
+    {
+      "src_ip": "192.168.56.1",
+      "incident_count": 4,
+      "raw_row_count": 4,
+      "max_severity": "high",
+      "max_confidence": "low",
+      "top_verdicts": [
+        "inconclusive",
+        "suspicious_scan"
+      ],
+      "top_uris": [
+        "/view",
+        "/products"
+      ],
+      "top_actions": [
+        "manual_review"
+      ],
+      "known_asset": true
+    }
+  ],
+  "top_noise_groups": [],
+  "top_filtered_categories": [
+    {
+      "category": "benign_normal_search",
+      "count": 48,
+      "share_pct": 68.6
+    },
+    {
+      "category": "low_signal_fuzzing",
+      "count": 17,
+      "share_pct": 24.3
+    },
+    {
+      "category": "static_asset",
+      "count": 5,
+      "share_pct": 7.1
+    }
+  ],
+  "top_out_of_candidate_recon": [
+    {
+      "category": "low_signal_fuzzing",
+      "count": 17,
+      "share_pct": 24.3
+    }
+  ],
+  "probing_sequence_summary_count": 0,
+  "static_baseline_summary_count": 1,
+  "crawler_baseline_summary_count": 1,
+  "sensitive_path_probe_summary_count": 0,
+  "mixed_baseline_scanner_summary_count": 0,
+  "ip_behavior_aggregate_count": 1,
+  "auth_behavior_summary_count": 0,
+  "method_behavior_summary_count": 0,
+  "protocol_anomaly_summary_count": 0,
+  "probing_sequence_summaries": [],
+  "static_baseline_summaries": [
+    {
+      "context_role": "static_baseline_context",
+      "aggregate_scope": "same_src_ip_static_baseline_time_window",
+      "should_promote_to_candidate": false,
+      "src_ip": "192.168.56.1",
+      "window_start": "2026-05-10T11:29:52.000 09:00",
+      "window_end": "2026-05-10T11:30:48.417 09:00",
+      "burst_window_sec": 300,
+      "request_count": 34,
+      "status_counts": {
+        "200": 34
+      },
+      "asset_categories_observed": [
+        "robots_txt",
+        "sitemap_xml",
+        "css_asset",
+        "health_check",
+        "javascript_asset",
+        "normal_get"
+      ],
+      "path_counts": {
+        "/assets/main.js": 8,
+        "/robots.txt": 8,
+        "/health": 6,
+        "/sitemap.xml": 6,
+        "/": 2,
+        "/assets/site.css": 2,
+        "/status": 2
+      },
+      "sample_request_ids": [
+        "71636",
+        "af_toBajr9BZugnMrfrGvAAAAA8",
+        "71638",
+        "af_tokEh768qVznB-SN_OQAAAEk",
+        "71642",
+        "af_tqEEh768qVznB-SN_PQAAAFA",
+        "71646",
+        "af_trxajr9BZugnMrfrGwQAAABg",
+        "71647",
+        "af_tsEEh768qVznB-SN_PgAAAFI"
+      ],
+      "reason_hints": [
+        "baseline:robots_txt",
+        "baseline:no_crawler_policy_inference",
+        "baseline:sitemap_xml",
+        "baseline:no_site_structure_inference",
+        "baseline:static_asset",
+        "baseline:static_css",
+        "baseline:health_check",
+        "baseline:no_health_status_inference",
+        "baseline:static_js",
+        "baseline:no_js_execution_inference"
+      ],
+      "interpretation_limit": "static_content_not_visible_no_attack_inference",
+      "known_asset": true
+    }
+  ],
+  "crawler_baseline_summaries": [
+    {
+      "context_role": "crawler_baseline_context",
+      "aggregate_scope": "same_src_ip_crawler_like_time_window",
+      "should_promote_to_candidate": false,
+      "src_ip": "192.168.56.1",
+      "window_start": "2026-05-10T11:29:52.000 09:00",
+      "window_end": "2026-05-10T11:30:51.484 09:00",
+      "burst_window_sec": 300,
+      "request_count": 44,
+      "status_counts": {
+        "200": 44
+      },
+      "crawler_like_user_agent_families": [
+        "googlebot_like",
+        "bingbot_like",
+        "generic_crawler"
+      ],
+      "path_categories_observed": [
+        "robots_txt",
+        "category_browse",
+        "sitemap_xml",
+        "product_browse",
+        "normal_get"
+      ],
+      "path_counts": {
+        "/robots.txt": 8,
+        "/sitemap.xml": 6,
+        "/api/products": 4,
+        "/category/18": 4,
+        "/product/2": 4,
+        "/": 2,
+        "/assets/main.js": 2,
+        "/assets/site.css": 2,
+        "/category/20": 2,
+        "/health": 2,
+        "/product/77": 2,
+        "/products": 2,
+        "/search": 2,
+        "/status": 2
+      },
+      "sample_request_ids": [
+        "71636",
+        "af_toBajr9BZugnMrfrGvAAAAA8",
+        "71637",
+        "af_toRajr9BZugnMrfrGvQAAABE",
+        "71638",
+        "af_tokEh768qVznB-SN_OQAAAEk",
+        "71639",
+        "af_to0Eh768qVznB-SN_OgAAAEs",
+        "71640",
+        "af_tpEEh768qVznB-SN_OwAAAE0"
+      ],
+      "reason_hints": [
+        "crawler_like:robots_txt",
+        "crawler_like:no_crawler_policy_inference",
+        "crawler_like:category_browse",
+        "crawler_like:no_page_existence_inference",
+        "crawler_like:sitemap_xml",
+        "crawler_like:no_site_structure_inference",
+        "crawler_like:googlebot_like_ua",
+        "crawler_like:ua_spoofable",
+        "crawler_like:no_crawler_authenticity_inference",
+        "crawler_like:product_browse"
+      ],
+      "interpretation_limit": "crawler_ua_spoofable_no_content_or_page_existence_inference",
+      "known_asset": true
+    }
+  ],
+  "sensitive_path_probe_summaries": [],
+  "mixed_baseline_scanner_summaries": [],
+  "ip_behavior_aggregates": [
+    {
+      "context_role": "ip_behavior_context",
+      "aggregate_scope": "same_src_ip_time_window",
+      "should_promote_to_candidate": false,
+      "src_ip": "192.168.56.1",
+      "window_start": "2026-05-10T11:29:52.000 09:00",
+      "window_end": "2026-05-10T11:30:51.484 09:00",
+      "burst_window_sec": 300,
+      "request_count": 74,
+      "distinct_paths": 19,
+      "distinct_methods": 1,
+      "status_4xx_count": 0,
+      "status_4xx_ratio": 0.0,
+      "status_5xx_count": 0,
+      "distinct_user_agents": 10,
+      "attack_categories_attempted": [
+        "path_traversal",
+        "dir_probe",
+        "sqli"
+      ],
+      "sensitive_path_hits": [
+        "/config/backup"
+      ],
+      "sample_request_ids": [
+        "71636",
+        "af_toBajr9BZugnMrfrGvAAAAA8",
+        "71637",
+        "af_toRajr9BZugnMrfrGvQAAABE",
+        "71638",
+        "af_tokEh768qVznB-SN_OQAAAEk",
+        "71639",
+        "af_to0Eh768qVznB-SN_OgAAAEs",
+        "71640",
+        "af_tpEEh768qVznB-SN_OwAAAE0"
+      ],
+      "reason_hints": [
+        "ip_behavior:multi_path_burst",
+        "ip_behavior:multiple_attack_categories"
+      ],
+      "interpretation_limit": "context_only_no_success_inference",
+      "known_asset": true
+    }
+  ],
+  "auth_behavior_summaries": [],
+  "method_behavior_summaries": [],
+  "protocol_anomaly_summaries": [],
+  "supporting_events": [],
+  "false_positive_review_candidates": [],
+  "stage1_errors_excerpt": [],
+  "asset_context": {
+    "known_asset_ips": [
+      "192.168.56.1",
+      "192.168.56.105",
+      "192.168.56.109",
+      "192.168.56.110",
+      "192.168.56.111"
+    ],
+    "matched_known_assets": [
+      "192.168.56.1"
+    ],
+    "matched_known_asset_incident_count": 4,
+    "caution": "known asset IP 에서 발생한 요청은 내부 테스트, 자체 호출, 운영 점검 트래픽일 수 있으므로 공격자 단정에 주의"
+  },
+  "policy_notes": {
+    "routine_model_default": "gpt-5.4-mini",
+    "milestone_presentation_model_default": "gpt-5.4",
+    "raw_db_logs_are_not_sent_directly": true,
+    "noise_is_aggregated_before_llm": true,
+    "filtered_out_breakdown_is_preserved": true,
+    "dedupe_rule": "request_id 우선, 없으면 src_ip+method+uri+status_code+1초 단위 시각으로 incident 병합",
+    "out_of_candidate_recon_policy": {
+      "default_action": "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않음",
+      "reporting_rule": "stage2 에서는 low_signal_fuzzing 과 low_signal_dir_probe 만 후보 밖 탐색성 요청으로 표기",
+      "promotion_review_rule": "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토"
+    },
+    "reference_baseline_policy": {
+      "default_action": "benign_normal_search 또는 normal_search_baseline 카테고리와 supporting_role=reference_baseline 은 정상 비교군으로 해석",
+      "reporting_rule": "후보 밖 탐색성 요청이나 low signal fuzzing 으로 표현하지 않고 같은 endpoint 의 정상 baseline 또는 reference baseline 으로 설명",
+      "comparison_rule": "정상 baseline 이 근접해 있어도 공격 candidate 의 의도나 심각도를 낮추지 않고 정상/공격 비교 문맥으로만 사용"
+    },
+    "probing_sequence_policy": {
+      "default_action": "probing_sequence_summaries 는 context-only 이며 개별 incident 로 승격하지 않음",
+      "interpretation_rule": "같은 src_ip, 짧은 시간 window, 여러 민감/관리/백업 경로 접근은 reconnaissance 또는 directory probing 정황으로만 설명",
+      "fallback_rule": "반복되는 200 text/html 동일 응답 크기는 fallback HTML 가능성으로만 설명하고 민감 리소스 노출 성공으로 단정하지 않음",
+      "blocked_rule": "예: /server-status 403 같은 차단 응답은 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급 가능"
+    },
+    "static_baseline_summary_policy": {
+      "default_action": "static_baseline_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+      "interpretation_rule": "favicon, robots.txt, sitemap.xml, static asset, health check, normal GET 은 baseline/static context 로만 설명",
+      "success_rule": "status_code, response_body_bytes, content_type 만으로 static file 내용, crawler policy, site structure, JS 실행, file exposure, health 상태를 단정하지 않음",
+      "visibility_rule": "Apache 로그 표면에서는 response body 원문, 브라우저 실행 여부, 서버 내부 파일 존재 여부를 확인할 수 없으므로 static/baseline outcome 은 관찰 문맥으로만 해석"
+    },
+    "crawler_baseline_summary_policy": {
+      "default_action": "crawler_baseline_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+      "interpretation_rule": "crawler-like User-Agent, robots.txt, sitemap.xml, product/category browse 요청은 crawler-like baseline 또는 low-signal crawl context 로만 설명",
+      "ua_rule": "Googlebot/Bingbot/GenericCrawler-like User-Agent 는 spoof 가능하므로 실제 crawler 정체를 단정하지 않음",
+      "success_rule": "status_code, response_body_bytes, content_type 만으로 robots policy, sitemap 내용, site structure, product/category page existence, 공격 성공을 단정하지 않음",
+      "visibility_rule": "Apache 로그 표면에서는 response body 원문, crawler verification, 서버 내부 page 존재 여부를 확인할 수 없으므로 crawler/browse outcome 은 관찰 문맥으로만 해석"
+    },
+    "sensitive_path_probe_summary_policy": {
+      "default_action": "sensitive_path_probe_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+      "interpretation_rule": "wp-login/wp-admin/.env/phpinfo/server-status/backup.zip 같은 path 는 scanner-like sensitive path probing context 로만 설명",
+      "success_rule": "status_code, response_body_bytes, content_type 만으로 WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 단정하지 않음",
+      "visibility_rule": "Apache 로그 표면에서는 response body 원문, 서버 내부 파일 존재 여부, 애플리케이션 종류를 확인할 수 없으므로 sensitive path outcome 은 관찰 문맥으로만 해석"
+    },
+    "mixed_baseline_scanner_summary_policy": {
+      "default_action": "mixed_baseline_scanner_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+      "interpretation_rule": "baseline/static/crawler-like 요청과 scanner-like sensitive path 가 같은 window 에 함께 있어도 단일 공격 성공으로 합치지 않고 각각의 문맥을 분리해서 설명",
+      "separation_rule": "normal/static/crawler-like baseline 과 sensitive path probe context 를 구분해 설명",
+      "success_rule": "status_code, response_body_bytes, content_type 만으로 file exposure, app presence, crawler authenticity, page existence, attack success 를 단정하지 않음",
+      "visibility_rule": "Apache 로그 표면에서는 response body 원문, crawler verification, 서버 내부 파일 존재 여부를 확인할 수 없으므로 mixed context 는 관찰 문맥으로만 해석"
+    },
+    "behavior_scope_separation_policy": {
+      "static_scope_rule": "static_baseline_summaries 의 request_count 는 같은 src_ip 와 static/health/browse baseline 시간창 기준 관찰 수를 뜻함",
+      "crawler_scope_rule": "crawler_baseline_summaries 의 request_count 는 같은 src_ip 와 crawler-like UA/browse baseline 시간창 기준 관찰 수를 뜻함",
+      "sensitive_path_scope_rule": "sensitive_path_probe_summaries 의 request_count 는 같은 src_ip 와 sensitive path 시간창 기준 관찰 수를 뜻함",
+      "mixed_scope_rule": "mixed_baseline_scanner_summaries 의 request_count 는 같은 src_ip 와 mixed baseline/scanner 시간창 기준 관찰 수를 뜻함",
+      "auth_scope_rule": "auth_behavior_summaries 의 request_count/auth_request_count 는 같은 src_ip 와 auth endpoint family 시간창 기준 auth 요청 수를 뜻함",
+      "method_scope_rule": "method_behavior_summaries 의 request_count 는 같은 src_ip 와 method/protocol relevant row 시간창 기준 관찰 수를 뜻함",
+      "protocol_scope_rule": "protocol_anomaly_summaries 의 request_count 는 같은 src_ip 와 protocol anomaly relevant row 시간창 기준 관찰 수를 뜻함",
+      "ip_scope_rule": "ip_behavior_aggregates 의 request_count 는 같은 src_ip 와 시간창 기준 전체 또는 관련 요청 문맥 수를 뜻함",
+      "non_merge_rule": "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 scope 가 다르므로 48~51건 같은 range 표현이나 직접 합산으로 설명하지 않음",
+      "context_only_rule": "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 모두 context-only 이며 candidate 승격 근거가 아님"
+    },
+    "key_finding_severity_policy": {
+      "max_top_incident_severity": "high",
+      "max_candidate_severity": "high",
+      "ceiling_rule": "명시적인 non-context-only 근거가 없으면 key_findings severity 를 top_incidents 의 최대 severity 보다 높이지 않음",
+      "context_only_non_elevation_rule": "static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 severity 상향의 단독 근거가 아님",
+      "low_incident_rule": "top_incidents 가 없거나 모두 info/low 이고 관찰 근거가 context-only summary 중심이면 key_findings severity 는 info 또는 low 를 사용",
+      "medium_high_rule": "medium/high 는 report_input 에 medium/high top_incident 가 있거나, 반복적인 고신뢰 candidate incident 또는 다른 명시적 non-context-only candidate evidence 가 있을 때만 사용"
+    },
+    "ip_behavior_aggregate_policy": {
+      "default_action": "ip_behavior_aggregates 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+      "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 incident 후보로 승격된 것으로 해석하지 않음",
+      "interpretation_rule": "같은 src_ip, 짧은 시간 window, 높은 4xx 비율, 다중 attempted category, 민감 경로 접근은 reconnaissance/scanning-like context 로만 설명",
+      "category_rule": "attack_categories_attempted 는 시도 유형 요약이지 성공한 공격 목록이 아님",
+      "sensitive_path_rule": "sensitive_path_hits 는 민감 경로 접근 시도 문맥일 뿐 실제 파일 노출 또는 침해 성공 근거가 아님",
+      "success_rule": "status_code=200, text/html, response_body_bytes, status_5xx_count 만으로 공격 성공, 침해 성공, 파일 노출, XSS 실행, DB 유출을 단정하지 않음",
+      "identity_rule": "동일 src_ip 는 scanning-like behavior 가 관찰된 출발지로만 표현하고 공격자나 침해 주체로 단정하지 않음"
+    },
+    "auth_behavior_summary_policy": {
+      "default_action": "auth_behavior_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+      "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 auth row 도 이 summary 때문에 incident 후보로 승격된 것으로 해석하지 않음",
+      "interpretation_rule": "같은 src_ip, auth endpoint family, 짧은 시간 window 안의 반복 401, rapid burst, 401/200 혼재, 단독 200 baseline 을 auth behavior context 로만 설명",
+      "visibility_rule": "Apache 로그 표면에서는 raw POST body 와 인증 결과 원문이 보이지 않을 수 있으므로 POST body 미확인 상태로 해석",
+      "mixed_status_rule": "401 과 200 이 함께 있어도 HTTP 200 observed after repeated 401 정도로만 설명하고 로그인 성공, 계정 탈취, credential stuffing 성공으로 단정하지 않음",
+      "success_rule": "status_code=200, response_body_bytes, resp_content_type 만으로 인증 성공이나 침해 성공 근거로 사용하지 않음",
+      "identity_rule": "동일 src_ip 는 auth behavior sequence 가 관찰된 출발지로만 표현하고 공격자나 계정 탈취 주체로 단정하지 않음"
+    },
+    "method_behavior_summary_policy": {
+      "default_action": "method_behavior_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+      "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 method row 도 이 summary 때문에 incident 후보로 승격된 것으로 해석하지 않음",
+      "interpretation_rule": "같은 src_ip, 짧은 시간 window 안에서 risky method 와 baseline method 가 섞여 관찰된 method probing 또는 baseline context 로만 설명",
+      "success_rule": "OPTIONS, TRACE, PUT, DELETE, PATCH 의 status_code=200/201/204, response_body_bytes, status_counts 만으로 method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점을 단정하지 않음",
+      "baseline_rule": "HEAD 와 GET 은 method baseline 또는 reference context 로만 설명하고 candidate 로 재승격하지 않음",
+      "visibility_rule": "Apache 로그 표면에서는 response body 원문, request body 원문, 서버 내부 상태를 확인할 수 없으므로 method outcome 은 시도 문맥으로만 해석"
+    },
+    "protocol_anomaly_summary_policy": {
+      "default_action": "protocol_anomaly_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
+      "interpretation_rule": "invalid method, bad protocol version, missing/odd Host, long path 는 request parsing/protocol surface 관찰 문맥으로만 설명",
+      "success_rule": "status_code=200/400/405/408/414/500/501/505 또는 response_body_bytes 만으로 우회 성공, 침해 성공, 서버 취약점 성공을 단정하지 않음",
+      "visibility_rule": "Apache 로그 표면에서는 response body 원문, request body 원문, 서버 내부 상태를 확인할 수 없으므로 protocol anomaly outcome 은 시도/관찰 문맥으로만 해석"
+    },
+    "user_agent_interpretation_policy": {
+      "default_action": "User-Agent 는 보조 evidence 로만 사용",
+      "generalization_rule": "lab-* 같은 실험 prefix 자체를 탐지 근거로 사용하지 않고, 비브라우저성 UA, 반복적 UA 패턴, 자동화 또는 테스트성 UA 가능성처럼 일반화해서 설명",
+      "evidence_rule": "raw evidence 로 실제 user_agent 값을 표시할 수는 있지만 prefix 자체에 공격 의미를 과도하게 부여하지 않음",
+      "stage1_carryover_rule": "Stage1 의 evidence_fields 또는 reasoning_summary 에 lab-* 또는 실험용 User-Agent 관련 표현이 남아 있어도 이를 공격 증거로 재해석하거나 severity 상향 근거로 사용하지 않음",
+      "known_asset_rule": "known asset IP 와 결합되면 내부 테스트 또는 운영 점검 가능성을 함께 병기"
+    },
+    "file_disclosure_policy": {
+      "php_wrapper_rule": "php://filter/convert.base64-encode/resource=... 구조는 PHP stream wrapper 를 통해 대상 파일을 base64 인코딩된 형태로 읽도록 유도하는 source/config disclosure attempt 또는 LFI-like file disclosure attempt 로 설명 가능",
+      "wrapper_vs_traversal_rule": "이는 단순 ../ path traversal 과 구분되는 PHP wrapper 기반 file disclosure 또는 source disclosure 시도이며, suspicious_file_disclosure verdict 또는 file_disclosure:* hint 가 있으면 해당 의미를 우선 설명",
+      "hint_interpretation_rule": "file_disclosure:* reason_hints 는 의도/시도 근거이지 성공/유출 근거가 아님",
+      "success_rule": "Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공을 확정하지 않음",
+      "status_200_rule": "status_code=200, text/html, response_body_bytes 또는 200 empty body 는 정상 라우팅, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답 가능성을 함께 검토하며 file disclosure 성공 근거로 사용하지 않음",
+      "direct_config_rule": "/config.php, /admin/config.php 직접 접근은 sensitive config path probing context 로 설명하고, wrapper payload 와 동일한 강한 file disclosure 시도로 과장하지 않으며 response body 원문 없이는 노출 성공으로 단정하지 않음",
+      "empty_body_rule": "response_body_bytes=0 은 직접 접근 시도 또는 라우팅 성공 가능성만 시사하며 본문 노출 증거는 아님"
+    },
+    "supporting_events_policy": {
+      "default_action": "supporting_events 는 개별 incident 가 아니라 문맥 정보로만 해석",
+      "temporal_rule": "같은 src_ip 와 같은 uri 또는 endpoint family 의 근접 시계열로 해석",
+      "reference_baseline_rule": "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 이면 같은 endpoint 의 정상 요청 예시로만 설명",
+      "auth_behavior_rule": "supporting_role=auth_behavior_support 또는 supporting_reason=covered_by_auth_behavior_summary 이면 반복 auth 실패 row 가 top-level auth_behavior_summaries 에 의해 대표 사건 밖 문맥으로 정리된 것이라고 해석",
+      "decoded_hint_rule": "encoding:* reason_hints 는 우회성 인코딩 시도 보조 근거로만 사용",
+      "educational_sql_rule": "교육/문서 검색 문맥 hint 가 있으면 SQLi 단정을 낮추고 자연어 질의 가능성을 함께 검토"
+    },
+    "false_positive_review_policy": {
+      "default_action": "false_positive_review_candidates 는 incident 로 승격하지 않고 prepare 단계에서 걸러진 자연어 검색 검토용으로만 사용",
+      "reporting_rule": "LLM 이 낮춘 오탐인지 prepare 단계에서 제외된 오탐성 질의인지 구분할 때만 보조적으로 활용"
+    }
+  }
+}

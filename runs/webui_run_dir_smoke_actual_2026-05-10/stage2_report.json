@@ -1,0 +1,109 @@
+{
+  "meta": {
+    "generated_at": "2026-05-10T11:36:27.731+09:00",
+    "mode": "routine",
+    "provider": "openai",
+    "selected_model": "gpt-5.4-mini",
+    "store": false,
+    "reasoning_effort": "none",
+    "known_asset_ips": [
+      "192.168.56.1",
+      "192.168.56.105",
+      "192.168.56.109",
+      "192.168.56.110",
+      "192.168.56.111"
+    ],
+    "base_url": "https://api.openai.com/v1",
+    "response_id": "resp_0ec20caf43d13f660169ffef2387e08195a0600a5d235085d0",
+    "stop_reason": null,
+    "json_parse_strategy": "direct",
+    "input_stage1_results": "/opt/web_log_analysis/data/processed/webui_run_dir_smoke_actual_2026-05-10_stage1_results.json",
+    "input_llm_input": "/opt/web_log_analysis/data/processed/webui_run_dir_smoke_actual_2026-05-10_llm_input.json"
+  },
+  "report": {
+    "report_title": "Apache 웹 로그 사건형 분석 요약 (2026-05-10 11:29:44~11:30:56 KST)",
+    "overall_assessment": "같은 출발지 IP(192.168.56.1)에서 짧은 시간에 경로 이탈 시도와 SQLi 유사 요청이 각각 1건씩 관찰되었습니다. 다만 이 IP는 known asset로 분류되어 내부 테스트, 자체 호출, 운영 점검 가능성을 함께 고려해야 하며, Apache 로그 표면만으로 실제 파일 노출이나 DB 영향은 확인되지 않았습니다.",
+    "executive_summary": [
+      "분석 구간 동안 총 37건이 관찰됐고, 이 중 2건이 후보 사건으로 분류되었습니다.",
+      "핵심 후보는 `/view?file=../../etc/passwd` 형태의 경로 이탈 시도와 `/products?id=1 OR 1=1` 형태의 boolean 기반 SQLi 시도입니다.",
+      "동일 IP에서 robots.txt, sitemap.xml, 정적 자산, 제품/카테고리 탐색이 함께 보여 baseline/crawler 문맥도 존재합니다.",
+      "전체 맥락상 재현성 있는 탐색 패턴은 보이지만, Apache 로그만으로 성공적인 침해나 실제 유출은 단정할 수 없습니다."
+    ],
+    "key_findings": [
+      {
+        "title": "경로 이탈 시도 1건 관찰",
+        "detail": "`/view?file=../../etc/passwd` 형태의 디렉터리 이탈 패턴이 보이며, 응답은 200이지만 `text/html`과 fallback 정황이 함께 있어 실제 파일 노출 성공으로는 해석하지 않았습니다. known asset IP에서 발생했으므로 내부 테스트 또는 운영 점검 가능성도 함께 고려해야 합니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "boolean 기반 SQLi 시도 1건 관찰",
+        "detail": "`/products?id=1 OR 1=1` 형태의 전형적인 SQLi 패턴이 관찰되었습니다. 다만 200 응답과 HTML 응답만으로 DB 영향, 우회 성공, 데이터 노출은 확인되지 않아 시도 탐지 수준으로 보는 것이 적절합니다. 이 역시 known asset IP에서 발생했습니다.",
+        "severity": "medium"
+      },
+      {
+        "title": "정상/준정상 탐색 문맥이 함께 존재",
+        "detail": "같은 IP에서 robots.txt, sitemap.xml, 정적 자산, 제품/카테고리 탐색이 다수 관찰되어 baseline 또는 crawler-like 문맥이 형성되어 있습니다. 이는 후보 사건의 존재를 약화시키는 근거라기보다, 같은 출발지에서 정상 탐색과 의심 요청이 혼재했음을 보여주는 보조 문맥입니다.",
+        "severity": "info"
+      }
+    ],
+    "notable_incidents": [
+      {
+        "incident_ref": "request_id:af_tthajr9BZugnMrfrGxAAAAAQ|table:security|log_id:31918|candidate:0",
+        "request_id": "af_tthajr9BZugnMrfrGxAAAAAQ",
+        "src_ip": "192.168.56.1",
+        "verdict": "suspicious_path_traversal",
+        "severity": "medium",
+        "why_it_matters": "디렉터리 이탈 경로가 직접 포함된 요청으로, 파일 접근을 노린 시도로 해석할 수 있습니다. 다만 200 응답과 HTML fallback 정황이 있어 실제 파일 노출 성공은 확인되지 않았습니다."
+      },
+      {
+        "incident_ref": "request_id:af_ttxajr9BZugnMrfrGxQAAAAU|table:security|log_id:31919|candidate:1",
+        "request_id": "af_ttxajr9BZugnMrfrGxQAAAAU",
+        "src_ip": "192.168.56.1",
+        "verdict": "suspicious_sqli",
+        "severity": "medium",
+        "why_it_matters": "`OR 1=1` 구조의 SQLi 유사 패턴이 보이는 요청으로, 주입 시도 가능성이 높습니다. 하지만 Apache 로그만으로 DB 영향이나 우회 성공은 증명되지 않습니다."
+      }
+    ],
+    "notable_source_ips": [
+      {
+        "src_ip": "192.168.56.1",
+        "reason": "2건의 후보 사건이 모두 이 IP에서 발생했으며, 동시에 static/crawler baseline 문맥과 low-signal 탐색성 요청이 함께 관찰되었습니다. known asset로 분류되어 내부 테스트나 운영 점검 가능성을 반드시 함께 검토해야 합니다."
+      }
+    ],
+    "noise_interpretation": "후보 밖으로는 benign_normal_search 26건(74.3%), low_signal_fuzzing 9건(25.7%)이 걸러졌습니다. 즉, 전체 요청의 상당 부분은 정상 비교군 또는 낮은 신호의 탐색성 요청으로 정리되었고, 후보 사건 2건은 그 위에 얹혀 있는 의심 요청으로 해석하는 것이 적절합니다. 다만 filtered_out_breakdown이 존재하므로 후보 밖 요청 분포 자체도 무시하면 안 됩니다.",
+    "recommended_actions": [
+      {
+        "priority": "P1",
+        "action": "두 후보 incident의 원본 로그를 request_id 기준으로 재검토하고, 같은 출발지 IP의 전후 요청과 묶어 시간 순서를 확인하십시오.",
+        "why": "경로 이탈과 SQLi 패턴이 같은 IP에서 연속 관찰되어 단발성 오입력인지, 내부 점검인지, 반복 탐색인지 구분이 필요합니다."
+      },
+      {
+        "priority": "P1",
+        "action": "192.168.56.1이 known asset인 점을 반영해 내부 테스트/운영 점검 여부를 우선 확인하십시오.",
+        "why": "known asset이면 외부 공격자 단정이 부적절하며, 실제 조치 방향이 달라질 수 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "애플리케이션의 `/view`와 `/products` 파라미터에 대해 경로 이탈/SQLi 방어 규칙이 실제로 적용되는지 점검하십시오.",
+        "why": "같은 패턴이 재발할 경우 실제 악용 시도로 이어질 수 있어 입력 검증과 파라미터 처리 방어를 확인할 필요가 있습니다."
+      },
+      {
+        "priority": "P2",
+        "action": "같은 IP에서 관찰된 robots.txt, sitemap.xml, 정적 자산, 제품/카테고리 탐색 로그를 함께 보며 정상 탐색과 의심 요청의 혼재 여부를 확인하십시오.",
+        "why": "baseline/crawler 문맥이 함께 있어 단순 스캔인지, 운영 점검인지, 사용자 탐색인지 구분하는 데 도움이 됩니다."
+      },
+      {
+        "priority": "P3",
+        "action": "유사 요청에 대해 경보 룰을 유지하되, known asset에서는 낮은 우선순위 검토 또는 운영 점검 태그를 함께 사용하십시오.",
+        "why": "오탐 부담을 줄이면서도 반복 시도를 놓치지 않기 위한 운영적 균형이 필요합니다."
+      }
+    ],
+    "confidence_and_limitations": [
+      "신뢰도는 후보 패턴 식별에 한해서는 높지만, 실제 침해 성공 여부에 대해서는 낮습니다.",
+      "Apache 로그만으로는 response body 원문, DB 결과, 서버 내부 파일 내용, 브라우저 실행 여부를 확인할 수 없습니다.",
+      "같은 IP가 known asset이므로 내부 테스트, 자체 호출, 운영 점검 가능성을 반드시 함께 고려해야 합니다.",
+      "baseline/crawler 문맥과 의심 요청이 같은 시간창에 섞여 있어, 단일 공격 체인으로 과도하게 해석하지 않도록 주의가 필요합니다."
+    ],
+    "presentation_takeaway": "이번 구간에서는 known asset IP에서 경로 이탈과 SQLi 유사 요청이 각각 1건씩 관찰됐습니다. 다만 로그 표면상 성공 증거는 없고, 정상 탐색 문맥도 함께 있어 내부 테스트 가능성을 포함한 신중한 추가 확인이 필요합니다."
+  }
+}
