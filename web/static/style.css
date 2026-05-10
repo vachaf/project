@@ -1859,55 +1859,28 @@ summary:focus-visible {
     word-break: break-word;
   }
 
-  /* severity */
-  body.page .report-table-notable-incidents th:nth-child(1),
-  body.page .report-table-notable-incidents td:nth-child(1) {
+  /* core columns: tuned for run_dir viewer readability */
+  body.page .report-table-notable-incidents .col-incident-severity {
     width: 7%;
   }
 
-  /* verdict */
-  body.page .report-table-notable-incidents th:nth-child(2),
-  body.page .report-table-notable-incidents td:nth-child(2) {
-    width: 12%;
+  body.page .report-table-notable-incidents .col-incident-verdict {
+    width: 13%;
   }
 
-  /* incident_ref: keep readable but prevent it from dominating the table */
-  body.page .report-table-notable-incidents th:nth-child(3),
-  body.page .report-table-notable-incidents td:nth-child(3) {
-    width: 13%;
+  body.page .report-table-notable-incidents .col-incident-incident-ref {
+    width: 22%;
     font-size: 0.82rem;
   }
 
-  /* summary */
-  body.page .report-table-notable-incidents th:nth-child(4),
-  body.page .report-table-notable-incidents td:nth-child(4) {
-    width: 9%;
-  }
-
-  /* why_it_matters: primary narrative column */
-  body.page .report-table-notable-incidents th:nth-child(5),
-  body.page .report-table-notable-incidents td:nth-child(5) {
-    width: 32%;
+  body.page .report-table-notable-incidents .col-incident-why-it-matters {
+    width: 48%;
     word-break: keep-all;
     overflow-wrap: anywhere;
   }
 
-  /* source_ip */
-  body.page .report-table-notable-incidents th:nth-child(6),
-  body.page .report-table-notable-incidents td:nth-child(6) {
-    width: 9%;
-  }
-
-  /* request_count */
-  body.page .report-table-notable-incidents th:nth-child(7),
-  body.page .report-table-notable-incidents td:nth-child(7) {
-    width: 7%;
-  }
-
-  /* recommended_action */
-  body.page .report-table-notable-incidents th:nth-child(8),
-  body.page .report-table-notable-incidents td:nth-child(8) {
-    width: 11%;
+  body.page .report-table-notable-incidents .col-incident-source-ip {
+    width: 10%;
   }
 }
 

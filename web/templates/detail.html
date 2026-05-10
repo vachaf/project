@@ -183,7 +183,7 @@
       <thead>
         <tr>
           {% for column in visible_incident_columns %}
-          <th>{{ column.label }}</th>
+          <th class="col-incident-{{ column.key|replace('_', '-') }}">{{ column.label }}</th>
           {% endfor %}
         </tr>
       </thead>
@@ -192,7 +192,7 @@
           {% for row in incidents %}
           <tr>
             {% for column in visible_incident_columns %}
-            <td data-label="{{ column.label }}">{{ row[column.key] }}</td>
+            <td class="col-incident-{{ column.key|replace('_', '-') }}" data-label="{{ column.label }}">{{ row[column.key] }}</td>
             {% endfor %}
           </tr>
           {% endfor %}
