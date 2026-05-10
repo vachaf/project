@@ -74,7 +74,7 @@ def test_missing_viewer_payload_keeps_report_valid(tmp_path: Path) -> None:
     assert target is not None
     assert target.is_valid is True
     assert target.viewer_payload_available is False
-    assert target.viewer_payload_error in (None, "MISSING_FILE")
+    assert target.viewer_payload_error == "MISSING_FILE"
 
 
 @RUN_DIR_SCAN_NOT_IMPLEMENTED
