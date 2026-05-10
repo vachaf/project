@@ -8,6 +8,8 @@
   <div class="meta-grid meta-grid-summary">
     <div><span class="meta-label">filename</span><br><strong>{{ report.filename }}</strong></div>
     <div><span class="meta-label">path</span><br><span class="is-muted">{{ report.repo_relative_path }}</span></div>
+    <div><span class="meta-label">run_id</span><br>{{ report.run_id or 'N/A' }}</div>
+    <div><span class="meta-label">storage</span><br>{{ report.storage_type or 'unknown' }}</div>
     <div><span class="meta-label">provider</span><br><strong>{{ report.provider or 'unknown' }}</strong></div>
     <div><span class="meta-label">model</span><br>{{ report.model or 'unknown' }}</div>
     <div><span class="meta-label">generated_at</span><br>{{ report.generated_at or 'unknown' }}</div>
@@ -131,6 +133,9 @@
     </p>
     {% if report.viewer_payload_path %}
       <p class="is-muted">source: {{ report.viewer_payload_path }}</p>
+    {% endif %}
+    {% if report.run_id %}
+      <p class="is-muted">run: {{ report.run_id }}</p>
     {% endif %}
   {% endif %}
   {% if report.viewer_payload_error %}

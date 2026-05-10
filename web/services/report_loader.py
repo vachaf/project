@@ -48,10 +48,13 @@ class Report:
     viewer_payload_summary: Dict[str, Any] = field(default_factory=dict)
 
     def to_summary(self) -> Dict[str, Any]:
+        meta = self.meta if isinstance(self.meta, dict) else {}
         return {
             "report_id": self.report_id,
             "filename": self.filename,
             "repo_relative_path": self.repo_relative_path,
+            "run_id": str(meta.get("run_id") or ""),
+            "storage_type": str(meta.get("storage_type") or "unknown"),
             "provider": self.provider,
             "model": self.model,
             "scenario": self.scenario,
@@ -72,10 +75,15 @@ class Report:
         }
 
     def to_detail(self) -> Dict[str, Any]:
+        meta = self.meta if isinstance(self.meta, dict) else {}
         return {
             "report_id": self.report_id,
             "filename": self.filename,
             "repo_relative_path": self.repo_relative_path,
+            "run_id": str(meta.get("run_id") or ""),
+            "storage_type": str(meta.get("storage_type") or "unknown"),
+            "manifest_path": str(meta.get("manifest_path") or ""),
+            "run_dir": str(meta.get("run_dir") or ""),
             "provider": self.provider,
             "model": self.model,
             "scenario": self.scenario,

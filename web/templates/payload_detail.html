@@ -62,6 +62,12 @@
       <h2>Apache Log Intrusion Report Viewer</h2>
       <p class="payload-subtitle">Viewer Payload Dashboard</p>
       <p class="payload-source is-muted">report: {{ report.filename }}</p>
+      {% if report.run_id %}
+        <p class="payload-source is-muted">run: {{ report.run_id }}</p>
+      {% endif %}
+      {% if report.storage_type and report.storage_type != 'unknown' %}
+        <p class="payload-source is-muted">storage: {{ report.storage_type }}</p>
+      {% endif %}
       {% if report.viewer_payload_path %}
         <p class="payload-source is-muted">source: {{ report.viewer_payload_path }}</p>
       {% endif %}

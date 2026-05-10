@@ -92,6 +92,14 @@ def test_run_dir_report_id_resolves_detail_and_payload(tmp_path: Path) -> None:
     assert detail is not None
     assert (detail.meta or {}).get("run_id") == "run_dir_valid_basic"
     assert (detail.meta or {}).get("manifest_path")
+    summary_obj = detail.to_summary()
+    detail_obj = detail.to_detail()
+    assert summary_obj.get("run_id") == "run_dir_valid_basic"
+    assert summary_obj.get("storage_type") == "run_dir"
+    assert detail_obj.get("run_id") == "run_dir_valid_basic"
+    assert detail_obj.get("storage_type") == "run_dir"
+    assert detail_obj.get("manifest_path")
+    assert detail_obj.get("run_dir")
 
     viewer_payload, error = loader.load_viewer_payload_by_report_id(target.report_id)
     assert error is None

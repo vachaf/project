@@ -140,6 +140,9 @@
 
         <p class="provider-path is-muted">{{ report.repo_relative_path }}</p>
         <div class="meta-compact">
+          {% if report.run_id %}
+          <p><span class="meta-label">run_id</span><span>{{ report.run_id }}</span></p>
+          {% endif %}
           <p><span class="meta-label">model</span><span>{{ report.model or 'unknown' }}</span></p>
           <p><span class="meta-label">generated_at</span><span>{{ report.generated_at or 'unknown' }}</span></p>
           <p><span class="meta-label">scenario</span><span>{{ report.scenario or 'unknown' }}</span></p>
@@ -228,6 +231,9 @@
 
         <p class="provider-path is-muted">{{ report.repo_relative_path }}</p>
         <div class="meta-compact">
+          {% if report.run_id %}
+          <p><span class="meta-label">run_id</span><span>{{ report.run_id }}</span></p>
+          {% endif %}
           <p><span class="meta-label">model</span><span>{{ report.model or 'unknown' }}</span></p>
           <p><span class="meta-label">generated_at</span><span>{{ report.generated_at or 'unknown' }}</span></p>
           <p><span class="meta-label">scenario</span><span>{{ report.scenario or 'unknown' }}</span></p>
