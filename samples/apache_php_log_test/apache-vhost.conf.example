@@ -1,0 +1,50 @@
+# Apache PHP Log Test Sample vhost
+#
+# 목적:
+# - Apache를 웹단으로 사용하는 PHP 앱에서 app_security/app_access/app_error 로그 수집을 검증한다.
+# - reverse proxy 전용 설정이 아니다.
+#
+# 배치 예:
+#   sudo cp -a samples/apache_php_log_test/public/. /var/www/apache-log-test/
+#   sudo cp samples/apache_php_log_test/apache-vhost.conf.example /etc/apache2/sites-available/apache-log-test.conf
+#   sudo a2enmod unique_id logio
+#   sudo a2ensite apache-log-test.conf
+#   sudo apache2ctl configtest
+#   sudo systemctl reload apache2
+
+<VirtualHost *:80>
+    ServerAdmin admin@example.com
+    ServerName localhost
+
+    DocumentRoot /var/www/apache-log-test
+
+    <Directory /var/www/apache-log-test>
+        Options -Indexes +FollowSymLinks
+        AllowOverride None
+        Require all granted
+    </Directory>
+
+    # request_id=%{UNIQUE_ID}e 사용을 위해 mod_unique_id 필요
+    # in_bytes/out_bytes/ttfb_us 사용을 위해 mod_logio 필요
+    LogIOTrackTTFB ON
+
+    ErrorLogFormat "[%{uc}t] [error_link_id:%L] [request_id:%{UNIQUE_ID}e] [module_name:%-m] [log_level:%-l] [src_ip:%a peer_ip:%{c}a] message=%M"
+    ErrorLog ${APACHE_LOG_DIR}/app_error.log
+
+    LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" \"%{Host}i\" %v" access_db_aligned
+    CustomLog ${APACHE_LOG_DIR}/app_access.log access_db_aligned
+
+    LogFormat "log_time=%{%Y-%m-%dT%H:%M:%S}t.%{msec_frac}t%{%z}t \
+request_id=%{UNIQUE_ID}e error_link_id=%L \
+vhost=%v src_ip=%a peer_ip=%{c}a \
+method=%m raw_request=\"%r\" uri=\"%U\" query_string=\"%q\" protocol=%H \
+status_code=%>s response_body_bytes=%B \
+in_bytes=%I out_bytes=%O total_bytes=%S \
+duration_us=%D ttfb_us=%^FB keepalive_count=%k connection_status=%X \
+req_content_type=\"%{Content-Type}i\" req_content_length=\"%{Content-Length}i\" \
+resp_content_type=\"%{Content-Type}o\" \
+referer=\"%{Referer}i\" user_agent=\"%{User-Agent}i\" \
+host=\"%{Host}i\" x_forwarded_for=\"%{X-Forwarded-For}i\"" security_db_aligned
+
+    CustomLog ${APACHE_LOG_DIR}/app_security.log security_db_aligned
+</VirtualHost>
