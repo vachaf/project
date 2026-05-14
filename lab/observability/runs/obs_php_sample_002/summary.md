@@ -1,0 +1,7 @@
+- apache_security_io_v1은 Apache+PHP 샘플 앱에서 정상 동작했다.
+- S01~S15 시나리오가 모두 User-Agent marker 기준으로 관찰됐다.
+- S08/S09는 request body/form에 scenario가 들어가므로 query_string 기준 필터링은 부적절하다.
+- request_id 기반으로 app_security와 app_error를 연결할 수 있다.
+- notice-level app/PHP context와 warn/error-level context를 분리해야 한다.
+- /server-status는 localhost request에서 200이지만 외부 확인은 403이므로 외부 노출로 판단하지 않는다.
+- Apache 로그만으로 로그인 성공, 업로드 저장 성공, SQLi/XSS/traversal 성공은 판단하지 않는다.
