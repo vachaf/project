@@ -11,13 +11,22 @@
 
 ## 1. 공통 원칙
 
-모든 요청에는 가능한 한 다음 marker를 포함한다.
+모든 요청에는 다음 marker를 포함한다.
 
-| marker | 위치 | 목적 |
-|---|---|---|
-| `obs_run` | query/body/header | run 식별 |
-| `scenario` | query/body/header | 시나리오 식별 |
-| `User-Agent` | header | 로그 필터링 |
+| marker | 위치 | 목적 | 기준성 |
+|---|---|---|---|
+| `User-Agent: obs-test/<scenario_id> run=<run_id>` | request header | 서버 로그 필터링 및 시나리오 식별 | canonical |
+| `obs_run` | query/body/header | run 식별 보조 | optional/helper |
+| `scenario` | query/body/header | 시나리오 식별 보조 | optional/helper |
+
+`User-Agent`를 canonical marker로 둔다.
+
+이유:
+
+- S08 login POST, S09 upload-like POST처럼 `scenario` 값이 request body/form에만 들어갈 수 있다.
+- Apache access/security log는 request body를 기록하지 않는다.
+- 따라서 query string에서 `scenario=Sxx`만 grep하면 POST body 기반 시나리오를 놓친다.
+- 모든 시나리오는 반드시 `User-Agent: obs-test/Sxx run=<run_id>`를 포함해야 한다.
 
 권장 User-Agent 형식:
 
@@ -30,6 +39,21 @@ obs-test/<scenario_id> run=<run_id>
 ```bash
 curl -H 'User-Agent: obs-test/S04 run=obs_2026_05_14_php_sample' \
   'http://target/search.php?q=test&obs_run=obs_2026_05_14_php_sample&scenario=S04'
+```
+
+서버 로그 필터링 기준:
+
+```bash
+grep 'obs-test/.*run=<run_id>' app_security.log
+```
+
+시나리오 카운트 기준:
+
+```bash
+grep -o 'obs-test/S[0-9][0-9]' app_security.filtered.log \
+  | sed 's/obs-test\///' \
+  | sort \
+  | uniq -c
 ```
 
 주의:
@@ -283,7 +307,7 @@ curl -i \
 
 | 로그 | 기대 |
 |---|---|
-| `app_security.log` | method=POST, req_content_type, req_content_length |
+| `app_security.log` | method=POST, req_content_type, req_content_length, user_agent에 S08 marker |
 | app log | 로그인 성공/실패를 판단하려면 필요 |
 
 ### 금지 추론
@@ -317,7 +341,7 @@ curl -i \
 
 | 로그 | 기대 |
 |---|---|
-| `app_security.log` | method=POST, multipart content-type, req_content_length |
+| `app_security.log` | method=POST, multipart content-type, req_content_length, user_agent에 S09 marker |
 | app log | 저장 성공 여부 판단에 필요 |
 
 ### 금지 추론
