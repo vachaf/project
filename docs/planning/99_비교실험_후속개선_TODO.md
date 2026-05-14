@@ -51,8 +51,19 @@
   - `prepare_llm_input.py`는 coordinator로 유지하고 row-level reason_hints 연결만 반영
   - `src/prepare/README.md` 업데이트
   - `tests/test_prepare_apache_observability_context.py` 추가
-  - 생성 hint 예: `observability:front_controller_candidate`, `observability:fallback_200_candidate`, `observability:reverse_proxy_candidate`, `observability:backend_response_candidate`, `observability:backend_fallback_200_candidate`, `observability:server_status_handler_observed`, `observability:directory_redirect_candidate`, `observability:redirect_candidate`
   - 검증: unit `5 passed`, prepare regression `pass=25 warn=0 fail=0`, stage dry-run regression `pass=19 warn=0 fail=0`
+- observability handler/log_schema/category 보존 보강 완료:
+  - commit: `83e215c81c8b950a3f23031b93b09cf609c7aeb6`
+  - `analysis_candidates`에 `handler`, `log_schema` 보존 추가
+  - `viewer_payload.findings`에 `handler`, `log_schema` 전달 추가
+  - traversal category 우선순위 보정으로 S15 category가 `path_traversal_candidate`로 표시됨
+  - 검증: 관련 테스트 `13 passed`, prepare regression `pass=25 warn=0 fail=0`, stage dry-run regression `pass=19 warn=0 fail=0`
+- 최종 dry-run 확인 완료:
+  - run: `obs_juiceshop_proxy_001_metadata_fixcheck`
+  - candidate_rows/distinct_incident_candidates 유지: `3`
+  - filtered_out_rows 유지: `18`
+  - supporting_events 유지: `3`
+  - `analysis_candidates`, `stage2_report_input.top_incidents`, `viewer_payload.findings`에서 `handler=proxy-server`, `log_schema=apache_security_io_v1`, `response_body_bytes=75002`, `resp_content_type=text/html`, `raw_request_target`, `raw_request`, `user_agent` 보존 확인
 - 확인된 핵심 결론:
   - `apache_security_io_v1`은 direct PHP, real PHP rewrite/front-controller, reverse proxy 배치 모두에서 동작
   - `status_code=200`은 topology-dependent weak signal이며 성공/노출/침해 근거로 사용 금지
@@ -82,15 +93,6 @@
 - [ ] `status_code=200` guardrail 강화 효과 관찰
   - OpenCart/Juice Shop run에서 probe-like path도 200 fallback 가능함을 확인
   - Stage1/Stage2 prompt 또는 prepare context에서 topology hint가 과해석을 줄이는지 관찰
-- [ ] reverse proxy/backend behavior 표현 관찰
-  - `observability:reverse_proxy_candidate`
-  - `observability:backend_response_candidate`
-  - `observability:backend_fallback_200_candidate`
-- [ ] OpenCart-like rewrite/front-controller 표현 관찰
-  - `observability:front_controller_candidate`
-  - `observability:route_param_present`
-  - `observability:route_param=<value>`
-  - `observability:fallback_200_candidate`
 - [ ] proxy_error_context의 정식 prepare 반영 여부 검토
   - 현재 P1은 security row-level hint 중심
   - proxy error는 error table/app_error integration 경로가 정리된 뒤 별도 검토
