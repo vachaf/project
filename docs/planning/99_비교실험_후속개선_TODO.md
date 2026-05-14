@@ -1,131 +1,166 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-10
+- 기준 시점: 2026-05-14
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
-- 원칙: 완료된 항목은 이 문서에 길게 유지하지 않는다.
+- 원칙:
+  - 완료된 항목은 이 문서에 길게 유지하지 않는다.
+  - 상세 완료 이력은 `docs/진행상황.md`, 개별 설계 문서, 작업일지로 이관한다.
+  - Apache logs-only evidence boundary를 유지한다.
+  - `status_code=200`, `text/html`, `response_body_bytes`, `handler`, `x_forwarded_for`만으로 공격 성공/유출/내부 결과를 단정하지 않는다.
+
+---
 
 ## 최근 완료 상태
 
-- A~H 실험/standards/reviews 정리 및 기준 문서 반영 완료
-- retention/output cleanup list-only prototype 완료(삭제 기능 보류)
+- 기존 A~H 비교 실험/standards/reviews 정리 및 기준 문서 반영 완료
 - prepare split round1/round2, constants mini-move, hints split(SQLi/XSS/file disclosure/traversal-CMDI) 완료
-- auth/crawler constants move 및 shared attack/search policy boundary review 완료
-- Stage2 prompt compaction + report quality lint 추가/튜닝 완료(`python -m pytest tests/test_stage2_report_quality.py`: `14 passed`)
-- post-refactor dry-run/actual LLM spot check 완료, 주요 regression 기준 통과(`pass=25`, `pass=19`)
-- 현재 검증 결과 기준 통일 완료(py_compile 통과, `pass=25`, `pass=19`, `14 passed`)
-- prepare deferred split re-entry review / shared attack policy re-entry review / search false-positive re-entry review 완료
-- `docs/design/99_prepare_new_attack_coverage_candidate_review.md` 작성 완료
-- Web UI Phase 1A/1B 핵심 구현 완료(compare view 포함) 및 기본 검증 통과
-- 외부 Phase 1B 실행 가이드 stale/부분 불일치 검토 완료
-- list page partial compare missing provider 1:1 layout, report viewer card/action/header polish 1차 완료
-- Web UI Phase 2A filter MVP 구현/검증 완료(`q`/`lint`/`pair`/`provider`, server-side GET query filtering, safe ignore, group count, clear all/no-result)
-- Web UI Phase 2A filter 브라우저 spot check 완료(423px viewport에서 form/chips/result count/group card/no-result 확인, 가로 스크롤/텍스트 잘림 없음, lint filter group-level ANY 로직 정상 확인)
-- Web UI execution scope review 완료(`docs/design/99_web_ui_report_viewer_execution_scope_review.md`)
-- `run_analysis_pipeline.py` 사용자 runner UX review 문서 추가 완료(`docs/design/99_run_analysis_pipeline_user_runner_ux_review.md`)
-- viewer payload 최소 도입 완료(`src/viewer_payload_builder.py` 추가, Stage2 이후 자동 생성 연결)
-- `run_analysis_pipeline.py`에서 Stage2 이후 viewer payload 자동 생성 완료(`--viewer-payload`/`--no-viewer-payload`, `--include-raw-log` opt-in)
-- latest manifest / run별 manifest 분리 1차 반영 완료(`<work-dir>/pipeline_manifest.json` latest 유지 + `reports/<base>_pipeline_manifest.json` 추가)
-- Web UI run_dir loader Phase 2 설계 문서 작성 완료(`docs/design/99_web_ui_run_dir_loader_phase2_plan.md`, commit `98cef47849defa359ddf9688ff41c566ddc80131`)
-- Web UI loader Phase 2A input model review 문서 작성 완료(`docs/design/99_web_ui_loader_phase2a_input_model_review.md`)
-- Web UI loader Phase 2B fixture plan 문서 작성 완료(`docs/design/99_web_ui_loader_phase2b_fixture_plan.md`)
-- Web UI loader Phase 2C test plan 문서 작성 완료(`docs/design/99_web_ui_loader_phase2c_test_plan.md`)
-- Phase 2C runtime fixture helper + xfail/pending 테스트 기준 고정 완료
-  - `tests/helpers/web_loader_phase2_fixtures.py`
-  - `tests/test_web_loader_run_dir_scan.py`(초기 5개 테스트 기준 고정)
-- Phase 2D run_dir manifest scan backend 전환 완료
-  - `runs/*/manifest.json -> stage2_report.json` discover/normalize
-  - run_dir `viewer_payload.json` resolve
-  - missing payload: `viewer_payload_error="MISSING_FILE"`
-  - malformed payload: `viewer_payload_error="MALFORMED_JSON"`
-  - 기본 `REPORT_GLOBS=["runs/*/manifest.json"]` 전환
-  - `LEGACY_REPORT_GLOBS`로 `reports/`/`lab/` glob 보존(기본 scan 제외)
-  - 검증: `tests/test_web_loader_run_dir_scan.py` `5 passed`, 관련 묶음 `24 passed`
-- Web UI viewer_payload display plan 작성 완료(`docs/design/99_web_ui_viewer_payload_display_plan.md`)
-- Web UI viewer_payload read-only dashboard MVP 구현 완료(`/report/{report_id}/payload` route, 기존 detail fallback/link 유지)
-- `run_analysis_pipeline.py` CLI help/UX 정리 완료(`--export-input` 기본 진입점 명시, resume 옵션 advanced 유지)
-- payload dashboard Selected Event Detail의 Supporting Events 제한적 preview 구현 완료(details + related count/context-only badge + compact table)
-- payload dashboard Selected Event Detail의 Related Contexts 제한적 preview 구현 완료(display-only association, 기본 접힘 preview)
-- viewer_payload dashboard Finding -> Contexts 연결성 원인 분리 및 source IP display toggle 반영 완료
-  - 원인: finding/context 간 src_ip masking 불일치로 JS matching 실패
-  - 조치: dashboard 기본 raw src_ip 표시 + `mask_src_ip` query toggle 추가
-  - 원칙: matching은 raw data 기준 유지, display-only association 유지
-- `run_analysis_pipeline.py` export/pipeline table 불일치 해소 완료(`--prepare-source-tables` 기본값 auto, export `table_option/counts/data` 기반 자동 해석, commit `e0fcdaece33f0f580f4877be121f09c7192a1904`)
-- viewer_payload dashboard UI polish 완료
-  - payload 전용 shell 적용, 기존 Security Intelligence Console header/footer 분리
-  - 상단 dashboard header + summary cards + Event Timeline + Selected Event Detail 구조 정리
-  - Event Timeline hover/selected/모바일 카드형 표시 보정, mask toggle/guardrail 유지
-- Total Requests `unknown` fallback 보강 완료
-  - `payload_summary` 외 `payload_obj.summary/source_of_truth/counts/meta.counts`, `summary.pipeline_counts` 확인 경로 반영
-  - 브라우저 확인에서 Total Requests `40` 표시 정상화 확인
-- probing_sequence_summaries `sample_request_ids` 부재가 Finding ↔ Contexts 연결 약화 원인이었음을 확인했고, 보존 추가를 완료했다(커밋 `a774976dea35503bef61b55f94641e41482a436a`).
-- viewer payload 재생성/화면 확인에서 Related Contexts 표시 정상화(`Related Contexts (6)`, context card `request_ids` 표시)를 확인했다.
-- 위 연결은 display-only association이며 context-only 승격, 새 보안 판정 생성, severity/category/verdict 재계산은 수행하지 않는다.
-- Web UI loader run_dir default scan actual smoke 완료
-  - scenario: `Mixed_Context_Heavy`
-  - security export 기준 actual LLM 실행 + run_dir 산출물 확인: `runs/webui_run_dir_smoke_actual_2026-05-10`
-  - Web UI list/detail/payload 표시 확인
-  - viewer_payload 수치 확인: `finding_count=2`, `context_count=3`, `supporting_event_count=0`
-  - `Missing pair`/`Compare partial`은 단일 provider(openai) 결과 기준 정상
-  - read-only invariant 유지
-- Web UI run_id 표시 보강 완료
-  - list/detail/payload run_id 표시
-  - list 대표 label run_id 우선 표시
-  - dry-run/actual run 구분성 개선
-- Report Detail notable_incidents 빈 optional 컬럼 숨김 완료
-  - `summary/title`, `request_count`, `recommended_action`이 모든 row에서 비어 있으면 컬럼 숨김
-  - 핵심 컬럼(`severity`, `verdict`, `incident_ref`, `why_it_matters`, `source_ip`) 유지
-- notable_incidents 컬럼 폭 key class 기반 조정 완료
-  - `severity 7%`, `verdict 13%`, `incident_ref 22%`, `why_it_matters 48%`, `source_ip 10%`
-- partial provider missing panel compact 처리 완료
-  - missing provider large panel 제거
-  - group action row inline chip(`openai missing`/`anthropic missing`) 표시
-- partial provider card metadata 2-column layout 보강 완료
-  - partial group에서는 metadata 2-column 배치
-  - 모바일/좁은 폭 1-column fallback 유지
-  - both provider 2-column 비교 레이아웃 유지
-- q 검색 대상 확장 완료
-  - `run_id`/`display_label`/`display_subtitle`/`repo_relative_path` 포함
-  - run_id 대표 label과 검색 동작 일치 보강
-  - 검증: `tests/test_web_loader_run_dir_scan.py`: `6 passed`
-- Search & Filters responsive breakpoint 조정 완료
-  - `751~960px` compact 2열 + `q` full-width
-  - `<=750px` 1열 모바일형
-  - 900px 전후 과도한 1열 누적 완화
-  - 검증: `tests/test_web_payload_src_ip_mode.py`: `5 passed`, 관련 `py_compile` 통과
-- UI polish 검증 기준
-  - `tests/test_web_loader_run_dir_scan.py`: `6 passed`
-  - `tests/test_web_payload_src_ip_mode.py`: `5 passed`
-  - `tests/test_web_report_detail_columns.py`: `5 passed`
-  - 관련 `py_compile` 통과
-- Web UI layout/mobile readability 개선 완료
-  - `/report/{report_id}`: notable_incidents/notable_source_ips/recommended_actions 모바일 카드형 표시 개선
-  - `/report/{report_id}/payload`: Contexts Preview 모바일 카드형 표시 개선 + breakpoint 960px 정리
-  - Payload Event Timeline: 960px 이하 카드형 전환 유지, 1181~1280px 폭 압박 완화, category badge 잘림 완화
-  - Payload Event Timeline: selected-only toggle(`선택 항목만 보기`/`전체 목록 보기`) 및 선택 카드 강조 스타일 보강
-  - Payload Event Timeline 표시 순서 time 오름차순 정렬 반영(`log_time -> display_time`, unknown/미파싱은 뒤)
-  - 관련 커밋: `eec6d81`, `a5b4a76`, `6ff5563`, `f0b845d`, `5f393d8`, `1826ddc`
+- Stage2 prompt compaction + report quality lint 추가/튜닝 완료
+- Web UI loader run_dir manifest scan backend 전환 완료
+- Web UI read-only viewer/payload dashboard 및 layout/search/filter polish 완료
+- Apache app observability 비교 기반 추가 완료:
+  - `docs/operations/99_apache_custom_log_format_contract.md`
+  - `docs/operations/examples/apache_security_logformat_v1.conf`
+  - `docs/design/99_apache_app_observability_comparison_plan.md`
+  - `lab/observability/scenario_catalog.md`
+  - `lab/observability/observation_matrix_template.md`
+  - `scripts/run_observability_scenarios.sh`
+  - `scripts/init_observability_run_notes.sh`
+  - `scripts/collect_observability_server_logs.sh`
+  - `scripts/summarize_observability_run.sh`
+  - `scripts/update_observation_matrix_from_run.sh`
+- PHP sample baseline 완료:
+  - run: `obs_php_sample_002`
+  - S01~S15 전체 관측 성공
+  - User-Agent canonical marker 기준 필터링 검증
+  - request_id 기반 app_security/app_error 연결 확인
+  - notice/warn/error 분리 반영
+  - `/server-status`는 localhost 200, 외부 403 확인. 외부 노출로 판단하지 않음
+- OpenCart observability run 완료:
+  - run: `obs_opencart_002`
+  - S01~S15 전체 관측 성공
+  - `O0=0`, `O1=13`, `O1/O4=2`
+  - OpenCart rewrite/front-controller behavior 확인
+  - `_route_=` + `handler=redirect-handler` + `status_code=200` 조합을 fallback/routed response 후보로 정리
+- PHP sample vs OpenCart 비교 문서 작성 완료:
+  - `lab/observability/comparison_php_sample_vs_opencart.md`
+- `summarize_observability_run.sh` 개선 완료:
+  - notice/warn/error 분리
+  - redirect-follow/double-request 후보 note 자동 반영
+  - logical scenario count와 actual Apache request count 차이 표시
 
-## P1. 실제 LLM 샘플 검증 체계 관리
+---
 
-- 남은 관리:
-  - 새 샘플은 반복 문제나 발표/보고 필요 시점에만 추가
-  - provider별 비교는 필요할 때만 선택 수행
-  - 실제 LLM 샘플 검증은 regression 통과 여부와 같은 의미가 아님
+## P0. Apache app observability 다음 작업
+
+- [ ] Juice Shop reverse proxy 환경에서 동일 `apache_security_io_v1` 포맷 적용
+  - PHP sample/OpenCart와 동일한 LogFormat 유지
+  - 앱별 포맷 분기 금지
+  - reverse proxy 특성은 app_security.log가 아니라 context 해석에서 반영
+- [ ] Juice Shop run 수행
+  - 권장 run_id: `obs_juiceshop_proxy_001`
+  - `scripts/init_observability_run_notes.sh`
+  - `scripts/run_observability_scenarios.sh`
+  - `scripts/collect_observability_server_logs.sh`
+  - `scripts/update_observation_matrix_from_run.sh`
+- [ ] Juice Shop run summary 작성
+  - backend/proxy behavior
+  - `mod_proxy`/backend error context 여부
+  - request_id backend 전달 여부는 가능하면 별도 확인
+- [ ] 3-way 비교 문서 작성
+  - 후보 파일: `lab/observability/comparison_php_sample_vs_opencart_vs_juiceshop.md`
+  - 비교 축:
+    - direct PHP/static baseline
+    - real PHP app rewrite/front-controller behavior
+    - Apache reverse proxy/backend behavior
+- [ ] `front-controller/fallback candidate` feature 후보 정리
+  - `status_code=200`
+  - `handler=redirect-handler`
+  - `query_string` contains `_route_=`
+  - unusual/probe-like request target
+  - finding severity 상승 근거가 아니라 interpretation/context feature로만 취급
+- [ ] redirect-follow/double-request 처리 기준 문서화
+  - logical scenario count와 actual Apache request count는 다를 수 있음
+  - `curl --location` 때문에 301/302 후속 요청이 같은 scenario에 추가될 수 있음
+  - matrix의 `count`는 actual Apache request count로 해석
+
+---
+
+## P1. prepare / LLM input 반영 후보
+
+- [ ] OpenCart-like rewrite/front-controller behavior를 prepare context feature 후보로 검토
+  - `has_route_param`
+  - `route_param_value`
+  - `is_front_controller_candidate`
+  - `is_fallback_200_candidate`
+  - `redirect_follow_candidate`
+- [ ] `status_code=200` guardrail 강화 필요 여부 검토
+  - OpenCart run에서 probe-like path도 200 fallback 가능함을 확인
+  - Stage1/Stage2 prompt 또는 prepare context에서 fallback 후보를 명시할지 검토
+- [ ] handler 기반 해석 feature 검토
+  - `application/x-httpd-php`
+  - `redirect-handler`
+  - `httpd/unix-directory`
+  - `server-status`
+  - `-`
+- [ ] query string rewrite marker 처리 검토
+  - `_route_=`가 있는 경우 원 요청 target과 routed/fallback behavior를 분리
+- [ ] request body 미수집 guardrail 유지
+  - S08/S09는 Apache metadata로 요청만 관찰 가능
+  - 로그인 성공/업로드 저장 성공은 app/DB audit 없이는 판단 금지
+
+---
 
 ## P2. Stage1/Stage2 wording/taxonomy guard 관찰
 
-- 남은 후보:
-  - actual LLM 출력에서 context-only 과승격을 계속 관찰
-  - actual LLM 출력에서 file disclosure 성공 단정 등 과해석을 계속 관찰
-  - lint warning/blocker 분포를 필요 시 확인
-  - `suspicious_file_disclosure` 실제 LLM 재검증은 필요 시점에만 수행
+- [ ] actual LLM 출력에서 context-only 과승격을 계속 관찰
+- [ ] actual LLM 출력에서 file disclosure 성공 단정 등 과해석을 계속 관찰
+- [ ] lint warning/blocker 분포를 필요 시 확인
+- [ ] `suspicious_file_disclosure` 실제 LLM 재검증은 필요 시점에만 수행
 - 주의:
   - Apache logs-only 한계를 유지한다.
   - status/bytes/content-type만으로 성공을 단정하지 않는다.
-  - `lab-*` UA를 공격 근거로 일반화하지 않는다.
+  - `lab-*` 또는 `obs-test/*` User-Agent를 공격 근거로 일반화하지 않는다.
   - `check_stage2_report_quality.py`는 review-only lint이며 기본 모드는 CI를 깨지 않는다.
 
-## P3. retention / output cleanup
+---
+
+## P3. Web UI / viewer 후속 후보
+
+- [ ] Related Contexts matching 과잉/누락 관찰
+  - Web UI에서 새 관계를 추론해 연결을 보정하는 방식은 금지
+  - context-only 승격, severity/category/verdict 재계산 금지
+- [ ] Supporting Events 생성 조건 관찰
+  - 항상 생성되는 필드가 아니라 조건부 context-only 보조 이벤트로 유지
+  - 억지 생성하거나 UI에서 새 관계를 추론하지 않음
+- [ ] viewer_payload_builder.py 최소 단위 테스트 추가 여부 검토
+  - `context_id`, `linked_context_ids`, `sample_request_ids`, `request_id`, `incident_group_key` 보존
+  - `supporting_events` top-level 보존 및 empty/missing fallback
+  - context-only summary가 findings로 섞이지 않는지 확인
+- [ ] Context graph / advanced relationship view는 장기 후보로 보류
+- [ ] viewer_payload compare/history 후보 검토
+- [ ] Web UI layout regression fixture 후보 검토
+  - Event Timeline selected-only toggle
+  - Contexts Preview 카드형
+  - Report Detail 모바일 카드형
+  - `notable_incidents.summary/request_count/recommended_action` 채움 fixture 필요성
+- [ ] Stage2 산출물 field completeness 관찰
+  - 필요 시 Stage2 reporter schema/field completeness 검토는 별도 후속 과제로 분리
+- [ ] provider 비교 구조 일반화(openai/anthropic 고정 -> N-provider)는 장기 후보로 유지
+
+---
+
+## P4. run_dir / archive / runner 후속 후보
+
+- [ ] `--run-id` 필요성 관찰
+- [ ] `--overwrite` 정책 보류(필요 시점에만 확정)
+- [ ] legacy/lab archive opt-in scan 정책/구현 여부 후속 검토
+- [ ] flat/run_dir dedupe는 archive opt-in 필요가 확인될 때만 검토
+- [ ] canonical_report_key는 후속 후보로 보류
+- [ ] `run_analysis_pipeline.py --help` 예시의 table auto resolution 안내 보강 필요 여부 검토
+
+---
+
+## P5. retention / output cleanup
 
 - 현재 동작:
   - 삭제 기능 없음
@@ -134,135 +169,27 @@
   - `lab/`, `docs/`, `src/`, `tests/fixtures`, `tests/expected`, `.git` 보호
   - `/tmp/stage-dryrun-regression` 하위는 cleanup 후보로 분류
 - 남은 후보:
-  - 실제 필요 시점에만 JSONL 로그 출력 검토
-  - 실제 필요 시점에만 `--kind temp-dryrun`, `--older-than-days` 필터 검토
-  - `--apply` 또는 실제 삭제 기능은 별도 승인 전까지 보류
+  - [ ] 실제 필요 시점에만 JSONL 로그 출력 검토
+  - [ ] 실제 필요 시점에만 `--kind temp-dryrun`, `--older-than-days` 필터 검토
+  - [ ] `--apply` 또는 실제 삭제 기능은 별도 승인 전까지 보류
 
-## P4. 새 공격/시나리오 coverage 검토
+---
+
+## P6. 새 공격/시나리오 coverage 검토
 
 - 현재 방향:
   - 추가 prepare split은 당장 진행하지 않음
-  - 다음 작업 후보를 새 공격/시나리오 coverage 검토로 이동
-  - Apache logs-only evidence boundary를 먼저 고정하고 fixture/regression 적합성부터 판단
-- 완료 요약(상세는 `docs/진행상황.md`로 이관):
-  - 신규 coverage regression 7종 완료
-  - API key / secret token probe, Webshell command query endpoint coverage plan 작성 완료
-  - 신규 coverage round summary 작성 완료(`docs/design/99_prepare_new_attack_coverage_round_summary.md`)
-  - 신규 coverage 2라운드 후보 비교 문서 작성 완료(`docs/design/99_prepare_new_attack_coverage_round2_candidate_review.md`)
-- 남은 TODO(실제 작업만 유지):
+  - 새 공격/시나리오 coverage는 Apache logs-only evidence boundary를 먼저 고정하고 fixture/regression 적합성부터 판단
+- 남은 TODO:
   - [ ] API key / secret token probe fixture plan 작성 여부 판단
-    - false positive 위험이 높아 즉시 regression 추가는 하지 않음
-    - 정상 API traffic과 secret probe 구분 기준이 필요할 때만 fixture plan 선행
-    - 현재는 보류 상태를 유지하고 실제 필요가 확인될 때만 작성
   - [ ] Webshell command query fixture plan 작성 여부 판단
-    - traversal/CMDI 경계가 민감해 즉시 regression 추가는 하지 않음
-    - 필요 시 별도 fixture plan 선행
-    - 현재는 보류 상태를 유지하고 실제 필요가 확인될 때만 작성
   - [ ] request smuggling / header anomaly 로그 가시성 검토
-    - Apache access log에서 관찰 가능한 신호 범위와 해석 한계를 먼저 고정
-  - [ ] P2 이후 후보 보류 유지
-    - Deserialization / object injection-like payload
-    - LDAP / NoSQL injection-like payload
-    - scanner / tool behavior 확장
+  - [ ] Deserialization / object injection-like payload 보류
+  - [ ] LDAP / NoSQL injection-like payload 보류
+  - [ ] scanner / tool behavior 확장 보류
   - [ ] prepare split 추가 분리는 계속 보류
-  - [ ] Apache logs-only evidence boundary 및 성공 단정 금지 원칙 유지
-- deferred split 보류 유지:
-  - `AUTOMATION_UA_PATTERNS`
-  - `detect_decoded_attack_hints`
-  - shared attack/search policy constants
-  - normal search false-positive handling
-  - candidate preservation/scoring/filtering
-  - supporting_events 생성/연결 로직
-  - Stage1/Stage2 reporter 구조 변경
-  - expected/test fixture 변경
-  - `constants.py` 대량 분리
-  - 반복 문제 재발 시에만 report lint, Stage2 wording, 보류 후보를 재검토
 
-## P6. Web UI Phase 2A 후속(남은 작업만 유지)
-
-- 상태 요약:
-  - Phase 1B 핵심 구현(list/detail/compare viewer, compare route/API, provider 비교 레이아웃)과 Phase 2A filter MVP는 완료 상태다.
-  - Phase 2A filter MVP는 마감 가능 상태다.
-  - 단기 Web UI 방향은 read-only Security Analysis Console 유지다.
-  - `web/` 범위는 report list/detail/compare/filter 표시로 제한하며 pipeline 실행, report rewrite, DB 제어, raw body/full search, source IP raw search, 새 보안 판정 생성은 포함하지 않는다.
-  - 완료 이력은 `docs/진행상황.md`로 이관하고, 이 섹션은 실제 남은 후보만 유지한다.
-
-남은 TODO:
-
-- [ ] Phase 2B 후보: scenario select는 현재 `q` 검색으로 대체 가능하며, option 수 증가/실제 필요 확인 시 재검토
-- [ ] Phase 2B 후보: 개별 filter chip 제거는 필터 수 증가/실제 불편 확인 시 재검토
-- [ ] Phase 2C execution console risk review는 보류 유지
-  - New Analysis
-  - pipeline run button
-  - live progress
-  - regression run button
-  - scheduling/alert/dashboard
-- [ ] Related Contexts matching 과잉/누락 관찰
-  - source IP display toggle 반영 후 `v1_test_security`에서는 Related Contexts 표시가 복구됨
-  - 향후 여러 source IP / `--table all` / mixed payload에서 과매칭 여부만 관찰
-  - jq 관찰 기준: contexts에 `sample_paths/src_ip/context_type/reason_hints`는 있으나 `context_id/sample_request_ids/linked_context_ids`가 없는 payload가 있음
-  - jq 관찰 기준: findings에는 `request_id/incident_group_key/src_ip/uri/category/reason_hints`가 있어, 필드 보존/누락 경계를 payload별로 분리 확인 필요
-  - Web UI에서 새 관계를 추론해 연결을 보정하는 방식은 금지
-  - context-only 승격, severity/category/verdict 재계산은 하지 않음
-- [ ] Supporting Events 생성 조건 관찰
-  - 1차 원인 분리 완료: `v1_test_security=0`, 05-03=`1`(`sensitive_path_probe_support`) 확인
-  - 동일 값이 `llm_input`/`stage2_report_input`에도 존재해 `viewer_payload_builder` 보존 문제 가능성은 낮음
-  - 현재 판단은 prepare 단계 생성 조건 차이이며, `supporting_events`는 항상 생성되는 필드가 아닌 조건부 `context-only` 보조 이벤트
-  - `v1_test_security=0`은 traversal/sqli 중심 후보 특성상 현 로직에서 정상 가능성이 높음
-  - 남은 TODO: 필요 시 생성 조건을 테스트/문서로 명시할지 판단
-  - 남은 TODO: `build_supporting_events`/`reduce_repeated_auth_candidates`/`reduce_repeated_sensitive_path_candidates` 조건을 별도 설계 문서로 정리할지 검토
-  - 남은 TODO: `supporting_events`를 억지 생성하거나 UI에서 새 관계를 추론하지 않음
-- [ ] 원인 분리 후 `viewer_payload_builder.py` 최소 단위 테스트 추가 여부 검토
-  - 이번 이슈는 builder preservation 결함이 아니라 prepare 단계 `sample_request_ids` 생성/보존 부재 이슈였음을 전제로 검토
-  - `sample_request_ids` 보존 회귀 테스트가 필요한지 여부를 후속 판단
-  - existing payload field preservation: `context_id`, `linked_context_ids`, `sample_request_ids`, `request_id`, `incident_group_key`
-  - `supporting_events` top-level 보존 및 empty/missing fallback
-  - reason_hints list/string/None 처리
-  - noise_summary list/dict 처리
-  - raw_log opt-in 확인
-  - context-only summary가 findings로 섞이지 않는지 확인
-  - 필수 키 누락 시 graceful 처리
-  - 테스트도 새 관계 추론, severity/category/verdict 재계산, context-only 승격을 하지 않는 방향으로 작성
-- [ ] Context graph / advanced relationship view는 장기 후보로 보류
-  - Related Contexts/Supporting Events의 연결 필드 유무와 보존 경로 확인 이후에만 재검토
-- [ ] viewer_payload compare/history 후보 검토
-  - 기존 Stage2 compare와 분리
-  - 장기 후보로 유지
-- [ ] run_dir / data latest / manifest 기반 full runner 전환은 후속 후보로 보류
-  - Phase 1A 완료: `--run-dir <path>` opt-in 병행 산출물 생성 구현 완료(기존 flat output 계약 유지, fail-fast 충돌 정책, manifest 확장 반영)
-  - operations 문서 반영 완료: `docs: document run directory operation flow` (`4e295879ab062d94716ef9b328519bd034b2e2bc`)
-  - Phase 1A smoke 관찰 완료: `security_2026-04-30_13-55-00_to_2026-04-30_13-56-00_kst` + `--dry-run --run-dir /tmp/web-log-analysis-run-dir-smoke-2`에서 `pipeline complete`, flat output 유지, run_dir 표준 파일 생성, manifest dual-path(`flat_files`/`run_dir_files`) 기록 확인
-  - 후보 비교 문서 작성 완료: `docs/design/99_pipeline_run_dir_phase1b_phase2_candidate_review.md`
-  - 우선순위(즉시 구현 승격 아님): `P1 --run-id 필요성 관찰` -> `P2 --overwrite 보류/정책 판단` -> `P3 archive opt-in scan 정책 검토`
-  - 남은 TODO(run_dir 전용):
-    - [ ] `--run-id` 필요성 관찰
-    - [ ] `--overwrite` 정책 보류(필요 시점에만 확정)
-    - [ ] legacy/lab archive opt-in scan 정책/구현 여부 후속 검토
-    - [ ] flat/run_dir dedupe는 archive opt-in 필요가 확인될 때만 검토
-    - [ ] canonical_report_key는 후속 후보로 보류
-  - 원칙 유지: Phase 2D backend 전환은 완료됐지만 execution console/live progress는 열린 범위가 아니다. Web UI는 read-only viewer 범위를 유지하며 context-only 승격/새 보안 판정/severity/category/verdict 재계산은 하지 않음
-- [ ] `run_analysis_pipeline.py --help` 예시의 table auto resolution 안내 보강 필요 여부 검토
-- [ ] lab traffic E2E smoke test 기록 정리
-  - `Mixed_Context_Heavy` + security export 기준 E2E smoke test는 성공
-  - all export 중복 영향과 security export 기준 결과 차이는 필요 시 별도 smoke로 비교
-  - 후속은 `--table all` E2E smoke와 security-only 결과 비교 정도로 유지
-- [ ] Web UI layout regression fixture 후보 검토
-  - Event Timeline selected-only toggle, Contexts Preview 카드형, Report Detail 모바일 카드형을 한 번에 확인할 수 있는 fixture 검토
-  - `notable_incidents.summary/request_count/recommended_action`이 채워진 샘플 포함 여부 검토
-  - pipeline 생성 로그 표준(`scripts/generate_lab_traffic.py`)과 UI layout fixture는 목적을 분리
-- [ ] Stage2 산출물 field completeness 관찰
-  - 실제 산출물에서 `notable_incidents.summary/request_count/recommended_action` 공백 비율을 관찰
-  - 필요 시 Stage2 reporter schema/field completeness 검토는 별도 후속 과제로 분리
-- [ ] Detail 버튼 위치/partial provider metadata 균형은 필요 시 추가 polish 후보로 검토
-- [ ] provider 비교 구조 일반화(openai/anthropic 고정 -> N-provider)는 장기 후보로 유지
-
-QA v4 보조 스크립트 관리:
-
-- [ ] QA v4 추가 개선 필요 여부 관찰
-  - `scripts/run_qa_check_production_v4.py`는 공식 regression/lint 대체가 아니라 보조/실험 스크립트로 유지
-  - `"report": null` 방어는 완료
-  - 추가 QA v4 개선은 실제 사용 필요가 생길 때만 검토
-  - 추가 traceback이 있으면 케이스를 분리해 재검토
+---
 
 ## 장기 후보
 
@@ -274,12 +201,11 @@ QA v4 보조 스크립트 관리:
 - alert/dashboard
 - comparison history trend
 - 모바일 전용 UX
-- 화려한 애니메이션
 - dark/light theme toggle
 
 주의:
 
 - 위 항목은 read-only viewer 범위 검토 이후에만 장기 후보로 유지한다.
-- 현재는 Phase 2 문서 신규 생성 및 실행 TODO 승격을 하지 않는다.
+- 현재는 Phase 2 문서 신규 생성 및 execution TODO 승격을 하지 않는다.
 - Phase 2를 시작하려면 read-only viewer 범위를 실행/운영 콘솔로 확장할지 먼저 별도 판단한다.
 - `lab/`는 비교실험/fixture/archive 용도로 유지하며 일반 운영 출력과 섞지 않는다.
