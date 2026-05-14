@@ -54,7 +54,7 @@ Options:
       Default: /var/log/apache2/apache-log-test_error.log
 
   --sudo-cp
-      Use sudo install when copying logs from /var/log/apache2.
+      Use sudo for existence checks and copying logs from protected directories.
 
   --force
       Overwrite copied raw log files and generated filtered files.
@@ -62,13 +62,6 @@ Options:
 Examples:
   scripts/collect_observability_server_logs.sh \
     --run-id obs_php_sample_002 \
-    --sudo-cp
-
-  scripts/collect_observability_server_logs.sh \
-    --run-id obs_php_sample_002 \
-    --security-log /var/log/apache2/apache-log-test_security.log \
-    --access-log /var/log/apache2/apache-log-test_access.log \
-    --error-log /var/log/apache2/apache-log-test_error.log \
     --sudo-cp
 
 Generated files:
@@ -161,12 +154,21 @@ resolve_run_dir() {
   fi
 }
 
+source_log_exists() {
+  local path="$1"
+  if [[ "${SUDO_CP}" -eq 1 ]]; then
+    sudo test -f "${path}"
+  else
+    test -f "${path}"
+  fi
+}
+
 copy_log() {
   local src="$1"
   local dst="$2"
 
-  if [[ ! -f "${src}" ]]; then
-    log "WARN: source log does not exist: ${src}"
+  if ! source_log_exists "${src}"; then
+    log "WARN: source log does not exist or is not readable: ${src}"
     : > "${dst}"
     return 0
   fi
