@@ -62,8 +62,7 @@ Options:
       Scenario catalog version. Default: apache_observability_s01_s15_v1
 
   --force
-      Overwrite existing generated note/template files.
-      Raw/exported directories are preserved.
+      Overwrite existing generated note/template files. Raw/exported directories are preserved.
 
   --dry-run
       Print planned operations without writing files.
@@ -78,19 +77,6 @@ Examples:
 
   scripts/init_observability_run_notes.sh \
     --run-dir lab/observability/runs/obs_php_sample_001
-
-Generated structure:
-  lab/observability/runs/<run_id>/
-    raw/
-      README.md
-    exported/
-      README.md
-    client/
-      README.md                 # created only if missing
-    notes.md
-    observation_matrix.md
-    summary.md
-    metadata.env
 EOF
 }
 
@@ -207,7 +193,7 @@ write_file() {
   fi
 
   mkdir -p "$(dirname "${path}")"
-  printf '%s' "${content}" > "${path}"
+  printf '%s\n' "${content}" > "${path}"
   log "wrote: ${path}"
 }
 
@@ -243,11 +229,6 @@ now_utc() {
   date -u +%Y-%m-%dT%H:%M:%SZ
 }
 
-now_kst_hint() {
-  # Keep this as a hint string rather than relying on system timezone.
-  date -u +%Y-%m-%dT%H:%M:%SZ
-}
-
 metadata_content() {
   cat <<EOF
 RUN_ID=${RUN_ID}
@@ -269,24 +250,22 @@ Copy server-side logs for this run here.
 
 Recommended files:
 
-```text
-app_security.log
-app_access.log
-app_error.log
-apache_log_shipper.log
-app_runtime.log
-php_fpm.log
-modsec_audit.log
-auth.log
-ufw.log
-fail2ban.log
-```
+- app_security.log
+- app_access.log
+- app_error.log
+- apache_log_shipper.log
+- app_runtime.log
+- php_fpm.log
+- modsec_audit.log
+- auth.log
+- ufw.log
+- fail2ban.log
 
 Guidelines:
 
 - Preserve original lines where possible.
 - Do not edit raw logs in place.
-- If logs include secrets or personal data, store a sanitized copy separately and document the sanitization in `notes.md`.
+- If logs include secrets or personal data, store a sanitized copy separately and document the sanitization in notes.md.
 EOF
 }
 
@@ -298,14 +277,12 @@ Place exported DB rows or normalized JSON/CSV artifacts here.
 
 Recommended files:
 
-```text
-security.json
-access.json
-error.json
-app_runtime.json
-modsec.json
-system_context.json
-```
+- security.json
+- access.json
+- error.json
+- app_runtime.json
+- modsec.json
+- system_context.json
 
 Guidelines:
 
@@ -319,18 +296,16 @@ client_readme_content() {
   cat <<EOF
 # Client Artifacts
 
-This directory is used by \`scripts/run_observability_scenarios.sh\`.
+This directory is used by scripts/run_observability_scenarios.sh.
 
 Expected files after scenario execution:
 
-```text
-commands.log
-summary.tsv
-responses/*.headers
-responses/*.body
-responses/*.meta
-responses/*.stderr
-```
+- commands.log
+- summary.tsv
+- responses/*.headers
+- responses/*.body
+- responses/*.meta
+- responses/*.stderr
 
 Run ID: ${RUN_ID}
 EOF
@@ -369,72 +344,55 @@ notes_content() {
 
 ## 3. Apache Log Configuration
 
-```text
-app_security.log:
-app_access.log:
-app_error.log:
-```
+- app_security.log:
+- app_access.log:
+- app_error.log:
 
 ## 4. Scenario Execution
 
 Command used:
 
-```bash
-scripts/run_observability_scenarios.sh \\
-  --target-base-url '${TARGET_BASE_URL}' \\
-  --run-id '${RUN_ID}'
-```
+    scripts/run_observability_scenarios.sh \\
+      --target-base-url '${TARGET_BASE_URL}' \\
+      --run-id '${RUN_ID}'
 
 Notes:
 
-```text
--
--
--
-```
+- 
+- 
+- 
 
 ## 5. Server-Side Log Collection
 
-```bash
-# Example only. Adjust paths and time windows per server.
-sudo cp /var/log/apache2/app_security.log '${RUN_DIR}/raw/app_security.log'
-sudo cp /var/log/apache2/app_access.log '${RUN_DIR}/raw/app_access.log'
-sudo cp /var/log/apache2/app_error.log '${RUN_DIR}/raw/app_error.log'
-```
+Example only. Adjust paths and time windows per server.
+
+    sudo cp /var/log/apache2/app_security.log '${RUN_DIR}/raw/app_security.log'
+    sudo cp /var/log/apache2/app_access.log '${RUN_DIR}/raw/app_access.log'
+    sudo cp /var/log/apache2/app_error.log '${RUN_DIR}/raw/app_error.log'
 
 ## 6. Observed Differences
 
 ### Apache-only evidence
 
-```text
--
-```
+- 
 
 ### app_error.log additions
 
-```text
--
-```
+- 
 
 ### app/WAF additions
 
-```text
--
-```
+- 
 
 ### Still unknowable without app/DB audit
 
-```text
--
-```
+- 
 
 ## 7. Follow-up Items
 
-```text
--
--
--
-```
+- 
+- 
+- 
 EOF
 }
 
@@ -449,9 +407,7 @@ summary_content() {
 
 ## 1. High-Level Result
 
-```text
 TBD
-```
 
 ## 2. Evidence Level Summary
 
@@ -465,11 +421,9 @@ TBD
 
 ## 3. Key Findings for Pipeline Design
 
-```text
--
--
--
-```
+- 
+- 
+- 
 
 ## 4. Guardrail Checks
 
@@ -484,11 +438,9 @@ TBD
 
 ## 5. Recommended Next Changes
 
-```text
--
--
--
-```
+- 
+- 
+- 
 EOF
 }
 
