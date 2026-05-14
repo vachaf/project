@@ -104,6 +104,27 @@ def test_weak_possibility_stays_warning() -> None:
     assert result["summary"]["warning_count"] >= 1
 
 
+def test_negated_intrusion_success_in_noise_interpretation_is_not_warning() -> None:
+    report = make_minimal_report(
+        "필터링된 18건 중 17건은 low_signal_fuzzing으로 집계되었습니다. 이는 현재 구간의 대부분이 명시적 침해 성공이 아니라 탐색성 요청, 저신호 퍼징, 정상 비교군 성격의 트래픽으로 구성되었음을 의미합니다.",
+        field="overall_assessment",
+    )
+    report["noise_interpretation"] = report["overall_assessment"]
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["blocker_count"] == 0
+    assert result["summary"]["warning_count"] == 0
+
+
+def test_explicit_intrusion_success_still_warns() -> None:
+    report = make_minimal_report(
+        "이 요청들은 명시적 침해 성공으로 판단됩니다.",
+        field="overall_assessment",
+    )
+    report["noise_interpretation"] = report["overall_assessment"]
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["warning_count"] + result["summary"]["blocker_count"] >= 1
+
+
 def test_recommended_action_check_is_not_blocker() -> None:
     report = make_minimal_report("브라우저 XSS 실행 여부 확인이 필요합니다", field="recommended_actions.why")
     result = lint.analyze_stage2_report_data(wrap_report(report))

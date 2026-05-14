@@ -16,6 +16,8 @@ MIN_TEXT_WARNING_PATTERNS = (
     "실제 공격",
     "차단 성공",
     "노출 실패",
+    "침해 성공",
+    "공격 성공",
 )
 STRONG_NEGATION_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
@@ -38,6 +40,10 @@ STRONG_NEGATION_PATTERNS = tuple(
         r"의미하지(?:는)?\s*않",
         r"증명하지(?:는)?\s*않",
         r"확인하지\s*않",
+        r"침해\s*성공(?:이)?\s*아니",
+        r"공격\s*성공(?:이)?\s*아니",
+        r"성공(?:한)?\s*공격(?:으로)?\s*보(?:기|기는)?\s*어렵",
+        r"성공(?:으로)?\s*보(?:기|기는)?\s*어렵",
         r"not\s+confirmed",
         r"not\s+evidence",
         r"no\s+evidence",
