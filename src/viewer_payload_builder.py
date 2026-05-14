@@ -271,24 +271,26 @@ def extract_report_fields(stage2_report_payload: Dict[str, Any]) -> Dict[str, An
 
 def normalize_finding_category(item: Dict[str, Any]) -> str:
     # UI badge grouping only. This reuses existing verdict/reason_hints/URI/method signals and does not create new detections.
-    verdict = normalize_str(first_non_empty(item.get("verdict"), item.get("verdict_hint"))).lower()
+    verdict = normalize_str(item.get("verdict")).lower()
+    verdict_hint = normalize_str(item.get("verdict_hint")).lower()
     reason_hints = [hint.lower() for hint in normalize_reason_hints(item.get("reason_hints"))]
     uri = normalize_str(item.get("uri")).lower()
     method = normalize_str(item.get("method")).upper()
+    joined = " ".join([verdict, verdict_hint] + reason_hints)
 
     def has_hint(prefix: str) -> bool:
         return any(hint.startswith(prefix) for hint in reason_hints)
 
-    if "auth" in verdict or has_hint("auth:") or "login" in uri:
+    if "auth" in joined or has_hint("auth:") or "login" in uri:
         return "auth_behavior_candidate"
-    if "sqli" in verdict or has_hint("sqli:"):
-        return "sqli_candidate"
-    if "xss" in verdict or has_hint("xss:"):
-        return "xss_candidate"
-    if "file_disclosure" in verdict or has_hint("file_disclosure:") or "php://filter" in uri:
-        return "file_disclosure_candidate"
-    if "traversal" in verdict or "command_injection" in verdict or has_hint("traversal:") or has_hint("cmdi:"):
+    if "traversal" in joined or "path_traversal" in joined or has_hint("traversal:") or has_hint("cmdi:"):
         return "path_traversal_candidate"
+    if "sqli" in joined or has_hint("sqli:"):
+        return "sqli_candidate"
+    if "xss" in joined or has_hint("xss:"):
+        return "xss_candidate"
+    if "file_disclosure" in joined or has_hint("file_disclosure:") or "php://filter" in uri:
+        return "file_disclosure_candidate"
     if has_hint("method:") or has_hint("protocol:") or method in {"TRACE", "OPTIONS", "PUT", "DELETE", "PATCH"}:
         return "method_behavior_candidate"
     if has_hint("sensitive_path:") or any(token in uri for token in (".env", "phpinfo", "server-status", "wp-login", "wp-admin")):
@@ -346,6 +348,8 @@ def build_finding(
         "recommended_actions": normalize_string_list(item.get("recommended_actions")),
         "response_body_bytes": item.get("response_body_bytes"),
         "resp_content_type": normalize_str(item.get("resp_content_type")),
+        "handler": normalize_str(item.get("handler")),
+        "log_schema": normalize_str(item.get("log_schema")),
         "raw_request_target": normalize_str(item.get("raw_request_target")),
         "raw_request": normalize_str(item.get("raw_request")),
         "path_normalized_from_raw_request": bool(item.get("path_normalized_from_raw_request")),

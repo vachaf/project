@@ -25,6 +25,8 @@ class Candidate:
     duration_us: int
     ttfb_us: int
     raw_log: str
+    handler: str
+    log_schema: str
     response_body_bytes: int
     resp_content_type: str
     raw_request_target: str

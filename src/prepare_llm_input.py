@@ -3913,6 +3913,8 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         duration_us=duration_us,
         ttfb_us=ttfb_us,
         raw_log=raw_log,
+        handler=normalize_text(row.get("handler")),
+        log_schema=normalize_text(row.get("log_schema")),
         response_body_bytes=response_body_bytes,
         resp_content_type=resp_content_type,
         raw_request_target=raw_request_target,

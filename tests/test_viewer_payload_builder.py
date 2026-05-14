@@ -106,6 +106,31 @@ def auth_finding(reason_hints: Any) -> Dict[str, Any]:
     }
 
 
+def traversal_finding_with_xss_context() -> Dict[str, Any]:
+    return {
+        "incident_ref": "inc-trv-1",
+        "request_id": "rid-trv-1",
+        "src_ip": "192.0.2.11",
+        "method": "GET",
+        "uri": "/download.php",
+        "status_code": 200,
+        "severity": "low",
+        "confidence": "low",
+        "verdict": "inconclusive",
+        "verdict_hint": "path_traversal",
+        "reason_hints": [
+            "traversal:dotdot_slash(+4)",
+            "traversal:etc_passwd(+5)",
+            "xss:external_navigation",
+        ],
+        "reasoning_summary": "traversal-like request observed",
+        "evidence_fields": ["reason_hints", "raw_request_target"],
+        "recommended_actions": ["review"],
+        "handler": "proxy-server",
+        "log_schema": "apache_security_io_v1",
+    }
+
+
 def test_minimal_payload_has_required_top_level_keys(tmp_path: Path) -> None:
     payload = run_builder(tmp_path, stage2_report_input=base_stage2_report_input())
     required_keys = {
@@ -296,6 +321,25 @@ def test_findings_priority_top_incidents_then_stage1_then_llm_input(tmp_path: Pa
     )
     assert payload_c["meta"]["source_of_truth"]["findings"] == "llm_input.analysis_candidates"
     assert payload_c["findings"][0]["verdict"] == "suspicious_auth_abuse"
+
+
+def test_traversal_category_takes_priority_over_xss_context_hint(tmp_path: Path) -> None:
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [traversal_finding_with_xss_context()]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+    finding = payload["findings"][0]
+    assert finding["category"] == "path_traversal_candidate"
+
+
+def test_handler_and_log_schema_are_preserved_in_findings(tmp_path: Path) -> None:
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [traversal_finding_with_xss_context()]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+    finding = payload["findings"][0]
+    assert finding["handler"] == "proxy-server"
+    assert finding["log_schema"] == "apache_security_io_v1"
 
 
 def test_apache_logs_only_guardrail_present(tmp_path: Path) -> None:
