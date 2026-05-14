@@ -21,6 +21,7 @@
   - `docs/operations/99_apache_custom_log_format_contract.md`
   - `docs/operations/examples/apache_security_logformat_v1.conf`
   - `docs/design/99_apache_app_observability_comparison_plan.md`
+  - `docs/design/99_prepare_apache_observability_context_feature_review.md`
   - `lab/observability/scenario_catalog.md`
   - `lab/observability/observation_matrix_template.md`
   - `scripts/run_observability_scenarios.sh`
@@ -35,26 +36,33 @@
 - 비교 문서 작성 완료:
   - `lab/observability/comparison_php_sample_vs_opencart.md`
   - `lab/observability/comparison_php_sample_vs_opencart_vs_juiceshop.md`
-- `summarize_observability_run.sh` 개선 완료:
-  - notice/warn/error 분리
-  - redirect-follow/double-request 후보 note 자동 반영
-  - logical scenario count와 actual Apache request count 차이 표시
+- observability raw log -> export JSON -> dry-run pipeline 연결 완료:
+  - `scripts/convert_observability_logs_to_export_json.py`
+  - `obs_juiceshop_proxy_001` 기준 export/prepare/stage1/stage2/viewer_payload dry-run 성공
+- stage2 top incident metadata 보존 보강 완료:
+  - commit: `688867437363c33dbe3d5d38f60070ac80a2a818`
+  - `src/llm_stage2_reporter.py`에서 `llm_input.analysis_candidates` 기반 enrichment 반영
+  - `src/viewer_payload_builder.py` raw_request pass-through 보강
+  - `tests/test_llm_stage2_reporter_enrichment.py` 추가
+  - 검증: `py_compile` 통과, 관련 테스트 `11 passed`, dry-run 산출물에서 method/bytes/content-type/raw_request_target/raw_request/user_agent 보존 확인
+- prepare row-level Apache observability topology reason hints 추가 완료:
+  - commit: `54f8b0ff4a35bdca64338eea3dcf36741e364cf3`
+  - `src/prepare/apache_observability_context.py` 추가
+  - `prepare_llm_input.py`는 coordinator로 유지하고 row-level reason_hints 연결만 반영
+  - `src/prepare/README.md` 업데이트
+  - `tests/test_prepare_apache_observability_context.py` 추가
+  - 생성 hint 예: `observability:front_controller_candidate`, `observability:fallback_200_candidate`, `observability:reverse_proxy_candidate`, `observability:backend_response_candidate`, `observability:backend_fallback_200_candidate`, `observability:server_status_handler_observed`, `observability:directory_redirect_candidate`, `observability:redirect_candidate`
+  - 검증: unit `5 passed`, prepare regression `pass=25 warn=0 fail=0`, stage dry-run regression `pass=19 warn=0 fail=0`
 - 확인된 핵심 결론:
   - `apache_security_io_v1`은 direct PHP, real PHP rewrite/front-controller, reverse proxy 배치 모두에서 동작
   - `status_code=200`은 topology-dependent weak signal이며 성공/노출/침해 근거로 사용 금지
   - `handler`, `_route_=`, redirect-follow, `proxy-server`, proxy error context는 interpretation context로만 사용
+  - prepare topology hints는 scoring/severity/verdict를 변경하지 않고 reason_hints context로만 사용
 
 ---
 
-## P0. Apache app observability 다음 작업
+## P0. Apache observability 후속 관리
 
-- [ ] 3-way 비교 결과를 prepare feature candidate review 문서로 승격할지 판단
-  - 후보 파일: `docs/design/99_prepare_apache_observability_context_feature_review.md`
-  - 포함 후보:
-    - `front-controller/fallback candidate`
-    - `reverse-proxy/backend-response candidate`
-    - `redirect-follow candidate`
-    - `backend unavailable/proxy error context`
 - [ ] `proxy_error_check`를 정식 scenario catalog extension으로 분리할지 판단
   - 현재는 정규 S01~S15와 별도 backend availability 관찰로 유지
   - 정식화 시 공격/침해 시나리오가 아니라 backend availability context로 명시
@@ -66,32 +74,26 @@
 
 ---
 
-## P1. prepare / LLM input 반영 후보
+## P1. prepare / LLM input 반영 후속 관찰
 
-- [ ] OpenCart-like rewrite/front-controller behavior를 prepare context feature 후보로 검토
-  - `has_route_param`
-  - `route_param_value`
-  - `is_front_controller_candidate`
-  - `is_fallback_200_candidate`
-  - `redirect_follow_candidate`
-- [ ] reverse proxy/backend behavior를 prepare context feature 후보로 검토
-  - `is_reverse_proxy_candidate`
-  - `handler=proxy-server`
-  - `backend_response_candidate`
-  - `backend_unavailable_context`
-  - `proxy_error_context`
-- [ ] `status_code=200` guardrail 강화 필요 여부 검토
+- [ ] topology reason_hints가 Stage1/Stage2 wording에 미치는 영향 관찰
+  - observability hints는 scoring/severity/verdict 변경 없이 context로만 사용해야 함
+  - actual LLM 출력에서 `fallback_200_candidate`가 성공 단정 완화에 기여하는지 확인
+- [ ] `status_code=200` guardrail 강화 효과 관찰
   - OpenCart/Juice Shop run에서 probe-like path도 200 fallback 가능함을 확인
-  - Stage1/Stage2 prompt 또는 prepare context에서 topology hint를 명시할지 검토
-- [ ] handler 기반 해석 feature 검토
-  - `application/x-httpd-php`
-  - `redirect-handler`
-  - `httpd/unix-directory`
-  - `proxy-server`
-  - `server-status`
-  - `-`
-- [ ] query string rewrite marker 처리 검토
-  - `_route_=`가 있는 경우 원 요청 target과 routed/fallback behavior를 분리
+  - Stage1/Stage2 prompt 또는 prepare context에서 topology hint가 과해석을 줄이는지 관찰
+- [ ] reverse proxy/backend behavior 표현 관찰
+  - `observability:reverse_proxy_candidate`
+  - `observability:backend_response_candidate`
+  - `observability:backend_fallback_200_candidate`
+- [ ] OpenCart-like rewrite/front-controller 표현 관찰
+  - `observability:front_controller_candidate`
+  - `observability:route_param_present`
+  - `observability:route_param=<value>`
+  - `observability:fallback_200_candidate`
+- [ ] proxy_error_context의 정식 prepare 반영 여부 검토
+  - 현재 P1은 security row-level hint 중심
+  - proxy error는 error table/app_error integration 경로가 정리된 뒤 별도 검토
 - [ ] request body 미수집 guardrail 유지
   - S08/S09는 Apache metadata로 요청만 관찰 가능
   - 로그인 성공/업로드 저장 성공은 app/DB/backend audit 없이는 판단 금지
