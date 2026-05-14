@@ -13,8 +13,8 @@ set -euo pipefail
 #   observation_matrix.autofill.md      # default, safe non-destructive draft
 #
 # The matrix distinguishes app/PHP notice-style error-log context from real
-# warning/error context. This prevents benign PHP error_log() notice events from
-# making every scenario look like an Apache/PHP error.
+# warning/error context. It also flags redirect-follow/double-request behavior
+# when actual Apache request count exceeds the logical scenario count.
 
 SCRIPT_NAME="$(basename "$0")"
 
@@ -170,6 +170,8 @@ SCENARIO_NAMES = {
     "S14": "xss_like",
     "S15": "traversal_like",
 }
+EXPECTED_LOGICAL_COUNTS = {scenario: 1 for scenario in SCENARIOS}
+EXPECTED_LOGICAL_COUNTS["S12"] = 7
 
 KV_RE = re.compile(r'(\w+)=("(?:[^"\\]|\\.)*"|\S+)')
 SCENARIO_RE = re.compile(r'obs-test/(S\d{2})\s+run=([^"\s]+)')
@@ -180,7 +182,6 @@ ERROR_MODULE_RE = re.compile(r'\[module_name:([^\]]+)\]')
 NOTICE_LEVELS = {"trace1", "trace2", "trace3", "trace4", "trace5", "trace6", "trace7", "trace8", "debug", "info", "notice"}
 WARN_LEVELS = {"warn", "warning"}
 ERROR_LEVELS = {"error", "crit", "critical", "alert", "emerg", "emergency"}
-WARN_OR_ABOVE = WARN_LEVELS | ERROR_LEVELS
 
 
 def strip_quotes(value: str) -> str:
@@ -231,6 +232,40 @@ def classify_levels(counter: collections.Counter) -> dict:
         "error": error,
         "warn_or_above": warn + error,
         "summary": compact_counts([level for level, count in counter.items() for _ in range(count)]),
+    }
+
+
+def is_3xx(status: str) -> bool:
+    return bool(re.fullmatch(r"3\d\d", str(status or "")))
+
+
+def redirect_follow_stats(scenario: str, rows: list) -> dict:
+    expected = EXPECTED_LOGICAL_COUNTS.get(scenario, 1)
+    actual = len(rows)
+    statuses = [row.get("status_code", "") for row in rows]
+    locations = [row.get("location", "") for row in rows if row.get("location") not in {"", "-"}]
+    has_3xx = any(is_3xx(status) for status in statuses)
+    extra = max(0, actual - expected)
+    candidate = extra > 0 or has_3xx or bool(locations)
+    if candidate:
+        parts = []
+        if extra > 0:
+            parts.append(f"actual Apache requests={actual} exceeds logical expected={expected}")
+        if has_3xx:
+            parts.append("3xx status observed")
+        if locations:
+            parts.append("Location header observed")
+        note = "; ".join(parts)
+    else:
+        note = ""
+    return {
+        "expected": expected,
+        "actual": actual,
+        "extra": extra,
+        "has_3xx": has_3xx,
+        "locations": compact_counts(locations),
+        "candidate": candidate,
+        "note": note,
     }
 
 security_rows = []
@@ -314,36 +349,45 @@ def infer_evidence_level(scenario: str, rows: list, err_stats: dict) -> str:
     return "O1"
 
 
-def notes_for(scenario: str, rows: list, err_stats: dict) -> str:
+def notes_for(scenario: str, rows: list, err_stats: dict, redirect_stats: dict) -> str:
     if not rows:
         return "not observed"
+    notes = []
     if scenario == "S08":
-        return "POST observed; success/failure requires app or DB audit"
-    if scenario == "S09":
-        return "multipart/upload-like POST observed; stored result requires app or DB audit"
-    if scenario == "S11":
-        if err_stats["warn_or_above"] > 0:
-            return "500 observed; warn/error-level Apache/PHP context linked"
-        if err_stats["notice"] > 0:
-            return "500 observed; only notice-level context linked"
-        return "500 observed; no related error context found"
-    if scenario == "S12":
-        return "burst pattern observed via repeated User-Agent marker"
-    if scenario == "S13":
-        return "SQLi-like query observed; no success inference"
-    if scenario == "S14":
-        return "XSS-like query observed; no browser execution inference"
-    if scenario == "S15":
-        return "traversal-like query observed; no file-read success inference"
-    if err_stats["notice"] > 0 and err_stats["warn_or_above"] == 0:
-        return "observed in Apache request metadata; notice-level app/PHP context only"
-    return "observed in Apache request metadata"
+        notes.append("POST observed; success/failure requires app or DB audit")
+    elif scenario == "S09":
+        notes.append("multipart/upload-like POST observed; stored result requires app or DB audit")
+    elif scenario == "S11":
+        statuses = {row.get("status_code", "") for row in rows}
+        if "500" in statuses and err_stats["warn_or_above"] > 0:
+            notes.append("500 observed; warn/error-level Apache/PHP context linked")
+        elif "500" in statuses:
+            notes.append("500 observed; no warn/error context found")
+        else:
+            notes.append("server-error scenario request observed, but no 500 status in Apache response")
+    elif scenario == "S12":
+        notes.append("burst pattern observed via repeated User-Agent marker")
+    elif scenario == "S13":
+        notes.append("SQLi-like query observed; no success inference")
+    elif scenario == "S14":
+        notes.append("XSS-like query observed; no browser execution inference")
+    elif scenario == "S15":
+        notes.append("traversal-like query observed; no file-read success inference")
+    elif err_stats["notice"] > 0 and err_stats["warn_or_above"] == 0:
+        notes.append("observed in Apache request metadata; notice-level app/PHP context only")
+    else:
+        notes.append("observed in Apache request metadata")
+
+    if redirect_stats["candidate"]:
+        notes.append("redirect/follow candidate: " + redirect_stats["note"])
+    return "; ".join(notes)
 
 matrix_lines = []
 for scenario in SCENARIOS:
     rows = rows_by_scenario.get(scenario, [])
     request_ids = [r.get("request_id", "") for r in rows]
     err_stats = scenario_error_stats([rid for rid in request_ids if rid])
+    redirect_stats = redirect_follow_stats(scenario, rows)
     client_rows = client_by_scenario.get(scenario, [])
 
     methods = compact_counts(r.get("method", "") for r in rows)
@@ -365,15 +409,17 @@ for scenario in SCENARIOS:
         "error_level_summary": err_stats["summary"],
         "notice_count": str(err_stats["notice"]),
         "warn_or_error_count": str(err_stats["warn_or_above"]),
-        "observed_in_app": "n/a",
-        "observed_in_waf": "n/a",
         "evidence_level": infer_evidence_level(scenario, rows, err_stats),
-        "notes": notes_for(scenario, rows, err_stats),
+        "notes": notes_for(scenario, rows, err_stats, redirect_stats),
         "handler": handlers,
         "req_content_type": req_ct,
         "resp_content_type": resp_ct,
         "error_count": str(err_stats["line_count"]),
         "count": str(len(rows)),
+        "expected_logical_count": str(redirect_stats["expected"]),
+        "extra_request_count": str(redirect_stats["extra"]),
+        "redirect_follow_candidate": yes_no(redirect_stats["candidate"]),
+        "redirect_follow_note": redirect_stats["note"],
         "error_modules": err_stats["modules"],
     }
     matrix_lines.append(line)
@@ -404,12 +450,12 @@ out.append("")
 
 out.append("## 1. Scenario Result Matrix")
 out.append("")
-out.append("| scenario | count | request summary | actual status | observed in security | observed in warn/error | error levels | evidence level | notes |")
-out.append("|---|---:|---|---|---|---|---|---|---|")
+out.append("| scenario | count | expected logical | extra requests | redirect/follow | request summary | actual status | observed in security | observed in warn/error | error levels | evidence level | notes |")
+out.append("|---|---:|---:|---:|---|---|---|---|---|---|---|---|")
 for item in matrix_lines:
     safe = {k: md_escape(v) for k, v in item.items()}
     out.append(
-        "| {scenario} | {count} | {request_summary} | {actual_status} | {observed_in_security} | {observed_in_error} | {error_level_summary} | {evidence_level} | {notes} |".format(**safe)
+        "| {scenario} | {count} | {expected_logical_count} | {extra_request_count} | {redirect_follow_candidate} | {request_summary} | {actual_status} | {observed_in_security} | {observed_in_error} | {error_level_summary} | {evidence_level} | {notes} |".format(**safe)
     )
 out.append("")
 
@@ -421,7 +467,16 @@ for level in ["O0", "O1", "O1/O4", "O2", "O3", "O4"]:
     out.append(f"| {level} | {level_counts.get(level, 0)} |  |")
 out.append("")
 
-out.append("## 3. Related Error-Level Summary")
+out.append("## 3. Redirect/Follow Summary")
+out.append("")
+out.append("| scenario | actual request count | expected logical count | extra requests | status | note |")
+out.append("|---|---:|---:|---:|---|---|")
+for item in matrix_lines:
+    if item["redirect_follow_candidate"] == "yes":
+        out.append(f"| {md_escape(item['scenario'])} | {item['count']} | {item['expected_logical_count']} | {item['extra_request_count']} | candidate | {md_escape(item['redirect_follow_note'])} |")
+out.append("")
+
+out.append("## 4. Related Error-Level Summary")
 out.append("")
 out.append("| scenario | notice count | warn/error count | modules | interpretation |")
 out.append("|---|---:|---:|---|---|")
@@ -430,7 +485,7 @@ for item in matrix_lines:
     out.append(f"| {md_escape(item['scenario'])} | {item['notice_count']} | {item['warn_or_error_count']} | {md_escape(item['error_modules'])} | {interpretation} |")
 out.append("")
 
-out.append("## 4. Field Observation Checklist")
+out.append("## 5. Field Observation Checklist")
 out.append("")
 out.append("| field | observed | notes |")
 out.append("|---|---:|---|")
@@ -438,7 +493,7 @@ for name in field_names:
     out.append(f"| `{name}` | {yes_no(field_present[name])} |  |")
 out.append("")
 
-out.append("## 5. Per-Scenario Details")
+out.append("## 6. Per-Scenario Details")
 out.append("")
 for scenario in SCENARIOS:
     rows = rows_by_scenario.get(scenario, [])
@@ -457,6 +512,7 @@ for scenario in SCENARIOS:
         out.append(f"  - uri: `{md_escape(row.get('uri', ''))}`")
         out.append(f"  - query_string: `{md_escape(row.get('query_string', ''))}`")
         out.append(f"  - status_code: `{md_escape(row.get('status_code', ''))}`")
+        out.append(f"  - location: `{md_escape(row.get('location', ''))}`")
         out.append(f"  - handler: `{md_escape(row.get('handler', ''))}`")
         out.append(f"  - req_content_type: `{md_escape(row.get('req_content_type', ''))}`")
         out.append(f"  - resp_content_type: `{md_escape(row.get('resp_content_type', ''))}`")
@@ -466,7 +522,7 @@ for scenario in SCENARIOS:
         out.append(f"  - related_error_levels: `{md_escape(row_levels['summary'])}`")
     out.append("")
 
-out.append("## 6. Prohibited Inferences Check")
+out.append("## 7. Prohibited Inferences Check")
 out.append("")
 out.append("| guardrail | status | notes |")
 out.append("|---|---|---|")
