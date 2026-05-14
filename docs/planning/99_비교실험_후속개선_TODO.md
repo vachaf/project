@@ -28,60 +28,41 @@
   - `scripts/collect_observability_server_logs.sh`
   - `scripts/summarize_observability_run.sh`
   - `scripts/update_observation_matrix_from_run.sh`
-- PHP sample baseline 완료:
-  - run: `obs_php_sample_002`
-  - S01~S15 전체 관측 성공
-  - User-Agent canonical marker 기준 필터링 검증
-  - request_id 기반 app_security/app_error 연결 확인
-  - notice/warn/error 분리 반영
-  - `/server-status`는 localhost 200, 외부 403 확인. 외부 노출로 판단하지 않음
-- OpenCart observability run 완료:
-  - run: `obs_opencart_002`
-  - S01~S15 전체 관측 성공
-  - `O0=0`, `O1=13`, `O1/O4=2`
-  - OpenCart rewrite/front-controller behavior 확인
-  - `_route_=` + `handler=redirect-handler` + `status_code=200` 조합을 fallback/routed response 후보로 정리
-- PHP sample vs OpenCart 비교 문서 작성 완료:
+- Apache observability 3-way run 완료:
+  - PHP sample baseline: `obs_php_sample_002`
+  - OpenCart: `obs_opencart_002`
+  - Juice Shop reverse proxy: `obs_juiceshop_proxy_001`
+- 비교 문서 작성 완료:
   - `lab/observability/comparison_php_sample_vs_opencart.md`
+  - `lab/observability/comparison_php_sample_vs_opencart_vs_juiceshop.md`
 - `summarize_observability_run.sh` 개선 완료:
   - notice/warn/error 분리
   - redirect-follow/double-request 후보 note 자동 반영
   - logical scenario count와 actual Apache request count 차이 표시
+- 확인된 핵심 결론:
+  - `apache_security_io_v1`은 direct PHP, real PHP rewrite/front-controller, reverse proxy 배치 모두에서 동작
+  - `status_code=200`은 topology-dependent weak signal이며 성공/노출/침해 근거로 사용 금지
+  - `handler`, `_route_=`, redirect-follow, `proxy-server`, proxy error context는 interpretation context로만 사용
 
 ---
 
 ## P0. Apache app observability 다음 작업
 
-- [ ] Juice Shop reverse proxy 환경에서 동일 `apache_security_io_v1` 포맷 적용
-  - PHP sample/OpenCart와 동일한 LogFormat 유지
-  - 앱별 포맷 분기 금지
-  - reverse proxy 특성은 app_security.log가 아니라 context 해석에서 반영
-- [ ] Juice Shop run 수행
-  - 권장 run_id: `obs_juiceshop_proxy_001`
-  - `scripts/init_observability_run_notes.sh`
-  - `scripts/run_observability_scenarios.sh`
-  - `scripts/collect_observability_server_logs.sh`
-  - `scripts/update_observation_matrix_from_run.sh`
-- [ ] Juice Shop run summary 작성
-  - backend/proxy behavior
-  - `mod_proxy`/backend error context 여부
-  - request_id backend 전달 여부는 가능하면 별도 확인
-- [ ] 3-way 비교 문서 작성
-  - 후보 파일: `lab/observability/comparison_php_sample_vs_opencart_vs_juiceshop.md`
-  - 비교 축:
-    - direct PHP/static baseline
-    - real PHP app rewrite/front-controller behavior
-    - Apache reverse proxy/backend behavior
-- [ ] `front-controller/fallback candidate` feature 후보 정리
-  - `status_code=200`
-  - `handler=redirect-handler`
-  - `query_string` contains `_route_=`
-  - unusual/probe-like request target
-  - finding severity 상승 근거가 아니라 interpretation/context feature로만 취급
-- [ ] redirect-follow/double-request 처리 기준 문서화
-  - logical scenario count와 actual Apache request count는 다를 수 있음
-  - `curl --location` 때문에 301/302 후속 요청이 같은 scenario에 추가될 수 있음
-  - matrix의 `count`는 actual Apache request count로 해석
+- [ ] 3-way 비교 결과를 prepare feature candidate review 문서로 승격할지 판단
+  - 후보 파일: `docs/design/99_prepare_apache_observability_context_feature_review.md`
+  - 포함 후보:
+    - `front-controller/fallback candidate`
+    - `reverse-proxy/backend-response candidate`
+    - `redirect-follow candidate`
+    - `backend unavailable/proxy error context`
+- [ ] `proxy_error_check`를 정식 scenario catalog extension으로 분리할지 판단
+  - 현재는 정규 S01~S15와 별도 backend availability 관찰로 유지
+  - 정식화 시 공격/침해 시나리오가 아니라 backend availability context로 명시
+- [ ] `lab/observability/runs/*/raw/` 커밋/보관 정책 점검
+  - raw log는 민감정보 가능성이 있으므로 기본 커밋 금지 후보
+  - 필요 시 `.gitignore` 또는 sanitization policy 검토
+- [ ] 추가 앱 topology가 필요할 때만 후속 run 수행
+  - 예: PHP-FPM 분리형, WAF-fronted Apache, TLS/HTTP2, 앞단 LB + mod_remoteip
 
 ---
 
@@ -93,20 +74,27 @@
   - `is_front_controller_candidate`
   - `is_fallback_200_candidate`
   - `redirect_follow_candidate`
+- [ ] reverse proxy/backend behavior를 prepare context feature 후보로 검토
+  - `is_reverse_proxy_candidate`
+  - `handler=proxy-server`
+  - `backend_response_candidate`
+  - `backend_unavailable_context`
+  - `proxy_error_context`
 - [ ] `status_code=200` guardrail 강화 필요 여부 검토
-  - OpenCart run에서 probe-like path도 200 fallback 가능함을 확인
-  - Stage1/Stage2 prompt 또는 prepare context에서 fallback 후보를 명시할지 검토
+  - OpenCart/Juice Shop run에서 probe-like path도 200 fallback 가능함을 확인
+  - Stage1/Stage2 prompt 또는 prepare context에서 topology hint를 명시할지 검토
 - [ ] handler 기반 해석 feature 검토
   - `application/x-httpd-php`
   - `redirect-handler`
   - `httpd/unix-directory`
+  - `proxy-server`
   - `server-status`
   - `-`
 - [ ] query string rewrite marker 처리 검토
   - `_route_=`가 있는 경우 원 요청 target과 routed/fallback behavior를 분리
 - [ ] request body 미수집 guardrail 유지
   - S08/S09는 Apache metadata로 요청만 관찰 가능
-  - 로그인 성공/업로드 저장 성공은 app/DB audit 없이는 판단 금지
+  - 로그인 성공/업로드 저장 성공은 app/DB/backend audit 없이는 판단 금지
 
 ---
 
@@ -126,6 +114,12 @@
 
 ## P3. Web UI / viewer 후속 후보
 
+- [ ] display-only topology/context badge 후보 검토
+  - `front-controller/fallback candidate`
+  - `reverse-proxy/backend-response candidate`
+  - `redirect-follow candidate`
+  - `backend unavailable / proxy error context`
+  - 단, badge는 severity/category/verdict 변경 근거가 아님
 - [ ] Related Contexts matching 과잉/누락 관찰
   - Web UI에서 새 관계를 추론해 연결을 보정하는 방식은 금지
   - context-only 승격, severity/category/verdict 재계산 금지
@@ -133,18 +127,10 @@
   - 항상 생성되는 필드가 아니라 조건부 context-only 보조 이벤트로 유지
   - 억지 생성하거나 UI에서 새 관계를 추론하지 않음
 - [ ] viewer_payload_builder.py 최소 단위 테스트 추가 여부 검토
-  - `context_id`, `linked_context_ids`, `sample_request_ids`, `request_id`, `incident_group_key` 보존
-  - `supporting_events` top-level 보존 및 empty/missing fallback
-  - context-only summary가 findings로 섞이지 않는지 확인
 - [ ] Context graph / advanced relationship view는 장기 후보로 보류
 - [ ] viewer_payload compare/history 후보 검토
 - [ ] Web UI layout regression fixture 후보 검토
-  - Event Timeline selected-only toggle
-  - Contexts Preview 카드형
-  - Report Detail 모바일 카드형
-  - `notable_incidents.summary/request_count/recommended_action` 채움 fixture 필요성
 - [ ] Stage2 산출물 field completeness 관찰
-  - 필요 시 Stage2 reporter schema/field completeness 검토는 별도 후속 과제로 분리
 - [ ] provider 비교 구조 일반화(openai/anthropic 고정 -> N-provider)는 장기 후보로 유지
 
 ---
