@@ -17,6 +17,7 @@ protocol_anomalies.py
 auth_behavior.py
 static_baseline.py
 crawler_baseline.py
+apache_observability_context.py
 sensitive_path_probe.py
 ip_behavior.py
 probing_sequence.py
@@ -45,6 +46,9 @@ traversal_cmdi_hints.py
   - static/health-like baseline summary와 static baseline constants 일부를 관리한다.
 - `crawler_baseline.py`
   - crawler-like baseline summary와 crawler baseline constants/patterns를 관리한다.
+- `apache_observability_context.py`
+  - Apache handler / route / proxy / fallback 관찰값에서 topology-aware context reason hints를 생성한다.
+  - 성공 판정이나 scoring에는 사용하지 않는다.
 - `sensitive_path_probe.py`
   - sensitive path probe summary helper를 관리한다.
 - `ip_behavior.py`

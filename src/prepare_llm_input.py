@@ -152,6 +152,9 @@ try:
         classify_crawler_like_user_agent_family as _classify_crawler_like_user_agent_family,
         finalize_crawler_baseline_bucket as _finalize_crawler_baseline_bucket,
     )
+    from src.prepare.apache_observability_context import (
+        build_apache_observability_reason_hints_for_row as _build_apache_observability_reason_hints_for_row,
+    )
     from src.prepare.sensitive_path_probe import (
         build_sensitive_path_probe_summaries as _build_sensitive_path_probe_summaries,
         build_sensitive_path_probe_summary_contexts as _build_sensitive_path_probe_summary_contexts,
@@ -288,6 +291,9 @@ except ImportError:
         classify_crawler_baseline_path_category as _classify_crawler_baseline_path_category,
         classify_crawler_like_user_agent_family as _classify_crawler_like_user_agent_family,
         finalize_crawler_baseline_bucket as _finalize_crawler_baseline_bucket,
+    )
+    from prepare.apache_observability_context import (
+        build_apache_observability_reason_hints_for_row as _build_apache_observability_reason_hints_for_row,
     )
     from prepare.sensitive_path_probe import (
         build_sensitive_path_probe_summaries as _build_sensitive_path_probe_summaries,
@@ -1417,6 +1423,8 @@ def build_row_context_reason_hints(row: Dict[str, Any]) -> List[str]:
         if hpp_param_names:
             append_unique_hint(reason_hints, "hpp:param_names=" + ",".join(hpp_param_names))
 
+    extend_unique_hints(reason_hints, build_apache_observability_reason_hints_for_row(row))
+
     return reason_hints
 
 
@@ -1706,6 +1714,10 @@ def build_method_behavior_reason_hints_for_row(
         method_baseline_families=METHOD_BASELINE_FAMILIES,
         standard_http_methods=STANDARD_HTTP_METHODS,
     )
+
+
+def build_apache_observability_reason_hints_for_row(row: Dict[str, Any]) -> List[str]:
+    return _build_apache_observability_reason_hints_for_row(row)
 
 
 def build_method_behavior_summaries(
@@ -3607,6 +3619,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         ),
     )
     extend_unique_hints(reason_hints, build_sensitive_path_reason_hints_for_row(row))
+    extend_unique_hints(reason_hints, build_apache_observability_reason_hints_for_row(row))
 
     if hpp_detected:
         score += 1
