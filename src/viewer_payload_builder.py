@@ -347,6 +347,7 @@ def build_finding(
         "response_body_bytes": item.get("response_body_bytes"),
         "resp_content_type": normalize_str(item.get("resp_content_type")),
         "raw_request_target": normalize_str(item.get("raw_request_target")),
+        "raw_request": normalize_str(item.get("raw_request")),
         "path_normalized_from_raw_request": bool(item.get("path_normalized_from_raw_request")),
         "likely_html_fallback_response": bool(item.get("likely_html_fallback_response")),
         "hpp_detected": bool(item.get("hpp_detected")),

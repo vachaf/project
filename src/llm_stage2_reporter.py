@@ -47,6 +47,7 @@ MIXED_BASELINE_SCANNER_CONTEXT_LIMIT = 10
 AUTH_BEHAVIOR_CONTEXT_LIMIT = 10
 METHOD_BEHAVIOR_CONTEXT_LIMIT = 10
 PROTOCOL_ANOMALY_CONTEXT_LIMIT = 10
+PLACEHOLDER_STRINGS = {"", "-", "None", "null"}
 
 
 @dataclass
@@ -64,12 +65,17 @@ class IncidentBrief:
     source_tables: List[str]
     method: str
     uri: str
+    query_string: str
     status_code: int
     score: int
     log_time: str
     response_body_bytes: int
+    duration_us: int
+    ttfb_us: int
     resp_content_type: str
     raw_request_target: str
+    handler: str
+    log_schema: str
     path_normalized_from_raw_request: bool
     likely_html_fallback_response: bool
     hpp_detected: bool
@@ -464,6 +470,67 @@ def shorten_evidence_text(value: Any, max_len: int = 280) -> str:
     return text[: max_len - 3].rstrip() + "..."
 
 
+def normalize_string_list(value: Any) -> List[str]:
+    if not isinstance(value, list):
+        return []
+    return [normalize_str(x) for x in value if normalize_str(x)]
+
+
+def merge_unique_strings(*groups: Sequence[str]) -> List[str]:
+    merged: List[str] = []
+    for group in groups:
+        for value in group:
+            text = normalize_str(value)
+            if not text or text in merged:
+                continue
+            merged.append(text)
+    return merged
+
+
+def is_placeholder_text(value: Any) -> bool:
+    return normalize_str(value) in PLACEHOLDER_STRINGS
+
+
+def is_placeholder_number(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return float(value) == 0.0
+    text = normalize_str(value)
+    if not text:
+        return True
+    try:
+        return float(text) == 0.0
+    except ValueError:
+        return False
+
+
+def pick_text_value(primary: Any, fallback: Any, *, default: str = "") -> str:
+    if not is_placeholder_text(primary):
+        return normalize_str(primary)
+    if not is_placeholder_text(fallback):
+        return normalize_str(fallback)
+    return default
+
+
+def pick_number_value(primary: Any, fallback: Any, *, default: int = 0) -> int:
+    if not is_placeholder_number(primary):
+        return safe_int(primary, default)
+    if not is_placeholder_number(fallback):
+        return safe_int(fallback, default)
+    return default
+
+
+def pick_bool_value(item: Dict[str, Any], evidence_source: Dict[str, Any], field: str, default: bool = False) -> bool:
+    if field in item and item.get(field) is not None:
+        return bool(item.get(field))
+    if field in evidence_source and evidence_source.get(field) is not None:
+        return bool(evidence_source.get(field))
+    return default
+
+
 def build_dedup_key(item: Dict[str, Any]) -> str:
     request_id = normalize_str(item.get("request_id"))
     if request_id and request_id != "-":
@@ -532,6 +599,8 @@ def build_candidate_evidence_lookup(llm_input_payload: Optional[Dict[str, Any]])
     by_source_log: Dict[str, Dict[str, Any]] = {}
 
     for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
         incident_group_key = normalize_str(candidate.get("incident_group_key"))
         request_id = normalize_str(candidate.get("request_id"))
         source_table = normalize_str(candidate.get("source_table"))
@@ -589,6 +658,17 @@ def build_incident_briefs(
     briefs: List[IncidentBrief] = []
     for idx, item in enumerate(deduped[:top_n], start=1):
         evidence_source = resolve_incident_evidence(item, candidate_lookup)
+        item_reason_hints = normalize_string_list(item.get("reason_hints"))
+        candidate_reason_hints = normalize_string_list(evidence_source.get("reason_hints"))
+        reason_hints = merge_unique_strings(candidate_reason_hints, item_reason_hints)
+
+        item_evidence_fields = normalize_string_list(item.get("evidence_fields"))
+        evidence_fields = item_evidence_fields or list(candidate_reason_hints)
+
+        item_hpp_param_names = normalize_string_list(item.get("hpp_param_names"))
+        candidate_hpp_param_names = normalize_string_list(evidence_source.get("hpp_param_names"))
+        hpp_param_names = item_hpp_param_names or candidate_hpp_param_names
+
         briefs.append(
             IncidentBrief(
                 rank=idx,
@@ -601,27 +681,38 @@ def build_incident_briefs(
                 severity=normalize_str(item.get("severity")) or "low",
                 confidence=normalize_str(item.get("confidence")) or "low",
                 source_table=normalize_str(item.get("source_table")) or "-",
-                source_tables=[normalize_str(x) for x in (item.get("source_tables") or []) if normalize_str(x)],
-                method=normalize_str(item.get("method")) or "-",
+                source_tables=normalize_string_list(item.get("source_tables")),
+                method=pick_text_value(item.get("method"), evidence_source.get("method"), default="-"),
                 uri=normalize_str(item.get("uri")) or "-",
+                query_string=pick_text_value(item.get("query_string"), evidence_source.get("query_string"), default=""),
                 status_code=safe_int(item.get("status_code"), 0),
                 score=safe_int(item.get("score"), 0),
                 log_time=normalize_str(item.get("log_time")),
-                response_body_bytes=safe_int(item.get("response_body_bytes"), 0),
-                resp_content_type=normalize_str(item.get("resp_content_type")),
-                raw_request_target=normalize_str(item.get("raw_request_target")),
-                path_normalized_from_raw_request=bool(item.get("path_normalized_from_raw_request")),
-                likely_html_fallback_response=bool(item.get("likely_html_fallback_response")),
-                hpp_detected=bool(item.get("hpp_detected")),
-                hpp_param_names=[normalize_str(x) for x in (item.get("hpp_param_names") or []) if normalize_str(x)],
-                embedded_attack_hint=normalize_str(item.get("embedded_attack_hint")),
+                response_body_bytes=pick_number_value(item.get("response_body_bytes"), evidence_source.get("response_body_bytes"), default=0),
+                duration_us=pick_number_value(item.get("duration_us"), evidence_source.get("duration_us"), default=0),
+                ttfb_us=pick_number_value(item.get("ttfb_us"), evidence_source.get("ttfb_us"), default=0),
+                resp_content_type=pick_text_value(item.get("resp_content_type"), evidence_source.get("resp_content_type"), default=""),
+                raw_request_target=pick_text_value(item.get("raw_request_target"), evidence_source.get("raw_request_target"), default=""),
+                handler=pick_text_value(item.get("handler"), evidence_source.get("handler"), default=""),
+                log_schema=pick_text_value(item.get("log_schema"), evidence_source.get("log_schema"), default=""),
+                path_normalized_from_raw_request=pick_bool_value(item, evidence_source, "path_normalized_from_raw_request", default=False),
+                likely_html_fallback_response=pick_bool_value(item, evidence_source, "likely_html_fallback_response", default=False),
+                hpp_detected=pick_bool_value(item, evidence_source, "hpp_detected", default=False),
+                hpp_param_names=hpp_param_names,
+                embedded_attack_hint=pick_text_value(item.get("embedded_attack_hint"), evidence_source.get("embedded_attack_hint"), default=""),
                 reasoning_summary=normalize_str(item.get("reasoning_summary")),
-                evidence_fields=[normalize_str(x) for x in (item.get("evidence_fields") or []) if normalize_str(x)],
-                reason_hints=[normalize_str(x) for x in (evidence_source.get("reason_hints") or item.get("reason_hints") or []) if normalize_str(x)],
-                user_agent=shorten_evidence_text(evidence_source.get("user_agent"), max_len=160),
-                raw_request=shorten_evidence_text(evidence_source.get("raw_request"), max_len=180),
+                evidence_fields=evidence_fields,
+                reason_hints=reason_hints,
+                user_agent=shorten_evidence_text(
+                    pick_text_value(item.get("user_agent"), evidence_source.get("user_agent"), default=""),
+                    max_len=160,
+                ),
+                raw_request=shorten_evidence_text(
+                    pick_text_value(item.get("raw_request"), evidence_source.get("raw_request"), default=""),
+                    max_len=180,
+                ),
                 raw_log_excerpt=shorten_evidence_text(evidence_source.get("raw_log"), max_len=280),
-                recommended_actions=[normalize_str(x) for x in (item.get("recommended_actions") or []) if normalize_str(x)],
+                recommended_actions=normalize_string_list(item.get("recommended_actions")),
                 known_asset=bool(item.get("known_asset")),
             )
         )
