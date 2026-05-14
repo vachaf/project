@@ -22,7 +22,7 @@
 | S08 login_post | 1 | POST; /login.php | 200 | yes | no |  | O1/O4 | POST observed; success/failure requires app or DB audit |
 | S09 upload_like_post | 1 | POST; /upload.php | 200 | yes | no |  | O1/O4 | multipart/upload-like POST observed; stored result requires app or DB audit |
 | S10 slow_or_large_request | 1 | GET; /search.php | 200 | yes | no |  | O1 | observed in Apache request metadata |
-| S11 server_error | 1 | GET; /error.php | 200 | yes | no |  | O1 | 500 observed; no related error context found |
+| S11 server_error | 1 | GET; /error.php | 200 | yes | no |  | O1 | 200 |
 | S12 scanner_burst | 8 | GETx8; /.env, /admin, /admin/index.php, /does-not-exist, /index.php, /search.php, /server-status, /wp-login.php | 200x7, 301 | yes | no |  | O1 | burst pattern observed via repeated User-Agent marker |
 | S13 sqli_like | 1 | GET; /search.php | 200 | yes | no |  | O1 | SQLi-like query observed; no success inference |
 | S14 xss_like | 1 | GET; /search.php | 200 | yes | no |  | O1 | XSS-like query observed; no browser execution inference |
