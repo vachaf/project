@@ -1,6 +1,6 @@
 # Observability Run Summary
 
-- run_id: obs_opencart_001
+- run_id: obs_opencart_002
 - target_app: opencart
 - topology: apache_php
 - scenario_catalog_version: apache_observability_s01_s15_v1
