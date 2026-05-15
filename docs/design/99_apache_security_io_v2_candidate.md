@@ -33,6 +33,8 @@ apache_security_io_v2 =
   - 앱 내부 성공/실패/DB 결과/브라우저 실행/침해 성공 판단
 ```
 
+현재 단계에서 v2는 구현 대상이 아니라 fixture/parser 설계 후보로 둔다. 기존 observability 비교 run과 실제 LLM 기준선은 계속 v1을 기준으로 유지한다.
+
 ---
 
 ## 2. v1 고정 원칙
@@ -46,6 +48,7 @@ apache_security_io_v2 =
 - `status_code=%>s`, `original_status_code=%s`, `src_ip=%a`, `peer_ip=%{c}a` 의미를 바꾸지 않는다.
 - 앱별로 같은 필드명에 다른 의미를 부여하지 않는다.
 - v1 sample log와 기존 parser/export/prepare 회귀를 깨지 않는다.
+- v2가 존재한다는 이유만으로 PHP/OpenCart/JuiceShop observability baseline을 재실행하지 않는다.
 
 허용:
 
@@ -123,16 +126,32 @@ has_authorization
 
 | 구분 | field | v1 상태 | v2 후보 | 우선순위 | 비고 |
 |---|---|---|---|---:|---|
-| 추가 | `request_target` | 없음 | `%U%q` | P0 | path + query normalized target |
+| 추가 | `request_target` | 없음 | `%U%q` | P0 | path + query normalized convenience target |
 | 변경/명확화 | `host` -> `req_host` | `host=%{Host}i` | `req_host=%{Host}i` | P0 | request Host header임을 명확화 |
-| 추가 | `client_ip_source` | 없음 | literal | P0 | `direct` 또는 `remoteip_trusted_proxy` |
-| 추가 | `remoteip_proxy_chain` | optional 후보 | `%{remoteip-proxy-ip-list}n` | P1 | remoteip 적용 환경에서만 의미 있음 |
-| 추가 | `has_cookie` | 없음 | `%{has_cookie}e` | P1 | Cookie 값 원문 제외 |
-| 추가 | `has_authorization` | 없음 | `%{has_authorization}e` | P1 | Authorization 값 원문 제외 |
+| 추가 | `client_ip_source` | 없음 | literal | P0 | `direct`, `remoteip_trusted_proxy`, `unknown` |
+| 추가 | `has_cookie` | 없음 | `%{has_cookie}e` | P1 | Cookie 값 원문 제외, boolean-like normalization 필요 |
+| 추가 | `has_authorization` | 없음 | `%{has_authorization}e` | P1 | Authorization 값 원문 제외, boolean-like normalization 필요 |
+| 분리 권장 | `remoteip_proxy_chain` | optional 후보 | `apache_security_io_remoteip_v2` | P1 | 기본 v2에서 제외 권장 |
 | 보류 | TLS fields | 없음 | optional schema | P2 | HTTPS/TLS 분석 확장 시 별도 검토 |
 | 보류 | backend request/response id | 없음 | optional schema | P2 | backend 협조 필요 |
 | 제외 | request/response body | 없음 | 추가 금지 | - | 민감정보/로그량 위험 |
 | 제외 | verdict/severity | 없음 | 추가 금지 | - | derived result 계층 |
+
+권장 분리:
+
+```text
+apache_security_io_v2:
+  apache_security_io_v1
+  + request_target
+  + req_host
+  + client_ip_source
+  + has_cookie
+  + has_authorization
+
+apache_security_io_remoteip_v2:
+  apache_security_io_v2
+  + remoteip_proxy_chain
+```
 
 ---
 
@@ -146,7 +165,7 @@ request_target="%U%q"
 
 의미:
 
-- query string을 포함한 normalized request target
+- query string을 포함한 normalized convenience request target
 - `raw_request`에서 method/protocol을 다시 파싱하지 않고 request target을 사용할 수 있게 한다.
 
 예:
@@ -164,6 +183,19 @@ request_target="/search?q=1%27+OR+1%3D1"
 - viewer_payload finding display
 - Web UI display-only request target 표시
 - route grouping과 raw request 표시의 분리
+
+한계:
+
+```text
+request_target is a normalized convenience target built from %U%q.
+It must not replace raw_request when raw request-target fidelity matters.
+For unusual slash/encoding/protocol cases, raw_request remains the source of truth.
+```
+
+주의:
+
+- `%U`/`%q` 조합은 `raw_request=%r`의 request-target 원문과 완전히 동일하다고 가정하지 않는다.
+- duplicate slash, unusual encoding, malformed request line, protocol anomaly 검토에서는 `raw_request`를 우선 증거로 둔다.
 
 금지 해석:
 
@@ -226,35 +258,7 @@ client_ip_source="remoteip_trusted_proxy"
 - `client_ip_source=remoteip_trusted_proxy`: `src_ip`는 remoteip 적용 후 effective client IP일 수 있고, `peer_ip`는 실제 TCP peer/proxy일 수 있다.
 - `x_forwarded_for`, `x_real_ip`, `forwarded`는 여전히 raw request header이며 기본적으로 untrusted다.
 
-### 5.4 `remoteip_proxy_chain`
-
-```apache
-remoteip_proxy_chain="%{remoteip-proxy-ip-list}n"
-```
-
-의미:
-
-- `mod_remoteip` 적용 시 proxy chain 관찰 후보
-- remoteip 미적용 환경에서는 `-` 또는 빈 값으로 남을 수 있다.
-
-주의:
-
-- remoteip policy가 명시되지 않은 상태에서는 신뢰하지 않는다.
-- 이 필드는 client identity 확정 근거가 아니라 topology/trust context다.
-
-검토 사항:
-
-- 기본 `apache_security_io_v2`에 항상 포함할지
-- 별도 `apache_security_io_remoteip_v2`로 분리할지
-
-현재 후보 판단:
-
-```text
-초기 v2 설계 문서에는 포함 후보로 둔다.
-실제 Apache 환경에서 미적용 시 출력값 안정성을 확인한 뒤 기본 포함 여부를 결정한다.
-```
-
-### 5.5 `has_cookie`, `has_authorization`
+### 5.4 `has_cookie`, `has_authorization`
 
 설정 후보:
 
@@ -273,6 +277,16 @@ has_cookie="%{has_cookie}e" has_authorization="%{has_authorization}e"
 
 - Cookie/Authorization 원문을 기록하지 않고 존재 여부만 관찰한다.
 
+Normalization:
+
+| raw value | normalized |
+|---|---|
+| `"1"` | `true` |
+| `"-"` | `false` |
+| `""` | `false` |
+| missing | `false` |
+| other | `true` 또는 parser warning 후보 |
+
 활용:
 
 - authenticated-looking request context
@@ -281,15 +295,46 @@ has_cookie="%{has_cookie}e" has_authorization="%{has_authorization}e"
 
 금지 해석:
 
-- `has_cookie=1`로 로그인 상태를 단정하지 않는다.
-- `has_authorization=1`로 인증 성공을 단정하지 않는다.
+- `has_cookie=true`는 authenticated session을 의미하지 않는다.
+- `has_authorization=true`는 successful authentication을 의미하지 않는다.
 - 계정 탈취/세션 유효성/권한 상승 판단에 사용하지 않는다.
+
+### 5.5 `remoteip_proxy_chain` 분리 후보
+
+기본 `apache_security_io_v2`에는 넣지 않는 쪽을 권장한다.
+
+분리 후보:
+
+```apache
+remoteip_proxy_chain="%{remoteip-proxy-ip-list}n"
+```
+
+분리 이유:
+
+```text
+- remoteip 미적용 서버에서는 의미 없는 필드가 됨
+- mod_remoteip 적용 여부와 신뢰 프록시 정책이 강하게 얽힘
+- direct Apache / PHP / reverse proxy baseline과 비교할 때 불필요한 해석 분기가 생김
+```
+
+권장 schema:
+
+```text
+apache_security_io_remoteip_v2 =
+  apache_security_io_v2
+  + remoteip_proxy_chain
+```
+
+주의:
+
+- remoteip policy가 명시되지 않은 상태에서는 신뢰하지 않는다.
+- 이 필드는 client identity 확정 근거가 아니라 topology/trust context다.
 
 ---
 
 ## 6. `apache_security_io_v2` LogFormat 후보
 
-> 이 블록은 설계 후보이며, production 적용 전 Apache 실서버에서 token 출력 안정성과 parser fixture를 먼저 검증한다.
+> 이 블록은 설계 후보이며, production 적용 전 parser fixture와 compatibility test를 먼저 작성한다.
 
 ```apache
 # Optional presence flags. Do not log Cookie or Authorization values.
@@ -314,7 +359,6 @@ resp_content_type=\"%{Content-Type}o\" location=\"%{Location}o\" \
 referer=\"%{Referer}i\" origin=\"%{Origin}i\" user_agent=\"%{User-Agent}i\" \
 req_host=\"%{Host}i\" \
 x_forwarded_for=\"%{X-Forwarded-For}i\" x_real_ip=\"%{X-Real-IP}i\" forwarded=\"%{Forwarded}i\" \
-remoteip_proxy_chain=\"%{remoteip-proxy-ip-list}n\" \
 has_cookie=\"%{has_cookie}e\" has_authorization=\"%{has_authorization}e\"" apache_security_io_v2
 </IfModule>
 ```
@@ -325,19 +369,32 @@ remoteip trusted proxy 배치에서는 literal을 다음처럼 바꾼다.
 client_ip_source="remoteip_trusted_proxy"
 ```
 
+remoteip proxy chain까지 기록하려면 기본 v2가 아니라 `apache_security_io_remoteip_v2` 후보를 사용한다.
+
 ---
 
 ## 7. Optional schema 후보
 
 ### 7.1 `apache_security_io_remoteip_v2`
 
-remoteip 관련 출력 안정성이나 운영 정책 차이가 크면 기본 v2와 분리한다.
+remoteip 관련 출력 안정성이나 운영 정책 차이가 크므로 기본 v2와 분리하는 것을 권장한다.
 
 후보 추가 필드:
 
 ```text
-client_ip_source
 remoteip_proxy_chain
+```
+
+전제:
+
+- `client_ip_source="remoteip_trusted_proxy"`
+- `mod_remoteip` 활성화
+- `RemoteIPTrustedProxy` 또는 동등한 trusted proxy policy 명시
+
+LogFormat 추가 후보:
+
+```apache
+remoteip_proxy_chain="%{remoteip-proxy-ip-list}n"
 ```
 
 분리 기준:
@@ -421,15 +478,28 @@ req_host
 x_forwarded_for
 x_real_ip
 forwarded
-remoteip_proxy_chain
 has_cookie
 has_authorization
+```
+
+Boolean-like normalization:
+
+```text
+has_cookie:
+  "1" -> true
+  "-", "", missing -> false
+
+has_authorization:
+  "1" -> true
+  "-", "", missing -> false
 ```
 
 v1/v2 호환 원칙:
 
 - v1 row에서 v2 전용 필드가 없어도 row를 버리지 않는다.
 - v2 row에서 optional field가 `-` 또는 빈 값이어도 row를 버리지 않는다.
+- `request_target`이 없으면 `uri + query_string` 또는 `raw_request` fallback을 사용한다.
+- raw request-target fidelity가 필요한 분석에서는 `request_target`보다 `raw_request`를 우선한다.
 - `log_schema` 기반 branch를 우선 사용한다.
 - unknown schema는 fail-closed가 아니라 review/warn 대상으로 분류한다.
 
@@ -455,12 +525,25 @@ tests/fixtures/apache_security_io_v2_sample.log
 8. X-Forwarded-For가 여러 IP를 포함하는 요청
 9. `client_ip_source=direct`
 10. `client_ip_source=remoteip_trusted_proxy`
-11. `has_cookie=1`, `has_authorization=1`
-12. remoteip_proxy_chain이 `-`인 요청
-13. remoteip_proxy_chain에 proxy list가 있는 요청
-14. traversal-like request target
-15. SQLi-like query target
-16. XSS-like encoded query target
+11. `has_cookie="1"`, `has_authorization="1"`
+12. `has_cookie="-"`, `has_authorization="-"`
+13. traversal-like request target
+14. SQLi-like query target
+15. XSS-like encoded query target
+16. duplicate slash / unusual encoding 케이스에서 `raw_request` 보존 확인
+
+remoteip 확장 fixture는 기본 v2 fixture와 분리한다.
+
+```text
+tests/fixtures/apache_security_io_remoteip_v2_sample.log
+```
+
+remoteip fixture 후보:
+
+1. `client_ip_source=remoteip_trusted_proxy`
+2. `remoteip_proxy_chain`이 `-`인 요청
+3. `remoteip_proxy_chain`에 proxy list가 있는 요청
+4. `src_ip`와 `peer_ip`가 다른 요청
 
 ### 9.2 test 파일 후보
 
@@ -473,9 +556,10 @@ tests/test_apache_security_log_parser_v2.py
 - v1 parser regression 유지
 - v2 parser 추가
 - `request_target` 보존
+- `request_target`이 normalized convenience field임을 전제로 fallback 유지
 - `req_host` 보존
 - `client_ip_source` 보존
-- `has_cookie` / `has_authorization` 처리
+- `has_cookie` / `has_authorization` boolean-like normalization
 - quoted value with spaces 보존
 - `raw_request` 파손 없음
 - `query_string`과 `request_target`의 `?` 처리 일관성
@@ -488,17 +572,18 @@ tests/test_apache_security_log_parser_v2.py
 ### 10.1 export/prepare
 
 - `log_schema=apache_security_io_v2` branch 추가 후보
-- `request_target`이 있으면 raw_request 재파싱보다 우선 사용
+- `request_target`이 있으면 일반 표시/요약에는 우선 사용 가능
+- raw fidelity가 필요한 분석에서는 `raw_request`를 우선 사용
 - v1 row는 기존 `uri + query_string` 또는 raw_request parsing fallback 유지
 - `client_ip_source`는 score/severity 변경 없이 context metadata로만 보존
-- `has_cookie` / `has_authorization`은 auth success/failure 판단에 사용하지 않음
+- `has_cookie` / `has_authorization`은 boolean-like derived context로 normalize하되 auth success/failure 판단에 사용하지 않음
 
 ### 10.2 Stage1/Stage2
 
 - v2 필드는 wording 완화와 evidence clarity를 위한 metadata로만 사용
 - `request_target`은 payload 관찰 표현에 사용 가능
 - `client_ip_source`는 IP 해석 신뢰도 문맥으로만 사용
-- `remoteip_proxy_chain`은 topology/trust context로만 사용
+- `remoteip_proxy_chain`은 remoteip optional schema에서만 topology/trust context로 사용
 - v2 필드로 공격 성공/침해/유출 표현을 강화하지 않음
 
 ### 10.3 viewer_payload / Web UI
@@ -508,8 +593,8 @@ tests/test_apache_security_log_parser_v2.py
 - Request Target: `request_target`
 - Host Header: `req_host`
 - Client IP Source: `client_ip_source`
-- Proxy Chain: `remoteip_proxy_chain` display-only
 - Cookie/Auth Presence: `has_cookie`, `has_authorization` display-only badge
+- Proxy Chain: `remoteip_proxy_chain` display-only, 단 remoteip schema에서만
 
 금지:
 
@@ -523,11 +608,25 @@ tests/test_apache_security_log_parser_v2.py
 
 1. v1을 운영/회귀 기준으로 유지한다.
 2. v2는 먼저 문서/fixture/parser 후보로만 검토한다.
-3. v2 Apache sample conf는 별도 example 파일로 추가한다.
-4. v1/v2 parser 병행 지원 후 dry-run fixture를 만든다.
-5. 실제 Apache observability run은 필요 시 별도 run_id로 수행한다.
-6. v2 적용 여부와 무관하게 기존 `obs_juiceshop_proxy_001_actual` 기준선은 유지한다.
-7. v2 field가 없는 기존 report/viewer_payload는 fallback-safe하게 유지한다.
+3. 현재 observability comparison run을 v2로 migrate하지 않는다.
+4. v2가 있다는 이유만으로 PHP/OpenCart/JuiceShop baseline을 재실행하지 않는다.
+5. v2 parser fixture와 compatibility test가 통과하기 전에는 sample Apache conf를 적용하지 않는다.
+6. v2 Apache sample conf는 parser fixture와 parser branch 이후 별도 example 파일로 추가한다.
+7. v1/v2 parser 병행 지원 후 dry-run fixture를 만든다.
+8. 실제 Apache observability run은 필요 시 별도 run_id로 수행한다.
+9. v2 적용 여부와 무관하게 기존 `obs_juiceshop_proxy_001_actual` 기준선은 유지한다.
+10. v2 field가 없는 기존 report/viewer_payload는 fallback-safe하게 유지한다.
+
+권장 도입 순서:
+
+```text
+1. v2 fixture sample line 작성
+2. parser test 작성
+3. parser branch 추가
+4. convert_observability_logs_to_export_json.py v2 지원 검토
+5. sample conf 작성
+6. 필요 시 실제 Apache run
+```
 
 ---
 
@@ -544,16 +643,17 @@ tests/test_apache_security_log_parser_v2.py
 - OpenTelemetry trace/span schema 설계
 - 공격 성공/침해/유출 verdict 생성
 - 자동 차단/IP block 정책
+- v1 기준 observability run 재작성
 
 ---
 
 ## 13. Open questions
 
-1. `remoteip_proxy_chain`을 기본 `apache_security_io_v2`에 항상 포함할 것인가, `apache_security_io_remoteip_v2`로 분리할 것인가?
-2. `client_ip_source` literal 값 목록을 `direct`, `remoteip_trusted_proxy`, `unknown` 세 개로 충분히 둘 것인가?
-3. `has_cookie` / `has_authorization` presence flag를 v2 기본에 포함할 것인가, privacy option으로 분리할 것인가?
-4. TLS field는 `apache_security_tls_v2`로 분리할 필요가 있는가?
-5. parser fixture를 먼저 작성할지, sample Apache conf를 먼저 작성할지?
+1. `client_ip_source` literal 값 목록을 `direct`, `remoteip_trusted_proxy`, `unknown` 세 개로 충분히 둘 것인가?
+2. `has_cookie` / `has_authorization` presence flag를 v2 기본에 포함할 것인가, privacy option으로 분리할 것인가?
+3. `has_cookie` / `has_authorization`의 unexpected raw value를 true로 볼지 parser warning으로만 둘 것인가?
+4. `apache_security_io_remoteip_v2`를 별도 schema로 확정할 것인가?
+5. TLS field는 `apache_security_tls_v2`로 분리할 필요가 있는가?
 6. Web UI display-only badge는 v2 이후에 검토할지, 기존 v1 topology hint 기반으로 먼저 진행할지?
 
 ---
@@ -565,17 +665,19 @@ tests/test_apache_security_log_parser_v2.py
 ```text
 v1:
   고정. 현재 기준선 유지.
+  현재 observability comparison run과 actual LLM/Web UI PASS 기준은 v1로 유지.
 
 v2 candidate:
   request_target 추가
   host를 req_host로 명확화
   client_ip_source 추가
-  remoteip_proxy_chain 포함 여부 검증
   has_cookie/has_authorization presence flag 검토
+  has_cookie/has_authorization normalization 규칙 추가
+  remoteip_proxy_chain은 기본 v2가 아니라 apache_security_io_remoteip_v2로 분리 권장
   verdict/severity/body/cookie/auth 원문은 계속 제외
 
 도입 순서:
-  문서 -> parser fixture -> parser branch -> dry-run -> 필요 시 Apache sample conf -> 실제 observability run
+  문서 -> parser fixture -> parser test -> parser branch -> converter v2 지원 검토 -> 필요 시 Apache sample conf -> 필요 시 실제 observability run
 ```
 
-v2의 목적은 더 많은 결론을 내는 것이 아니라, 같은 Apache evidence를 더 안전하고 덜 모호하게 소비하는 것이다.
+v2의 목적은 더 많은 결론을 내는 것이 아니라, 같은 Apache evidence를 더 안전하고 덜 모호하게 소비하는 것이다. v2는 지금 당장 운영 기준으로 전환하지 않고, parser fixture와 compatibility test가 통과한 뒤에만 후속 구현 대상으로 다룬다.
