@@ -7,7 +7,8 @@ Purpose
 - Allow lab/observability raw log runs to flow into the existing pipeline without
   changing prepare_llm_input.py.
 - Convert raw app_security.filtered.log lines produced by apache_security_io_v1
-  into a JSON shape compatible with run_analysis_pipeline.py --export-input.
+  or apache_security_io_v2 into a JSON shape compatible with
+  run_analysis_pipeline.py --export-input.
 
 Input
 - lab/observability/runs/<run_id>/raw/app_security.filtered.log
@@ -67,10 +68,13 @@ TEXT_NORMALIZE_DASH_FIELDS = {
     "vhost",
     "server_name",
     "local_ip",
+    "client_ip_source",
     "src_ip",
     "peer_ip",
+    "remoteip_proxy_chain",
     "method",
     "raw_request",
+    "request_target",
     "uri",
     "query_string",
     "protocol",
@@ -83,9 +87,15 @@ TEXT_NORMALIZE_DASH_FIELDS = {
     "origin",
     "user_agent",
     "host",
+    "req_host",
     "x_forwarded_for",
     "x_real_ip",
     "forwarded",
+}
+
+BOOLEAN_FLAG_FIELDS = {
+    "has_cookie",
+    "has_authorization",
 }
 
 ROW_FIELD_ORDER = [
@@ -97,10 +107,14 @@ ROW_FIELD_ORDER = [
     "server_name",
     "server_port",
     "local_ip",
+    "client_ip_source",
     "src_ip",
     "peer_ip",
+    "remoteip_proxy_chain",
     "method",
     "raw_request",
+    "request_target",
+    "raw_request_target",
     "uri",
     "query_string",
     "protocol",
@@ -123,9 +137,12 @@ ROW_FIELD_ORDER = [
     "origin",
     "user_agent",
     "host",
+    "req_host",
     "x_forwarded_for",
     "x_real_ip",
     "forwarded",
+    "has_cookie",
+    "has_authorization",
     "log_schema",
     "attack_label",
     "risk_score",
@@ -169,6 +186,21 @@ def normalize_dash(value: Optional[Any]) -> Optional[str]:
         return None
     text = str(value).strip()
     return None if text == "-" else text
+
+
+def normalize_bool_flag(value: Optional[Any]) -> bool:
+    """Normalize privacy-preserving presence flags from Apache env vars.
+
+    Apache SetEnvIf values normally produce "1" when present and "-" when
+    missing in LogFormat output. Treat any non-empty/non-missing unexpected value
+    as True, but do not infer authentication success from this flag.
+    """
+    if value is None:
+        return False
+    text = str(value).strip().strip('"').lower()
+    if text in {"", "-", "0", "false", "none", "null"}:
+        return False
+    return True
 
 
 def safe_int(value: Optional[Any]) -> Optional[int]:
@@ -263,6 +295,15 @@ def normalize_row(raw: Dict[str, str], raw_line: str, row_id: int, query_tz: Zon
     for field in INTEGER_FIELDS:
         row[field] = safe_int(raw.get(field))
 
+    for field in BOOLEAN_FLAG_FIELDS:
+        row[field] = normalize_bool_flag(raw.get(field))
+
+    # Compatibility: v2 uses req_host to make Host header trust boundary clear.
+    # Existing downstream code may still look at host, so preserve a fallback copy
+    # without changing the clearer req_host field.
+    if row.get("host") is None and row.get("req_host") is not None:
+        row["host"] = row.get("req_host")
+
     row["log_time"] = log_time
     row["log_schema"] = normalize_dash(raw.get("log_schema")) or DEFAULT_LOG_SCHEMA
     row["raw_log"] = raw_line
@@ -274,8 +315,9 @@ def normalize_row(raw: Dict[str, str], raw_line: str, row_id: int, query_tz: Zon
     row["matched_rule"] = normalize_dash(raw.get("matched_rule"))
     row["is_suspicious"] = bool(safe_int(raw.get("is_suspicious")) or 0)
 
-    # Keep request target as a convenience field for downstream inspection.
-    # Existing prepare code may ignore it, but it is useful for raw-export compatibility.
+    # v2 request_target is a normalized convenience target (%U%q). Keep it
+    # separate from raw_request_target, which is derived from raw_request and used
+    # when raw request-target fidelity matters.
     row["raw_request_target"] = derive_request_target(row.get("raw_request"), row.get("uri"), row.get("query_string"))
 
     # DB schema historically had these optional fields; keep them as nullable.
@@ -324,6 +366,15 @@ def min_max_times(rows: Iterable[Dict[str, Any]]) -> tuple[Optional[str], Option
     return min(values), max(values)
 
 
+def summarize_log_schemas(rows: Iterable[Dict[str, Any]]) -> tuple[str, List[str]]:
+    schemas = sorted({str(row.get("log_schema") or DEFAULT_LOG_SCHEMA) for row in rows})
+    if not schemas:
+        return DEFAULT_LOG_SCHEMA, [DEFAULT_LOG_SCHEMA]
+    if len(schemas) == 1:
+        return schemas[0], schemas
+    return "mixed", schemas
+
+
 def build_payload(
     *,
     rows: List[Dict[str, Any]],
@@ -337,6 +388,7 @@ def build_payload(
     query_tz: ZoneInfo,
 ) -> Dict[str, Any]:
     start, end = min_max_times(rows)
+    log_schema, log_schemas = summarize_log_schemas(rows)
     counts = {"access": 0, "security": len(rows), "error": 0}
     return {
         "meta": {
@@ -355,7 +407,8 @@ def build_payload(
             "source": "observability_raw_log",
             "source_log": str(source_log),
             "run_id": run_id,
-            "log_schema": DEFAULT_LOG_SCHEMA,
+            "log_schema": log_schema,
+            "log_schemas": log_schemas,
             "skipped_lines": skipped_lines,
             "malformed_lines": malformed_lines,
             "analysis_recommendation": {
@@ -368,6 +421,8 @@ def build_payload(
                 "response_body_collected": False,
                 "do_not_infer_success_from_status_code": True,
                 "do_not_infer_file_exposure_from_size_or_content_type": True,
+                "cookie_values_collected": False,
+                "authorization_values_collected": False,
             },
         },
         "counts": counts,
