@@ -139,7 +139,14 @@ supporting_event_count: 3
 
 이번 v2 dry-run에서 `candidate_rows=13`으로 나타났다.
 
-이는 v2 필드 추가 자체 때문이라기보다 direct PHP sample baseline에서 4xx/5xx/error-linked 요청과 S12 scanner burst가 rule-based candidate로 다수 올라온 영향으로 보인다.
+추가 확인 결과, 같은 최신 prepare/scoring 기준으로 다시 실행한 v1 PHP sample dry-run도 `candidate_rows=13`, `distinct_incident_candidates=13`으로 확인됐다. 따라서 이 13건은 v2 필드 추가 때문이 아니다.
+
+정정된 해석:
+
+```text
+candidate_rows=13은 v2 field 추가 때문이 아니라,
+현재 prepare scoring/filtering 기준에서 PHP sample S01~S15가 그렇게 분류된 결과다.
+```
 
 대표 후보:
 
@@ -156,7 +163,8 @@ S08 login_post: /login.php, 401
 해석:
 
 - v2 필드는 score/severity/verdict를 올리는 용도가 아니다.
-- candidate 증가 여부는 prepare scoring/filtering 정책의 별도 검토 대상이다.
+- candidate count 증가는 v2 migration 이슈가 아니라 PHP sample S01~S15에 대한 현재 prepare policy 이슈다.
+- 필요한 경우 별도 `PHP sample candidate policy review`로 다룬다.
 - v2 검증의 핵심은 `request_target`, `req_host`, `client_ip_source`, Cookie/Auth presence flag가 손실 없이 전달되는지다.
 
 ## 6. Guardrail Checks
@@ -171,29 +179,41 @@ S08 login_post: /login.php, 401
 | No attacker IP assertion from x_forwarded_for only | pass | `x_forwarded_for`는 observed header일 뿐 신뢰 IP 근거 아님 |
 | No authentication inference from has_cookie/has_authorization | pass | presence flag는 헤더 존재 여부만 의미 |
 
-## 7. Recommended Next Changes
+## 7. Completed Follow-up
 
-- `convert_observability_logs_to_export_json.py` v2 field 보존 결과를 회귀 테스트로 고정한다.
-- v2 fixture를 추가한다.
+- `convert_observability_logs_to_export_json.py` v2 field 보존 결과를 회귀 테스트로 고정했다.
+- v2 fixture를 추가했다.
   - `tests/fixtures/apache_security_io_v2_sample.log`
-  - 408 timeout row, S01 normalized request_target difference, Cookie/Auth presence flag 포함 권장
-- parser/converter 테스트를 추가한다.
-  - `request_target`, `raw_request_target`, `req_host`, `client_ip_source`, `has_cookie`, `has_authorization`, `log_schemas` 검증
+  - 408 timeout row, S01 normalized request_target difference, Cookie/Auth presence flag 포함
+- converter 테스트를 추가했다.
+  - `tests/test_convert_observability_logs_to_export_json.py`
+  - `request_target`, `raw_request_target`, `req_host`, `host`, `client_ip_source`, `has_cookie`, `has_authorization`, `log_schema`, `log_schemas` 검증
+- 검증:
+  - `python3 -m pytest -q tests/test_convert_observability_logs_to_export_json.py`
+  - `5 passed`
+
+## 8. Recommended Next Changes
+
 - v2 field를 prepare analysis_candidates 또는 viewer_payload에 어디까지 pass-through할지 별도 검토한다.
   - 현재 pipeline은 핵심 분석 필드와 raw_log에는 보존되지만, 모든 v2 display-only field가 viewer findings에 직접 노출되는 단계는 아니다.
-- candidate_rows=13 원인을 별도 delta review로 검토한다.
-  - v2 field 때문인지, direct PHP sample scoring/filtering 때문인지 분리
-  - 현 상태로는 v2 field 자체보다 S12/4xx/5xx/error_linked 점수 영향이 더 커 보인다.
+- candidate_rows=13은 v2 문제가 아니라 current prepare policy 결과로 분리한다.
+  - 필요 시 `PHP sample S01~S15 candidate policy review` 문서로 다룬다.
+- remoteip schema는 아직 진행하지 않는다.
+  - `apache_security_io_remoteip_v2`는 별도 trusted proxy 테스트 서버에서만 검증한다.
+- actual LLM execution은 보류한다.
+  - v2 fixture/test와 candidate policy review를 끝낸 뒤 필요 시 actual spot check를 수행한다.
 
-## 8. Current Decision
+## 9. Current Decision
 
 ```text
 apache_security_io_v2 LogFormat output: pass
 observability raw collection: pass
 export JSON v2 field preservation: pass
+converter v2 fixture/test: pass
 pipeline dry-run connectivity: pass
 actual LLM execution: not yet performed
 v2 production migration: not started
+candidate_rows=13: current prepare policy result, not v2 field effect
 ```
 
-v1 기준 서버와 기존 observability run은 그대로 유지한다. v2는 새 서버 기반 검증 대상으로만 유지하며, parser/converter fixture와 candidate delta review를 완료한 뒤 후속 적용 여부를 판단한다.
+v1 기준 서버와 기존 observability run은 그대로 유지한다. v2는 새 서버 기반 검증 대상으로만 유지하며, 추가 적용 여부는 candidate policy review와 v2 display-only field pass-through 검토 후 판단한다.
