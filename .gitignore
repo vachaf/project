@@ -34,6 +34,7 @@ __pycache__/
 lab/observability/runs/**/*
 !lab/observability/runs/**/
 !lab/observability/runs/**/observation_matrix.md
+!lab/observability/runs/**/observation_matrix.autofill.md
 !lab/observability/runs/**/summary.md
 *.bak
 *.autofill.md
