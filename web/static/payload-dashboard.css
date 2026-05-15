@@ -538,6 +538,45 @@
   margin: 3px 0;
 }
 
+.payload-interpretation-aid {
+  border-top: 1px solid var(--pd-line-soft);
+}
+
+.payload-observability-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+
+.payload-interpretation-notes {
+  margin-top: 6px;
+}
+
+.payload-badge-observability {
+  background: #eef6ff;
+  border-color: #cfe0f8;
+  color: #225b9f;
+}
+
+.payload-badge-observability-topology {
+  background: #eef6ff;
+  border-color: #cfe0f8;
+  color: #225b9f;
+}
+
+.payload-badge-observability-fallback {
+  background: #fff8e8;
+  border-color: #f2dfad;
+  color: #8a5a00;
+}
+
+.payload-badge-observability-boundary {
+  background: #edf2f7;
+  border-color: #d8e1ec;
+  color: #475569;
+}
+
 .meta-label {
   display: inline-block;
   min-width: 92px;

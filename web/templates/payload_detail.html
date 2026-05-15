@@ -219,6 +219,12 @@
           <p id="pd-reasoning-summary">N/A</p>
         </section>
 
+        <section class="payload-detail-section payload-interpretation-aid">
+          <h4>Interpretation Aid</h4>
+          <div id="pd-observability-badges" class="payload-detail-badges payload-observability-badges"></div>
+          <ul id="pd-interpretation-notes" class="payload-detail-list payload-interpretation-notes"></ul>
+        </section>
+
         <section class="payload-detail-section">
           <h4>Evidence</h4>
           <ul id="pd-evidence-fields" class="payload-detail-list"></ul>
@@ -518,6 +524,170 @@
 
     function includesAny(text, tokens) {
       return tokens.some((token) => text.includes(token));
+    }
+
+    function hasHint(finding, hint) {
+      return asList(finding && finding.reason_hints).includes(hint);
+    }
+
+    function hasHintPrefix(finding, prefix) {
+      return asList(finding && finding.reason_hints).some((hint) => String(hint || "").startsWith(prefix));
+    }
+
+    function getObservabilityBadges(finding) {
+      const badges = [];
+      if (!finding || typeof finding !== "object") return badges;
+
+      const handler = asText(finding.handler, "");
+      const statusCode = asText(finding.status_code, "");
+      const respType = asText(finding.resp_content_type, "").toLowerCase();
+
+      if (hasHint(finding, "observability:reverse_proxy_candidate") || handler === "proxy-server") {
+        badges.push({
+          label: "reverse proxy",
+          kind: "topology",
+          note: "Apache observed this through reverse proxy/backend response metadata.",
+        });
+      }
+
+      if (hasHint(finding, "observability:backend_response_candidate")) {
+        badges.push({
+          label: "backend response",
+          kind: "topology",
+          note: "The response came from a backend application via Apache.",
+        });
+      }
+
+      if (hasHint(finding, "observability:fallback_200_candidate")) {
+        badges.push({
+          label: "fallback 200",
+          kind: "fallback",
+          note: "A 200 response may be fallback/routed HTML, not proof of successful exploitation.",
+        });
+      }
+
+      if (hasHint(finding, "observability:backend_fallback_200_candidate")) {
+        badges.push({
+          label: "backend fallback 200",
+          kind: "fallback",
+          note: "The backend may return 200 HTML for unusual paths.",
+        });
+      }
+
+      if (hasHint(finding, "observability:front_controller_candidate")) {
+        badges.push({
+          label: "front-controller",
+          kind: "topology",
+          note: "The request may have been routed through an application front controller.",
+        });
+      }
+
+      if (hasHint(finding, "observability:route_param_present")) {
+        badges.push({
+          label: "route param",
+          kind: "topology",
+          note: "A route parameter was observed; original path and routed target should be interpreted separately.",
+        });
+      }
+
+      if (hasHint(finding, "observability:redirect_candidate") || handler === "redirect-handler") {
+        badges.push({
+          label: "redirect candidate",
+          kind: "topology",
+          note: "A redirect or follow-up request may affect request counts.",
+        });
+      }
+
+      if (hasHint(finding, "observability:server_status_handler_observed")) {
+        badges.push({
+          label: "server-status handler",
+          kind: "boundary",
+          note: "server-status was observed; external exposure must be verified separately.",
+        });
+      }
+
+      if (
+        finding.likely_html_fallback_response ||
+        hasHint(finding, "traversal:html_fallback_like_response") ||
+        hasHintPrefix(finding, "traversal:html_fallback")
+      ) {
+        badges.push({
+          label: "HTML fallback possible",
+          kind: "boundary",
+          note: "HTML response/fallback context is not evidence of file content exposure.",
+        });
+      }
+
+      if (statusCode === "200" && respType.includes("text/html")) {
+        badges.push({
+          label: "200/html not success proof",
+          kind: "boundary",
+          note: "200/text/html is an observed response, not proof of exploit success.",
+        });
+      }
+
+      badges.push({
+        label: "Apache logs only",
+        kind: "boundary",
+        note: "No request body, response body, DB result, or browser execution evidence is available.",
+      });
+
+      const seen = new Set();
+      return badges.filter((badge) => {
+        if (seen.has(badge.label)) return false;
+        seen.add(badge.label);
+        return true;
+      });
+    }
+
+    function clearObservabilityBadges() {
+      const badgeWrap = document.getElementById("pd-observability-badges");
+      const notesEl = document.getElementById("pd-interpretation-notes");
+      if (badgeWrap) badgeWrap.innerHTML = "";
+      if (notesEl) notesEl.innerHTML = "";
+    }
+
+    function renderObservabilityBadges(finding) {
+      const badgeWrap = document.getElementById("pd-observability-badges");
+      const notesEl = document.getElementById("pd-interpretation-notes");
+      if (!badgeWrap || !notesEl) return;
+
+      badgeWrap.innerHTML = "";
+      notesEl.innerHTML = "";
+
+      const badges = getObservabilityBadges(finding);
+      if (!badges.length) {
+        const li = document.createElement("li");
+        li.className = "is-muted";
+        li.textContent = "No additional interpretation hints.";
+        notesEl.appendChild(li);
+        return;
+      }
+
+      badges.forEach((badge) => {
+        const span = document.createElement("span");
+        span.className = `badge payload-badge payload-badge-observability payload-badge-observability-${badge.kind}`;
+        span.textContent = badge.label;
+        badgeWrap.appendChild(span);
+      });
+
+      const notes = [];
+      badges.forEach((badge) => {
+        if (badge.note && !notes.includes(badge.note)) notes.push(badge.note);
+      });
+
+      notes.slice(0, 4).forEach((note) => {
+        const li = document.createElement("li");
+        li.textContent = note;
+        notesEl.appendChild(li);
+      });
+
+      if (notes.length > 4) {
+        const li = document.createElement("li");
+        li.className = "is-muted";
+        li.textContent = `+${notes.length - 4} more interpretation notes`;
+        notesEl.appendChild(li);
+      }
     }
 
     // Display-only association; do not promote contexts into findings.
@@ -875,6 +1045,7 @@
       if (index < 0 || index >= findings.length) {
         if (emptyState) emptyState.classList.remove("is-hidden");
         if (detailContent) detailContent.classList.add("is-hidden");
+        clearObservabilityBadges();
         rowNodes.forEach((row) => {
           row.classList.remove("is-selected");
           row.setAttribute("aria-selected", "false");
@@ -906,6 +1077,7 @@
       setText("pd-status-code", finding.status_code);
       setText("pd-confidence", finding.confidence);
       setText("pd-reasoning-summary", finding.reasoning_summary);
+      renderObservabilityBadges(finding);
       renderEvidence(asList(finding.evidence_fields));
       renderRelatedContexts(finding);
       renderSupportingEvents(finding);
