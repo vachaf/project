@@ -64,11 +64,26 @@
   - filtered_out_rows 유지: `18`
   - supporting_events 유지: `3`
   - `analysis_candidates`, `stage2_report_input.top_incidents`, `viewer_payload.findings`에서 `handler=proxy-server`, `log_schema=apache_security_io_v1`, `response_body_bytes=75002`, `resp_content_type=text/html`, `raw_request_target`, `raw_request`, `user_agent` 보존 확인
+- Stage2 lint false-positive WARN 보정 완료:
+  - commit: `fdab789d680b7d679046d9e65ed2ba1aa81deade`
+  - `침해 성공이 아니라`, `공격 성공이 아니라`, `성공으로 보기 어렵` 계열을 strong negation으로 인식
+  - 명시적 성공 단정은 계속 warning/blocker로 잡도록 유지
+  - `tests/test_stage2_report_quality.py`: `16 passed`
+  - `obs_juiceshop_proxy_001_actual` 기준 lint PASS 확인: `blocker_count=0`, `warning_count=0`, `info_count=11`
+  - `/tmp/stage2_quality_lint/*.json` 서버 측 cache 삭제 후 Web UI PASS 표시 확인
+- Web UI payload detail Interpretation Aid 추가 완료:
+  - commit: `03c90a154aa3f419a139166fc8e3b7b5f931ce40`
+  - `web/templates/payload_detail.html`에서 selected finding detail에 display-only `Interpretation Aid` 섹션 추가
+  - `observability:*` reason_hints 기반으로 `reverse proxy`, `backend response`, `fallback 200`, `backend fallback 200`, `HTML fallback possible`, `Apache logs only` badge 표시
+  - `web/static/payload-dashboard.css`에 neutral/info 계열 badge style 추가
+  - `tests/test_web_payload_detail_interpretation_aid.py` 추가
+  - 검증: `py_compile web/app.py` 통과, 관련 Web UI/viewer tests `20 passed`
+  - severity/verdict/category, finding/context 관계, related/supporting 집계 로직 변경 없음
 - 확인된 핵심 결론:
   - `apache_security_io_v1`은 direct PHP, real PHP rewrite/front-controller, reverse proxy 배치 모두에서 동작
   - `status_code=200`은 topology-dependent weak signal이며 성공/노출/침해 근거로 사용 금지
   - `handler`, `_route_=`, redirect-follow, `proxy-server`, proxy error context는 interpretation context로만 사용
-  - prepare topology hints는 scoring/severity/verdict를 변경하지 않고 reason_hints context로만 사용
+  - prepare topology hints와 Web UI Interpretation Aid는 scoring/severity/verdict를 변경하지 않고 context로만 사용
 
 ---
 
@@ -102,28 +117,15 @@
 
 ---
 
-## P2. Stage1/Stage2 wording/taxonomy guard 관찰
+## P2. Web UI / viewer 후속 후보
 
-- [ ] actual LLM 출력에서 context-only 과승격을 계속 관찰
-- [ ] actual LLM 출력에서 file disclosure 성공 단정 등 과해석을 계속 관찰
-- [ ] lint warning/blocker 분포를 필요 시 확인
-- [ ] `suspicious_file_disclosure` 실제 LLM 재검증은 필요 시점에만 수행
-- 주의:
-  - Apache logs-only 한계를 유지한다.
-  - status/bytes/content-type만으로 성공을 단정하지 않는다.
-  - `lab-*` 또는 `obs-test/*` User-Agent를 공격 근거로 일반화하지 않는다.
-  - `check_stage2_report_quality.py`는 review-only lint이며 기본 모드는 CI를 깨지 않는다.
-
----
-
-## P3. Web UI / viewer 후속 후보
-
-- [ ] display-only topology/context badge 후보 검토
-  - `front-controller/fallback candidate`
-  - `reverse-proxy/backend-response candidate`
-  - `redirect-follow candidate`
-  - `backend unavailable / proxy error context`
-  - 단, badge는 severity/category/verdict 변경 근거가 아님
+- [ ] Interpretation Aid 1차 사용성 관찰
+  - S15 같은 fallback path traversal 후보에서 badge가 너무 많거나 과도하게 강조되지 않는지 확인
+  - 모바일/좁은 폭에서 badge wrapping과 detail panel 가독성 확인
+- [ ] Related Contexts card에도 context guardrail badge를 붙일지 검토
+  - 예: `no exposure proof`, `context-only`, `baseline mixed`, `no auth success inference`
+  - 단, display-only 유지
+- [ ] backend unavailable / proxy error context badge는 proxy error scenario 정식화 이후 검토
 - [ ] Related Contexts matching 과잉/누락 관찰
   - Web UI에서 새 관계를 추론해 연결을 보정하는 방식은 금지
   - context-only 승격, severity/category/verdict 재계산 금지
@@ -136,6 +138,20 @@
 - [ ] Web UI layout regression fixture 후보 검토
 - [ ] Stage2 산출물 field completeness 관찰
 - [ ] provider 비교 구조 일반화(openai/anthropic 고정 -> N-provider)는 장기 후보로 유지
+
+---
+
+## P3. Stage1/Stage2 wording/taxonomy guard 관찰
+
+- [ ] actual LLM 출력에서 context-only 과승격을 계속 관찰
+- [ ] actual LLM 출력에서 file disclosure 성공 단정 등 과해석을 계속 관찰
+- [ ] lint warning/blocker 분포를 필요 시 확인
+- [ ] `suspicious_file_disclosure` 실제 LLM 재검증은 필요 시점에만 수행
+- 주의:
+  - Apache logs-only 한계를 유지한다.
+  - status/bytes/content-type만으로 성공을 단정하지 않는다.
+  - `lab-*` 또는 `obs-test/*` User-Agent를 공격 근거로 일반화하지 않는다.
+  - `check_stage2_report_quality.py`는 review-only lint이며 기본 모드는 CI를 깨지 않는다.
 
 ---
 
