@@ -64,6 +64,15 @@ WEAK_SQL_COMMENT_HINTS = {
     "sqli:sql_comment",
 }
 
+WEAK_UPLOAD_SQL_COMMENT_HINTS = {
+    "sqli:sql_comment_upload_context_weak_signal",
+    "sqli:sql_comment_only_upload_context_no_strong_sqli_structure",
+}
+
+UPLOAD_CONTEXT_PREFIXES = (
+    "upload:",
+)
+
 STATUS_ERROR_PREFIXES = (
     "error_status:",
     "error_linked",
@@ -218,8 +227,14 @@ def starts_with_any(text: str, prefixes: Sequence[str]) -> bool:
     return any(text.startswith(prefix) for prefix in prefixes)
 
 
+def is_weak_upload_sql_comment_hint(hint: str) -> bool:
+    return hint_base(hint) in WEAK_UPLOAD_SQL_COMMENT_HINTS
+
+
 def is_explicit_attack_hint(hint: str, hints: Sequence[str]) -> bool:
     base = hint_base(hint)
+    if base in WEAK_UPLOAD_SQL_COMMENT_HINTS:
+        return False
     if not starts_with_any(base, ATTACK_PREFIXES):
         return False
     if base in CONTEXTUAL_XSS_HINTS:
@@ -259,6 +274,7 @@ def group_reasons(hints: Sequence[str]) -> Dict[str, List[str]]:
         "status_error": [],
         "auth": [],
         "probe_context": [],
+        "upload_context": [],
         "observability": [],
         "length_complexity": [],
         "automation_or_client": [],
@@ -267,7 +283,9 @@ def group_reasons(hints: Sequence[str]) -> Dict[str, List[str]]:
     }
     for hint in hints:
         base = hint_base(hint)
-        if is_explicit_attack_hint(base, hints):
+        if base in WEAK_UPLOAD_SQL_COMMENT_HINTS or starts_with_any(base, UPLOAD_CONTEXT_PREFIXES):
+            groups["upload_context"].append(hint)
+        elif is_explicit_attack_hint(base, hints):
             groups["attack_payload"].append(hint)
         elif starts_with_any(base, STATUS_ERROR_PREFIXES):
             groups["status_error"].append(hint)
@@ -304,6 +322,10 @@ def has_only_weak_sql_comment_attack_signal(groups: Dict[str, List[str]]) -> boo
     return bool(bases) and set(bases).issubset(WEAK_SQL_COMMENT_HINTS)
 
 
+def has_weak_upload_sql_comment_context(groups: Dict[str, List[str]]) -> bool:
+    return any(hint_base(hint) in WEAK_UPLOAD_SQL_COMMENT_HINTS for hint in groups.get("upload_context", []))
+
+
 def is_upload_like_context(candidate: Dict[str, Any], joined: str) -> bool:
     uri = as_text(candidate.get("uri")).lower()
     raw_request = as_text(candidate.get("raw_request")).lower()
@@ -328,10 +350,12 @@ def infer_policy(candidate: Dict[str, Any], groups: Dict[str, List[str]], hints:
     raw_target = as_text(candidate.get("raw_request_target"))
     joined = " ".join([uri, raw_target, as_text(candidate.get("raw_request")), " ".join(hints)]).lower()
 
-    if is_upload_like_context(candidate, joined) and has_only_weak_sql_comment_attack_signal(groups):
+    if is_upload_like_context(candidate, joined) and (
+        has_only_weak_sql_comment_attack_signal(groups) or has_weak_upload_sql_comment_context(groups)
+    ):
         return (
             "context_candidate_upload_failure",
-            "upload-like POST has only weak sqli:sql_comment payload signal; multipart boundary/comment-marker false positive is possible, so review as upload failure context unless stronger SQLi evidence exists",
+            "upload-like POST has only weak SQL comment signal; multipart boundary/comment-marker false positive is possible, so review as upload failure context unless stronger SQLi evidence exists",
         )
 
     if groups["attack_payload"]:
