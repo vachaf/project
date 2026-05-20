@@ -31,7 +31,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 DEFAULT_MIN_SCORE = 4
 
@@ -58,6 +58,10 @@ ATTACK_PREFIXES = (
 # them as explicit payload only when another XSS structural hint is present.
 CONTEXTUAL_XSS_HINTS = {
     "xss:external_navigation",
+}
+
+WEAK_SQL_COMMENT_HINTS = {
+    "sqli:sql_comment",
 }
 
 STATUS_ERROR_PREFIXES = (
@@ -291,13 +295,44 @@ def top_point_hints(hints: Sequence[str], max_items: int = 5) -> List[str]:
     return positives[:max_items] if positives else list(hints[:max_items])
 
 
+def attack_hint_bases(groups: Dict[str, List[str]]) -> List[str]:
+    return [hint_base(hint) for hint in groups.get("attack_payload", [])]
+
+
+def has_only_weak_sql_comment_attack_signal(groups: Dict[str, List[str]]) -> bool:
+    bases = attack_hint_bases(groups)
+    return bool(bases) and set(bases).issubset(WEAK_SQL_COMMENT_HINTS)
+
+
+def is_upload_like_context(candidate: Dict[str, Any], joined: str) -> bool:
+    uri = as_text(candidate.get("uri")).lower()
+    raw_request = as_text(candidate.get("raw_request")).lower()
+    req_content_type = as_text(candidate.get("req_content_type")).lower()
+    method = as_text(candidate.get("method")).upper()
+    if method != "POST":
+        return False
+    return (
+        "upload" in uri
+        or "upload" in joined
+        or "multipart/form-data" in joined
+        or "multipart/form-data" in raw_request
+        or "multipart/form-data" in req_content_type
+    )
+
+
 def infer_policy(candidate: Dict[str, Any], groups: Dict[str, List[str]], hints: Sequence[str]) -> Tuple[str, str]:
     uri = as_text(candidate.get("uri"))
     method = as_text(candidate.get("method")).upper()
     status = as_int(candidate.get("status_code"), 0)
     verdict_hint = as_text(candidate.get("verdict_hint") or candidate.get("verdict"))
     raw_target = as_text(candidate.get("raw_request_target"))
-    joined = " ".join([uri, raw_target, " ".join(hints)]).lower()
+    joined = " ".join([uri, raw_target, as_text(candidate.get("raw_request")), " ".join(hints)]).lower()
+
+    if is_upload_like_context(candidate, joined) and has_only_weak_sql_comment_attack_signal(groups):
+        return (
+            "context_candidate_upload_failure",
+            "upload-like POST has only weak sqli:sql_comment payload signal; multipart boundary/comment-marker false positive is possible, so review as upload failure context unless stronger SQLi evidence exists",
+        )
 
     if groups["attack_payload"]:
         return (
