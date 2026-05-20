@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "prepared_at": "2026-05-15T00:00:00+09:00",
+    "counts": {
+      "candidate_rows": 4
+    }
+  },
+  "analysis_candidates": [
+    {
+      "source_table": "security",
+      "log_id": 1,
+      "request_id": "req-upload-only-sql-comment",
+      "method": "POST",
+      "uri": "/upload.php",
+      "query_string": "",
+      "status_code": 400,
+      "score": 7,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:sql_comment(+2)",
+        "error_status:400(+2)",
+        "error_linked(+2)",
+        "no_referer_non_browser_error(+1)"
+      ],
+      "raw_request": "POST /upload.php HTTP/1.1",
+      "raw_request_target": "/upload.php",
+      "user_agent": "obs-test/S09 run=test"
+    },
+    {
+      "source_table": "security",
+      "log_id": 2,
+      "request_id": "req-sqli-strong",
+      "method": "GET",
+      "uri": "/search.php",
+      "query_string": "?q=1%27%20OR%20%271%27%3D%271&scenario=S13",
+      "status_code": 200,
+      "score": 11,
+      "verdict_hint": "sqli",
+      "reason_hints": [
+        "sqli:or_true(+4)",
+        "sqli:quote_termination(+4)",
+        "query_endpoint_with_attack_tokens(+2)",
+        "long_query(+1)"
+      ],
+      "raw_request": "GET /search.php?q=1' OR '1'='1&scenario=S13 HTTP/1.1",
+      "raw_request_target": "/search.php?q=1%27%20OR%20%271%27%3D%271&scenario=S13",
+      "user_agent": "obs-test/S13 run=test"
+    },
+    {
+      "source_table": "security",
+      "log_id": 3,
+      "request_id": "req-status-error-only",
+      "method": "GET",
+      "uri": "/error.php",
+      "query_string": "?scenario=S11",
+      "status_code": 500,
+      "score": 6,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "error_status:500(+2)",
+        "error_linked(+2)",
+        "no_referer_non_browser_error(+1)",
+        "long_query(+1)"
+      ],
+      "raw_request": "GET /error.php?scenario=S11 HTTP/1.1",
+      "raw_request_target": "/error.php?scenario=S11",
+      "user_agent": "obs-test/S11 run=test"
+    },
+    {
+      "source_table": "security",
+      "log_id": 4,
+      "request_id": "req-probe-env",
+      "method": "GET",
+      "uri": "/.env",
+      "query_string": "?scenario=S12",
+      "status_code": 404,
+      "score": 4,
+      "verdict_hint": "suspicious",
+      "reason_hints": [
+        "sensitive_path:env_file",
+        "sensitive_path:no_file_exposure_inference",
+        "error_status:404(+2)",
+        "no_referer_non_browser_error(+1)",
+        "long_query(+1)"
+      ],
+      "raw_request": "GET /.env?scenario=S12 HTTP/1.1",
+      "raw_request_target": "/.env?scenario=S12",
+      "user_agent": "obs-test/S12 run=test"
+    }
+  ]
+}
