@@ -36,8 +36,15 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 DEFAULT_MIN_SCORE = 4
 
 POINT_RE = re.compile(r"\(\+(-?\d+)\)")
-SCENARIO_RE = re.compile(r"(?:^|[?&\s/])scenario=(S\d{2})(?:$|[&\s])", re.IGNORECASE)
-UA_SCENARIO_RE = re.compile(r"obs-test/(S\d{2})", re.IGNORECASE)
+SCENARIO_LABEL_RE = re.compile(r"^(?:S|EH)\d{2}$", re.IGNORECASE)
+SCENARIO_RE = re.compile(
+    r"(?:^|[?&\s/])scenario=((?:S|EH)\d{2})(?:$|[&\s])",
+    re.IGNORECASE,
+)
+UA_SCENARIO_RE = re.compile(
+    r"(?:obs-test|obs-error-heavy)/((?:S|EH)\d{2})(?:$|[\s/;])",
+    re.IGNORECASE,
+)
 
 ATTACK_PREFIXES = (
     "sqli:",
@@ -259,6 +266,9 @@ def detect_scenario(candidate: Dict[str, Any]) -> str:
     for text in texts:
         if not text:
             continue
+        direct = text.strip()
+        if SCENARIO_LABEL_RE.fullmatch(direct):
+            return direct.upper()
         m = UA_SCENARIO_RE.search(text)
         if m:
             return m.group(1).upper()
