@@ -15,6 +15,25 @@
 
 ---
 
+## 0. 2026-05-20 Policy Update
+
+`S09 upload-like POST + only sqli:sql_comment` false-positive class에 대해 prepare 레벨 narrow guard를 반영했다.
+
+- Implementation:
+  - `src/prepare_llm_input.py`
+  - global SQLi pattern 제거 없이 row-level scoring/verdict 단계에서만 적용
+- Added prepare test:
+  - `tests/test_prepare_upload_multipart_sql_comment_false_positive.py`
+  - upload/sql_comment-only 약신호, upload+strong SQLi 유지, 일반 search SQLi 유지를 고정
+- Expected effect:
+  - S09는 `verdict_hint=sqli` 과분류를 피하고 context-oriented candidate로 유지 가능
+  - strong SQLi 구조(S13류)는 계속 SQLi candidate 유지
+  - S14/S15 및 prepare/stage regression은 유지
+
+Apache logs-only boundary는 그대로 유지되며, upload success/DB success/compromise 추론은 추가하지 않는다.
+
+---
+
 ## 1. Purpose
 
 This document reviews why the PHP sample observability runs produce `candidate_rows=13` under the current prepare policy.

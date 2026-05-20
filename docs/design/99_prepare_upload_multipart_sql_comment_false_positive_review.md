@@ -15,6 +15,30 @@
 
 ---
 
+## 0. 2026-05-20 Implementation Update
+
+Prepare 레벨에 narrow guard를 적용하고, 전용 테스트를 추가했다.
+
+- Added test:
+  - `tests/test_prepare_upload_multipart_sql_comment_false_positive.py`
+  - case A: upload-like POST + only `sqli:sql_comment`
+  - case B: upload-like POST + strong SQLi in logged target
+  - case C: normal search SQLi with sql_comment + strong evidence
+- Applied guard:
+  - `src/prepare_llm_input.py`
+  - SQLi pattern 자체는 유지
+  - `POST + upload-like/multipart context + sql_comment 단독 + logged target 강한 SQLi 구조 없음`일 때만 `sqli:sql_comment(+2)`를 약신호 컨텍스트로 처리
+- S09 기대 동작:
+  - `verdict_hint=sqli` 과분류를 피하고 `suspicious/context` 쪽으로 유지
+  - candidate visibility는 유지 가능
+- Strong SQLi 유지:
+  - upload endpoint라도 `or_true`, `quote_termination` 등 강한 SQLi 구조가 있으면 기존처럼 SQLi candidate 유지
+  - S13 SQLi-like / S14 XSS-like / S15 traversal-like 회귀 없음
+
+Apache logs-only evidence boundary도 유지한다. request body, upload success, DB result, webshell success, compromise 추론은 추가하지 않았다.
+
+---
+
 ## 1. Purpose
 
 This document reviews whether prepare should add a narrow false-positive guard for upload-like POST rows where the only SQLi-like signal is `sqli:sql_comment`.

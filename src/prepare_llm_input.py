@@ -500,6 +500,22 @@ STRONG_ATTACK_HINTS = {
     "encoding:double_decoded_sqli",
     "encoding:html_entity_decoded_xss",
 }
+UPLOAD_LIKE_PATH_RE = re.compile(r"(?i)(?:^|/)(?:upload|uploads|file-upload|file_upload)(?:$|/)")
+UPLOAD_CONTEXT_TOKEN_RE = re.compile(r"(?i)(?:^|[\W_])upload(?:s|ed|ing)?(?:$|[\W_])")
+WEAK_UPLOAD_SQL_COMMENT_SQLI_HINT = "sql_comment"
+SQLI_SQL_COMMENT_POINT = 2
+SQLI_STRONG_STRUCTURE_FIELDS = (
+    "quote_termination",
+    "parenthesis_termination",
+    "comment_sequence",
+    "xclose",
+    "xclose_pattern",
+    "boolean_condition",
+    "boolean_true_condition",
+    "union_column_list",
+    "schema_access",
+    "from_users",
+)
 ATTACK_ENCODED_PAYLOAD_RE = re.compile(
     r"(?i)(%27|%2527|%22|%2522|%3c|%253c|%3e|%253e|%28|%2528|%29|%2529|%2e%2e|%252e%252e|%00|%2500|%3a%2f%2f|%253a%252f%252f|%3b|%253b)"
 )
@@ -862,6 +878,82 @@ def get_sqli_structure_flags(
         "schema_access": any(SQLI_SCHEMA_ACCESS_PATTERN.search(sample) for sample in samples),
         "from_users": any(SQLI_FROM_USERS_PATTERN.search(sample) for sample in samples),
     }
+
+
+def has_strong_sqli_structure(flags: Dict[str, bool], *, include_sql_comment: bool = True) -> bool:
+    fields = list(SQLI_STRONG_STRUCTURE_FIELDS)
+    if include_sql_comment:
+        fields.insert(0, "sql_comment")
+    return any(flags.get(name, False) for name in fields)
+
+
+def is_upload_like_request_context(
+    *,
+    method: str,
+    uri: str,
+    raw_request_target: str,
+    raw_request: str,
+    req_content_type: str,
+    query_string: str,
+) -> bool:
+    if normalize_text(method).upper() != "POST":
+        return False
+
+    path = get_effective_request_path(uri, raw_request_target).lower()
+    joined = " ".join(
+        unique_non_empty_texts(
+            [
+                path,
+                normalize_text(raw_request_target).lower(),
+                raw_text(raw_request).lower(),
+                normalize_text(req_content_type).lower(),
+                normalize_text(query_string).lower(),
+            ]
+        )
+    )
+
+    if "multipart/form-data" in joined:
+        return True
+    if UPLOAD_LIKE_PATH_RE.search(path):
+        return True
+    return bool(UPLOAD_CONTEXT_TOKEN_RE.search(joined))
+
+
+def has_only_weak_sql_comment_sqli_signal(
+    sqli_pattern_names: Iterable[str],
+    *,
+    logged_target_structure_flags: Dict[str, bool],
+) -> bool:
+    normalized = {normalize_text(name).lower() for name in sqli_pattern_names if normalize_text(name)}
+    if normalized != {WEAK_UPLOAD_SQL_COMMENT_SQLI_HINT}:
+        return False
+    return not has_strong_sqli_structure(logged_target_structure_flags, include_sql_comment=False)
+
+
+def should_treat_sql_comment_as_upload_context_weak_signal(
+    *,
+    method: str,
+    uri: str,
+    raw_request_target: str,
+    raw_request: str,
+    req_content_type: str,
+    query_string: str,
+    sqli_pattern_names: Iterable[str],
+    logged_target_structure_flags: Dict[str, bool],
+) -> bool:
+    if not is_upload_like_request_context(
+        method=method,
+        uri=uri,
+        raw_request_target=raw_request_target,
+        raw_request=raw_request,
+        req_content_type=req_content_type,
+        query_string=query_string,
+    ):
+        return False
+    return has_only_weak_sql_comment_sqli_signal(
+        sqli_pattern_names,
+        logged_target_structure_flags=logged_target_structure_flags,
+    )
 
 
 def has_encoded_payload_marker(text: str) -> bool:
@@ -3501,11 +3593,13 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     graphql_score_boost = 0
     xxe_score_boost = 0
     webshell_score_boost = 0
+    sqli_pattern_names: List[str] = []
 
     for name, pattern, points in SQLI_PATTERNS:
         if matches_sqli_pattern(name, pattern, combined_target):
             score += points
             sqli_hits += 1
+            sqli_pattern_names.append(name)
             reason_hints.append(f"sqli:{name}(+{points})")
 
     for name, pattern, points in XSS_PATTERNS:
@@ -3716,6 +3810,28 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         query_variants=query_variants,
         raw_request_target_variants=raw_request_target_variants,
     )
+    logged_target_structure_flags = get_sqli_structure_flags(
+        " ".join(unique_non_empty_texts([raw_qs, qs, raw_request_target])),
+        query_variants=query_variants,
+        raw_request_target_variants=raw_request_target_variants,
+    )
+    if should_treat_sql_comment_as_upload_context_weak_signal(
+        method=method,
+        uri=uri,
+        raw_request_target=raw_request_target,
+        raw_request=raw_req_original,
+        req_content_type=req_ct,
+        query_string=raw_qs,
+        sqli_pattern_names=sqli_pattern_names,
+        logged_target_structure_flags=logged_target_structure_flags,
+    ):
+        score = max(0, score - SQLI_SQL_COMMENT_POINT)
+        sqli_hits = max(0, sqli_hits - 1)
+        reason_hints = [hint for hint in reason_hints if hint != "sqli:sql_comment(+2)"]
+        append_unique_hint(reason_hints, "sqli:sql_comment_upload_context_weak_signal")
+        append_unique_hint(reason_hints, "sqli:sql_comment_only_upload_context_no_strong_sqli_structure")
+        append_unique_hint(reason_hints, "upload:multipart_or_upload_like_context")
+        append_unique_hint(reason_hints, "upload:no_upload_success_inference")
     if sqli_hits > 0:
         if structure_flags.get("quote_termination") and (
             structure_flags.get("boolean_true_condition")
@@ -3741,21 +3857,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         query_variants=query_variants,
         raw_request_target_variants=raw_request_target_variants,
     )
-    strong_sqli_structure = any(
-        structure_flags.get(name, False)
-        for name in (
-            "quote_termination",
-            "parenthesis_termination",
-            "sql_comment",
-            "comment_sequence",
-            "xclose",
-            "xclose_pattern",
-            "boolean_condition",
-            "boolean_true_condition",
-            "union_column_list",
-            "schema_access",
-        )
-    )
+    strong_sqli_structure = has_strong_sqli_structure(structure_flags, include_sql_comment=True)
     strong_xss_structure = any(
         xss_structure_flags.get(name, False)
         for name in (
