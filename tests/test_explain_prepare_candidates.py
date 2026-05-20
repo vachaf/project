@@ -79,6 +79,86 @@ def test_sensitive_probe_candidate_is_context_candidate_probe():
     assert "sensitive_path:env_file" in item["reason_groups"]["probe_context"]
 
 
+def test_detects_error_heavy_scenario_from_query_string():
+    module = load_module()
+    candidate = {
+        "request_id": "req-error-heavy-query",
+        "method": "GET",
+        "uri": "/error.php",
+        "query_string": "?scenario=EH01&run=obs_php_sample_v2_error_heavy_001",
+        "status_code": 500,
+        "score": 6,
+        "verdict_hint": "suspicious",
+        "reason_hints": [
+            "error_status:500(+2)",
+            "error_linked(+2)",
+            "no_referer_non_browser_error(+1)",
+            "long_query(+1)",
+        ],
+        "user_agent": "obs-error-heavy/EH01 run=obs_php_sample_v2_error_heavy_001",
+    }
+
+    item = module.explain_candidate(candidate, 1, module.DEFAULT_MIN_SCORE)
+
+    assert item["scenario"] == "EH01"
+    assert item["policy_class"] == "demotion_candidate_status_error_only"
+
+
+def test_detects_error_heavy_scenario_from_user_agent():
+    module = load_module()
+    candidate = {
+        "request_id": "req-error-heavy-ua",
+        "method": "POST",
+        "uri": "/login.php",
+        "query_string": "?run=obs_php_sample_v2_error_heavy_001",
+        "status_code": 401,
+        "score": 8,
+        "verdict_hint": "suspicious",
+        "reason_hints": [
+            "error_status:401(+2)",
+            "error_linked(+2)",
+            "no_referer_non_browser_error(+1)",
+            "long_query(+1)",
+            "login_endpoint(+1)",
+            "auth_payload_content_type(+1)",
+        ],
+        "user_agent": "obs-error-heavy/EH04 run=obs_php_sample_v2_error_heavy_001",
+    }
+
+    item = module.explain_candidate(candidate, 1, module.DEFAULT_MIN_SCORE)
+
+    assert item["scenario"] == "EH04"
+    assert item["policy_class"] == "context_candidate_auth_failure"
+
+
+def test_detects_direct_error_heavy_scenario_field():
+    module = load_module()
+    candidate = {
+        "scenario": "eh10",
+        "request_id": "req-error-heavy-direct",
+        "method": "GET",
+        "uri": "/download.php",
+        "query_string": "?file=..%2F..%2F..%2Fetc%2Fpasswd&run=obs_php_sample_v2_error_heavy_001",
+        "status_code": 404,
+        "score": 15,
+        "verdict_hint": "path_traversal",
+        "reason_hints": [
+            "traversal:dotdot_slash(+4)",
+            "traversal:etc_passwd(+5)",
+            "error_status:404(+2)",
+            "error_linked(+2)",
+            "no_referer_non_browser_error(+1)",
+            "long_query(+1)",
+        ],
+        "user_agent": "obs-error-heavy/EH10 run=obs_php_sample_v2_error_heavy_001",
+    }
+
+    item = module.explain_candidate(candidate, 1, module.DEFAULT_MIN_SCORE)
+
+    assert item["scenario"] == "EH10"
+    assert item["policy_class"] == "keep_candidate_payload"
+
+
 def test_summary_policy_counts_match_expected_shape():
     module = load_module()
     _, explanations = build_explanations()
