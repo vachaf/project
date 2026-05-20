@@ -105,7 +105,15 @@
   - `status_code=200`은 topology-dependent weak signal이며 성공/노출/침해 근거로 사용 금지
   - `handler`, `_route_=`, redirect-follow, `proxy-server`, proxy error context는 interpretation context로만 사용
   - prepare topology hints와 Web UI Interpretation Aid는 scoring/severity/verdict를 변경하지 않고 context로만 사용
-
+  - EHxx scenario label diagnostic 검증 완료:
+    - `tests/test_explain_prepare_candidates.py`: `9 passed`
+    - scenario label diagnostic bundle
+      (`tests/test_explain_prepare_candidates.py`,
+      `tests/test_prepare_status_error_only_candidate_policy.py`,
+      `tests/test_prepare_scanner_probe_candidate_policy.py`):
+      `24 passed`
+    - `obs_php_sample_v2_error_heavy_001_current_dryrun` 재출력에서 `EH01`~`EH12` 표시 확인
+    - prepare/scoring/filtering 변경 없음
 ---
 
 ## P0. Apache observability 후속 관리
@@ -131,20 +139,20 @@
   - actual LLM 출력에서 `fallback_200_candidate`가 성공 단정 완화에 기여하는지 확인
 - [ ] upload/sql_comment-only guard가 실제 로그에서 SQLi 과소탐지로 이어지지 않는지 관찰
   - 강한 SQLi 구조가 있는 upload endpoint 요청은 계속 SQLi candidate로 유지되어야 함
-- [ ] 추가 run artifact에 `explain_prepare_candidates.py` 적용
+- - [ ] 추가 run artifact에 `explain_prepare_candidates.py` 적용
   - 1차 distribution review: `docs/design/99_prepare_candidate_policy_distribution_review.md`
-  - 필요 시 OpenCart, PHP sample v1, proxy error check 등으로 표본 확장
+  - 필요 시 proxy error check, 외부 client 기반 error-heavy run 등으로 표본 확장
 - [ ] candidate policy distribution 추가 관찰
   - `context_candidate_probe`
   - `context_only_server_status`
   - `demotion_candidate_status_error_only`
   - `context_candidate_upload_failure`
   - `keep_candidate_payload`
-- [ ] broader status/error-only candidate demotion은 fixture/regression 1차 통과 상태
-  - 실제 run distribution 확인 전까지 prepare 반영 보류
+- [ ] broader status/error-only candidate demotion은 fixture/regression/error-heavy 표본에서 1차 검토됨
+  - 실제 prepare 반영은 계속 보류
   - 관련 문서: `docs/design/99_prepare_status_error_only_candidate_demotion_review.md`, `docs/design/99_prepare_candidate_policy_distribution_review.md`
-- [ ] scanner/probe context candidate demotion은 fixture/regression 1차 통과 상태
-  - 실제 run distribution 확인 전까지 prepare 반영 보류
+- [ ] scanner/probe context candidate demotion은 fixture/regression/error-heavy 표본에서 1차 검토됨
+  - 실제 prepare 반영은 계속 보류
   - 관련 문서: `docs/design/99_prepare_scanner_probe_context_candidate_demotion_review.md`, `docs/design/99_prepare_candidate_policy_distribution_review.md`
 - [ ] broad demotion은 계속 보류
 - [ ] proxy_error_context의 정식 prepare 반영 여부 검토
