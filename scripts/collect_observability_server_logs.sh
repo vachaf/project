@@ -220,12 +220,12 @@ main() {
   local scenario_counts="${raw_dir}/scenario_counts.tsv"
 
   if write_generated "${security_filtered}"; then
-    grep "obs-test/.*run=${RUN_ID}" "${raw_security}" > "${security_filtered}" || true
+    grep -E "obs-(test|error-heavy)/.*run=${RUN_ID}" "${raw_security}" > "${security_filtered}" || true
     log "wrote: ${security_filtered}"
   fi
 
   if write_generated "${access_filtered}"; then
-    grep "obs-test/.*run=${RUN_ID}" "${raw_access}" > "${access_filtered}" || true
+    grep -E "obs-(test|error-heavy)/.*run=${RUN_ID}" "${raw_access}" > "${access_filtered}" || true
     log "wrote: ${access_filtered}"
   fi
 
@@ -250,8 +250,8 @@ main() {
   if write_generated "${scenario_counts}"; then
     {
       printf 'scenario\tcount\n'
-      grep -o 'obs-test/S[0-9][0-9]' "${security_filtered}" \
-        | sed 's/obs-test\///' \
+      grep -o -E 'obs-(test|error-heavy)/[A-Z0-9]+' "${security_filtered}" \
+        | sed -E 's/obs-(test|error-heavy)\///' \
         | sort \
         | uniq -c \
         | awk '{print $2 "\t" $1}'
