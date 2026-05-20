@@ -38,6 +38,18 @@ fixture/regression 기준 검증은 1차 통과했다.
 - source: `analysis_candidates`
 - candidate count: `13`
 
+### PHP sample v1
+
+- run artifact: `runs/obs_php_sample_002_current_dryrun/llm_input.json`
+- source: `analysis_candidates`
+- candidate count: `13`
+
+### OpenCart
+
+- run artifact: `runs/obs_opencart_002_current_dryrun/llm_input.json`
+- source: `analysis_candidates`
+- candidate count: `3`
+
 ### Juice Shop reverse proxy
 
 - run artifact: `runs/obs_juiceshop_proxy_001_current_dryrun/llm_input.json`
@@ -51,9 +63,22 @@ fixture/regression 기준 검증은 1차 통과했다.
 
 ---
 
-## 3. PHP sample v2 current dry-run 분포
+## 3. 전체 distribution 요약
 
-### 3.1 Policy counts
+| run | topology | candidate_count | 핵심 분포 | 판단 |
+|---|---|---:|---|---|
+| `obs_php_sample_v2_001_current_dryrun` | direct PHP v2 | 13 | payload 3 / probe 5 / status-error 3 / auth 1 / upload 1 | policy bucket 분리 확인 |
+| `obs_php_sample_002_current_dryrun` | direct PHP v1 | 13 | payload 3 / probe 5 / status-error 3 / auth 1 / upload 1 | v2와 동일한 분포 반복 확인 |
+| `obs_opencart_002_current_dryrun` | front-controller / routed response | 3 | payload 3 | topology 200에서도 payload-only 유지 |
+| `obs_juiceshop_proxy_001_current_dryrun` | reverse proxy / backend response | 3 | payload 3 | topology 200에서도 payload-only 유지 |
+
+요약하면 direct PHP 계열은 policy bucket 분리 표본을 제공하고, OpenCart/Juice Shop 계열은 topology-dependent 200 응답에서도 explicit payload 후보만 보존되는지 확인하는 표본이다.
+
+---
+
+## 4. PHP sample v2 current dry-run 분포
+
+### 4.1 Policy counts
 
 | policy_class | count |
 |---|---:|
@@ -63,7 +88,7 @@ fixture/regression 기준 검증은 1차 통과했다.
 | `context_candidate_auth_failure` | 1 |
 | `context_candidate_upload_failure` | 1 |
 
-### 3.2 Candidate shape
+### 4.2 Candidate shape
 
 | scenario | method | uri | status | verdict_hint | policy_class | 해석 |
 |---|---|---|---:|---|---|---|
@@ -81,7 +106,7 @@ fixture/regression 기준 검증은 1차 통과했다.
 | S07 | GET | `/login.php` | 200 | `suspicious` | `demotion_candidate_status_error_only` | GET login endpoint 관찰이며 auth success 근거 없음 |
 | S05 | GET | `/does-not-exist-obs_php_sample_v2_001` | 404 | `suspicious` | `context_candidate_probe` | missing path probe/context 후보 |
 
-### 3.3 관찰 결과
+### 4.3 관찰 결과
 
 PHP sample v2 current dry-run은 policy bucket 분리가 비교적 명확하다.
 
@@ -91,19 +116,91 @@ PHP sample v2 current dry-run은 policy bucket 분리가 비교적 명확하다.
 - `/.env`, `/wp-login.php`, `/admin`, `does-not-exist` 계열은 `context_candidate_probe`로 분리된다.
 - payload 없는 403/500/error-linked 중심 후보는 `demotion_candidate_status_error_only`로 분류된다.
 
-이 분포는 diagnostic bucket이 의도한 방향으로 작동함을 보여준다. 다만 이 결과만으로 실제 prepare filtering/demotion을 적용하기에는 아직 표본이 제한적이다.
+이 분포는 diagnostic bucket이 의도한 방향으로 작동함을 보여준다. 다만 단일 direct PHP run만으로 실제 prepare filtering/demotion을 적용하기에는 표본이 제한적이다.
 
 ---
 
-## 4. Juice Shop reverse proxy current dry-run 분포
+## 5. PHP sample v1 current dry-run 분포
 
-### 4.1 Policy counts
+### 5.1 Policy counts
+
+| policy_class | count |
+|---|---:|
+| `keep_candidate_payload` | 3 |
+| `context_candidate_probe` | 5 |
+| `demotion_candidate_status_error_only` | 3 |
+| `context_candidate_auth_failure` | 1 |
+| `context_candidate_upload_failure` | 1 |
+
+### 5.2 Candidate shape
+
+| scenario | method | uri | status | verdict_hint | policy_class | 해석 |
+|---|---|---|---:|---|---|---|
+| S15 | GET | `/download.php` | 404 | `path_traversal` | `keep_candidate_payload` | traversal payload 구조가 명시되어 있으므로 유지 |
+| S14 | GET | `/search.php` | 200 | `xss` | `keep_candidate_payload` | XSS payload 구조가 명시되어 있으므로 유지 |
+| S13 | GET | `/search.php` | 200 | `sqli` | `keep_candidate_payload` | SQLi payload 구조가 명시되어 있으므로 유지 |
+| S08 | POST | `/login.php` | 401 | `suspicious` | `context_candidate_auth_failure` | 로그인 성공이 아니라 auth failure/context 후보 |
+| S12 | GET | `/wp-login.php` | 404 | `suspicious` | `context_candidate_probe` | WordPress/admin presence를 단정하지 않는 probe context |
+| S11 | GET | `/error.php` | 500 | `suspicious` | `demotion_candidate_status_error_only` | status/error metadata 중심 후보 |
+| S06 | GET | `/private/secret.txt` | 403 | `suspicious` | `demotion_candidate_status_error_only` | 파일 노출 단정 없이 status/error metadata 중심 후보 |
+| S09 | POST | `/upload.php` | 400 | `suspicious` | `context_candidate_upload_failure` | upload 성공이 아니라 upload-like failure/context 후보 |
+| S12 | GET | `/does-not-exist` | 404 | `suspicious` | `context_candidate_probe` | 존재 여부 단정 없는 probe context |
+| S12 | GET | `/.env` | 404 | `suspicious` | `context_candidate_probe` | `.env` 노출 단정 없는 sensitive-path probe context |
+| S12 | GET | `/admin` | 404 | `suspicious` | `context_candidate_probe` | admin 존재/접근 성공 단정 없는 probe context |
+| S07 | GET | `/login.php` | 200 | `suspicious` | `demotion_candidate_status_error_only` | GET login endpoint 관찰이며 auth success 근거 없음 |
+| S05 | GET | `/does-not-exist-obs_php_sample_002` | 404 | `suspicious` | `context_candidate_probe` | missing path probe/context 후보 |
+
+### 5.3 관찰 결과
+
+PHP sample v1 current dry-run은 PHP sample v2와 동일한 policy count shape를 보인다.
+
+- direct PHP v1/v2 모두 payload 3, probe 5, status-error 3, auth 1, upload 1로 분리된다.
+- v2 converter 필드 보존 여부와 무관하게 candidate policy 분류는 같은 구조로 재현된다.
+- S08/S09의 POST metadata는 각각 auth/upload failure context로 분리되며 성공 단정으로 승격되지 않는다.
+- S12 계열 probe는 app/file/admin 존재 여부를 단정하지 않고 context 후보로 분리된다.
+
+이 표본은 direct PHP 계열에서 diagnostic bucket의 반복성을 보강한다.
+
+---
+
+## 6. OpenCart current dry-run 분포
+
+### 6.1 Policy counts
 
 | policy_class | count |
 |---|---:|
 | `keep_candidate_payload` | 3 |
 
-### 4.2 Candidate shape
+### 6.2 Candidate shape
+
+| scenario | method | uri | status | verdict_hint | policy_class | 해석 |
+|---|---|---|---:|---|---|---|
+| S14 | GET | `/search.php` | 200 | `xss` | `keep_candidate_payload` | XSS payload 구조가 명시되어 있으므로 유지 |
+| S15 | GET | `/download.php` | 200 | `path_traversal` | `keep_candidate_payload` | traversal payload 구조가 명시되어 있으므로 유지 |
+| S13 | GET | `/search.php` | 200 | `sqli` | `keep_candidate_payload` | SQLi payload 구조가 명시되어 있으므로 유지 |
+
+### 6.3 관찰 결과
+
+OpenCart current dry-run은 candidate count가 3개뿐이며 모두 explicit payload 후보이다.
+
+- OpenCart front-controller/routed response context가 붙어도 payload 후보로만 유지된다.
+- `status_code=200`은 공격 성공/침해 성공/파일 노출 근거로 승격되지 않는다.
+- S15 traversal 후보에는 fallback-like response context가 붙지만, 이 역시 success/exposure proof가 아니라 topology interpretation context로만 남는다.
+- scanner/probe, status/error-only, auth/upload context 분포를 판단하기에는 표본이 부족하다.
+
+따라서 OpenCart 결과는 front-controller topology에서 `keep_candidate_payload` 보존과 conservative interpretation을 확인하는 표본이다. broad demotion 판단 근거로 쓰기에는 제한적이다.
+
+---
+
+## 7. Juice Shop reverse proxy current dry-run 분포
+
+### 7.1 Policy counts
+
+| policy_class | count |
+|---|---:|
+| `keep_candidate_payload` | 3 |
+
+### 7.2 Candidate shape
 
 | scenario | method | uri | status | verdict_hint | policy_class | 해석 |
 |---|---|---|---:|---|---|---|
@@ -111,7 +208,7 @@ PHP sample v2 current dry-run은 policy bucket 분리가 비교적 명확하다.
 | S13 | GET | `/search.php` | 200 | `sqli` | `keep_candidate_payload` | SQLi payload 구조가 명시되어 있으므로 유지 |
 | S15 | GET | `/download.php` | 200 | `path_traversal` | `keep_candidate_payload` | traversal payload 구조가 명시되어 있으므로 유지 |
 
-### 4.3 관찰 결과
+### 7.3 관찰 결과
 
 Juice Shop reverse proxy current dry-run은 candidate count가 3개뿐이며 모두 explicit payload 후보이다.
 
@@ -123,48 +220,48 @@ Juice Shop reverse proxy current dry-run은 candidate count가 3개뿐이며 모
 
 ---
 
-## 5. Demotion 판단
+## 8. Demotion 판단
 
-### 5.1 status/error-only demotion
+### 8.1 status/error-only demotion
 
 현재 결론: 보류.
 
 근거:
 
-- PHP sample v2에서 `demotion_candidate_status_error_only`는 payload 없는 403/500/error-linked 중심 후보로 잘 분류된다.
+- PHP sample v1/v2에서 `demotion_candidate_status_error_only`는 payload 없는 403/500/error-linked 중심 후보로 반복 분류된다.
 - 그러나 status/error metadata는 실제 공격 시도에서 보조 신호로 유효할 수 있다.
 - broad demotion을 prepare 단계에 바로 적용하면 recall 손실 가능성이 있다.
 - 우선 diagnostic bucket으로 관찰하고, 실제 run distribution을 더 쌓는 것이 안전하다.
 
-### 5.2 scanner/probe demotion
+### 8.2 scanner/probe demotion
 
 현재 결론: 보류.
 
 근거:
 
-- `context_candidate_probe`는 `.env`, `wp-login`, `admin`, missing path 계열을 잘 분리한다.
+- PHP sample v1/v2에서 `context_candidate_probe`는 `.env`, `wp-login`, `admin`, missing path 계열을 반복적으로 분리한다.
 - 그러나 scanner/probe context는 sensitive path probe, mixed baseline scanner, probing sequence summary에 유용하다.
 - prepare에서 단순 drop/demotion하면 summary/context 관찰성이 줄 수 있다.
 - context-only를 finding/incident로 승격하지 않는 guardrail은 유지하되, prepare visibility는 아직 보존한다.
 
-### 5.3 auth/upload context demotion
+### 8.3 auth/upload context demotion
 
 현재 결론: 별도 demotion을 넣지 않는다.
 
 근거:
 
-- S08 login POST는 `context_candidate_auth_failure`로 분류되어 auth success 단정을 피한다.
-- S09 upload-like POST는 `context_candidate_upload_failure`로 분류되어 upload success 단정을 피한다.
+- PHP sample v1/v2에서 S08 login POST는 `context_candidate_auth_failure`로 반복 분류되어 auth success 단정을 피한다.
+- PHP sample v1/v2에서 S09 upload-like POST는 `context_candidate_upload_failure`로 반복 분류되어 upload success 단정을 피한다.
 - 현재 narrow guard는 의도대로 작동한다.
 - 추가 demotion은 실제 false-positive/recall tradeoff를 더 본 뒤 판단한다.
 
 ---
 
-## 6. 추가 관찰 포인트
+## 9. 추가 관찰 포인트
 
-### 6.1 S07 GET `/login.php`
+### 9.1 S07 GET `/login.php`
 
-PHP sample v2에서 S07 GET `/login.php`는 `demotion_candidate_status_error_only`로 분류되었다.
+PHP sample v1/v2에서 S07 GET `/login.php`는 `demotion_candidate_status_error_only`로 분류되었다.
 
 현재 분류가 크게 문제는 아니다.
 
@@ -178,17 +275,17 @@ PHP sample v2에서 S07 GET `/login.php`는 `demotion_candidate_status_error_onl
 - 필요하면 `GET login endpoint + error_linked + login_endpoint` 류를 `context_candidate_auth_observation` 같은 별도 bucket으로 분리할 수 있다.
 - 단, 현재는 구현하지 않는다.
 
-### 6.2 Juice Shop 표본 한계
+### 9.2 OpenCart / Juice Shop 표본 한계
 
-Juice Shop current dry-run은 payload-only 3건만 남았다.
+OpenCart와 Juice Shop current dry-run은 payload-only 3건만 남았다.
 
-- reverse proxy topology에서 payload 후보가 conservative하게 유지되는지는 확인된다.
+- front-controller/reverse-proxy topology에서 payload 후보가 conservative하게 유지되는지는 확인된다.
 - scanner/probe/status-error demotion 여부 판단에는 부족하다.
-- 필요하면 OpenCart, PHP sample v1, proxy error check, 또는 추가 topology run에서 distribution을 더 수집한다.
+- 필요하면 proxy error check, error-table-heavy run, 또는 추가 topology run에서 distribution을 더 수집한다.
 
 ---
 
-## 7. Apache logs-only guardrail
+## 10. Apache logs-only guardrail
 
 아래 원칙은 계속 유지한다.
 
@@ -201,10 +298,10 @@ Juice Shop current dry-run은 payload-only 3건만 남았다.
 
 ---
 
-## 8. 다음 작업
+## 11. 다음 작업
 
-1. 이 distribution review를 진행상황/TODO/작업일지에 반영한다.
-2. 필요하면 OpenCart 또는 PHP sample v1 current dry-run에도 `explain_prepare_candidates.py`를 적용한다.
+1. 이 distribution review 확장 내용을 진행상황/TODO/작업일지에 짧게 반영한다.
+2. 필요하면 proxy error check 또는 error-table-heavy run에 `explain_prepare_candidates.py`를 적용한다.
 3. distribution 표본이 더 쌓이면 demotion이 아니라 narrow rule 후보를 별도 설계한다.
 4. 실제 prepare 변경은 다음 조건을 만족할 때만 검토한다.
    - 명시 payload 후보 보존이 fixture/regression/real run에서 계속 확인됨
@@ -214,11 +311,12 @@ Juice Shop current dry-run은 payload-only 3건만 남았다.
 
 ---
 
-## 9. 현재 결론
+## 12. 현재 결론
 
 현재 코드 기준 dry-run distribution은 diagnostic bucket 설계와 대체로 일치한다.
 
-- PHP sample v2는 payload/auth/upload/probe/status-error 분리가 명확하다.
-- Juice Shop은 payload-only 표본이며 topology hint가 conservative하게 붙는다.
+- PHP sample v1/v2는 payload/auth/upload/probe/status-error 분리가 동일하게 재현된다.
+- OpenCart와 Juice Shop은 payload-only 표본이며 topology hint가 conservative하게 붙는다.
+- direct PHP 표본은 policy bucket 반복성을 보강하고, topology 표본은 status 200/fallback/proxy context가 성공 단정으로 승격되지 않음을 보강한다.
 - broad demotion은 아직 적용하지 않는다.
-- 다음 단계는 더 많은 actual/topology run에서 distribution을 축적하고, 필요 시 narrow rule로 별도 설계하는 것이다.
+- 다음 단계는 더 많은 error-heavy/topology run에서 distribution을 축적하고, 필요 시 narrow rule로 별도 설계하는 것이다.
