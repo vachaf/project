@@ -10,6 +10,8 @@
   - `lab/observability/comparison_php_sample_v1_vs_v2.md`
 - Related summary:
   - `lab/observability/runs/obs_php_sample_v2_001/summary.md`
+- Related diagnostic helper:
+  - `scripts/explain_prepare_candidates.py`
 
 ---
 
@@ -35,8 +37,10 @@ Therefore the candidate count is a result of the current prepare scoring/filteri
 ```text
 v2 field effect: no evidence
 prepare policy effect: yes
-immediate scoring/code change: hold
-next step: document candidate categories and demotion candidates before implementation
+candidate explanation helper: added
+S09 upload/sql_comment-only diagnostic classification: context_candidate_upload_failure
+immediate prepare scoring/code change: hold
+next step: add fixture/test for the diagnostic classification, then evaluate narrow prepare-side demotion or false-positive guard
 ```
 
 The v2 validation remains successful:
@@ -80,9 +84,76 @@ This is useful in real logs because a linked 4xx/5xx error may be important. How
 
 ---
 
-## 4. Candidate classification for PHP sample S01~S15
+## 4. Diagnostic helper result
 
-### 4.1 Candidates that should remain candidates
+A diagnostic helper was added to explain why candidates crossed the threshold.
+
+```text
+scripts/explain_prepare_candidates.py
+```
+
+The helper does not modify prepare output, candidate scoring, demotion, severity, verdict, or category. It only groups candidate reasons into review buckets.
+
+### 4.1 v1/v2 policy count comparison
+
+After applying the upload/sql-comment-only classification improvement, the v2 candidate explanation result is:
+
+```text
+candidate_count = 13
+
+keep_candidate_payload = 3
+context_candidate_upload_failure = 1
+context_candidate_auth_failure = 1
+context_candidate_probe = 5
+demotion_candidate_status_error_only = 3
+```
+
+The same policy shape is expected for v1 because v1 and v2 have the same current `candidate_rows=13` behavior under the same prepare policy.
+
+### 4.2 Updated candidate table interpretation
+
+| scenario | method | uri | status | score | diagnostic policy_class | interpretation |
+|---|---|---|---:|---:|---|---|
+| S15 | GET | `/download.php` | 404 | 15 | `keep_candidate_payload` | traversal-like request-pattern candidate; no file-read success inference |
+| S14 | GET | `/search.php` | 200 | 13 | `keep_candidate_payload` | XSS-like request-pattern candidate; no browser execution inference |
+| S13 | GET | `/search.php` | 200 | 13 | `keep_candidate_payload` | SQLi-like request-pattern candidate; no DB/auth/data impact inference |
+| S09 | POST | `/upload.php` | 400 | 7 | `context_candidate_upload_failure` | upload-like POST with only weak `sqli:sql_comment` signal; multipart/comment-marker false-positive possible |
+| S08 | POST | `/login.php` | 401 | 7 | `context_candidate_auth_failure` | auth failure context; no login success inference |
+| S12 | GET | `/wp-login.php` | 404 | 6 | `context_candidate_probe` | probe/sensitive-path context |
+| S11 | GET | `/error.php` | 500 | 6 | `demotion_candidate_status_error_only` | isolated app/server error context unless tied to payload/repetition |
+| S06 | GET | `/private/secret.txt` | 403 | 6 | `demotion_candidate_status_error_only` | forbidden/sensitive path context; no exposure inference |
+| S12 | GET | `/does-not-exist` | 404 | 4 | `context_candidate_probe` | scanner/probe context |
+| S12 | GET | `/.env` | 404 | 4 | `context_candidate_probe` | sensitive-path probe context; no file exposure inference |
+| S12 | GET | `/admin` | 404 | 4 | `context_candidate_probe` | admin-path probe context; no app presence inference |
+| S07 | GET | `/login.php` | 200 | 4 | `demotion_candidate_status_error_only` | login form/context row, not auth success |
+| S05 | GET | `/does-not-exist-*` | 404 | 4 | `context_candidate_probe` | expected not-found/probe context |
+
+### 4.3 Important S09 finding
+
+Before the diagnostic classification improvement, S09 looked like a payload candidate because it contained:
+
+```text
+sqli:sql_comment(+2)
+error_status:400(+2)
+error_linked(+2)
+no_referer_non_browser_error(+1)
+```
+
+However, in the PHP sample, S09 is an upload-like POST failure. Apache security logs do not contain the raw POST body, and multipart/form-data boundaries or upload-like request syntax can include comment-marker-like text such as `--`.
+
+Therefore, for diagnostic review, the safer classification is:
+
+```text
+context_candidate_upload_failure
+```
+
+This does not yet change prepare scoring. It only records that `sqli:sql_comment` alone is a weak signal in an upload-like POST context unless stronger SQLi evidence is present.
+
+---
+
+## 5. Candidate classification for PHP sample S01~S15
+
+### 5.1 Candidates that should remain candidates
 
 These rows contain explicit attack-like payload structure and should remain incident candidates.
 
@@ -98,7 +169,7 @@ Notes:
 - Success must remain inconclusive from Apache logs alone.
 - These are request-pattern candidates, not confirmed compromises.
 
-### 4.2 Candidates that may be better represented as context-only
+### 5.2 Candidates that may be better represented as context-only
 
 These rows can cross `min_score=4` mostly through status/error metadata rather than explicit exploit payload structure.
 
@@ -106,15 +177,17 @@ These rows can cross `min_score=4` mostly through status/error metadata rather t
 |---|---|---|
 | S11 `/error.php` 500 | `error_status:500(+2)` + `error_linked(+2)` | error/application context unless repeated or associated with explicit attack payload |
 | S08 `/login.php` POST 401 | login endpoint + auth payload content type + 401/error context | auth behavior context; no login success inference |
-| S09 `/upload.php` POST 400 | 400/error context on upload-like endpoint | upload failure context; no upload success inference |
+| S09 `/upload.php` POST 400 | 400/error context plus weak `sqli:sql_comment` only | upload failure context; no upload success inference; SQL comment-only signal should be treated as weak in multipart/upload-like context |
 | S12 `/admin`, `/.env`, `/wp-login.php`, `/server-status`, `/does-not-exist` | probe paths + 4xx/200 + possible error_linked | probing/sensitive-path/mixed-baseline context summaries |
 | S06 `/private/secret.txt` 403 | sensitive/forbidden path + 403/error context | may remain candidate or sensitive-path context depending on policy, but no exposure inference |
+| S07 `/login.php` GET 200 | login endpoint + error-linked app notice/context + long query | login form/context row; no authentication success inference |
+| S05 not-found 404 | not-found + non-browser/no-referer + long query | not-found/probe context unless repeated/associated with payload |
 
 The key concern is not that these are irrelevant. They are useful context. The question is whether they should appear as top incident candidates when stronger payload candidates already exist.
 
 ---
 
-## 5. Why this happens in the PHP sample
+## 6. Why this happens in the PHP sample
 
 The PHP sample scenario catalog intentionally exercises several non-success cases:
 
@@ -144,7 +217,7 @@ So the PHP sample naturally produces many candidates under a conservative row-le
 
 ---
 
-## 6. Policy options
+## 7. Policy options
 
 ### Option A. Keep current scoring unchanged
 
@@ -213,25 +286,48 @@ Cons:
 - Candidate count remains high.
 - Stage1 still processes rows that may be context-only.
 
+### Option E. Add a narrow SQL comment-only upload guard
+
+Potential rule shape:
+
+```text
+IF request is upload-like POST
+AND the only explicit SQLi-like hint is sqli:sql_comment
+AND there is no quote termination, boolean condition, union/select, schema access, sleep/benchmark/waitfor, or other stronger SQLi evidence
+THEN treat SQL comment-only signal as weak context rather than a strong payload candidate
+```
+
+Pros:
+
+- Addresses the S09 false-positive class directly.
+- Does not broadly demote all SQLi candidates.
+- Preserves S13 SQLi-like query because it has stronger SQLi structure.
+
+Cons:
+
+- Requires precise fixture coverage to avoid suppressing real SQL comment payloads.
+- Needs careful implementation because Apache logs do not contain POST bodies.
+
 ---
 
-## 7. Recommended direction
+## 8. Recommended direction
 
-Do not immediately change scoring.
+Do not immediately change prepare scoring.
 
 Recommended sequence:
 
 ```text
-1. Keep current scoring unchanged for now.
-2. Document candidate categories and likely demotion targets.
-3. Add a small diagnostic/reporting helper if needed to explain why each PHP sample candidate crossed min_score.
-4. Add fixture/regression coverage before any demotion logic.
-5. Consider a narrow demotion rule only after confirming it does not affect real attack fixtures.
+1. Keep current prepare scoring unchanged for now.
+2. Record diagnostic helper output and candidate categories. Completed.
+3. Add fixture/regression coverage for diagnostic classification. Next.
+4. Add a fixture for upload-like POST with SQL comment-only signal.
+5. Consider a narrow prepare-side false-positive guard only after fixtures pass.
+6. Consider broader demotion rules only after reviewing status/error-only and probe-context candidates separately.
 ```
 
-If implementation is pursued later, prefer Option B with strict conditions over lab-marker-only behavior.
+If implementation is pursued later, prefer narrow guards over lab-marker-only behavior.
 
-Demotion should require all of these:
+For status/error-only demotion, require all of these:
 
 ```text
 - no SQLi/XSS/traversal/CMDI/file-disclosure/webshell/SSRF/Log4Shell/SSTI/XXE explicit payload signal
@@ -241,9 +337,19 @@ Demotion should require all of these:
 - not repeated in a way that indicates an operational security incident
 ```
 
+For SQL comment-only upload handling, require all of these:
+
+```text
+- method is POST
+- endpoint/request context is upload-like or multipart-like
+- only SQLi attack hint is sqli:sql_comment
+- no stronger SQLi hints are present
+- no decoded query/body-equivalent field shows a stronger SQLi structure
+```
+
 ---
 
-## 8. Candidate reason review checklist
+## 9. Candidate reason review checklist
 
 For each candidate, inspect:
 
@@ -264,18 +370,22 @@ context summary membership
 Useful local commands:
 
 ```bash
+python3 scripts/explain_prepare_candidates.py \
+  --run-dir runs/obs_php_sample_002_pipeline_dryrun \
+  --format markdown \
+  --out /tmp/obs_php_sample_002_candidate_explain.md
+
+python3 scripts/explain_prepare_candidates.py \
+  --run-dir runs/obs_php_sample_001_v2_pipeline_dryrun \
+  --format markdown \
+  --out /tmp/obs_php_sample_v2_candidate_explain.md
+
 jq '.meta.source_counts' runs/obs_php_sample_002_pipeline_dryrun/stage1_results.json
+```
 
-jq '.results[] | {
-  request_id,
-  uri,
-  status_code,
-  score,
-  verdict,
-  severity,
-  evidence_fields
-}' runs/obs_php_sample_002_pipeline_dryrun/stage1_results.json
+For direct llm input inspection:
 
+```bash
 jq '.analysis_candidates[] | {
   request_id,
   uri,
@@ -283,7 +393,7 @@ jq '.analysis_candidates[] | {
   score,
   verdict_hint,
   reason_hints
-}' data/processed/security_llm_input.json
+}' runs/obs_php_sample_002_pipeline_dryrun/llm_input.json
 ```
 
 For v2 dry-run:
@@ -299,20 +409,21 @@ jq '.analysis_candidates[] | {
   handler,
   raw_request_target,
   reason_hints
-}' runs/obs_php_sample_001_v2_pipeline_dryrun/security_llm_input.json
+}' runs/obs_php_sample_001_v2_pipeline_dryrun/llm_input.json
 ```
 
 Adjust paths if the run copied artifacts under a different run_dir structure.
 
 ---
 
-## 9. Expected classification table
+## 10. Expected classification table
 
 | candidate group | keep candidate? | reason |
 |---|---|---|
 | SQLi-like query | yes | explicit payload structure |
 | XSS-like query | yes | explicit payload structure |
 | traversal-like query | yes | explicit payload structure, but success inconclusive |
+| upload-like POST with SQL comment-only signal | no by default | likely upload/multipart failure context unless stronger SQLi structure exists |
 | isolated 500 error page | maybe no | likely app/error context unless tied to attack payload or repetition |
 | isolated login POST 401 | maybe no | auth behavior context; no success inference |
 | isolated upload POST 400 | maybe no | upload failure context; no stored upload inference |
@@ -322,7 +433,7 @@ Adjust paths if the run copied artifacts under a different run_dir structure.
 
 ---
 
-## 10. Guardrails
+## 11. Guardrails
 
 Any future change must preserve these:
 
@@ -339,30 +450,48 @@ Any future change must preserve these:
 
 ---
 
-## 11. Proposed follow-up work
+## 12. Proposed follow-up work
 
 ### P1. Diagnostic documentation
 
-Add a local-only review output or ad-hoc jq snippets that list why each PHP sample candidate crossed threshold.
+Status: completed.
 
-No production code behavior change required.
+`explain_prepare_candidates.py` now explains why each candidate crossed threshold and classifies candidates into review buckets.
 
-### P2. Test fixture before demotion
+### P2. Test fixture before prepare demotion
 
 Create a fixture covering:
 
 ```text
-- attack payload candidate: should remain candidate
+- attack payload candidate: should remain keep_candidate_payload
+- upload-like POST with only sqli:sql_comment: should be context_candidate_upload_failure in diagnostic helper
 - status/error-only isolated row: candidate/demotion behavior explicitly expected
 - scanner burst context: represented in summaries
 - login/upload failure: no success inference
 ```
 
-### P3. Narrow demotion rule proposal
+### P3. Narrow SQL comment-only upload guard proposal
 
-Only after P1/P2, consider a narrow demotion rule for status/error-only rows already represented in context-only summaries.
+After P2, consider a narrow prepare-side false-positive guard for upload-like POST rows where `sqli:sql_comment` is the only SQLi signal.
 
-### P4. Web UI/reporting polish
+This should not demote SQLi rows with stronger signals such as:
+
+```text
+sqli:or_true
+sqli:quote_termination
+sqli:union_select
+sqli:select_from
+sqli:information_schema
+sqli:sleep_func
+sqli:benchmark_func
+sqli:waitfor_delay
+```
+
+### P4. Broader status/error demotion rule proposal
+
+Only after P2/P3, consider a narrow demotion rule for status/error-only rows already represented in context-only summaries.
+
+### P5. Web UI/reporting polish
 
 If candidates remain high, show clearer labels in dry-run/report preview:
 
@@ -377,8 +506,10 @@ These labels must remain display-only and must not alter severity/verdict/catego
 
 ---
 
-## 12. Current recommendation
+## 13. Current recommendation
 
 Do not modify prepare scoring immediately.
 
-Treat the current `candidate_rows=13` as a useful signal that the PHP sample contains many intentionally noisy/error scenarios. The better next step is to inspect and document per-candidate reasons, then decide whether a narrow context-only demotion rule is worth implementing.
+Treat the current `candidate_rows=13` as a useful signal that the PHP sample contains many intentionally noisy/error scenarios. The better next step is to add fixture/regression coverage for the diagnostic classification, especially S09 upload-like POST with SQL comment-only signal.
+
+After that, decide whether a narrow prepare-side false-positive guard is worth implementing.
