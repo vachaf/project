@@ -1,8 +1,8 @@
 # Upload Multipart SQL Comment False-Positive Review
 
 - Date: 2026-05-15
-- Status: design/review note
-- Scope: narrow prepare false-positive review for upload-like POST rows with only `sqli:sql_comment` as SQLi evidence
+- Status: implemented narrow guard / observation note
+- Scope: narrow prepare false-positive guard for upload-like POST rows with only `sqli:sql_comment` as SQLi evidence
 - Related review:
   - `docs/design/99_prepare_php_sample_candidate_policy_review.md`
 - Related diagnostic helper:
@@ -10,38 +10,114 @@
 - Related fixture/test:
   - `tests/fixtures/prepare_candidate_explain_sample.json`
   - `tests/test_explain_prepare_candidates.py`
+  - `tests/test_prepare_upload_multipart_sql_comment_false_positive.py`
 - Related scenario:
   - PHP sample S09 upload-like POST
 
 ---
 
-## 0. 2026-05-20 Implementation Update
+## 0. 2026-05-20 Implementation / Verification Update
 
-Prepare 레벨에 narrow guard를 적용하고, 전용 테스트를 추가했다.
+Prepare 레벨에 narrow guard를 적용하고, 전용 테스트와 PHP sample v2 dry-run 재검증까지 완료했다.
 
-- Added test:
-  - `tests/test_prepare_upload_multipart_sql_comment_false_positive.py`
-  - case A: upload-like POST + only `sqli:sql_comment`
-  - case B: upload-like POST + strong SQLi in logged target
-  - case C: normal search SQLi with sql_comment + strong evidence
-- Applied guard:
-  - `src/prepare_llm_input.py`
-  - SQLi pattern 자체는 유지
-  - `POST + upload-like/multipart context + sql_comment 단독 + logged target 강한 SQLi 구조 없음`일 때만 `sqli:sql_comment(+2)`를 약신호 컨텍스트로 처리
-- S09 기대 동작:
-  - `verdict_hint=sqli` 과분류를 피하고 `suspicious/context` 쪽으로 유지
-  - candidate visibility는 유지 가능
-- Strong SQLi 유지:
-  - upload endpoint라도 `or_true`, `quote_termination` 등 강한 SQLi 구조가 있으면 기존처럼 SQLi candidate 유지
-  - S13 SQLi-like / S14 XSS-like / S15 traversal-like 회귀 없음
+적용 커밋:
 
-Apache logs-only evidence boundary도 유지한다. request body, upload success, DB result, webshell success, compromise 추론은 추가하지 않았다.
+```text
+4dd7a975825d9c10c83ac6e6b9d9c982071be66b
+```
+
+후속 diagnostic helper 보정 커밋:
+
+```text
+e06247f2d3b2daf969579d87074d1565a280fbea
+```
+
+적용 내용:
+
+- `src/prepare_llm_input.py`에 row-level guard 추가
+- global SQLi pattern은 유지
+- `POST + upload-like/multipart context + sql_comment 단독 + logged target 강한 SQLi 구조 없음` 조건에서만 `sqli:sql_comment(+2)`를 강한 SQLi 기여로 쓰지 않음
+- 대신 weak context hint를 추가
+- full demotion은 하지 않음
+- candidate visibility는 유지
+
+추가/보강된 hint:
+
+```text
+sqli:sql_comment_upload_context_weak_signal
+sqli:sql_comment_only_upload_context_no_strong_sqli_structure
+upload:multipart_or_upload_like_context
+upload:no_upload_success_inference
+```
+
+PHP sample v2 재검증 run:
+
+```text
+runs/obs_php_sample_v2_sqlcomment_guard_dryrun
+```
+
+S09 확인 결과:
+
+```json
+{
+  "method": "POST",
+  "uri": "/upload.php",
+  "status_code": 400,
+  "score": 5,
+  "verdict_hint": "suspicious",
+  "reason_hints": [
+    "xss:external_navigation",
+    "error_status:400(+2)",
+    "error_linked(+2)",
+    "no_referer_non_browser_error(+1)",
+    "sqli:sql_comment_upload_context_weak_signal",
+    "sqli:sql_comment_only_upload_context_no_strong_sqli_structure",
+    "upload:multipart_or_upload_like_context",
+    "upload:no_upload_success_inference"
+  ]
+}
+```
+
+Diagnostic helper 확인 결과:
+
+```text
+S09 POST /upload.php
+score=5
+verdict_hint=suspicious
+policy_class=context_candidate_upload_failure
+reason_groups:
+  status_error: error_status:400(+2), error_linked(+2), no_referer_non_browser_error(+1)
+  upload_context: sqli:sql_comment_upload_context_weak_signal, sqli:sql_comment_only_upload_context_no_strong_sqli_structure, upload:multipart_or_upload_like_context, upload:no_upload_success_inference
+```
+
+강한 SQLi 유지 확인:
+
+```text
+S13 GET /search.php
+score=13
+verdict_hint=sqli
+reason_hints include:
+  sqli:or_true(+4)
+  sqli:quote_termination(+4)
+```
+
+검증 결과:
+
+```text
+python3 -m py_compile src/prepare_llm_input.py src/prepare/sqli_hints.py  # pass
+python3 -m pytest -q tests/test_explain_prepare_candidates.py             # 6 passed
+python3 -m pytest -q tests/test_prepare_upload_multipart_sql_comment_false_positive.py  # 3 passed
+python3 scripts/check_prepare_regression.py --strict                      # pass=25 warn=0 fail=0
+python3 scripts/check_stage_dryrun_regression.py --strict                 # pass=19 warn=0 fail=0
+```
+
+Apache logs-only evidence boundary는 유지한다. request body, upload success, DB result, webshell success, compromise 추론은 추가하지 않았다.
 
 ---
 
 ## 1. Purpose
 
-This document reviews whether prepare should add a narrow false-positive guard for upload-like POST rows where the only SQLi-like signal is `sqli:sql_comment`.
+This document reviews and records the narrow prepare-side false-positive guard for upload-like POST rows where the only SQLi-like signal is `sqli:sql_comment`.
 
 The motivating case is PHP sample S09:
 
@@ -49,27 +125,23 @@ The motivating case is PHP sample S09:
 method=POST
 uri=/upload.php
 status_code=400
-verdict_hint=sqli
-reason_hints:
+previous verdict_hint=sqli
+previous reason_hints:
   sqli:sql_comment(+2)
   error_status:400(+2)
   error_linked(+2)
   no_referer_non_browser_error(+1)
 ```
 
-The diagnostic helper now classifies this as:
+The implemented behavior is now:
 
 ```text
-context_candidate_upload_failure
+verdict_hint=suspicious
+score=5
+policy_class=context_candidate_upload_failure in diagnostic helper
 ```
 
-rather than:
-
-```text
-keep_candidate_payload
-```
-
-This review asks whether the same idea should be applied inside prepare scoring/selection, not just in the diagnostic helper.
+The goal is to avoid over-presenting upload/multipart context as SQLi while preserving candidate visibility and strong SQLi detection.
 
 ---
 
@@ -84,19 +156,20 @@ distinct_incident_candidates=13
 
 The count is not caused by `apache_security_io_v2`; v1 and v2 behave the same under the same prepare policy.
 
-The important S09 detail is that upload-like POST currently gets an SQLi-like payload contribution from `sqli:sql_comment(+2)`.
-
-However, Apache logs do not include the raw POST body. Therefore, for upload-like multipart requests, a SQL comment marker observation can be ambiguous.
-
-Possible sources of the marker include:
+The S09 change is not a broad candidate-count reduction. It changes the interpretation of one weak SQL comment signal:
 
 ```text
-- multipart/form-data boundary markers such as --boundary
-- upload/client syntax artifacts visible in request metadata
-- intentionally crafted SQLi payload in query/path/header-like metadata
+before: S09 score=7, verdict_hint=sqli
+after:  S09 score=5, verdict_hint=suspicious
 ```
 
-Apache access/security logs alone cannot distinguish all of these unless the stronger SQLi structure is visible in the logged fields.
+S09 remains visible as a candidate because status/error context still reaches threshold:
+
+```text
+error_status:400(+2)
+error_linked(+2)
+no_referer_non_browser_error(+1)
+```
 
 ---
 
@@ -104,7 +177,7 @@ Apache access/security logs alone cannot distinguish all of these unless the str
 
 `SQLI_COMMENT_PATTERN` treats comment markers as SQLi-like evidence.
 
-That is usually useful when paired with stronger SQLi structure, for example:
+That is useful when paired with stronger SQLi structure, for example:
 
 ```text
 ' OR '1'='1 --
@@ -115,25 +188,17 @@ UNION SELECT ... --
 
 But in an upload-like POST context, `sqli:sql_comment` alone is weak.
 
-Problem:
+Apache logs do not include the raw POST body. For upload-like multipart requests, a SQL comment marker observation can be ambiguous.
+
+Possible sources include:
 
 ```text
-upload-like POST + only sqli:sql_comment
+- multipart/form-data boundary markers such as --boundary
+- upload/client syntax artifacts visible in request metadata
+- intentionally crafted SQLi payload in query/path/header-like metadata
 ```
 
-can be over-presented as:
-
-```text
-SQLi payload candidate
-```
-
-when the safer interpretation is:
-
-```text
-upload failure / multipart context candidate
-```
-
-This is not a success-inference issue. The existing guardrails still prevent DB success claims. The issue is candidate category and wording quality.
+Therefore, this class is now handled as weak upload/sql-comment context unless stronger SQLi structure is visible in logged fields.
 
 ---
 
@@ -144,7 +209,7 @@ This is not a success-inference issue. The existing guardrails still prevent DB 
 - Preserve operational visibility for upload endpoint failures.
 - Keep Apache logs-only evidence boundaries intact.
 - Avoid broad demotion of all upload endpoint errors.
-- Avoid lab-only special casing where possible.
+- Avoid lab-only special casing.
 
 ---
 
@@ -190,144 +255,28 @@ sqli:sql_comment alone on an upload-like POST should not be treated as strong SQ
 
 ---
 
-## 7. Candidate policy options
+## 7. Applied guard
 
-### Option A. Do nothing in prepare
-
-Keep prepare scoring unchanged and rely on `explain_prepare_candidates.py` for review.
-
-Pros:
-
-- Zero risk to existing scoring behavior.
-- Keeps conservative detection.
-- Diagnostic helper already makes S09 interpretation clearer.
-
-Cons:
-
-- Stage1/Stage2 still receives S09 with `verdict_hint=sqli`.
-- LLM/report wording may still overemphasize SQLi unless prompt/reporting compensates.
-
-### Option B. Remove only the SQLi score contribution in upload/sql-comment-only context
-
-Potential rule:
+The implemented guard follows Option B/D from the original review:
 
 ```text
 IF method is POST
 AND request is upload-like or multipart-like
 AND the only SQLi hint is sqli:sql_comment
-AND no stronger SQLi structure is present
-THEN do not add the sqli:sql_comment score contribution
-AND add a context hint such as sqli:sql_comment_upload_context_weak_signal
+AND no stronger SQLi structure is present in logged target/query context
+THEN do not add sqli:sql_comment(+2) as strong SQLi contribution
+AND add weak upload/sql-comment context hints
+AND keep status/error visibility
 ```
 
-Expected S09 effect:
+The guard must not fire when an upload endpoint includes explicit SQLi structure in the logged target, such as:
 
 ```text
-before: score=7, verdict_hint=sqli
-after:  score likely 5, verdict_hint may become suspicious/context depending on remaining hints
+/upload.php?name=1%27%20OR%20%271%27%3D%271--
+/upload.php?file=1%20UNION%20SELECT%201,2--
 ```
 
-Pros:
-
-- Narrowly addresses the false-positive class.
-- Preserves status/error observability.
-- Does not demote stronger SQLi payloads.
-
-Cons:
-
-- S09 may still remain a candidate due to `error_status + error_linked + no_referer`.
-- Implementation must be careful not to suppress query-string SQL comment attacks to upload endpoints.
-
-### Option C. Demote upload/sql-comment-only rows to context-only
-
-Potential rule:
-
-```text
-IF upload-like POST
-AND only SQLi signal is sqli:sql_comment
-AND remaining score is status/error/no-referer only
-THEN remove from incident candidates and represent as upload failure context/supporting event
-```
-
-Pros:
-
-- Reduces candidate noise more strongly.
-- Aligns with diagnostic classification.
-
-Cons:
-
-- Higher risk. Upload endpoint failures can be meaningful in real logs.
-- Requires context summary linkage before demotion.
-- Should not be implemented without fixture/regression coverage.
-
-### Option D. Keep candidate but change verdict/category
-
-Potential rule:
-
-```text
-IF upload-like POST + only sqli:sql_comment
-THEN keep as candidate if score still crosses threshold
-BUT verdict_hint becomes suspicious instead of sqli
-AND add reason hint for weak upload SQL-comment context
-```
-
-Pros:
-
-- Avoids SQLi overclassification while preserving review visibility.
-- Lower risk than full demotion.
-
-Cons:
-
-- Candidate count remains unchanged.
-- Requires careful ordering with existing verdict selection.
-
----
-
-## 8. Recommended direction
-
-Recommended sequence:
-
-```text
-1. Keep diagnostic helper classification in place. Completed.
-2. Add fixture/test for diagnostic behavior. Completed.
-3. Before changing prepare, add or identify prepare-level fixture coverage for:
-   - upload-like POST with only sqli:sql_comment
-   - upload-like POST with stronger SQLi evidence
-   - normal SQLi query with sql_comment + stronger evidence
-4. Prefer Option D or Option B before Option C.
-5. Do not implement broad upload demotion yet.
-```
-
-Preferred implementation path if code change is pursued:
-
-```text
-First candidate: Option D
-- keep candidate visibility if remaining score crosses threshold
-- avoid `verdict_hint=sqli` when the only SQLi signal is weak upload-context sql_comment
-- add explicit reason hint that SQL comment is weak in upload/multipart context
-
-Second candidate: Option B
-- remove or zero out the `sqli:sql_comment(+2)` scoring contribution only in this narrow context
-
-Defer: Option C
-- full demotion to context-only should wait until broader context-summary demotion policy is designed
-```
-
----
-
-## 9. Required guard conditions for prepare-side handling
-
-A prepare-side guard must require all of the following:
-
-```text
-method is POST
-AND endpoint/context is upload-like or multipart-like
-AND SQLi hint set contains sqli:sql_comment
-AND SQLi hint set contains no stronger SQLi hint
-AND query_string/raw_request_target do not show stronger SQLi structure
-```
-
-Stronger SQLi hints include at least:
+Stronger SQLi hints that must preserve SQLi classification include:
 
 ```text
 sqli:or_true
@@ -345,37 +294,11 @@ sqli:update_set
 sqli:delete_from
 ```
 
-The guard must not fire when an upload endpoint includes explicit SQLi structure in the logged target, such as:
-
-```text
-/upload.php?name=1%27%20OR%20%271%27%3D%271--
-/upload.php?file=1%20UNION%20SELECT%201,2--
-```
-
 ---
 
-## 10. Suggested reason hints
-
-If prepare is changed, use explicit weak-signal hints rather than silently dropping context.
-
-Candidate hints:
-
-```text
-sqli:sql_comment_upload_context_weak_signal
-sqli:sql_comment_only_upload_context_no_strong_sqli_structure
-upload:multipart_or_upload_like_context
-upload:no_upload_success_inference
-```
-
-Avoid wording that implies success or backend validation result.
-
----
-
-## 11. Test plan
+## 8. Test coverage
 
 ### Diagnostic helper tests
-
-Already added:
 
 ```text
 tests/fixtures/prepare_candidate_explain_sample.json
@@ -391,15 +314,19 @@ Coverage:
 - sensitive probe -> context_candidate_probe
 ```
 
-### Prepare-level tests before code change
+### Prepare-level tests
 
-Before modifying prepare scoring/verdict logic, add or extend tests to cover:
+```text
+tests/test_prepare_upload_multipart_sql_comment_false_positive.py
+```
+
+Coverage:
 
 ```text
 1. Upload-like POST with only sqli:sql_comment
    Expected:
-   - no strong SQLi verdict/category, or SQLi score contribution is suppressed
-   - upload weak-context hint is present
+   - verdict_hint is not sqli
+   - weak upload/sql-comment context hints are present
    - no upload success inference
 
 2. Upload-like POST with stronger SQLi in query target
@@ -410,82 +337,53 @@ Before modifying prepare scoring/verdict logic, add or extend tests to cover:
 3. Normal search/query SQLi with sql_comment and stronger evidence
    Expected:
    - remains SQLi candidate
-
-4. Normal request with status/error only
-   Expected:
-   - unchanged until broader status/error demotion is implemented
-```
-
-### Regression checks
-
-Run after any prepare-side code change:
-
-```bash
-python3 -m py_compile src/prepare_llm_input.py src/prepare/sqli_hints.py
-python3 -m pytest -q tests/test_explain_prepare_candidates.py
-python3 scripts/check_prepare_regression.py --strict
-python3 scripts/check_stage_dryrun_regression.py --strict
 ```
 
 ---
 
-## 12. Impact on PHP sample S09
+## 9. Impact on PHP sample S09
 
-Current diagnostic classification:
+Current verified behavior:
 
 ```text
 S09 POST /upload.php
 status=400
-score=7
-verdict_hint=sqli
+score=5
+verdict_hint=suspicious
 policy_class=context_candidate_upload_failure
 ```
 
-Preferred prepare-side behavior, if changed:
+This is acceptable because:
 
-```text
-S09 should not be presented as strong SQLi based only on sqli:sql_comment.
-```
-
-Acceptable outcomes:
-
-```text
-A. Still candidate, but verdict_hint/category no longer SQLi.
-B. Still candidate, with weak upload/sql-comment context hint.
-C. Eventually context-only/supporting event, but only after broader demotion policy exists.
-```
-
-Current preferred first change:
-
-```text
-A or B, not C.
-```
+- SQLi overclassification is reduced.
+- Candidate visibility remains.
+- Upload endpoint failure context remains visible.
+- Strong SQLi candidates remain intact.
+- No upload success, DB success, file storage, webshell success, or compromise is inferred.
 
 ---
 
-## 13. Open questions
+## 10. Remaining open questions
 
-- Should `sqli:sql_comment` ever be a standalone SQLi signal without stronger SQLi structure?
-- Should the guard live inside `src/prepare/sqli_hints.py` or inside row-level scoring in `prepare_llm_input.py`?
-- Should verdict selection distinguish `weak_sqli_context` from `sqli`?
-- Should upload context be detected by URI only, `req_content_type`, or both?
-- Should this rule apply only to POST, or also PUT/PATCH upload-like requests later?
+- Should broader status/error-only candidates be demoted when already covered by context summaries?
+- Should `PUT`/`PATCH` upload-like requests receive a similar guard later?
+- Should Web UI show `upload_context` hints as display-only interpretation badges?
+- Should Stage2 prompt/report wording explicitly mention upload SQL-comment weak context?
 
 ---
 
-## 14. Current recommendation
+## 11. Current recommendation
 
-Do not implement full demotion yet.
+The narrow prepare-side guard is implemented and verified.
 
-Implementing a narrow prepare-side guard is reasonable only after prepare-level tests are added.
+Do not implement full upload demotion yet.
 
-Preferred next implementation candidate:
+Next possible work is broader but separate:
 
 ```text
-upload-like POST + only sqli:sql_comment
-=> not strong SQLi verdict
-=> add weak upload/sql-comment context hint
-=> preserve status/error visibility
+- status/error-only candidate demotion review
+- scanner/probe context-only demotion review
+- Web UI display-only upload context badge review
 ```
 
-This preserves the Apache logs-only boundary and reduces SQLi overclassification without hiding upload endpoint failures.
+These should remain separate from the SQL comment-only upload guard.
