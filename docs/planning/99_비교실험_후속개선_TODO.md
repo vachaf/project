@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-15
+- 기준 시점: 2026-05-20
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 원칙:
   - 완료된 항목은 이 문서에 길게 유지하지 않는다.
@@ -83,6 +83,16 @@
   - 후보별 threshold 초과 이유와 정책 분류를 출력
   - upload/sql_comment-only weak context 분류 반영
   - 테스트: `tests/test_explain_prepare_candidates.py` `6 passed`
+- scanner/probe diagnostic fixture/test 추가 및 검증 완료:
+  - `tests/test_prepare_scanner_probe_candidate_policy.py` `8 passed`
+  - candidate policy diagnostic bundle
+    (`tests/test_prepare_upload_multipart_sql_comment_false_positive.py`,
+    `tests/test_explain_prepare_candidates.py`,
+    `tests/test_prepare_status_error_only_candidate_policy.py`,
+    `tests/test_prepare_scanner_probe_candidate_policy.py`):
+    `24 passed`
+  - fixture 기준 정책 bucket 안정화:
+    `context_candidate_probe`, `context_only_server_status`, `keep_candidate_payload`
 - 확인된 핵심 결론:
   - `apache_security_io_v1`은 direct PHP, real PHP rewrite/front-controller, reverse proxy 배치 모두에서 동작
   - `apache_security_io_v2`는 새 서버에서 request_target/req_host/client_ip_source/Cookie/Auth presence flag를 정상 출력하고 converter가 보존함
@@ -115,10 +125,21 @@
   - actual LLM 출력에서 `fallback_200_candidate`가 성공 단정 완화에 기여하는지 확인
 - [ ] upload/sql_comment-only guard가 실제 로그에서 SQLi 과소탐지로 이어지지 않는지 관찰
   - 강한 SQLi 구조가 있는 upload endpoint 요청은 계속 SQLi candidate로 유지되어야 함
-- [ ] broader status/error-only candidate demotion은 별도 fixture/regression 후 검토
+- [ ] 실제 run artifact에 `explain_prepare_candidates.py` 적용
+  - candidate policy distribution을 실데이터 기준으로 확인
+- [ ] candidate policy distribution 관찰
+  - `context_candidate_probe`
+  - `context_only_server_status`
+  - `demotion_candidate_status_error_only`
+  - `context_candidate_upload_failure`
+  - `keep_candidate_payload`
+- [ ] broader status/error-only candidate demotion은 fixture/regression 1차 통과 상태
+  - 실제 run distribution 확인 전까지 prepare 반영 보류
   - 관련 문서: `docs/design/99_prepare_status_error_only_candidate_demotion_review.md`
-- [ ] scanner/probe context candidate demotion은 별도 fixture/regression 후 검토
+- [ ] scanner/probe context candidate demotion은 fixture/regression 1차 통과 상태
+  - 실제 run distribution 확인 전까지 prepare 반영 보류
   - 관련 문서: `docs/design/99_prepare_scanner_probe_context_candidate_demotion_review.md`
+- [ ] broad demotion은 계속 보류
 - [ ] proxy_error_context의 정식 prepare 반영 여부 검토
   - 현재 P1은 security row-level hint 중심
   - proxy error는 error table/app_error integration 경로가 정리된 뒤 별도 검토
