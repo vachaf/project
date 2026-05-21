@@ -103,6 +103,12 @@
   - normal run: `obs_juiceshop_proxy_v2_001` (`obs_juiceshop_proxy_v2_001_current_dryrun`, candidate 3건 모두 `keep_candidate_payload`)
   - proxy_error_check run: `obs_juiceshop_proxy_v2_error_check_001` (`obs_juiceshop_proxy_v2_error_check_001_current_dryrun`, `status-error-only` 1건 / `payload` 1건)
   - 두 run 모두 Apache logs-only guardrail 유지, prepare/scoring/filtering 변경 없음
+- `apache_security_io_v2` 3-way observability baseline 완료:
+  - direct PHP app: `obs_php_sample_v2_001`
+  - OpenCart front-controller PHP app: `obs_opencart_v2_001`
+  - Juice Shop reverse proxy backend app: `obs_juiceshop_proxy_v2_001`
+  - OpenCart v2는 `payload 3 / status-error 2`, Juice Shop v2 normal은 `payload 3`, Juice Shop v2 proxy_error_check는 `payload 1 / status-error 1`
+  - 현재 단계에서는 prepare/scoring/filtering 변경 없이 distribution 관찰 문서만 유지
 - 확인된 핵심 결론:
   - `apache_security_io_v1`은 direct PHP, real PHP rewrite/front-controller, reverse proxy 배치 모두에서 동작
   - `apache_security_io_v2`는 새 서버에서 request_target/req_host/client_ip_source/Cookie/Auth presence flag를 정상 출력하고 converter가 보존함
@@ -125,11 +131,14 @@
 - [ ] `proxy_error_check`를 정식 scenario catalog extension으로 분리할지 판단
   - 현재는 정규 S01~S15와 별도 backend availability 관찰로 유지
   - 정식화 시 공격/침해 시나리오가 아니라 backend availability context로 명시
+- [ ] 외부 client 기반 error-heavy run 수행 여부 판단
+  - 실제 prepare/scoring/filtering 변경 없이 distribution 표본 확장 목적에 한정
 - [ ] `lab/observability/runs/*/raw/` 커밋/보관 정책 점검
   - raw log는 민감정보 가능성이 있으므로 기본 커밋 금지 후보
   - 필요 시 `.gitignore` 또는 sanitization policy 검토
 - [ ] 추가 앱 topology가 필요할 때만 후속 run 수행
-  - 예: PHP-FPM 분리형, WAF-fronted Apache, TLS/HTTP2, 앞단 LB + mod_remoteip
+  - 예: PHP-FPM 분리형, WAF-fronted Apache, TLS/HTTP2
+  - `mod_remoteip`/remoteIP 환경은 별도 설계 후 진행
 - [ ] v2 actual LLM execution 여부는 보류
   - v2 fixture/test와 candidate policy review를 먼저 유지
   - 필요 시 spot check로만 수행

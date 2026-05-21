@@ -45,6 +45,7 @@ EHxx error-heavy scenario label diagnostic UX 보강도 완료했다.
 | `obs_php_sample_v2_error_heavy_001_current_dryrun` | direct PHP v2 error-heavy | `runs/obs_php_sample_v2_error_heavy_001_current_dryrun/llm_input.json` | 12 |
 | `obs_php_sample_002_current_dryrun` | direct PHP v1 | `runs/obs_php_sample_002_current_dryrun/llm_input.json` | 13 |
 | `obs_opencart_002_current_dryrun` | front-controller / routed response | `runs/obs_opencart_002_current_dryrun/llm_input.json` | 3 |
+| `obs_opencart_v2_001_current_dryrun` | front-controller / routed response (v2) | `runs/obs_opencart_v2_001_current_dryrun/llm_input.json` | 5 |
 | `obs_juiceshop_proxy_001_current_dryrun` | reverse proxy / backend response | `runs/obs_juiceshop_proxy_001_current_dryrun/llm_input.json` | 3 |
 | `obs_juiceshop_proxy_v2_001_current_dryrun` | reverse proxy / backend response (v2) | `runs/obs_juiceshop_proxy_v2_001_current_dryrun/llm_input.json` | 3 |
 | `obs_juiceshop_proxy_v2_error_check_001_current_dryrun` | reverse proxy backend unavailable check (v2) | `runs/obs_juiceshop_proxy_v2_error_check_001_current_dryrun/llm_input.json` | 2 |
@@ -65,11 +66,12 @@ EHxx error-heavy scenario label diagnostic UX 보강도 완료했다.
 | `obs_php_sample_v2_error_heavy_001_current_dryrun` | 12 | payload 3 / probe 4 / status-error 3 / auth 1 / upload 1 | error-linked payload vs status-only 분리 확인 |
 | `obs_php_sample_002_current_dryrun` | 13 | payload 3 / probe 5 / status-error 3 / auth 1 / upload 1 | v2와 동일한 분포 반복 확인 |
 | `obs_opencart_002_current_dryrun` | 3 | payload 3 | topology 200에서도 payload-only 유지 |
+| `obs_opencart_v2_001_current_dryrun` | 5 | payload 3 / status-error 2 | front-controller v2에서 payload vs static-404 status-only 분리 확인 |
 | `obs_juiceshop_proxy_001_current_dryrun` | 3 | payload 3 | topology 200에서도 payload-only 유지 |
 | `obs_juiceshop_proxy_v2_001_current_dryrun` | 3 | payload 3 | v2 parser/viewer/LLM input 안정화 관찰 표본 |
 | `obs_juiceshop_proxy_v2_error_check_001_current_dryrun` | 2 | payload 1 / status-error 1 | reverse proxy 503에서 payload vs status-only 분리 확인 |
 
-요약하면 direct PHP 계열은 policy bucket 분리 표본을 제공하고, error-heavy run은 error/status 중심 후보와 explicit payload 후보의 분리 근거를 보강한다. OpenCart/Juice Shop 계열은 topology-dependent 200 응답에서도 explicit payload 후보만 보존되는지 확인하는 표본이다.
+요약하면 direct PHP 계열은 policy bucket 분리 표본을 제공하고, error-heavy run은 error/status 중심 후보와 explicit payload 후보의 분리 근거를 보강한다. OpenCart/Juice Shop 계열은 topology-dependent 200 응답에서도 explicit payload 후보가 유지되는지, 그리고 front-controller/reverse-proxy 환경의 약한 status/error-only 후보가 별도 bucket으로 분리되는지 확인하는 표본이다.
 
 ---
 
@@ -171,7 +173,23 @@ PHP sample v2 error-heavy run은 status/error-only demotion 판단에 가장 직
 - S15 traversal 후보에는 fallback-like response context가 붙지만, 이 역시 success/exposure proof가 아니라 topology interpretation context로만 남는다.
 - scanner/probe, status/error-only, auth/upload context 분포를 판단하기에는 표본이 부족하다.
 
-### 6.2 Juice Shop reverse proxy v1
+### 6.2 OpenCart v2 normal run
+
+| policy_class | count |
+|---|---:|
+| `keep_candidate_payload` | 3 |
+| `demotion_candidate_status_error_only` | 2 |
+
+관찰 결과:
+
+- S13/S14/S15 explicit payload 요청은 `keep_candidate_payload`로 유지되고, front-controller / `_route_` observability context가 함께 붙는다.
+- S15에는 `fallback_200_candidate` context가 붙지만, 이는 성공/노출 증거가 아니라 topology interpretation context다.
+- S02 `/static/style.css` 404와 S03 `/static/app.js` 404는 score `4/4`, margin `0`의 `demotion_candidate_status_error_only`로 분리된다.
+- S12 `/admin` -> `/admin/index.php` redirect/follow는 routing/topology context이며 admin access success 근거가 아니다.
+- 이 표본은 v2 front-controller topology에서도 explicit payload 후보는 유지되고, static asset 404 같은 약한 status/error-only 후보는 별도 bucket으로 분리됨을 보여준다.
+- broad demotion을 적용할 근거가 아니라 status/error-only bucket의 실제 run distribution 관찰 표본으로 기록한다.
+
+### 6.3 Juice Shop reverse proxy v1
 
 | policy_class | count |
 |---|---:|
@@ -183,7 +201,7 @@ PHP sample v2 error-heavy run은 status/error-only demotion 판단에 가장 직
 - `status_code=200`은 공격 성공/침해 성공/파일 노출 근거로 승격되지 않는다.
 - scanner/probe, status/error-only, auth/upload context 분포를 판단하기에는 표본이 부족하다.
 
-### 6.3 Juice Shop reverse proxy v2 normal run
+### 6.4 Juice Shop reverse proxy v2 normal run
 
 | policy_class | count |
 |---|---:|
@@ -196,7 +214,7 @@ PHP sample v2 error-heavy run은 status/error-only demotion 판단에 가장 직
 - 위 context는 성공/노출/침해 증거가 아니라 topology interpretation context다.
 - 따라서 v2 normal run은 성공 판단 강화 표본이 아니라 parser/viewer/LLM input 안정화 관찰 표본으로 기록한다.
 
-### 6.4 Juice Shop reverse proxy v2 proxy_error_check
+### 6.5 Juice Shop reverse proxy v2 proxy_error_check
 
 | policy_class | count |
 |---|---:|
@@ -221,6 +239,7 @@ PHP sample v2 error-heavy run은 status/error-only demotion 판단에 가장 직
 
 - PHP sample v1/v2에서 `demotion_candidate_status_error_only`는 payload 없는 403/500/error-linked 중심 후보로 반복 분류된다.
 - PHP sample v2 error-heavy run에서도 payload 없는 403/500/error-linked 후보가 `demotion_candidate_status_error_only`로 분리된다.
+- OpenCart v2 normal run에서도 static asset 404 기반 약한 후보가 `demotion_candidate_status_error_only`로 분리된다.
 - Juice Shop v2 proxy_error_check에서도 payload 없는 503 요청이 status/error-only bucket으로 분리된다.
 - 반대로 payload가 명시된 SQLi/traversal/XSS 요청은 error-linked 또는 404가 함께 있어도 `keep_candidate_payload`로 유지된다.
 - 그러나 status/error metadata는 실제 공격 시도에서 보조 신호로 유효할 수 있다.
@@ -285,7 +304,8 @@ PHP sample v1/v2 및 error-heavy run에서 GET `/login.php`는 `demotion_candida
 OpenCart와 Juice Shop 계열 current dry-run은 payload-only 또는 payload+status-error 소수 표본으로 남았다.
 
 - front-controller/reverse-proxy topology에서 payload 후보가 conservative하게 유지되는지는 확인된다.
-- scanner/probe/status-error demotion 여부 판단에는 아직 표본이 부족하다.
+- OpenCart v2는 static asset 404가 status/error-only bucket으로 분리되는 실제 front-controller 표본을 보강한다.
+- scanner/probe/status-error demotion 여부를 일반화하기에는 아직 표본이 부족하다.
 - 필요하면 proxy error check, 외부 client 기반 error-heavy run, 또는 추가 topology run에서 distribution을 더 수집한다.
 
 ---
@@ -322,6 +342,7 @@ OpenCart와 Juice Shop 계열 current dry-run은 payload-only 또는 payload+sta
 
 - PHP sample v1/v2는 payload/auth/upload/probe/status-error 분리가 동일하게 재현된다.
 - PHP sample v2 error-heavy run은 error-linked payload와 status/error-only 후보가 기대대로 분리됨을 보강한다.
+- OpenCart v2 normal run은 front-controller topology에서 payload 3 / status-error 2 분포를 추가로 보강한다.
 - Juice Shop v2 normal/proxy_error_check는 reverse proxy topology에서 v2 parser/viewer/LLM input 안정화 표본을 제공한다.
 - EHxx label support로 error-heavy diagnostic output 가독성이 개선되었다.
 - OpenCart/Juice Shop 계열은 topology context를 보강하지만 성공 판단을 강화하지 않는다.
