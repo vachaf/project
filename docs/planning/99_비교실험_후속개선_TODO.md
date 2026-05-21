@@ -99,6 +99,10 @@
   - `obs_php_sample_v2_001_current_dryrun`: payload/auth/upload/probe/status-error 분리 확인
   - `obs_juiceshop_proxy_001_current_dryrun`: payload-only 표본으로 broad demotion 판단 근거 제한 확인
   - 실제 prepare demotion은 계속 보류하고, 추가 run distribution 축적 후 narrow rule만 별도 검토
+- Juice Shop reverse proxy v2 문서 반영 완료:
+  - normal run: `obs_juiceshop_proxy_v2_001` (`obs_juiceshop_proxy_v2_001_current_dryrun`, candidate 3건 모두 `keep_candidate_payload`)
+  - proxy_error_check run: `obs_juiceshop_proxy_v2_error_check_001` (`obs_juiceshop_proxy_v2_error_check_001_current_dryrun`, `status-error-only` 1건 / `payload` 1건)
+  - 두 run 모두 Apache logs-only guardrail 유지, prepare/scoring/filtering 변경 없음
 - 확인된 핵심 결론:
   - `apache_security_io_v1`은 direct PHP, real PHP rewrite/front-controller, reverse proxy 배치 모두에서 동작
   - `apache_security_io_v2`는 새 서버에서 request_target/req_host/client_ip_source/Cookie/Auth presence flag를 정상 출력하고 converter가 보존함
@@ -155,6 +159,8 @@
   - 실제 prepare 반영은 계속 보류
   - 관련 문서: `docs/design/99_prepare_scanner_probe_context_candidate_demotion_review.md`, `docs/design/99_prepare_candidate_policy_distribution_review.md`
 - [ ] broad demotion은 계속 보류
+- [ ] 다음 표본은 외부 client 기반 error-heavy run 또는 추가 topology run으로 확장
+  - 현재 단계에서는 prepare/scoring/filtering 변경 없이 distribution 관찰만 유지
 - [ ] proxy_error_context의 정식 prepare 반영 여부 검토
   - 현재 P1은 security row-level hint 중심
   - proxy error는 error table/app_error integration 경로가 정리된 뒤 별도 검토

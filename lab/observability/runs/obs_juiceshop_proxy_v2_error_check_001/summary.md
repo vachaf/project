@@ -1,29 +1,24 @@
-### Juice Shop v2 proxy_error_check
+# obs_juiceshop_proxy_v2_error_check_001 Summary
 
-`obs_juiceshop_proxy_v2_error_check_001_current_dryrun`에서
-backend unavailable / reverse proxy 503 상황의 candidate policy distribution을 확인했다.
+## Run Metadata
+
+- `run_id`: `obs_juiceshop_proxy_v2_error_check_001`
+- `topology`: Juice Shop reverse proxy v2 backend unavailable/proxy error check
+- `log_format_version`: `apache_security_io_v2`
+
+## Candidate Policy Distribution
 
 | policy_class | count |
 |---|---:|
 | `demotion_candidate_status_error_only` | 1 |
 | `keep_candidate_payload` | 1 |
 
-관찰 결과:
+- payload 없는 `GET /` 503은 `demotion_candidate_status_error_only`로 분리되었다.
+- SQLi 구조가 있는 `GET /search` 503은 `keep_candidate_payload`로 유지되었다.
+- 두 후보 모두 reverse proxy/backend response observability context가 붙는다.
 
-- `GET /` 503은 `error_status:503`, `error_linked`,
-  `no_referer_non_browser_error` 중심으로
-  `demotion_candidate_status_error_only`에 분류되었다.
-- `GET /search` 503은 SQLi 구조
-  (`sqli:quote_termination`, `sqli:or_true`, `sqli:sql_comment`)가 있어
-  `keep_candidate_payload`로 유지되었다.
-- 두 후보 모두 reverse proxy/backend response observability context가 붙었다.
-- 503/proxy error는 backend availability evidence이며,
-  공격 성공, 침해 성공, DB 영향, 파일 노출 근거가 아니다.
+## Interpretation
+
+- 503/proxy error는 backend availability context이며 공격 성공/침해 성공/DB 영향/파일 노출 근거가 아니다.
+- normal v2 run(`obs_juiceshop_proxy_v2_001`)과 비교하면, v2에서도 payload 후보와 status/error-only 후보가 분리됨을 확인했다.
 - prepare/scoring/filtering 변경은 없다.
-
-판단:
-
-이 표본은 v2 Juice Shop reverse proxy 환경에서도
-status/error-only 후보와 explicit payload 후보가 기대대로 분리됨을 보여준다.
-따라서 broad demotion은 계속 보류하고,
-diagnostic distribution 관찰 표본으로만 기록한다.
