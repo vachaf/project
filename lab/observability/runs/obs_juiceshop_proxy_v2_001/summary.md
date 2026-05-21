@@ -25,3 +25,7 @@ candidate policy distribution을 확인했다.
 Juice Shop v2 정규 run은 기존 v1 Juice Shop baseline과 같은 conservative shape를 보인다.
 reverse proxy / backend fallback / 200 HTML 응답 환경에서도
 명시 payload 후보만 보존되고, topology-dependent 200 응답은 성공 단정으로 승격되지 않는다.
+
+Note: v2 log format에서는 request Host 계열 필드를 `req_host`로 분리하는 방향이므로,
+legacy `host` field 미관찰은 단독 문제로 보지 않는다. v2 field checklist에서는
+`request_target`, `raw_request_target`, `req_host`, `client_ip_source` 관찰 여부를 별도로 확인한다.

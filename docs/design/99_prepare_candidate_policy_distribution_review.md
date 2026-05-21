@@ -296,3 +296,20 @@ OpenCart와 Juice Shop current dry-run은 payload-only 3건만 남았다.
 - direct PHP 표본은 policy bucket 반복성을 보강하고, error-heavy 표본은 status/error-only demotion review 근거를 보강하며, topology 표본은 status 200/fallback/proxy context가 성공 단정으로 승격되지 않음을 보강한다.
 - broad demotion은 아직 적용하지 않는다.
 - 다음 단계는 더 많은 error-heavy/topology run에서 distribution을 축적하고, 필요 시 narrow rule로 별도 설계하는 것이다.
+
+### Juice Shop v2 normal run
+
+`obs_juiceshop_proxy_v2_001_current_dryrun`에서 Juice Shop reverse proxy +
+`apache_security_io_v2` 정규 S01~S15 run을 확인했다.
+
+| policy_class | count |
+|---|---:|
+| `keep_candidate_payload` | 3 |
+
+S13 SQLi-like, S14 XSS-like, S15 traversal-like 요청만 candidate로 유지되었다.
+세 후보 모두 explicit payload 구조가 있어 `keep_candidate_payload`로 분류되며,
+reverse proxy/backend response/fallback 200 observability hint는
+성공/노출/침해 근거가 아니라 topology interpretation context로만 유지된다.
+
+이 결과는 기존 Juice Shop v1 baseline과 같은 conservative distribution을 보인다.
+따라서 broad demotion은 계속 보류하고, v2는 parser/viewer/LLM input 안정화 관찰 표본으로 기록한다.
