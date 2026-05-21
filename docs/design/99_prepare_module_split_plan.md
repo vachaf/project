@@ -300,14 +300,14 @@ crawler_baseline.py
 
 ## 7. 다음 후보
 
-다음 후보는 `sensitive_path_probe_summaries` 계열 검토다.
+다음 후보는 `sensitive_path_probe_summaries` 계열 검토였다.
 
-단, 바로 코드 분리하지 않는다. 먼저 좁은 계획 문서를 작성한다.
+현재 기준에서는 바로 코드 분리하지 않는다. 이후 정리된 기준은 `99_prepare_module_split_summary.md`와 deferred split 문서를 우선 본다.
 
 추천 다음 문서:
 
 ```text
-docs/design/99_prepare_sensitive_path_probe_split_plan.md
+docs/design/99_prepare_module_split_summary.md
 ```
 
 검토 이유:

@@ -8,7 +8,9 @@
 ## 문서 목록
 
 - 설계/회귀 검증
+  - [99_document_cleanup_plan.md](./99_document_cleanup_plan.md): 문서 정리 계획과 유지/archive/delete 근거
   - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md): prepare 모듈 분리 계획
+  - [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md): prepare module split 현재 기준 요약
   - [99_prepare_llm_input_inventory.md](./99_prepare_llm_input_inventory.md): prepare_llm_input.py 책임 영역 inventory와 다음 분리 후보 검토
   - [99_prepare_context_summary_contract.md](./99_prepare_context_summary_contract.md): context summary builder 분리 전 input/output 불변조건
   - [99_prepare_context_summary_split_candidate.md](./99_prepare_context_summary_split_candidate.md): context summary builder 후보별 분리 우선순위 검토
@@ -19,11 +21,7 @@
   - [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md): round1 prepare 모듈 분리 완료 요약
   - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md): round2 prepare 모듈 분리 완료 요약
   - method/protocol anomaly/auth/static baseline/crawler baseline summary split 완료: output key와 fixture/contract, Apache logs-only 해석 한계를 유지한 mechanical refactor로 반영
-  - 완료된 세부 split plan 문서는 cleanup review 기준으로 요약 흡수 후 삭제 후보로 관리
-  - [99_prepare_sensitive_path_probe_split_plan.md](./99_prepare_sensitive_path_probe_split_plan.md): sensitive path probe summary 분리 완료 기록
-  - [99_prepare_ip_behavior_aggregates_split_plan.md](./99_prepare_ip_behavior_aggregates_split_plan.md): IP behavior aggregate split 계획/완료 기록
-  - [99_prepare_probing_sequence_split_plan.md](./99_prepare_probing_sequence_split_plan.md): probing sequence summary split 계획/완료 기록
-  - [99_prepare_mixed_baseline_scanner_split_plan.md](./99_prepare_mixed_baseline_scanner_split_plan.md): mixed baseline scanner summary split 계획/완료 기록
+  - sensitive path probe / ip behavior / probing sequence / mixed baseline scanner 세부 split 기록은 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)에 흡수
 - prepare deferred split / re-entry review
   - [99_prepare_deferred_split_items.md](./99_prepare_deferred_split_items.md): prepare 분리 이후 의도적으로 남겨둔 보류 항목과 재검토 조건
   - [99_prepare_deferred_split_reentry_review.md](./99_prepare_deferred_split_reentry_review.md): stable 상태에서 deferred split 재진입 여부를 보수적으로 검토한 문서
@@ -39,7 +37,6 @@
   - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md): prepare hint split 완료 요약
   - SQLi/XSS/file disclosure/traversal-CMDI hints split 완료
   - SQLi DB 성공 단정 금지, XSS browser execution 단정 금지, file disclosure 실제 노출 단정 금지, CMDI execution/success 단정 금지 원칙 유지
-  - 완료된 세부 hints split plan 문서는 cleanup review 기준으로 요약 흡수 후 삭제 후보로 관리
   - [99_prepare_attack_hints_shared_policy_candidate_review.md](./99_prepare_attack_hints_shared_policy_candidate_review.md): attack hints와 shared policy 후보 비교
   - [99_prepare_shared_attack_policy_boundary_review.md](./99_prepare_shared_attack_policy_boundary_review.md): automation UA, shared attack/search policy, decoded hints 보류 경계 검토
   - [99_prepare_new_attack_coverage_candidate_review.md](./99_prepare_new_attack_coverage_candidate_review.md): 새 공격 커버리지 후보와 장기 roadmap 검토
@@ -54,6 +51,10 @@
   - [99_prepare_webshell_command_query_coverage_plan.md](./99_prepare_webshell_command_query_coverage_plan.md): webshell path + command-like query 결합 신호와 traversal/CMDI 경계 검토
   - [99_prepare_xxe_coverage_plan.md](./99_prepare_xxe_coverage_plan.md): XML parser abuse/XXE-like marker의 Apache logs-only 경계 검토
   - [99_prepare_xxe_fixture_plan.md](./99_prepare_xxe_fixture_plan.md): `l3_xxe_external_entity_context` fixture/regression 후보 설계
+- prepare candidate policy / distribution
+  - [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md): 현재 실제 prepare 로직에 반영된 candidate policy 기준
+  - [99_prepare_candidate_policy_distribution_history.md](./99_prepare_candidate_policy_distribution_history.md): run 분포/history 정리
+  - 세부 review 원문은 `docs/archive/design/` 아래 historical 문서로 이동
 - Stage2 prompt / report quality
   - [99_stage2_prompt_compaction_plan.md](./99_stage2_prompt_compaction_plan.md): Stage2 report prompt 압축·섹션화 계획/완료 기록
   - [99_stage2_report_quality_lint_candidate_review.md](./99_stage2_report_quality_lint_candidate_review.md): Stage2 report quality lint 후보 검토와 warning-only 도입 기준
@@ -72,16 +73,19 @@
   - [99_sensitive_path_probe_context_category_검토.md](./99_sensitive_path_probe_context_category_검토.md): sensitive path probe context category 도입 검토
   - [99_file_disclosure_verdict_taxonomy_검토.md](./99_file_disclosure_verdict_taxonomy_검토.md): file disclosure verdict taxonomy 상태와 후속 검증 조건 검토
   - [99_pipeline_run_dir_output_layout_plan.md](./99_pipeline_run_dir_output_layout_plan.md): run dir 검토 문서
+- observability summary index
+  - [99_observability_run_summary_index.md](./99_observability_run_summary_index.md): run summary 상위 색인
 
 ## 읽는 순서
 
-1. regression 또는 module split 작업이면 설계/회귀 검증 문서와 prepare module split 문서
-2. constants 이동 또는 ownership 판단이면 prepare constants ownership / mini-move 문서
-3. SQLi/XSS/file disclosure 등 hint 계열 분리나 evidence boundary 판단이면 prepare hints split / evidence boundary 문서
-4. Stage2 prompt 정리나 report quality lint 검토면 Stage2 prompt / report quality 문서
-5. 로그 가시성, 해석 한계, 보류 기능 판단이면 설계 결정/해석 한계 문서
-6. 관련 평가는 [../reviews/README.md](../reviews/README.md)
-7. 후속 작업은 [../planning/README.md](../planning/README.md)
+1. module split 현재 상태는 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)
+2. candidate policy 현재 기준은 [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md)
+3. constants 이동 또는 ownership 판단이면 prepare constants ownership / mini-move 문서
+4. SQLi/XSS/file disclosure 등 hint 계열 분리나 evidence boundary 판단이면 prepare hints split / evidence boundary 문서
+5. Stage2 prompt 정리나 report quality lint 검토면 Stage2 prompt / report quality 문서
+6. 로그 가시성, 해석 한계, 보류 기능 판단이면 설계 결정/해석 한계 문서
+7. 관련 평가는 [../reviews/README.md](../reviews/README.md)
+8. 후속 작업은 [../planning/README.md](../planning/README.md)
 
 ## 관리 원칙
 

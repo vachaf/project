@@ -7,13 +7,11 @@
 관련 문서:
 
 - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
+- [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)
 - [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md)
 - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md)
 - [99_prepare_module_split_round2_candidate_review.md](./99_prepare_module_split_round2_candidate_review.md)
-- [99_prepare_sensitive_path_probe_split_plan.md](./99_prepare_sensitive_path_probe_split_plan.md)
-- [99_prepare_probing_sequence_split_plan.md](./99_prepare_probing_sequence_split_plan.md)
-- [99_prepare_mixed_baseline_scanner_split_plan.md](./99_prepare_mixed_baseline_scanner_split_plan.md)
-- [99_prepare_ip_behavior_aggregates_split_plan.md](./99_prepare_ip_behavior_aggregates_split_plan.md)
+- sensitive path / probing / mixed baseline / ip behavior 세부 split 기록은 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)에 흡수
 
 ## 1. 결론
 

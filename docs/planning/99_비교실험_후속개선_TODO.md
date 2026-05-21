@@ -1,282 +1,68 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-20
+- 기준 시점: 2026-05-21
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
-- 원칙:
-  - 완료된 항목은 이 문서에 길게 유지하지 않는다.
-  - 상세 완료 이력은 `docs/진행상황.md`, 개별 설계 문서, 작업일지로 이관한다.
-  - Apache logs-only evidence boundary를 유지한다.
-  - `status_code=200`, `text/html`, `response_body_bytes`, `handler`, `x_forwarded_for`만으로 공격 성공/유출/내부 결과를 단정하지 않는다.
+- 완료 이력: [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md)
+- 관련 대시보드: [../진행상황.md](../진행상황.md)
 
----
+## 원칙
 
-## 최근 완료 상태
+- 이 문서는 남은 TODO만 유지한다.
+- 완료 기록은 [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md), `docs/진행상황.md`, 개별 설계 문서, 작업일지로 이관한다.
+- Apache logs-only evidence boundary를 유지한다.
+- `status_code=200`, `text/html`, `response_body_bytes`, `handler`, `x_forwarded_for`만으로 공격 성공/유출/내부 결과를 단정하지 않는다.
+- Web UI는 read-only이며 새 보안 판단/관계/incident를 만들지 않는다.
 
-- 기존 A~H 비교 실험/standards/reviews 정리 및 기준 문서 반영 완료
-- prepare split round1/round2, constants mini-move, hints split(SQLi/XSS/file disclosure/traversal-CMDI) 완료
-- Stage2 prompt compaction + report quality lint 추가/튜닝 완료
-- Web UI loader run_dir manifest scan backend 전환 완료
-- Web UI read-only viewer/payload dashboard 및 layout/search/filter polish 완료
-- Apache app observability 3-way run 완료:
-  - PHP sample baseline: `obs_php_sample_002`
-  - OpenCart: `obs_opencart_002`
-  - Juice Shop reverse proxy: `obs_juiceshop_proxy_001`
-- Apache observability / LogFormat 관련 문서 및 스크립트 추가 완료:
-  - `docs/operations/99_apache_custom_log_format_contract.md`
-  - `docs/operations/examples/apache_security_logformat_v1.conf`
-  - `docs/operations/examples/apache_security_logformat_v2.conf`
-  - `docs/design/99_apache_app_observability_comparison_plan.md`
-  - `docs/design/99_apache_security_io_v2_candidate.md`
-  - `docs/design/99_prepare_apache_observability_context_feature_review.md`
-  - `lab/observability/scenario_catalog.md`
-  - `lab/observability/observation_matrix_template.md`
-  - `scripts/run_observability_scenarios.sh`
-  - `scripts/init_observability_run_notes.sh`
-  - `scripts/collect_observability_server_logs.sh`
-  - `scripts/summarize_observability_run.sh`
-  - `scripts/update_observation_matrix_from_run.sh`
-- 비교 문서 작성 완료:
-  - `lab/observability/comparison_php_sample_vs_opencart.md`
-  - `lab/observability/comparison_php_sample_vs_opencart_vs_juiceshop.md`
-  - `lab/observability/comparison_php_sample_v1_vs_v2.md`
-- observability raw log -> export JSON -> dry-run pipeline 연결 완료:
-  - `scripts/convert_observability_logs_to_export_json.py`
-  - v1/v2 raw log export 변환 지원
-  - v2 converter fixture/test 추가: `tests/fixtures/apache_security_io_v2_sample.log`, `tests/test_convert_observability_logs_to_export_json.py`
-  - 검증: converter v2 test `5 passed`
-- stage2 top incident metadata 보존 보강 완료:
-  - commit: `688867437363c33dbe3d5d38f60070ac80a2a818`
-  - `src/llm_stage2_reporter.py`에서 `llm_input.analysis_candidates` 기반 enrichment 반영
-  - `src/viewer_payload_builder.py` raw_request pass-through 보강
-  - `tests/test_llm_stage2_reporter_enrichment.py` 추가
-  - 검증: 관련 테스트 `11 passed`
-- prepare row-level Apache observability topology reason hints 추가 완료:
-  - commit: `54f8b0ff4a35bdca64338eea3dcf36741e364cf3`
-  - `src/prepare/apache_observability_context.py` 추가
-  - `prepare_llm_input.py`는 coordinator로 유지하고 row-level reason_hints 연결만 반영
-  - 검증: unit `5 passed`, prepare regression `pass=25 warn=0 fail=0`, stage dry-run regression `pass=19 warn=0 fail=0`
-- observability handler/log_schema/category 보존 보강 완료:
-  - commit: `83e215c81c8b950a3f23031b93b09cf609c7aeb6`
-  - `analysis_candidates`/`viewer_payload.findings`에 `handler`, `log_schema` 전달 추가
-  - traversal category 우선순위 보정으로 S15 category가 `path_traversal_candidate`로 표시됨
-  - 검증: 관련 테스트 `13 passed`, prepare regression `pass=25 warn=0 fail=0`, stage dry-run regression `pass=19 warn=0 fail=0`
-- Stage2 lint false-positive WARN 보정 완료:
-  - commit: `fdab789d680b7d679046d9e65ed2ba1aa81deade`
-  - negated success wording을 strong negation으로 인식
-  - `obs_juiceshop_proxy_001_actual` 기준 lint `PASS`, blocker=0, warning=0 확인
-- Web UI payload detail Interpretation Aid 추가 완료:
-  - commit: `03c90a154aa3f419a139166fc8e3b7b5f931ce40`
-  - selected finding detail에 display-only `Interpretation Aid` 섹션 추가
-  - 검증: 관련 Web UI/viewer tests `20 passed`
-- Upload multipart SQL comment-only false-positive guard 완료:
-  - commit: `4dd7a975825d9c10c83ac6e6b9d9c982071be66b`
-  - `POST + upload-like/multipart context + sqli:sql_comment 단독 + logged target 강한 SQLi 구조 없음`일 때 강한 SQLi로 보지 않고 weak upload/sql-comment context로 처리
-  - S09 `/upload.php`: `score 7 -> 5`, `verdict_hint=sqli -> suspicious`, candidate visibility 유지
-  - 후속 diagnostic helper 보정 commit: `e06247f2d3b2daf969579d87074d1565a280fbea`
-  - 검증: `tests/test_prepare_upload_multipart_sql_comment_false_positive.py` `3 passed`, `tests/test_explain_prepare_candidates.py` `6 passed`, prepare regression `pass=25 warn=0 fail=0`, stage dry-run regression `pass=19 warn=0 fail=0`
-- Candidate policy review 문서화 완료:
-  - `docs/design/99_prepare_php_sample_candidate_policy_review.md`
-  - `docs/design/99_prepare_upload_multipart_sql_comment_false_positive_review.md`
-  - `docs/design/99_prepare_status_error_only_candidate_demotion_review.md`
-  - `docs/design/99_prepare_scanner_probe_context_candidate_demotion_review.md`
-  - `docs/design/99_prepare_candidate_policy_distribution_review.md`
-- `explain_prepare_candidates.py` 추가/개선 완료:
-  - 후보별 threshold 초과 이유와 정책 분류를 출력
-  - upload/sql_comment-only weak context 분류 반영
-  - 테스트: `tests/test_explain_prepare_candidates.py` `6 passed`
-- scanner/probe diagnostic fixture/test 추가 및 검증 완료:
-  - `tests/test_prepare_scanner_probe_candidate_policy.py` `8 passed`
-  - candidate policy diagnostic bundle
-    (`tests/test_prepare_upload_multipart_sql_comment_false_positive.py`,
-    `tests/test_explain_prepare_candidates.py`,
-    `tests/test_prepare_status_error_only_candidate_policy.py`,
-    `tests/test_prepare_scanner_probe_candidate_policy.py`):
-    `24 passed`
-  - fixture 기준 정책 bucket 안정화:
-    `context_candidate_probe`, `context_only_server_status`, `keep_candidate_payload`
-- prepare candidate policy distribution review 작성 완료:
-  - `docs/design/99_prepare_candidate_policy_distribution_review.md`
-  - `obs_php_sample_v2_001_current_dryrun`: payload/auth/upload/probe/status-error 분리 확인
-  - `obs_juiceshop_proxy_001_current_dryrun`: payload-only 표본으로 broad demotion 판단 근거 제한 확인
-  - 실제 prepare demotion은 계속 보류하고, 추가 run distribution 축적 후 narrow rule만 별도 검토
-- Juice Shop reverse proxy v2 문서 반영 완료:
-  - normal run: `obs_juiceshop_proxy_v2_001` (`obs_juiceshop_proxy_v2_001_current_dryrun`, candidate 3건 모두 `keep_candidate_payload`)
-  - proxy_error_check run: `obs_juiceshop_proxy_v2_error_check_001` (`obs_juiceshop_proxy_v2_error_check_001_current_dryrun`, `status-error-only` 1건 / `payload` 1건)
-  - 두 run 모두 Apache logs-only guardrail 유지, prepare/scoring/filtering 변경 없음
-- `apache_security_io_v2` 3-way observability baseline 완료:
-  - direct PHP app: `obs_php_sample_v2_001`
-  - OpenCart front-controller PHP app: `obs_opencart_v2_001`
-  - Juice Shop reverse proxy backend app: `obs_juiceshop_proxy_v2_001`
-  - OpenCart v2는 `payload 3 / status-error 2`, Juice Shop v2 normal은 `payload 3`, Juice Shop v2 proxy_error_check는 `payload 1 / status-error 1`
-  - 현재 단계에서는 prepare/scoring/filtering 변경 없이 distribution 관찰 문서만 유지
-- 확인된 핵심 결론:
-  - `apache_security_io_v1`은 direct PHP, real PHP rewrite/front-controller, reverse proxy 배치 모두에서 동작
-  - `apache_security_io_v2`는 새 서버에서 request_target/req_host/client_ip_source/Cookie/Auth presence flag를 정상 출력하고 converter가 보존함
-  - `status_code=200`은 topology-dependent weak signal이며 성공/노출/침해 근거로 사용 금지
-  - `handler`, `_route_=`, redirect-follow, `proxy-server`, proxy error context는 interpretation context로만 사용
-  - prepare topology hints와 Web UI Interpretation Aid는 scoring/severity/verdict를 변경하지 않고 context로만 사용
-  - EHxx scenario label diagnostic 검증 완료:
-    - `tests/test_explain_prepare_candidates.py`: `9 passed`
-    - scenario label diagnostic bundle
-      (`tests/test_explain_prepare_candidates.py`,
-      `tests/test_prepare_status_error_only_candidate_policy.py`,
-      `tests/test_prepare_scanner_probe_candidate_policy.py`):
-      `24 passed`
-    - `obs_php_sample_v2_error_heavy_001_current_dryrun` 재출력에서 `EH01`~`EH12` 표시 확인
-    - prepare/scoring/filtering 변경 없음
----
+## 현재 기준 문서
 
-## P0. Apache observability 후속 관리
+- prepare split 기준: [../design/99_prepare_module_split_summary.md](../design/99_prepare_module_split_summary.md)
+- candidate policy 기준: [../design/99_prepare_candidate_policy.md](../design/99_prepare_candidate_policy.md)
+- candidate policy history: [../design/99_prepare_candidate_policy_distribution_history.md](../design/99_prepare_candidate_policy_distribution_history.md)
+- observability run index: [../design/99_observability_run_summary_index.md](../design/99_observability_run_summary_index.md)
 
-- [ ] `proxy_error_check`를 정식 scenario catalog extension으로 분리할지 판단
-  - 현재는 정규 S01~S15와 별도 backend availability 관찰로 유지
-  - 정식화 시 공격/침해 시나리오가 아니라 backend availability context로 명시
+## P0. observability 후속 판단
+
 - [ ] 외부 client 기반 error-heavy run 수행 여부 판단
-  - 실제 prepare/scoring/filtering 변경 없이 distribution 표본 확장 목적에 한정
-- [ ] `lab/observability/runs/*/raw/` 커밋/보관 정책 점검
-  - raw log는 민감정보 가능성이 있으므로 기본 커밋 금지 후보
-  - 필요 시 `.gitignore` 또는 sanitization policy 검토
-- [ ] 추가 앱 topology가 필요할 때만 후속 run 수행
-  - 예: PHP-FPM 분리형, WAF-fronted Apache, TLS/HTTP2
-  - `mod_remoteip`/remoteIP 환경은 별도 설계 후 진행
-- [ ] v2 actual LLM execution 여부는 보류
-  - v2 fixture/test와 candidate policy review를 먼저 유지
-  - 필요 시 spot check로만 수행
+  - 목적은 distribution 표본 확장에 한정한다.
+  - prepare/scoring/filtering 변경을 전제로 하지 않는다.
+- [ ] `proxy_error_check`를 정식 scenario catalog extension으로 뺄지 검토
+  - 현재는 backend availability context 관찰용 별도 run으로 유지한다.
+  - 공격/침해 시나리오처럼 서술하지 않는다.
+- [ ] OpenCart v2 추가 진행 여부 검토
+  - 현재 표본으로 충분한지, 추가 run이 필요한지만 판단한다.
+- [ ] `mod_remoteip`/remoteIP 환경 구성 여부 검토
+  - 실제 공격자 신원 판정이 아니라 관찰 필드 차이 검토 목적에 한정한다.
 
----
+## P1. candidate policy 관찰
 
-## P1. prepare / LLM input 반영 후속 관찰
+- [ ] 외부 client/error-heavy 표본이 추가되면 `explain_prepare_candidates.py` 결과를 다시 비교
+- [ ] upload/sql-comment narrow guard가 실제 strong SQLi를 과소탐지하지 않는지 계속 관찰
+- [ ] broad status/error-only demotion은 계속 보류 유지
+- [ ] scanner/probe broad demotion은 계속 보류 유지
+- [ ] proxy error context의 정식 prepare 반영 여부는 별도 검토 전까지 보류
 
-- [ ] topology reason_hints가 Stage1/Stage2 wording에 미치는 영향 관찰
-  - observability hints는 scoring/severity/verdict 변경 없이 context로만 사용해야 함
-  - actual LLM 출력에서 `fallback_200_candidate`가 성공 단정 완화에 기여하는지 확인
-- [ ] upload/sql_comment-only guard가 실제 로그에서 SQLi 과소탐지로 이어지지 않는지 관찰
-  - 강한 SQLi 구조가 있는 upload endpoint 요청은 계속 SQLi candidate로 유지되어야 함
-- [ ] 추가 run artifact에 `explain_prepare_candidates.py` 적용
-  - 1차 distribution review: `docs/design/99_prepare_candidate_policy_distribution_review.md`
-  - 필요 시 proxy error check, 외부 client 기반 error-heavy run 등으로 표본 확장
-- [ ] candidate policy distribution 추가 관찰
-  - `context_candidate_probe`
-  - `context_only_server_status`
-  - `demotion_candidate_status_error_only`
-  - `context_candidate_upload_failure`
-  - `keep_candidate_payload`
-- [ ] broader status/error-only candidate demotion은 fixture/regression/error-heavy 표본에서 1차 검토됨
-  - 실제 prepare 반영은 계속 보류
-  - 관련 문서: `docs/design/99_prepare_status_error_only_candidate_demotion_review.md`, `docs/design/99_prepare_candidate_policy_distribution_review.md`
-- [ ] scanner/probe context candidate demotion은 fixture/regression/error-heavy 표본에서 1차 검토됨
-  - 실제 prepare 반영은 계속 보류
-  - 관련 문서: `docs/design/99_prepare_scanner_probe_context_candidate_demotion_review.md`, `docs/design/99_prepare_candidate_policy_distribution_review.md`
-- [ ] broad demotion은 계속 보류
-- [ ] 다음 표본은 외부 client 기반 error-heavy run 또는 추가 topology run으로 확장
-  - 현재 단계에서는 prepare/scoring/filtering 변경 없이 distribution 관찰만 유지
-- [ ] proxy_error_context의 정식 prepare 반영 여부 검토
-  - 현재 P1은 security row-level hint 중심
-  - proxy error는 error table/app_error integration 경로가 정리된 뒤 별도 검토
-- [ ] request body 미수집 guardrail 유지
-  - S08/S09는 Apache metadata로 요청만 관찰 가능
-  - 로그인 성공/업로드 저장 성공은 app/DB/backend audit 없이는 판단 금지
+## P2. Web UI read-only 관찰
 
----
+- [ ] Interpretation Aid와 context badge가 과도하게 findings처럼 보이지 않는지 관찰
+- [ ] Related Contexts / Supporting Events 표시가 새 관계 추론처럼 보이지 않는지 점검
+- [ ] backend unavailable / proxy error badge는 scenario 정식화 여부가 정리된 뒤 다시 검토
 
-## P2. Web UI / viewer 후속 후보
+## P3. wording / taxonomy guard
 
-- [ ] Interpretation Aid 1차 사용성 관찰
-  - S15 같은 fallback path traversal 후보에서 badge가 너무 많거나 과도하게 강조되지 않는지 확인
-  - 모바일/좁은 폭에서 badge wrapping과 detail panel 가독성 확인
-- [ ] Related Contexts card에도 context guardrail badge를 붙일지 검토
-  - 예: `no exposure proof`, `context-only`, `baseline mixed`, `no auth success inference`
-  - 단, display-only 유지
-- [ ] backend unavailable / proxy error context badge는 proxy error scenario 정식화 이후 검토
-- [ ] Web UI/reporting polish 후보:
-  - `status/error-only candidate`
-  - `context-backed probe`
-  - `auth failure context`
-  - `upload failure context`
-  - `weak upload/sql-comment context`
-  - 모두 display-only, severity/verdict/category 변경 금지
-- [ ] Related Contexts matching 과잉/누락 관찰
-  - Web UI에서 새 관계를 추론해 연결을 보정하는 방식은 금지
-  - context-only 승격, severity/category/verdict 재계산 금지
-- [ ] Supporting Events 생성 조건 관찰
-  - 항상 생성되는 필드가 아니라 조건부 context-only 보조 이벤트로 유지
-  - 억지 생성하거나 UI에서 새 관계를 추론하지 않음
-- [ ] Context graph / advanced relationship view는 장기 후보로 보류
-- [ ] provider 비교 구조 일반화(openai/anthropic 고정 -> N-provider)는 장기 후보로 유지
+- [ ] actual LLM 출력에서 context-only 과승격이 반복되는지 관찰
+- [ ] file disclosure 성공, admin 접근 성공, upload 저장 성공 같은 과해석이 재발하는지 관찰
+- [ ] 필요 시 lint warning 분포만 확인하고, review-only lint라는 기본 성격은 유지
 
----
-
-## P3. Stage1/Stage2 wording/taxonomy guard 관찰
-
-- [ ] actual LLM 출력에서 context-only 과승격을 계속 관찰
-- [ ] actual LLM 출력에서 file disclosure 성공 단정 등 과해석을 계속 관찰
-- [ ] lint warning/blocker 분포를 필요 시 확인
-- [ ] `suspicious_file_disclosure` 실제 LLM 재검증은 필요 시점에만 수행
-- 주의:
-  - Apache logs-only 한계를 유지한다.
-  - status/bytes/content-type만으로 성공을 단정하지 않는다.
-  - `lab-*` 또는 `obs-test/*` User-Agent를 공격 근거로 일반화하지 않는다.
-  - `check_stage2_report_quality.py`는 review-only lint이며 기본 모드는 CI를 깨지 않는다.
-
----
-
-## P4. run_dir / archive / runner 후속 후보
+## P4. run_dir / archive / retention
 
 - [ ] `--run-id` 필요성 관찰
-- [ ] `--overwrite` 정책 보류(필요 시점에만 확정)
-- [ ] legacy/lab archive opt-in scan 정책/구현 여부 후속 검토
-- [ ] flat/run_dir dedupe는 archive opt-in 필요가 확인될 때만 검토
-- [ ] canonical_report_key는 후속 후보로 보류
-- [ ] `run_analysis_pipeline.py --help` 예시의 table auto resolution 안내 보강 필요 여부 검토
+- [ ] legacy/lab archive opt-in scan 정책 후속 검토
+- [ ] raw observability log의 보관/커밋 정책을 계속 보수적으로 유지할지 점검
+- [ ] output cleanup의 실제 삭제 기능은 별도 승인 전까지 계속 보류
 
----
+## P5. 새 coverage 후보
 
-## P5. retention / output cleanup
-
-- 현재 동작:
-  - 삭제 기능 없음
-  - `--apply`는 NOT IMPLEMENTED로 종료
-  - `KEEP` / `REVIEW` / `CLEANUP_CANDIDATE` / `DO_NOT_AUTO_DELETE` 분류 출력
-  - `lab/`, `docs/`, `src/`, `tests/fixtures`, `tests/expected`, `.git` 보호
-  - `/tmp/stage-dryrun-regression` 하위는 cleanup 후보로 분류
-- 남은 후보:
-  - [ ] 실제 필요 시점에만 JSONL 로그 출력 검토
-  - [ ] 실제 필요 시점에만 `--kind temp-dryrun`, `--older-than-days` 필터 검토
-  - [ ] `--apply` 또는 실제 삭제 기능은 별도 승인 전까지 보류
-
----
-
-## P6. 새 공격/시나리오 coverage 검토
-
-- 현재 방향:
-  - 추가 prepare split은 당장 진행하지 않음
-  - 새 공격/시나리오 coverage는 Apache logs-only evidence boundary를 먼저 고정하고 fixture/regression 적합성부터 판단
-- 남은 TODO:
-  - [ ] API key / secret token probe fixture plan 작성 여부 판단
-  - [ ] Webshell command query fixture plan 작성 여부 판단
-  - [ ] request smuggling / header anomaly 로그 가시성 검토
-  - [ ] Deserialization / object injection-like payload 보류
-  - [ ] LDAP / NoSQL injection-like payload 보류
-  - [ ] scanner / tool behavior 확장 보류
-  - [ ] prepare split 추가 분리는 계속 보류
-
----
-
-## 장기 후보
-
-- execution console 확장 후보(New Analysis / pipeline run / live progress / regression run / scheduling/alert/dashboard)
-- run 구조 전환 후보(`data/runs/<run_id>/`, `data/latest`, manifest 기반 full run_dir 빌더)
-- provider selection
-- report search/filter
-- SQLite history
-- alert/dashboard
-- comparison history trend
-- 모바일 전용 UX
-- dark/light theme toggle
-
-주의:
-
-- 위 항목은 read-only viewer 범위 검토 이후에만 장기 후보로 유지한다.
-- 현재는 Phase 2 문서 신규 생성 및 execution TODO 승격을 하지 않는다.
-- Phase 2를 시작하려면 read-only viewer 범위를 실행/운영 콘솔로 확장할지 먼저 별도 판단한다.
-- `lab/`는 비교실험/fixture/archive 용도로 유지하며 일반 운영 출력과 섞지 않는다.
+- [ ] API key / secret token probe fixture plan 작성 여부 판단
+- [ ] Webshell command query fixture plan 작성 여부 판단
+- [ ] request smuggling / header anomaly 로그 가시성 검토
+- [ ] deserialization / object injection, LDAP / NoSQL injection-like payload는 계속 보류할지 재확인

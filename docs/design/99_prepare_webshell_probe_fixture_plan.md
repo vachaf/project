@@ -10,7 +10,7 @@
 - [99_prepare_new_attack_coverage_candidate_review.md](./99_prepare_new_attack_coverage_candidate_review.md)
 - [99_prepare_ssrf_log4shell_fixture_plan.md](./99_prepare_ssrf_log4shell_fixture_plan.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
-- [99_prepare_sensitive_path_probe_split_plan.md](./99_prepare_sensitive_path_probe_split_plan.md)
+- [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [../../src/prepare/README.md](../../src/prepare/README.md)

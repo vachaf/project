@@ -12,8 +12,7 @@
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
-- [99_prepare_sensitive_path_probe_split_plan.md](./99_prepare_sensitive_path_probe_split_plan.md)
-- [99_prepare_mixed_baseline_scanner_split_plan.md](./99_prepare_mixed_baseline_scanner_split_plan.md)
+- [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)
 - [../../src/prepare/README.md](../../src/prepare/README.md)
 - [../진행상황.md](../진행상황.md)
 
@@ -30,7 +29,7 @@ grep -RIn "sensitive_path_probe\|file_disclosure\|traversal_cmdi\|mixed_baseline
 - src/prepare/l3_hints.py 에 WEBSHELL_KNOWN_FILENAMES, classify_webshell_path, detect_webshell_hints, l3:webshell_probe 경로가 이미 존재한다.
 - src/prepare_llm_input.py 는 webshell hint를 reason_hints/category로 반영하는 wrapper/coordinator 경로를 이미 가진다.
 - tests/fixtures, tests/expected 에 l3_ssti_webshell_context 회귀 샘플이 이미 존재한다.
-- sensitive_path_probe/file_disclosure/traversal_cmdi/mixed_baseline_scanner는 모두 split 완료 상태이며 context-only 경계 문구가 고정되어 있다.
+- sensitive_path_probe/file_disclosure/traversal_cmdi/mixed_baseline_scanner는 모두 split 완료 상태이며 context-only 경계 문구는 `99_prepare_module_split_summary.md`에 취합했다.
 ```
 
 ## 1. 목적

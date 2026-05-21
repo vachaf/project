@@ -8,13 +8,15 @@
 ## 문서 목록
 
 - [99_비교실험_후속개선_TODO.md](./99_비교실험_후속개선_TODO.md): 후속 개선 작업, 우선순위, 장기 후보 관리
+- [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md): TODO에서 분리한 완료 기록 요약
 
 ## 읽는 순서
 
 1. [99_비교실험_후속개선_TODO.md](./99_비교실험_후속개선_TODO.md)
-2. 관련 설계는 [../design/README.md](../design/README.md)
-3. 관련 평가는 [../reviews/README.md](../reviews/README.md)
-4. 관련 실험 세트는 [../experiments/README.md](../experiments/README.md)
+2. 완료 이력은 [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md)
+3. 관련 설계는 [../design/README.md](../design/README.md)
+4. 관련 평가는 [../reviews/README.md](../reviews/README.md)
+5. 관련 실험 세트는 [../experiments/README.md](../experiments/README.md)
 
 ## 관리 원칙
 

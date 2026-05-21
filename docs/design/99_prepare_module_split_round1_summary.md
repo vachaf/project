@@ -7,11 +7,12 @@
 관련 문서:
 
 - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
+- [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)
 - [99_prepare_context_summary_contract.md](./99_prepare_context_summary_contract.md)
 - [99_prepare_context_summary_split_candidate.md](./99_prepare_context_summary_split_candidate.md)
 - [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md)
 - [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md)
-- [99_prepare_sensitive_path_probe_split_plan.md](./99_prepare_sensitive_path_probe_split_plan.md)
+- round1 세부 split 기록은 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)에 흡수
 
 ## 1. 결론
 
@@ -526,9 +527,8 @@ docs/design/99_prepare_module_split_round2_candidate_review.md
 가능한 다음 split plan 후보:
 
 ```text
-docs/design/99_prepare_ip_behavior_aggregates_split_plan.md
-docs/design/99_prepare_probing_sequence_split_plan.md
-docs/design/99_prepare_mixed_baseline_scanner_split_plan.md
+docs/design/99_prepare_module_split_round2_summary.md
+docs/design/99_prepare_module_split_summary.md
 ```
 
 ## 9. 커밋/검증 메모

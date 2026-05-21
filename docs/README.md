@@ -126,11 +126,16 @@ docs/
 
 - [99_prepare_regression_fixture_설계.md](./design/99_prepare_regression_fixture_설계.md)
 - [99_stage_dryrun_regression_설계.md](./design/99_stage_dryrun_regression_설계.md)
+- [99_document_cleanup_plan.md](./design/99_document_cleanup_plan.md)
+- [99_prepare_module_split_summary.md](./design/99_prepare_module_split_summary.md)
 - [99_prepare_module_split_plan.md](./design/99_prepare_module_split_plan.md)
 - [99_prepare_module_split_round1_summary.md](./design/99_prepare_module_split_round1_summary.md)
 - [99_prepare_module_split_round2_summary.md](./design/99_prepare_module_split_round2_summary.md)
 - [99_prepare_constants_mini_move_summary.md](./design/99_prepare_constants_mini_move_summary.md)
 - [99_prepare_hints_split_summary.md](./design/99_prepare_hints_split_summary.md)
+- [99_prepare_candidate_policy.md](./design/99_prepare_candidate_policy.md)
+- [99_prepare_candidate_policy_distribution_history.md](./design/99_prepare_candidate_policy_distribution_history.md)
+- [99_observability_run_summary_index.md](./design/99_observability_run_summary_index.md)
 - [99_stage2_prompt_compaction_plan.md](./design/99_stage2_prompt_compaction_plan.md)
 - [99_stage2_report_quality_lint_candidate_review.md](./design/99_stage2_report_quality_lint_candidate_review.md)
 - [99_stage2_report_quality_lint_tuning_plan.md](./design/99_stage2_report_quality_lint_tuning_plan.md)
@@ -145,7 +150,8 @@ docs/
 - prepare 모듈 인덱스: [../src/prepare/README.md](../src/prepare/README.md)
 - 전체 설계 인덱스: [design/README.md](./design/README.md)
 - constants ownership: [99_prepare_constants_ownership_map.md](./design/99_prepare_constants_ownership_map.md)
-- hints 후보 검토: [99_prepare_hints_split_candidate_review.md](./design/99_prepare_hints_split_candidate_review.md)
+- module split 기준: [99_prepare_module_split_summary.md](./design/99_prepare_module_split_summary.md)
+- candidate policy 기준: [99_prepare_candidate_policy.md](./design/99_prepare_candidate_policy.md)
 - shared attack policy boundary: [99_prepare_shared_attack_policy_boundary_review.md](./design/99_prepare_shared_attack_policy_boundary_review.md)
 
 ### 설계 결정/해석 한계
@@ -167,6 +173,7 @@ docs/
 ### 계획/TODO
 
 - [99_비교실험_후속개선_TODO.md](./planning/99_비교실험_후속개선_TODO.md)
+- [99_비교실험_후속개선_history.md](./planning/99_비교실험_후속개선_history.md)
 
 ## 7. 남은 정리 후보
 
