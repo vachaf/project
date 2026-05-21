@@ -139,7 +139,7 @@
   - actual LLM 출력에서 `fallback_200_candidate`가 성공 단정 완화에 기여하는지 확인
 - [ ] upload/sql_comment-only guard가 실제 로그에서 SQLi 과소탐지로 이어지지 않는지 관찰
   - 강한 SQLi 구조가 있는 upload endpoint 요청은 계속 SQLi candidate로 유지되어야 함
-- - [ ] 추가 run artifact에 `explain_prepare_candidates.py` 적용
+- [ ] 추가 run artifact에 `explain_prepare_candidates.py` 적용
   - 1차 distribution review: `docs/design/99_prepare_candidate_policy_distribution_review.md`
   - 필요 시 proxy error check, 외부 client 기반 error-heavy run 등으로 표본 확장
 - [ ] candidate policy distribution 추가 관찰
