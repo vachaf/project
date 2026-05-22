@@ -103,7 +103,7 @@
 - 방화벽, 라우팅, 포트 접근 여부 확인
 - 대상 access/error/security 로그 포맷이 `apache_security_io_v2`인지 확인
 - 로그 수집 경로가 기존 v2 run과 동일하게 유지되는지 확인
-- external client에서 보낼 요청 세트가 기존 error-heavy 문서/스크립트와 일치하는지 확인
+- external client에서 보낼 요청 세트가 기존 error-heavy artifact와 일치하는지 확인한다. 단, 현재 repo에는 EH01~EH12를 재생하는 정식 script가 없으므로 전체 세트 재실행은 별도 정리 전까지 보류한다.
 
 ## 7. 관찰 항목
 
@@ -166,9 +166,11 @@ curl -i "http://<APACHE_SERVER_IP>/error.php?obs_run=$RUN_ID&scenario=EH01" \
 
 실행 메모:
 
-- EH01~EH12 요청 세트가 이미 기존 스크립트나 문서에 정리돼 있으면 그것을 재사용한다.
+- 현재 repo의 `scripts/`에는 EH01~EH12를 재생하는 정식 external error-heavy runner가 없다.
+- 기존 EH01~EH12 결과는 artifact와 archive 문서에 남아 있지만, 재사용 가능한 요청 세트로 정리되어 있지는 않다.
+- 따라서 현재 문서의 `curl`은 EH01 단건 smoke check 예시로 취급한다.
+- EH01~EH12 전체 external run은 별도 요청 세트 또는 runner를 문서화한 뒤 수행한다.
 - 이번 단계에서 새 run script는 만들지 않는다.
-- 위 `curl`은 단일 예시일 뿐이며, 실제 실행 시에는 기존 error-heavy 세트를 그대로 수동 재생하는 방향이 우선이다.
 
 ## 9. 로그 수집 / Export / Dry-run / Explain 명령 초안
 
@@ -214,7 +216,41 @@ python3 scripts/explain_prepare_candidates.py \
   --out "$RUN_DIR/candidate_policy_explanation.md"
 ```
 
-## 10. 비교 기준
+## 10. EH01 Smoke Check Result
+
+2026-05-22에 `obs_php_sample_v2_error_heavy_external_001`의 EH01 단건 smoke check를 수행했다.
+
+요약:
+
+- client host: `192.168.56.114`
+- Apache/PHP v2 server `local_ip`: `192.168.56.115`
+- request: `GET /error.php?obs_run=obs_php_sample_v2_error_heavy_external_001&scenario=EH01`
+- status: `500`
+- handler: `application/x-httpd-php`
+- `log_schema`: `apache_security_io_v2`
+- `client_ip_source`: `direct`
+- `src_ip`: `192.168.56.114`
+- `peer_ip`: `192.168.56.114`
+- `x_forwarded_for`, `x_real_ip`, `forwarded`: not present
+- candidate_count: `1`
+- policy_class: `demotion_candidate_status_error_only`
+
+해석:
+
+- 같은 host-only/전용망의 다른 머신에서 Apache v2 PHP sample vhost로 접근하는 controlled external client path가 확인되었다.
+- remoteIP 없이도 direct peer 기반 identity field가 `.114`로 보존되었다.
+- EH01 단건은 payload 없는 `500`/`error_linked` 요청이므로 status/error-only diagnostic bucket에 분리되는 것이 기대 결과다.
+- 이 결과는 EH01 단건 smoke check이며, EH01~EH12 전체 distribution 비교 근거로 일반화하지 않는다.
+- `status_code=500`, `text/html`, response size는 취약점, 공격 성공, 침해 성공, 내부 결과 노출 근거가 아니다.
+- prepare/scoring/filtering 변경은 없다.
+
+메모:
+
+- 이 smoke artifact의 candidate explanation에서는 scenario 표시가 `-`로 남았다.
+- 기존 unit test와 local error-heavy artifact에서는 EHxx label detector 동작이 확인되어 있으므로, 이번 현상은 별도 diagnostic UX 검토 후보로만 남긴다.
+- 이번 문서 반영 범위에서는 label detector를 변경하지 않는다.
+
+## 11. 비교 기준
 
 1차 비교는 아래 순서로 본다.
 
@@ -225,7 +261,7 @@ python3 scripts/explain_prepare_candidates.py \
 5. `src_ip`, `peer_ip`, `x_forwarded_for`, `x_real_ip`, `forwarded`, `client_ip_source`가 어떤 조합으로 남는지 비교한다.
 6. `request_id`와 `error_link_id` 연결이 direct app topology에서 안정적으로 유지되는지 본다.
 
-## 11. 해석 Guardrail
+## 12. 해석 Guardrail
 
 이번 plan에서 유지할 Apache logs-only 해석 경계:
 
@@ -240,18 +276,19 @@ python3 scripts/explain_prepare_candidates.py \
 - payload 없는 status/error-only 요청은 diagnostic bucket으로만 관찰한다.
 - actual prepare demotion 확대 적용은 계속 보류한다.
 
-## 12. Open Questions
+## 13. Open Questions
 
 - external client host를 어디에 둘 때 direct app 비교가 가장 단순한가
 - PHP sample v2 external run에서 Host header 방식과 DNS/hosts 방식 중 어느 쪽이 더 재현성이 높은가
-- existing EH01~EH12 세트가 external client에서도 그대로 재사용 가능한가
+- EH01~EH12 전체 external run 요청 세트를 별도 문서 또는 runner로 정리할 필요가 있는가
 - `client_ip_source`와 `remoteip_proxy_chain`가 direct app topology에서 어떤 값 조합으로 남는가
 - reverse proxy topology는 1차 direct app 비교 후에도 추가 가치가 충분한가
 - OpenCart v2 external run은 PHP sample 이후 실제로 필요한가
 
-## 13. Recommended Next Step
+## 14. Recommended Next Step
 
-- 우선은 이 문서를 기준으로 문서-only plan 상태를 유지한다.
-- 실제 run이 필요하면 1차 대상으로 `obs_php_sample_v2_error_heavy_external_001`을 수동 수행한다.
+- 우선은 이 문서를 기준으로 EH01 단건 smoke check 결과만 기록한다.
+- EH01~EH12 전체 external run은 재사용 가능한 요청 세트 또는 runner를 별도 정리한 뒤 수행한다.
+- 전체 run이 필요하면 1차 대상으로 `obs_php_sample_v2_error_heavy_external_001`을 수동 수행한다.
 - 그 결과를 baseline dry-run과 비교한 뒤에만 2차 proxy topology run을 다시 검토한다.
 - remoteIP, prepare/scoring/filtering, Web UI taxonomy 변경은 모두 별도 설계 전까지 보류한다.
