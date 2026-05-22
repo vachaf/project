@@ -61,11 +61,13 @@ Observed shape:
 
 These are request-pattern and context observations only. They are not exploit success, compromise, DB impact, file exposure, login success, or upload persistence evidence.
 
-## Scenario Label Note
+## Scenario Label Resolution
 
-The generated `candidate_policy_explanation.md` for this external run displayed `scenario=-` for all candidates, even though the security export preserved `scenario=EHxx` in the query string and `obs-error-heavy/EHxx` in the User-Agent.
+The first generated `candidate_policy_explanation.md` for this external run displayed `scenario=-` for all candidates even though the security export and `llm_input.json` preserved `scenario=EHxx` in the query string and `obs-error-heavy/EHxx` in the User-Agent.
 
-This is recorded as a diagnostic UX follow-up candidate. It does not affect prepare/scoring/filtering, candidate counts, or policy classification.
+This was confirmed to be a stale artifact generated from an older or different checkout path, not a prepare/scoring/filtering issue and not a current `explain_prepare_candidates.py` logic issue.
+
+The explanation was regenerated from `/opt/web_log_analysis/runs/obs_php_sample_v2_error_heavy_external_001/llm_input.json` with the current script, and EH01~EH12 labels are now displayed correctly.
 
 ## Guardrail Notes
 
