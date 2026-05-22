@@ -78,6 +78,8 @@
 - observability / external client run
   - [99_observability_run_summary_index.md](./99_observability_run_summary_index.md): run summary 상위 색인
   - [99_external_client_error_heavy_run_plan.md](./99_external_client_error_heavy_run_plan.md): external client 기반 error-heavy distribution 비교와 identity/header guardrail 계획
+- 운영 자동화 / Sliding Window
+  - [99_sliding_window_adoption_review.md](./99_sliding_window_adoption_review.md): 팀원 작성 Sliding Window 문서 세트의 repo 수용 범위, CLI 호환성, dry-run 검증 순서 검토
 
 ## 읽는 순서
 
@@ -87,8 +89,9 @@
 4. SQLi/XSS/file disclosure 등 hint 계열 분리나 evidence boundary 판단이면 prepare hints split / evidence boundary 문서
 5. Stage2 prompt 정리나 report quality lint 검토면 Stage2 prompt / report quality 문서
 6. 로그 가시성, 해석 한계, 보류 기능 판단이면 설계 결정/해석 한계 문서
-7. 관련 평가는 [../reviews/README.md](../reviews/README.md)
-8. 후속 작업은 [../planning/README.md](../planning/README.md)
+7. 운영 자동화와 장시간 로그 분석 비용/토큰 제어 판단이면 [99_sliding_window_adoption_review.md](./99_sliding_window_adoption_review.md)
+8. 관련 평가는 [../reviews/README.md](../reviews/README.md)
+9. 후속 작업은 [../planning/README.md](../planning/README.md)
 
 ## 관리 원칙
 
