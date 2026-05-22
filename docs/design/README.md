@@ -51,6 +51,7 @@
   - [99_prepare_webshell_command_query_coverage_plan.md](./99_prepare_webshell_command_query_coverage_plan.md): webshell path + command-like query 결합 신호와 traversal/CMDI 경계 검토
   - [99_prepare_xxe_coverage_plan.md](./99_prepare_xxe_coverage_plan.md): XML parser abuse/XXE-like marker의 Apache logs-only 경계 검토
   - [99_prepare_xxe_fixture_plan.md](./99_prepare_xxe_fixture_plan.md): `l3_xxe_external_entity_context` fixture/regression 후보 설계
+  - [99_proxy_error_check_scenario_extension_review.md](./99_proxy_error_check_scenario_extension_review.md): proxy error check를 정규 scenario가 아닌 availability extension 후보로 유지할지 검토
 - prepare candidate policy / distribution
   - [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md): 현재 실제 prepare 로직에 반영된 candidate policy 기준
   - [99_prepare_candidate_policy_distribution_history.md](./99_prepare_candidate_policy_distribution_history.md): run 분포/history 정리
@@ -73,6 +74,7 @@
   - [99_sensitive_path_probe_context_category_검토.md](./99_sensitive_path_probe_context_category_검토.md): sensitive path probe context category 도입 검토
   - [99_file_disclosure_verdict_taxonomy_검토.md](./99_file_disclosure_verdict_taxonomy_검토.md): file disclosure verdict taxonomy 상태와 후속 검증 조건 검토
   - [99_pipeline_run_dir_output_layout_plan.md](./99_pipeline_run_dir_output_layout_plan.md): run dir 검토 문서
+  - [99_proxy_error_check_scenario_extension_review.md](./99_proxy_error_check_scenario_extension_review.md): proxy/backend unavailable 신호를 attack scenario로 승격하지 않기 위한 availability extension 검토
 - observability summary index
   - [99_observability_run_summary_index.md](./99_observability_run_summary_index.md): run summary 상위 색인
 

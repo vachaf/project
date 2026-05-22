@@ -26,7 +26,9 @@
   - 목적은 distribution 표본 확장에 한정한다.
   - prepare/scoring/filtering 변경을 전제로 하지 않는다.
 - [ ] `proxy_error_check`를 정식 scenario catalog extension으로 뺄지 검토
+  - 검토 문서: [../design/99_proxy_error_check_scenario_extension_review.md](../design/99_proxy_error_check_scenario_extension_review.md)
   - 현재는 backend availability context 관찰용 별도 run으로 유지한다.
+  - 정규 S01~S15 편입, catalog/runner/prepare 변경, label detector 확장은 모두 보류한다.
   - 공격/침해 시나리오처럼 서술하지 않는다.
 - [ ] OpenCart v2 추가 진행 여부 검토
   - 현재 표본으로 충분한지, 추가 run이 필요한지만 판단한다.
