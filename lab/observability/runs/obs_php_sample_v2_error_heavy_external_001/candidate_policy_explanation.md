@@ -1,6 +1,6 @@
 # Prepare Candidate Explanation
 
-- input: `/home/user/project/runs/obs_php_sample_v2_error_heavy_external_001/llm_input.json`
+- input: `/opt/web_log_analysis/runs/obs_php_sample_v2_error_heavy_external_001/llm_input.json`
 - source: `analysis_candidates`
 - candidate_count: `12`
 
@@ -18,22 +18,22 @@
 
 | # | scenario | method | uri | status | score | verdict_hint | policy_class | top reasons |
 |---:|---|---|---|---:|---:|---|---|---|
-| 4 | - | POST | /login.php | 401 | 8 | suspicious | `context_candidate_auth_failure` | error_status:401(+2), error_linked(+2), no_referer_non_browser_error(+1), long_query(+1), login_endpoint(+1) |
-| 5 | - | GET | /wp-login.php | 404 | 6 | suspicious | `context_candidate_probe` | error_status:404(+2), error_linked(+2), no_referer_non_browser_error(+1), long_query(+1) |
-| 10 | - | GET | /.env | 404 | 4 | suspicious | `context_candidate_probe` | error_status:404(+2), no_referer_non_browser_error(+1), long_query(+1) |
-| 9 | - | GET | /admin | 404 | 4 | suspicious | `context_candidate_probe` | error_status:404(+2), no_referer_non_browser_error(+1), long_query(+1) |
-| 12 | - | GET | /does-not-exist-error-heavy-obs_php_sample_v2_error_heavy_external_001 | 404 | 4 | suspicious | `context_candidate_probe` | error_status:404(+2), no_referer_non_browser_error(+1), long_query(+1) |
-| 6 | - | POST | /upload.php | 400 | 6 | suspicious | `context_candidate_upload_failure` | error_status:400(+2), error_linked(+2), no_referer_non_browser_error(+1), long_query(+1) |
-| 8 | - | GET | /error.php | 500 | 6 | suspicious | `demotion_candidate_status_error_only` | error_status:500(+2), error_linked(+2), no_referer_non_browser_error(+1), long_query(+1) |
-| 7 | - | GET | /private/secret.txt | 403 | 6 | suspicious | `demotion_candidate_status_error_only` | error_status:403(+2), error_linked(+2), no_referer_non_browser_error(+1), long_query(+1) |
-| 11 | - | GET | /login.php | 200 | 4 | suspicious | `demotion_candidate_status_error_only` | error_linked(+2), long_query(+1), login_endpoint(+1) |
-| 1 | - | GET | /download.php | 404 | 16 | path_traversal | `keep_candidate_payload` | traversal:etc_passwd(+5), traversal:dotdot_slash(+4), error_status:404(+2), error_linked(+2), very_long_query(+1) |
-| 2 | - | GET | /search.php | 200 | 15 | sqli | `keep_candidate_payload` | sqli:quote_termination(+4), sqli:or_true(+4), sqli:sql_comment(+2), query_endpoint_with_attack_tokens(+2), error_linked(+2) |
-| 3 | - | GET | /search.php | 200 | 14 | xss | `keep_candidate_payload` | xss:script_tag(+5), xss:alert_call(+3), query_endpoint_with_attack_tokens(+2), error_linked(+2), very_long_query(+1) |
+| 4 | EH04 | POST | /login.php | 401 | 8 | suspicious | `context_candidate_auth_failure` | error_status:401(+2), error_linked(+2), no_referer_non_browser_error(+1), long_query(+1), login_endpoint(+1) |
+| 5 | EH08 | GET | /wp-login.php | 404 | 6 | suspicious | `context_candidate_probe` | error_status:404(+2), error_linked(+2), no_referer_non_browser_error(+1), long_query(+1) |
+| 10 | EH07 | GET | /.env | 404 | 4 | suspicious | `context_candidate_probe` | error_status:404(+2), no_referer_non_browser_error(+1), long_query(+1) |
+| 9 | EH09 | GET | /admin | 404 | 4 | suspicious | `context_candidate_probe` | error_status:404(+2), no_referer_non_browser_error(+1), long_query(+1) |
+| 12 | EH03 | GET | /does-not-exist-error-heavy-obs_php_sample_v2_error_heavy_external_001 | 404 | 4 | suspicious | `context_candidate_probe` | error_status:404(+2), no_referer_non_browser_error(+1), long_query(+1) |
+| 6 | EH06 | POST | /upload.php | 400 | 6 | suspicious | `context_candidate_upload_failure` | error_status:400(+2), error_linked(+2), no_referer_non_browser_error(+1), long_query(+1) |
+| 8 | EH01 | GET | /error.php | 500 | 6 | suspicious | `demotion_candidate_status_error_only` | error_status:500(+2), error_linked(+2), no_referer_non_browser_error(+1), long_query(+1) |
+| 7 | EH02 | GET | /private/secret.txt | 403 | 6 | suspicious | `demotion_candidate_status_error_only` | error_status:403(+2), error_linked(+2), no_referer_non_browser_error(+1), long_query(+1) |
+| 11 | EH05 | GET | /login.php | 200 | 4 | suspicious | `demotion_candidate_status_error_only` | error_linked(+2), long_query(+1), login_endpoint(+1) |
+| 1 | EH10 | GET | /download.php | 404 | 16 | path_traversal | `keep_candidate_payload` | traversal:etc_passwd(+5), traversal:dotdot_slash(+4), error_status:404(+2), error_linked(+2), very_long_query(+1) |
+| 2 | EH11 | GET | /search.php | 200 | 15 | sqli | `keep_candidate_payload` | sqli:quote_termination(+4), sqli:or_true(+4), sqli:sql_comment(+2), query_endpoint_with_attack_tokens(+2), error_linked(+2) |
+| 3 | EH12 | GET | /search.php | 200 | 14 | xss | `keep_candidate_payload` | xss:script_tag(+5), xss:alert_call(+3), query_endpoint_with_attack_tokens(+2), error_linked(+2), very_long_query(+1) |
 
 ## Details
 
-### 4. - POST /login.php
+### 4. EH04 POST /login.php
 
 - request_id: `ag_7KjLvmTJOLn-ntwQC2wAAAAI`
 - status_code: `401`
@@ -47,7 +47,7 @@
   - `length_complexity`: long_query(+1)
   - `other`: xss:external_navigation
 
-### 5. - GET /wp-login.php
+### 5. EH08 GET /wp-login.php
 
 - request_id: `ag_7Kx4y9UCmVFw1MIusIwAAAAU`
 - status_code: `404`
@@ -61,7 +61,7 @@
   - `length_complexity`: long_query(+1)
   - `other`: xss:external_navigation
 
-### 10. - GET /.env
+### 10. EH07 GET /.env
 
 - request_id: `ag_7KjtegpqAyf9kIwS_cAAAAAA`
 - status_code: `404`
@@ -75,7 +75,7 @@
   - `length_complexity`: long_query(+1)
   - `other`: xss:external_navigation
 
-### 9. - GET /admin
+### 9. EH09 GET /admin
 
 - request_id: `ag_7K2A9Ti1_J7E7zPz-awAAAAc`
 - status_code: `404`
@@ -88,7 +88,7 @@
   - `length_complexity`: long_query(+1)
   - `other`: xss:external_navigation
 
-### 12. - GET /does-not-exist-error-heavy-obs_php_sample_v2_error_heavy_external_001
+### 12. EH03 GET /does-not-exist-error-heavy-obs_php_sample_v2_error_heavy_external_001
 
 - request_id: `ag_7KkT26sUguIVwP5mXQwAAAAM`
 - status_code: `404`
@@ -101,7 +101,7 @@
   - `length_complexity`: long_query(+1)
   - `other`: xss:external_navigation
 
-### 6. - POST /upload.php
+### 6. EH06 POST /upload.php
 
 - request_id: `ag_7KjUOnCHnAu2e68sqBwAAAAQ`
 - status_code: `400`
@@ -115,7 +115,7 @@
   - `length_complexity`: long_query(+1)
   - `other`: xss:external_navigation
 
-### 8. - GET /error.php
+### 8. EH01 GET /error.php
 
 - request_id: `ag_7KWA9Ti1_J7E7zPz-agAAAAc`
 - status_code: `500`
@@ -128,7 +128,7 @@
   - `length_complexity`: long_query(+1)
   - `other`: xss:external_navigation
 
-### 7. - GET /private/secret.txt
+### 7. EH02 GET /private/secret.txt
 
 - request_id: `ag_7KSdk_p7r7jh-WKq7mAAAAAY`
 - status_code: `403`
@@ -141,7 +141,7 @@
   - `length_complexity`: long_query(+1)
   - `other`: xss:external_navigation
 
-### 11. - GET /login.php
+### 11. EH05 GET /login.php
 
 - request_id: `ag_7KqOJAVs7URJOF23TbwAAAAE`
 - status_code: `200`
@@ -155,7 +155,7 @@
   - `length_complexity`: long_query(+1)
   - `other`: xss:external_navigation
 
-### 1. - GET /download.php
+### 1. EH10 GET /download.php
 
 - request_id: `ag_7Kydk_p7r7jh-WKq7mQAAAAY`
 - status_code: `404`
@@ -169,7 +169,7 @@
   - `length_complexity`: long_query(+1), very_long_query(+1)
   - `other`: xss:external_navigation
 
-### 2. - GET /search.php
+### 2. EH11 GET /search.php
 
 - request_id: `ag_7K0T26sUguIVwP5mXRAAAAAM`
 - status_code: `200`
@@ -183,7 +183,7 @@
   - `length_complexity`: long_query(+1)
   - `other`: xss:external_navigation, query_endpoint_with_attack_tokens(+2)
 
-### 3. - GET /search.php
+### 3. EH12 GET /search.php
 
 - request_id: `ag_7LDLvmTJOLn-ntwQC3AAAAAI`
 - status_code: `200`
