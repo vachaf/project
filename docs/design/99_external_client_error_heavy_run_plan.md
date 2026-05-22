@@ -271,8 +271,9 @@ python3 scripts/explain_prepare_candidates.py \
 메모:
 
 - 이 smoke artifact의 candidate explanation에서는 scenario 표시가 `-`로 남았다.
-- 기존 unit test와 local error-heavy artifact에서는 EHxx label detector 동작이 확인되어 있으므로, 이번 현상은 별도 diagnostic UX 검토 후보로만 남긴다.
-- 이번 문서 반영 범위에서는 label detector를 변경하지 않는다.
+- 이후 확인 결과, 이는 구버전/다른 checkout path에서 생성된 stale explanation artifact 문제로 보는 것이 맞다.
+- 최신 `/opt/web_log_analysis` 기준의 current script로 재생성하면 EH01 label이 정상 표시된다.
+- 이번 확인은 label UX artifact 정정이며, prepare/scoring/filtering 변경은 없다.
 
 ## 12. EH01~EH12 External Run Result
 
@@ -312,12 +313,13 @@ Interpretation:
 - prepare/scoring/filtering 변경은 없다.
 - broad demotion은 계속 보류한다.
 
-Scenario label note:
+Scenario label resolution:
 
-- 이번 external run의 `candidate_policy_explanation.md`에서는 모든 candidate의 scenario label이 `-`로 표시되었다.
-- security export에는 `scenario=EHxx` query string과 `obs-error-heavy/EHxx` User-Agent가 보존되어 있다.
-- 이는 candidate policy나 scoring 문제가 아니라 diagnostic label UX 후속 점검 후보로 기록한다.
-- 이 문서 반영 범위에서는 `scripts/explain_prepare_candidates.py`, prepare, scoring, filtering을 변경하지 않는다.
+- 최초 external run의 `candidate_policy_explanation.md`에서는 모든 candidate의 scenario label이 `-`로 표시되었다.
+- 확인 결과, security export와 `llm_input.json`에는 `scenario=EHxx` query string과 `obs-error-heavy/EHxx` User-Agent가 보존되어 있었다.
+- 원인은 구버전 또는 다른 checkout/path에서 생성된 stale explanation artifact로 정리한다.
+- 최신 `/opt/web_log_analysis` 기준으로 `candidate_policy_explanation.md`를 재생성한 뒤 EH01~EH12 label이 정상 표시된다.
+- 이는 candidate policy, scoring, prepare 문제가 아니다.
 
 ## 13. 비교 기준
 
@@ -347,15 +349,12 @@ Scenario label note:
 
 ## 15. Open Questions
 
-- candidate explanation에서 external EHxx scenario label이 `-`로 남는 원인은 무엇인가
 - reverse proxy topology는 1차 direct app 비교 후에도 추가 가치가 충분한가
 - OpenCart v2 external run은 PHP sample 이후 실제로 필요한가
 - remoteIP 환경은 별도 설계 후 어느 범위에서 비교해야 하는가
 
 ## 16. Recommended Next Step
 
-- `scenario=-` diagnostic UX 원인을 조사한다.
-- 그 전까지는 prepare/scoring/filtering을 변경하지 않는다.
-- 전체 run 결과는 distribution history와 run summary에 관찰 결과로만 반영한다.
-- 2차 proxy topology run은 scenario label UX 원인 확인 후 다시 판단한다.
+- direct PHP external error-heavy baseline은 일단 닫는다.
+- 2차 proxy topology run 필요 여부를 다시 판단한다.
 - remoteIP, prepare/scoring/filtering, Web UI taxonomy 변경은 모두 별도 설계 전까지 보류한다.
