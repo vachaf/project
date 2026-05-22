@@ -22,15 +22,14 @@
 
 ## P0. observability 후속 판단
 
-- [ ] external EHxx scenario label UX 원인 조사
-  - `obs_php_sample_v2_error_heavy_external_001` 전체 run의 `candidate_policy_explanation.md`에서 scenario label이 `-`로 표시됨
-  - security export에는 `scenario=EHxx` query string과 `obs-error-heavy/EHxx` User-Agent가 보존되어 있음
-  - prepare/scoring/filtering 문제가 아니라 diagnostic UX 후속 점검 후보로 본다.
 - [ ] `proxy_error_check`를 정식 scenario catalog extension으로 뺄지 검토
   - 검토 문서: [../design/99_proxy_error_check_scenario_extension_review.md](../design/99_proxy_error_check_scenario_extension_review.md)
   - 현재는 backend availability context 관찰용 별도 run으로 유지한다.
   - 정규 S01~S15 편입, catalog/runner/prepare 변경, label detector 확장은 모두 보류한다.
   - 공격/침해 시나리오처럼 서술하지 않는다.
+- [ ] external client 기반 reverse proxy topology run 필요성 판단
+  - direct PHP external error-heavy run은 완료됐다.
+  - 다음 proxy topology run은 direct app 결과와 현재 표본의 충분성을 보고 별도 판단한다.
 - [ ] OpenCart v2 추가 진행 여부 검토
   - 현재 표본으로 충분한지, 추가 run이 필요한지만 판단한다.
 - [ ] `mod_remoteip`/remoteIP 환경 구성 여부 검토
@@ -42,6 +41,7 @@
 - [x] `obs_php_sample_v2_error_heavy_external_001` EH01~EH12 전체 external run을 수행하고 `explain_prepare_candidates.py` 결과를 baseline과 비교
   - 결과: local/internal baseline과 같은 `payload 3 / probe 4 / status-error 3 / auth 1 / upload 1` shape 유지
   - controlled external client identity: `client_ip_source=direct`, `src_ip=192.168.56.114`, `peer_ip=192.168.56.114`
+  - stale explanation artifact를 최신 `/opt/web_log_analysis` 기준으로 재생성한 뒤 EH01~EH12 label이 정상 표시됨
   - prepare/scoring/filtering 변경 없음
 - [ ] upload/sql-comment narrow guard가 실제 strong SQLi를 과소탐지하지 않는지 계속 관찰
 - [ ] broad status/error-only demotion은 계속 보류 유지
