@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-21
+- 기준 시점: 2026-05-22
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 완료 이력: [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md)
 - 관련 대시보드: [../진행상황.md](../진행상황.md)
@@ -22,12 +22,10 @@
 
 ## P0. observability 후속 판단
 
-- [ ] 외부 client 기반 error-heavy run 수행 여부 판단
-  - 설계 문서: [../design/99_external_client_error_heavy_run_plan.md](../design/99_external_client_error_heavy_run_plan.md)
-  - EH01~EH12 lab-only runner: `scripts/run_error_heavy_observability_scenarios.sh`
-  - 목적은 distribution 표본 확장에 한정한다.
-  - 현재 상태는 설계 문서와 runner 추가까지이며, 실제 전체 run 수행은 다음 단계다.
-  - prepare/scoring/filtering 변경을 전제로 하지 않는다.
+- [ ] external EHxx scenario label UX 원인 조사
+  - `obs_php_sample_v2_error_heavy_external_001` 전체 run의 `candidate_policy_explanation.md`에서 scenario label이 `-`로 표시됨
+  - security export에는 `scenario=EHxx` query string과 `obs-error-heavy/EHxx` User-Agent가 보존되어 있음
+  - prepare/scoring/filtering 문제가 아니라 diagnostic UX 후속 점검 후보로 본다.
 - [ ] `proxy_error_check`를 정식 scenario catalog extension으로 뺄지 검토
   - 검토 문서: [../design/99_proxy_error_check_scenario_extension_review.md](../design/99_proxy_error_check_scenario_extension_review.md)
   - 현재는 backend availability context 관찰용 별도 run으로 유지한다.
@@ -41,7 +39,10 @@
 
 ## P1. candidate policy 관찰
 
-- [ ] `obs_php_sample_v2_error_heavy_external_001` EH01~EH12 전체 external run을 수행하고 `explain_prepare_candidates.py` 결과를 baseline과 비교
+- [x] `obs_php_sample_v2_error_heavy_external_001` EH01~EH12 전체 external run을 수행하고 `explain_prepare_candidates.py` 결과를 baseline과 비교
+  - 결과: local/internal baseline과 같은 `payload 3 / probe 4 / status-error 3 / auth 1 / upload 1` shape 유지
+  - controlled external client identity: `client_ip_source=direct`, `src_ip=192.168.56.114`, `peer_ip=192.168.56.114`
+  - prepare/scoring/filtering 변경 없음
 - [ ] upload/sql-comment narrow guard가 실제 strong SQLi를 과소탐지하지 않는지 계속 관찰
 - [ ] broad status/error-only demotion은 계속 보류 유지
 - [ ] scanner/probe broad demotion은 계속 보류 유지
