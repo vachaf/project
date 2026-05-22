@@ -35,6 +35,13 @@
 - [ ] Sliding Window dry-run 검증 범위 확정
   - scheduler 구현 전 historical export 1~2시간 범위에서 window 목록 생성과 export/pipeline dry-run 계획을 먼저 고정한다.
   - prepare/scoring/filtering 변경은 하지 않는다.
+- [ ] Sliding Window 실행 단위 재검토
+  - [ ] prepare-only window mode 검토
+  - [ ] multi-window rollup input 포맷 설계
+  - [ ] request_id dedup 기준 정리
+  - [ ] src_ip / uri family / payload family 장기 aggregation 기준 정리
+  - [ ] window별 full stage2 report 생성을 기본안에서 제외
+  - [ ] rollup stage2와 daily summary의 역할 분리
 - [ ] token/cost 추정 재측정 항목 정리
   - 팀원 문서의 token/cost 값은 근사치로 두고, 실제 모델 단가와 현재 run artifact 기준으로 재측정할 항목을 표시한다.
 
