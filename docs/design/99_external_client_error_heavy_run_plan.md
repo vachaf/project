@@ -103,7 +103,8 @@
 - 방화벽, 라우팅, 포트 접근 여부 확인
 - 대상 access/error/security 로그 포맷이 `apache_security_io_v2`인지 확인
 - 로그 수집 경로가 기존 v2 run과 동일하게 유지되는지 확인
-- external client에서 보낼 요청 세트가 기존 error-heavy artifact와 일치하는지 확인한다. 단, 현재 repo에는 EH01~EH12를 재생하는 정식 script가 없으므로 전체 세트 재실행은 별도 정리 전까지 보류한다.
+- external client에서 보낼 요청 세트가 기존 error-heavy artifact와 일치하는지 확인
+- EH01~EH12 재생은 `scripts/run_error_heavy_observability_scenarios.sh` 기준으로 수행하되, 결과 distribution 반영은 별도 run 이후에만 한다.
 
 ## 7. 관찰 항목
 
@@ -126,7 +127,7 @@
 - `reason_hints`
 - candidate policy distribution
 
-## 8. 수동 실행 명령 초안
+## 8. Runner 사용 예시
 
 실행 전 run 변수:
 
@@ -147,30 +148,42 @@ scripts/init_observability_run_notes.sh \
   --log-format-version apache_security_io_v2
 ```
 
-external client 요청 예시 후보 1:
+DNS/hosts가 잡힌 경우:
 
 ```bash
-# DNS/hosts가 잡힌 경우
-curl -i "http://apache-log-test-v2.local/error.php?obs_run=$RUN_ID&scenario=EH01" \
-  -H "User-Agent: obs-error-heavy/EH01 run=$RUN_ID"
+scripts/run_error_heavy_observability_scenarios.sh \
+  --run-id "$RUN_ID" \
+  --base-url http://apache-log-test-v2.local
 ```
 
-external client 요청 예시 후보 2:
+Host header 방식:
 
 ```bash
-# DNS/hosts가 없는 경우 Host header 사용
-curl -i "http://<APACHE_SERVER_IP>/error.php?obs_run=$RUN_ID&scenario=EH01" \
-  -H "Host: apache-log-test-v2.local" \
-  -H "User-Agent: obs-error-heavy/EH01 run=$RUN_ID"
+scripts/run_error_heavy_observability_scenarios.sh \
+  --run-id "$RUN_ID" \
+  --base-url http://<APACHE_SERVER_IP> \
+  --host-header apache-log-test-v2.local
+```
+
+EH01만 단건 실행:
+
+```bash
+scripts/run_error_heavy_observability_scenarios.sh \
+  --run-id "$RUN_ID" \
+  --base-url http://<APACHE_SERVER_IP> \
+  --host-header apache-log-test-v2.local \
+  --scenario EH01
 ```
 
 실행 메모:
 
-- 현재 repo의 `scripts/`에는 EH01~EH12를 재생하는 정식 external error-heavy runner가 없다.
-- 기존 EH01~EH12 결과는 artifact와 archive 문서에 남아 있지만, 재사용 가능한 요청 세트로 정리되어 있지는 않다.
-- 따라서 현재 문서의 `curl`은 EH01 단건 smoke check 예시로 취급한다.
-- EH01~EH12 전체 external run은 별도 요청 세트 또는 runner를 문서화한 뒤 수행한다.
-- 이번 단계에서 새 run script는 만들지 않는다.
+- 현재 repo에는 `scripts/run_error_heavy_observability_scenarios.sh`가 추가되어 있다.
+- 이 runner는 EH01~EH12 request generation만 담당한다.
+- 기본 query pattern은 `?scenario=EHxx&run=$RUN_ID`다.
+- `?obs_run=$RUN_ID&scenario=EHxx` 형태는 EH01 smoke에서 label 인식이 약했으므로 runner 기본값으로 쓰지 않는다.
+- Host header가 지정되면 `Host:`만 추가하고, `X-Forwarded-For`, `X-Real-IP`, `Forwarded`, `Referer`는 기본적으로 보내지 않는다.
+- EH04/EH06 POST body는 artifact를 역복구한 것이 아니라 현재 lab endpoint 기준의 synthetic best-effort body다.
+- 전체 EH01~EH12 external run은 이 runner로 수행 가능하지만, distribution 결과는 아직 별도 run 후 문서에 반영해야 한다.
 
 ## 9. 로그 수집 / Export / Dry-run / Explain 명령 초안
 
@@ -216,7 +229,19 @@ python3 scripts/explain_prepare_candidates.py \
   --out "$RUN_DIR/candidate_policy_explanation.md"
 ```
 
-## 10. EH01 Smoke Check Result
+## 10. EH01~EH12 구성 방식
+
+구성 원칙:
+
+- 기존 artifact `lab/observability/runs/obs_php_sample_v2_error_heavy_001/exported/security.json`
+  와 `candidate_policy_explanation.md`에서 method, URI, query pattern, user-agent를 우선 복원했다.
+- EH01/EH02는 artifact와 동일한 path/query shape를 유지한다.
+- EH03는 기존처럼 `/does-not-exist-error-heavy-$RUN_ID` 형태의 run-specific missing path를 사용한다.
+- EH10~EH12는 artifact에 남아 있는 payload query를 그대로 따른다.
+- EH04/EH06은 content type과 endpoint는 artifact를 따르고, POST body는 raw 로그로 복원할 수 없으므로 synthetic best-effort body를 사용한다.
+- 이 runner는 "기존 run을 완전 복제"가 아니라 "현재 lab PHP sample endpoint 기준 error-heavy request set 재현"을 목표로 한다.
+
+## 11. EH01 Smoke Check Result
 
 2026-05-22에 `obs_php_sample_v2_error_heavy_external_001`의 EH01 단건 smoke check를 수행했다.
 
@@ -250,7 +275,7 @@ python3 scripts/explain_prepare_candidates.py \
 - 기존 unit test와 local error-heavy artifact에서는 EHxx label detector 동작이 확인되어 있으므로, 이번 현상은 별도 diagnostic UX 검토 후보로만 남긴다.
 - 이번 문서 반영 범위에서는 label detector를 변경하지 않는다.
 
-## 11. 비교 기준
+## 12. 비교 기준
 
 1차 비교는 아래 순서로 본다.
 
@@ -261,7 +286,7 @@ python3 scripts/explain_prepare_candidates.py \
 5. `src_ip`, `peer_ip`, `x_forwarded_for`, `x_real_ip`, `forwarded`, `client_ip_source`가 어떤 조합으로 남는지 비교한다.
 6. `request_id`와 `error_link_id` 연결이 direct app topology에서 안정적으로 유지되는지 본다.
 
-## 12. 해석 Guardrail
+## 13. 해석 Guardrail
 
 이번 plan에서 유지할 Apache logs-only 해석 경계:
 
@@ -276,7 +301,7 @@ python3 scripts/explain_prepare_candidates.py \
 - payload 없는 status/error-only 요청은 diagnostic bucket으로만 관찰한다.
 - actual prepare demotion 확대 적용은 계속 보류한다.
 
-## 13. Open Questions
+## 14. Open Questions
 
 - external client host를 어디에 둘 때 direct app 비교가 가장 단순한가
 - PHP sample v2 external run에서 Host header 방식과 DNS/hosts 방식 중 어느 쪽이 더 재현성이 높은가
@@ -285,10 +310,10 @@ python3 scripts/explain_prepare_candidates.py \
 - reverse proxy topology는 1차 direct app 비교 후에도 추가 가치가 충분한가
 - OpenCart v2 external run은 PHP sample 이후 실제로 필요한가
 
-## 14. Recommended Next Step
+## 15. Recommended Next Step
 
-- 우선은 이 문서를 기준으로 EH01 단건 smoke check 결과만 기록한다.
-- EH01~EH12 전체 external run은 재사용 가능한 요청 세트 또는 runner를 별도 정리한 뒤 수행한다.
-- 전체 run이 필요하면 1차 대상으로 `obs_php_sample_v2_error_heavy_external_001`을 수동 수행한다.
+- 우선은 이 문서를 기준으로 EH01 단건 smoke check와 runner 추가 상태까지 기록한다.
+- EH01~EH12 전체 external run은 새 runner로 실제 수행한 뒤 distribution을 별도 문서에 반영한다.
+- 전체 run이 필요하면 1차 대상으로 `obs_php_sample_v2_error_heavy_external_001`을 새 runner로 수행한다.
 - 그 결과를 baseline dry-run과 비교한 뒤에만 2차 proxy topology run을 다시 검토한다.
 - remoteIP, prepare/scoring/filtering, Web UI taxonomy 변경은 모두 별도 설계 전까지 보류한다.

@@ -24,8 +24,9 @@
 
 - [ ] 외부 client 기반 error-heavy run 수행 여부 판단
   - 설계 문서: [../design/99_external_client_error_heavy_run_plan.md](../design/99_external_client_error_heavy_run_plan.md)
+  - EH01~EH12 lab-only runner: `scripts/run_error_heavy_observability_scenarios.sh`
   - 목적은 distribution 표본 확장에 한정한다.
-  - 현재 상태는 설계 문서 작성까지이며, 실제 run 수행은 다음 단계다.
+  - 현재 상태는 설계 문서와 runner 추가까지이며, 실제 전체 run 수행은 다음 단계다.
   - prepare/scoring/filtering 변경을 전제로 하지 않는다.
 - [ ] `proxy_error_check`를 정식 scenario catalog extension으로 뺄지 검토
   - 검토 문서: [../design/99_proxy_error_check_scenario_extension_review.md](../design/99_proxy_error_check_scenario_extension_review.md)
@@ -40,7 +41,7 @@
 
 ## P1. candidate policy 관찰
 
-- [ ] 외부 client/error-heavy 표본이 추가되면 `explain_prepare_candidates.py` 결과를 다시 비교
+- [ ] `obs_php_sample_v2_error_heavy_external_001` EH01~EH12 전체 external run을 수행하고 `explain_prepare_candidates.py` 결과를 baseline과 비교
 - [ ] upload/sql-comment narrow guard가 실제 strong SQLi를 과소탐지하지 않는지 계속 관찰
 - [ ] broad status/error-only demotion은 계속 보류 유지
 - [ ] scanner/probe broad demotion은 계속 보류 유지
