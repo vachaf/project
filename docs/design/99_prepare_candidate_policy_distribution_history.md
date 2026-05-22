@@ -28,7 +28,7 @@
 | `obs_php_sample_002` | php sample | v1 | direct | baseline 분포 확인 | payload/auth/upload/probe/status-error bucket 분리의 v1 표본 | [summary](../../lab/observability/runs/obs_php_sample_002/summary.md) | yes |
 | `obs_php_sample_v2_001` | php sample | v2 | direct | v2에서도 v1과 같은 policy shape인지 확인 | v1과 같은 분포가 재현되어 v2 field effect가 아니라 prepare policy effect임을 확인 | [summary](../../lab/observability/runs/obs_php_sample_v2_001/summary.md) | yes |
 | `obs_php_sample_v2_error_heavy_001` | php sample | v2 | direct / error-heavy | error/status-linked bucket 관찰 | payload 후보와 status-error-only 후보를 분리해서 볼 수 있는 표본이지만 broad demotion 근거로 확정되지는 않음 | [summary](../../lab/observability/runs/obs_php_sample_v2_error_heavy_001/summary.md) | yes |
-| `obs_php_sample_v2_error_heavy_external_001` | php sample | v2 | direct / controlled external client / error-heavy | external client에서도 error-heavy distribution이 유지되는지 확인 | local/internal baseline과 같은 `payload 3 / probe 4 / status-error 3 / auth 1 / upload 1` shape 유지, scenario label UX는 후속 점검 후보 | [summary](../../lab/observability/runs/obs_php_sample_v2_error_heavy_external_001/summary.md) | yes |
+| `obs_php_sample_v2_error_heavy_external_001` | php sample | v2 | direct / controlled external client / error-heavy | external client에서도 error-heavy distribution이 유지되는지 확인 | local/internal baseline과 같은 `payload 3 / probe 4 / status-error 3 / auth 1 / upload 1` shape 유지, stale explanation artifact 재생성 후 EH01~EH12 label 정상 표시 | [summary](../../lab/observability/runs/obs_php_sample_v2_error_heavy_external_001/summary.md) | yes |
 | `obs_opencart_002` | OpenCart | v1 | front-controller / routed response | topology-dependent 200 응답 baseline 확인 | payload-only 3건 유지, `status_code=200`은 성공 근거가 아님을 재확인 | [summary](../../lab/observability/runs/obs_opencart_002/summary.md) | yes |
 | `obs_opencart_v2_001` | OpenCart | v2 | front-controller / routed response | v2 front-controller 표본 확인 | payload 3 + static 404 status-error 2 분포 관찰, broad demotion은 계속 보류 | [summary](../../lab/observability/runs/obs_opencart_v2_001/summary.md) | yes |
 | `obs_juiceshop_proxy_v2_001` | Juice Shop | v2 | reverse proxy / backend response | proxy topology의 normal run 표본 | payload 3건 유지, fallback/proxy context는 interpretation context일 뿐 | [summary](../../lab/observability/runs/obs_juiceshop_proxy_v2_001/summary.md) | yes |
@@ -51,6 +51,7 @@
 - bucket 분리가 관찰되었다.
 - 이것이 곧 broad demotion 반영을 뜻하지는 않는다.
 - `obs_php_sample_v2_error_heavy_external_001`에서도 controlled external client identity로 바뀌었지만 local/internal error-heavy baseline과 같은 bucket shape가 유지되었다.
+- external run의 scenario label 표시는 최신 script로 artifact를 재생성한 뒤 EH01~EH12로 정상화되었으며, policy/scoring 이슈가 아니었다.
 
 ### 3.2 topology-heavy 계열
 
@@ -91,8 +92,8 @@ OpenCart/Juice Shop 계열은 다음 관찰에 유용하다.
 
 ## 6. 다음 표본 후보
 
-- `obs_php_sample_v2_error_heavy_external_001`의 scenario label UX 원인 조사
 - `proxy_error_check`의 scenario catalog extension 분리 여부
+- external client 기반 reverse proxy topology run 필요 여부
 - OpenCart v2 추가 표본 필요 여부
 - `mod_remoteip`/remoteIP 환경 구성 필요 여부
 
