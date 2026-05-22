@@ -11,7 +11,7 @@
 - [99_prepare_shared_attack_policy_reentry_review.md](./99_prepare_shared_attack_policy_reentry_review.md)
 - [99_prepare_search_false_positive_policy_reentry_review.md](./99_prepare_search_false_positive_policy_reentry_review.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
-- [99_prepare_hints_split_candidate_review.md](./99_prepare_hints_split_candidate_review.md)
+- hints split candidate review 기준은 [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)로 정리됐다
 - [99_prepare_shared_attack_policy_boundary_review.md](./99_prepare_shared_attack_policy_boundary_review.md)
 - [99_prepare_api_key_secret_probe_coverage_plan.md](./99_prepare_api_key_secret_probe_coverage_plan.md)
 - [99_prepare_webshell_command_query_coverage_plan.md](./99_prepare_webshell_command_query_coverage_plan.md)

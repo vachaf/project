@@ -7,7 +7,7 @@
 관련 문서:
 
 - [99_prepare_constants_ownership_map.md](./99_prepare_constants_ownership_map.md)
-- [99_prepare_constants_mini_move_candidate_review.md](./99_prepare_constants_mini_move_candidate_review.md)
+- constants mini-move candidate review 내용은 [99_prepare_constants_ownership_map.md](./99_prepare_constants_ownership_map.md)에 반영됐다
 - [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)
 - [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)
 - [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md)

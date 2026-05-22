@@ -9,7 +9,7 @@
 - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md)
 - [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)
 - [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md)
-- [99_prepare_module_split_round2_candidate_review.md](./99_prepare_module_split_round2_candidate_review.md)
+- round2 candidate review 내용은 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)에 흡수
 - round2 세부 split 기록은 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)에 흡수
 - [99_prepare_context_summary_contract.md](./99_prepare_context_summary_contract.md)
 

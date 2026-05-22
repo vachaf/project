@@ -8,7 +8,7 @@
 
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_attack_hints_shared_policy_candidate_review.md](./99_prepare_attack_hints_shared_policy_candidate_review.md)
-- [99_prepare_hints_split_candidate_review.md](./99_prepare_hints_split_candidate_review.md)
+- hints split candidate review 기준은 [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)로 정리됐다
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
 - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md)
