@@ -1,8 +1,8 @@
 # 99_external_client_error_heavy_run_plan
 
-- 문서 상태: external client error-heavy run plan
+- 문서 상태: external client error-heavy run plan/result
 - 기준 시점: 2026-05-22
-- 목적: local/internal client와 external client에서 error-heavy distribution 및 Apache client identity 관찰값이 어떻게 달라지는지 비교하기 위한 문서-only 실행 계획을 정리한다.
+- 목적: local/internal client와 external client에서 error-heavy distribution 및 Apache client identity 관찰값이 어떻게 달라지는지 비교하기 위한 실행 계획과 결과를 정리한다.
 
 관련 문서:
 
@@ -16,8 +16,8 @@
 
 - external client 기반 error-heavy run을 실제로 수행할지 판단하기 위한 설계 문서를 남긴다.
 - local/internal client baseline과 external client run의 candidate distribution 차이를 비교한다.
-- `src_ip`, `peer_ip`, client header 계열 관찰값이 Apache logs-only 범위에서 어떤 차이를 보이는지 확인할 준비를 한다.
-- 이번 단계에서는 실제 run을 수행하지 않고, 수동 실행 계획과 해석 경계만 문서화한다.
+- `src_ip`, `peer_ip`, client header 계열 관찰값이 Apache logs-only 범위에서 어떤 차이를 보이는지 확인한다.
+- 실제 run 결과는 문서에 관찰 결과로만 반영하고, prepare/scoring/filtering 변경 근거로 사용하지 않는다.
 
 ## 2. 배경
 
@@ -34,7 +34,7 @@
 - 관련 문서: [99_proxy_error_check_scenario_extension_review.md](./99_proxy_error_check_scenario_extension_review.md)
 - 결론은 정규 S01~S15 편입 보류, availability extension 후보 유지, prepare/scoring/filtering 변경 없음이다.
 
-이번 plan의 초점:
+이번 plan/result의 초점:
 
 - external client로 error-heavy 요청을 보냈을 때도 payload candidate 보존 원칙이 유지되는지 확인한다.
 - payload 없는 status/error-only 요청은 계속 diagnostic bucket으로 남는지 확인한다.
@@ -104,7 +104,7 @@
 - 대상 access/error/security 로그 포맷이 `apache_security_io_v2`인지 확인
 - 로그 수집 경로가 기존 v2 run과 동일하게 유지되는지 확인
 - external client에서 보낼 요청 세트가 기존 error-heavy artifact와 일치하는지 확인
-- EH01~EH12 재생은 `scripts/run_error_heavy_observability_scenarios.sh` 기준으로 수행하되, 결과 distribution 반영은 별도 run 이후에만 한다.
+- EH01~EH12 재생은 `scripts/run_error_heavy_observability_scenarios.sh` 기준으로 수행한다.
 
 ## 7. 관찰 항목
 
@@ -183,7 +183,6 @@ scripts/run_error_heavy_observability_scenarios.sh \
 - `?obs_run=$RUN_ID&scenario=EHxx` 형태는 EH01 smoke에서 label 인식이 약했으므로 runner 기본값으로 쓰지 않는다.
 - Host header가 지정되면 `Host:`만 추가하고, `X-Forwarded-For`, `X-Real-IP`, `Forwarded`, `Referer`는 기본적으로 보내지 않는다.
 - EH04/EH06 POST body는 artifact를 역복구한 것이 아니라 현재 lab endpoint 기준의 synthetic best-effort body다.
-- 전체 EH01~EH12 external run은 이 runner로 수행 가능하지만, distribution 결과는 아직 별도 run 후 문서에 반영해야 한다.
 
 ## 9. 로그 수집 / Export / Dry-run / Explain 명령 초안
 
@@ -275,7 +274,52 @@ python3 scripts/explain_prepare_candidates.py \
 - 기존 unit test와 local error-heavy artifact에서는 EHxx label detector 동작이 확인되어 있으므로, 이번 현상은 별도 diagnostic UX 검토 후보로만 남긴다.
 - 이번 문서 반영 범위에서는 label detector를 변경하지 않는다.
 
-## 12. 비교 기준
+## 12. EH01~EH12 External Run Result
+
+2026-05-22에 `obs_php_sample_v2_error_heavy_external_001`의 EH01~EH12 전체 external run을 수행했다.
+
+Identity / header observation:
+
+- client host: `192.168.56.114`
+- Apache/PHP v2 server `local_ip`: `192.168.56.115`
+- `log_schema`: `apache_security_io_v2`
+- `total_count`: `12`
+- `client_ip_source`: `direct`
+- `src_ip`: `192.168.56.114`
+- `peer_ip`: `192.168.56.114`
+- `remoteip_proxy_chain`: not present
+- `x_forwarded_for`, `x_real_ip`, `forwarded`: not present
+
+Candidate policy distribution:
+
+| policy_class | count |
+|---|---:|
+| `context_candidate_auth_failure` | 1 |
+| `context_candidate_probe` | 4 |
+| `context_candidate_upload_failure` | 1 |
+| `demotion_candidate_status_error_only` | 3 |
+| `keep_candidate_payload` | 3 |
+
+Interpretation:
+
+- external client 환경에서도 local/internal `obs_php_sample_v2_error_heavy_001_current_dryrun`과 같은 conservative distribution shape가 유지되었다.
+- EH10 traversal-like, EH11 SQLi-like, EH12 XSS-like 요청은 explicit payload 구조가 있어 `keep_candidate_payload`로 유지되었다.
+- EH01/EH02/EH05는 status/error-only diagnostic bucket으로 분리되었다.
+- EH04 login POST 401은 auth failure context로 분리되었다.
+- EH06 upload POST 400은 upload failure context로 분리되었다.
+- EH03/EH07/EH08/EH09 계열 probe-like request는 probe context로 분리되었다.
+- `src_ip`/`peer_ip`가 external controlled client로 남더라도 attacker attribution proof는 아니다.
+- prepare/scoring/filtering 변경은 없다.
+- broad demotion은 계속 보류한다.
+
+Scenario label note:
+
+- 이번 external run의 `candidate_policy_explanation.md`에서는 모든 candidate의 scenario label이 `-`로 표시되었다.
+- security export에는 `scenario=EHxx` query string과 `obs-error-heavy/EHxx` User-Agent가 보존되어 있다.
+- 이는 candidate policy나 scoring 문제가 아니라 diagnostic label UX 후속 점검 후보로 기록한다.
+- 이 문서 반영 범위에서는 `scripts/explain_prepare_candidates.py`, prepare, scoring, filtering을 변경하지 않는다.
+
+## 13. 비교 기준
 
 1차 비교는 아래 순서로 본다.
 
@@ -286,9 +330,9 @@ python3 scripts/explain_prepare_candidates.py \
 5. `src_ip`, `peer_ip`, `x_forwarded_for`, `x_real_ip`, `forwarded`, `client_ip_source`가 어떤 조합으로 남는지 비교한다.
 6. `request_id`와 `error_link_id` 연결이 direct app topology에서 안정적으로 유지되는지 본다.
 
-## 13. 해석 Guardrail
+## 14. 해석 Guardrail
 
-이번 plan에서 유지할 Apache logs-only 해석 경계:
+이번 plan/result에서 유지할 Apache logs-only 해석 경계:
 
 - external client에서 요청이 왔더라도 그 자체만으로 attacker라고 확정하지 않는다.
 - `X-Forwarded-For`, `X-Real-IP`, `Forwarded`는 관찰 header일 뿐이며 identity proof가 아니다.
@@ -301,19 +345,17 @@ python3 scripts/explain_prepare_candidates.py \
 - payload 없는 status/error-only 요청은 diagnostic bucket으로만 관찰한다.
 - actual prepare demotion 확대 적용은 계속 보류한다.
 
-## 14. Open Questions
+## 15. Open Questions
 
-- external client host를 어디에 둘 때 direct app 비교가 가장 단순한가
-- PHP sample v2 external run에서 Host header 방식과 DNS/hosts 방식 중 어느 쪽이 더 재현성이 높은가
-- EH01~EH12 전체 external run 요청 세트를 별도 문서 또는 runner로 정리할 필요가 있는가
-- `client_ip_source`와 `remoteip_proxy_chain`가 direct app topology에서 어떤 값 조합으로 남는가
+- candidate explanation에서 external EHxx scenario label이 `-`로 남는 원인은 무엇인가
 - reverse proxy topology는 1차 direct app 비교 후에도 추가 가치가 충분한가
 - OpenCart v2 external run은 PHP sample 이후 실제로 필요한가
+- remoteIP 환경은 별도 설계 후 어느 범위에서 비교해야 하는가
 
-## 15. Recommended Next Step
+## 16. Recommended Next Step
 
-- 우선은 이 문서를 기준으로 EH01 단건 smoke check와 runner 추가 상태까지 기록한다.
-- EH01~EH12 전체 external run은 새 runner로 실제 수행한 뒤 distribution을 별도 문서에 반영한다.
-- 전체 run이 필요하면 1차 대상으로 `obs_php_sample_v2_error_heavy_external_001`을 새 runner로 수행한다.
-- 그 결과를 baseline dry-run과 비교한 뒤에만 2차 proxy topology run을 다시 검토한다.
+- `scenario=-` diagnostic UX 원인을 조사한다.
+- 그 전까지는 prepare/scoring/filtering을 변경하지 않는다.
+- 전체 run 결과는 distribution history와 run summary에 관찰 결과로만 반영한다.
+- 2차 proxy topology run은 scenario label UX 원인 확인 후 다시 판단한다.
 - remoteIP, prepare/scoring/filtering, Web UI taxonomy 변경은 모두 별도 설계 전까지 보류한다.
