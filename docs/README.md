@@ -154,6 +154,7 @@ docs/
 - candidate policy 기준: [99_prepare_candidate_policy.md](./design/99_prepare_candidate_policy.md)
 - shared attack policy boundary: [99_prepare_shared_attack_policy_boundary_review.md](./design/99_prepare_shared_attack_policy_boundary_review.md)
 - proxy error scenario extension review: [99_proxy_error_check_scenario_extension_review.md](./design/99_proxy_error_check_scenario_extension_review.md)
+- external client error-heavy run plan: [99_external_client_error_heavy_run_plan.md](./design/99_external_client_error_heavy_run_plan.md)
 
 ### 설계 결정/해석 한계
 
@@ -162,6 +163,7 @@ docs/
 - [99_sensitive_path_probe_context_category_검토.md](./design/99_sensitive_path_probe_context_category_검토.md)
 - [99_file_disclosure_verdict_taxonomy_검토.md](./design/99_file_disclosure_verdict_taxonomy_검토.md)
 - [99_proxy_error_check_scenario_extension_review.md](./design/99_proxy_error_check_scenario_extension_review.md)
+- [99_external_client_error_heavy_run_plan.md](./design/99_external_client_error_heavy_run_plan.md)
 
 ### 리뷰/품질
 

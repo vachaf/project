@@ -23,7 +23,9 @@
 ## P0. observability 후속 판단
 
 - [ ] 외부 client 기반 error-heavy run 수행 여부 판단
+  - 설계 문서: [../design/99_external_client_error_heavy_run_plan.md](../design/99_external_client_error_heavy_run_plan.md)
   - 목적은 distribution 표본 확장에 한정한다.
+  - 현재 상태는 설계 문서 작성까지이며, 실제 run 수행은 다음 단계다.
   - prepare/scoring/filtering 변경을 전제로 하지 않는다.
 - [ ] `proxy_error_check`를 정식 scenario catalog extension으로 뺄지 검토
   - 검토 문서: [../design/99_proxy_error_check_scenario_extension_review.md](../design/99_proxy_error_check_scenario_extension_review.md)
@@ -33,6 +35,7 @@
 - [ ] OpenCart v2 추가 진행 여부 검토
   - 현재 표본으로 충분한지, 추가 run이 필요한지만 판단한다.
 - [ ] `mod_remoteip`/remoteIP 환경 구성 여부 검토
+  - external client error-heavy run과 분리해서 별도 설계 후 진행한다.
   - 실제 공격자 신원 판정이 아니라 관찰 필드 차이 검토 목적에 한정한다.
 
 ## P1. candidate policy 관찰

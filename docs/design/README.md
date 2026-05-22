@@ -75,8 +75,9 @@
   - [99_file_disclosure_verdict_taxonomy_검토.md](./99_file_disclosure_verdict_taxonomy_검토.md): file disclosure verdict taxonomy 상태와 후속 검증 조건 검토
   - [99_pipeline_run_dir_output_layout_plan.md](./99_pipeline_run_dir_output_layout_plan.md): run dir 검토 문서
   - [99_proxy_error_check_scenario_extension_review.md](./99_proxy_error_check_scenario_extension_review.md): proxy/backend unavailable 신호를 attack scenario로 승격하지 않기 위한 availability extension 검토
-- observability summary index
+- observability / external client run
   - [99_observability_run_summary_index.md](./99_observability_run_summary_index.md): run summary 상위 색인
+  - [99_external_client_error_heavy_run_plan.md](./99_external_client_error_heavy_run_plan.md): external client 기반 error-heavy distribution 비교와 identity/header guardrail 계획
 
 ## 읽는 순서
 
