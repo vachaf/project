@@ -197,10 +197,8 @@ dry-run:
 ```bash
 python3 src/run_analysis_pipeline.py \
   --export-input "$RUN_DIR/exported/security.json" \
-  --work-dir "$RUN_DIR" \
-  --run-dir "$RUN_DIR" \
-  --base-name "$RUN_ID" \
-  --mode routine \
+  --work-dir . \
+  --run-dir "runs/${RUN_ID}" \
   --dry-run \
   --pretty \
   --write-filtered-out
@@ -210,7 +208,7 @@ candidate explanation:
 
 ```bash
 python3 scripts/explain_prepare_candidates.py \
-  --run-dir "$RUN_DIR" \
+  --run-dir "runs/${RUN_ID}" \
   --format markdown \
   --sort policy \
   --out "$RUN_DIR/candidate_policy_explanation.md"
