@@ -137,7 +137,9 @@ FLUSH PRIVILEGES;
 
 - v1/v2/remoteip_v2를 별도 테이블로 나누지 않는다.
 - schema 차이는 `log_schema` 값으로만 구분한다.
-- v1에만 있는 `host`와 v2에 있는 `req_host`는 둘 다 nullable 컬럼으로 둔다.
+- security log의 client-supplied Host header는 DB에서 `req_host` 컬럼 하나로 통일한다.
+- legacy v1 로그가 `host` key를 남기더라도 shipper가 `req_host`로 fallback 매핑한다.
+- `apache_access_logs.host`는 access log 전용 컬럼이므로 그대로 둔다.
 - v2에만 있는 `request_target`, `client_ip_source`, `has_cookie`, `has_authorization`, `remoteip_proxy_chain`은 nullable 컬럼으로 둔다.
 - 특정 log format에 없는 필드는 `NULL` 상태가 정상이다.
 - `raw_log`는 항상 보존한다.
@@ -246,7 +248,6 @@ CREATE TABLE IF NOT EXISTS apache_security_logs (
     referer TEXT,
     origin TEXT,
     user_agent TEXT,
-    host VARCHAR(255) DEFAULT NULL,
     req_host VARCHAR(255) DEFAULT NULL,
     x_forwarded_for TEXT,
     x_real_ip TEXT,
@@ -324,7 +325,6 @@ WHERE TABLE_SCHEMA = 'web_logs'
     'log_schema',
     'request_target',
     'client_ip_source',
-    'host',
     'req_host',
     'x_forwarded_for',
     'x_real_ip',
@@ -335,6 +335,20 @@ WHERE TABLE_SCHEMA = 'web_logs'
   )
 ORDER BY ORDINAL_POSITION;
 ```
+
+legacy `host` 컬럼이 security table에 남아 있지 않은지 확인:
+
+```sql
+SELECT COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'web_logs'
+  AND TABLE_NAME = 'apache_security_logs'
+  AND COLUMN_NAME = 'host';
+```
+
+기대 결과:
+
+- 결과가 없어야 한다.
 
 계정 확인:
 
@@ -351,6 +365,7 @@ SHOW GRANTS FOR 'log_reader'@'192.168.56.110';
 - 3개 테이블 존재
 - 각 인덱스 존재
 - `apache_security_logs`에 v1/v2 key=value 대응 컬럼 존재
+- `apache_security_logs`에는 `req_host`가 있고 `host`는 없음
 - `log_writer`, `log_reader` 계정과 권한 확인 가능
 
 ## 11. 서버별 접속 검증
@@ -407,6 +422,7 @@ python3 /opt/web_log_analysis/src/export_db_logs_cli.py \
 - 인덱스가 생성되었는가
 - `apache_security_logs.log_time` 인덱스가 있어 scheduler window export에 적합한가
 - v1/v2/remoteip_v2가 섞여도 `log_schema`로 구분 가능한가
+- security log Host header가 `req_host`로 통일되어 저장되는가
 - `raw_log`가 항상 보존되는가
 
 ## 13. v1/v2/remoteip_v2 처리 기준
@@ -423,10 +439,11 @@ python3 /opt/web_log_analysis/src/export_db_logs_cli.py \
 
 ### 13.2 Host header 처리
 
-- v1 security log는 `host` key를 사용한다.
+- v1 security log는 legacy key로 `host`를 사용한다.
 - v2 security log는 `req_host` key를 사용한다.
-- DB에는 둘 다 nullable 컬럼으로 둔다.
-- downstream에서 통합 표시가 필요하면 `COALESCE(req_host, host)` 방식으로 처리한다.
+- 신규 `apache_security_logs` DDL은 DB 컬럼을 `req_host`로 통일한다.
+- shipper는 `req_host`를 우선 사용하고, 없으면 legacy v1 `host` key를 `req_host`로 fallback 매핑한다.
+- `apache_access_logs.host`는 access log 전용 컬럼이므로 유지한다.
 
 ### 13.3 client IP / forwarding header 처리
 
@@ -462,7 +479,7 @@ python3 /opt/web_log_analysis/src/export_db_logs_cli.py \
 - `handler`
 - `location`
 - `origin`
-- `req_host`
+- `req_host` (`req_host` 우선, legacy `host` fallback)
 - `x_real_ip`
 - `forwarded`
 - `has_cookie`
