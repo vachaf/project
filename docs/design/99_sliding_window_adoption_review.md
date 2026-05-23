@@ -134,7 +134,93 @@ Sliding Window는 window마다 full pipeline을 실행하는 구조로 확정하
 
 문서 예시와 실제 CLI가 다르면 문서를 먼저 정정하고, 구현은 그 다음에 진행한다.
 
-### 4.2 prepare 내부 time window와 export window 관계
+### 4.2 CLI 옵션 호환성 검토 결과
+
+현재 repo 기준으로 Sliding Window 문서 예시 명령은 대부분 호환된다. 다만 direct CLI와 pipeline wrapper CLI의 옵션명을 분리해서 문서화해야 한다.
+
+#### 4.2.1 호환되는 항목
+
+`export_db_logs_cli.py`는 Sliding Window scheduler가 필요로 하는 시간 범위 export 옵션과 호환된다.
+
+```text
+--start
+--end
+--table
+--pretty
+--out
+--out-dir
+--limit
+```
+
+`run_analysis_pipeline.py`는 window export JSON을 받아 run_dir 단위로 실행하는 wrapper 옵션과 호환된다.
+
+```text
+--export-input
+--work-dir
+--run-dir
+--llm-provider
+--mode
+--dry-run
+--stop-after
+--stage1-candidate-limit
+--stage2-top-incidents
+--stage2-top-noise-groups
+--stage2-top-ips
+```
+
+#### 4.2.2 수정이 필요한 문서 예시
+
+`llm_stage1_classifier.py`를 직접 실행할 때는 `--llm-input`이 아니라 `--input`을 사용해야 한다.
+
+```bash
+python3 src/llm_stage1_classifier.py \
+  --input data/processed/security_..._llm_input.json \
+  --candidate-limit 15 \
+  --max-evidence-items 6
+```
+
+pipeline wrapper를 사용할 때는 stage1 제한 옵션명이 다르다.
+
+```bash
+python3 src/run_analysis_pipeline.py \
+  --export-input data/raw/security_...json \
+  --stage1-candidate-limit 15
+```
+
+stage2도 direct CLI와 wrapper CLI의 top-N 옵션명이 다르다.
+
+```bash
+# direct stage2
+python3 src/llm_stage2_reporter.py \
+  --stage1-results data/processed/security_..._stage1_results.json \
+  --top-incidents 8 \
+  --top-noise-groups 5 \
+  --top-ips 5
+
+# pipeline wrapper
+python3 src/run_analysis_pipeline.py \
+  --export-input data/raw/security_...json \
+  --stage2-top-incidents 8 \
+  --stage2-top-noise-groups 5 \
+  --stage2-top-ips 5
+```
+
+#### 4.2.3 dry-run window count 주의
+
+20분 window / 15분 stride / 2시간 범위는 기존 문서 예시처럼 6개 window가 아니다.
+
+```text
+partial final window 포함 시: 8개
+full window만 허용 시:      7개
+```
+
+따라서 scheduler 설계 전 `partial final window`를 만들지 여부를 명시해야 한다. recurring 운영 기본값은 full window only가 더 안전하며, historical 검증에서만 partial final window 포함 여부를 별도 옵션으로 비교한다.
+
+#### 4.2.4 현재 판단
+
+CLI 옵션은 scheduler dry-run 설계로 진행할 수 있을 정도로 대체로 호환된다. 단, 팀원 작성 문서 4개를 그대로 편입할 경우 위 옵션명 차이와 window count 예시는 먼저 정정해야 한다.
+
+### 4.3 prepare 내부 time window와 export window 관계
 
 Sliding Window는 prepare 내부 time aggregation을 깨면 안 된다.
 
@@ -154,7 +240,7 @@ Sliding Window는 prepare 내부 time aggregation을 깨면 안 된다.
 - 현실적 하한은 10분 이상으로 둔다.
 - 기본 검증값은 20분으로 둔다.
 
-### 4.3 overlap 중복 처리
+### 4.4 overlap 중복 처리
 
 5분 overlap을 두면 동일 request가 두 window에 들어갈 수 있다.
 
@@ -165,7 +251,7 @@ Sliding Window는 prepare 내부 time aggregation을 깨면 안 된다.
 - 중복 request_id 확인은 diagnostic script 또는 수동 검토로만 둔다.
 - dedup 결과를 Web UI verdict/severity/category에 반영하지 않는다.
 
-### 4.4 Web UI run list 증가
+### 4.5 Web UI run list 증가
 
 15분 stride면 하루 최대 96개 run이 생길 수 있다.
 
@@ -176,7 +262,7 @@ Sliding Window는 prepare 내부 time aggregation을 깨면 안 된다.
 - retention/cleanup 정책이 필요한가
 - output cleanup script는 여전히 별도 승인 전까지 실제 삭제를 보류한다.
 
-### 4.5 token/cost 실측
+### 4.6 token/cost 실측
 
 `token_cost_estimation.md`는 근사치 문서로 보고, 실제 운영 전에는 현재 모델 단가와 실제 run artifact 기반으로 재측정한다.
 
