@@ -36,10 +36,12 @@ Sliding Window 문서 세트는 운영 자동화와 token/cost control 관점에
 - planner path/window count pytest 검증
 - sliding_window_scheduler.py export mode 구현
 - export artifact shape / skip policy / runs 미생성 smoke 검증
+- prepare_llm_input.py --flat-output-names 추가
+- flat prepare output names smoke/test 검증
 - prepare/scoring/filtering 변경 없음 확인
 ```
 
-다음 판단 대상은 Level 2 prepare smoke 구현이다.
+다음 판단 대상은 `sliding_window_scheduler.py --mode prepare` 구현이다.
 
 ## 2. 수용 방향
 
@@ -68,8 +70,8 @@ sliding_window_scheduler.py
   -> window 목록 생성
   -> data/windowed/<date>/<window_id>/ 경로 결정
   -> export_db_logs_cli.py --start <window_start> --end <window_end> --out <window_dir>/export.json
-  -> prepare_llm_input.py --input <window_dir>/export.json --out-dir <window_dir>/prepared
-  -> window artifact 정규화/요약: llm_input.json, analysis_candidates.json, noise_summary.json, window_summary.json
+  -> prepare_llm_input.py --input <window_dir>/export.json --out-dir <window_dir> --flat-output-names
+  -> window artifact 요약: window_summary.json
   -> data/rollups/<date>/<rollup_id>/ rollup 입력 생성
   -> rollup 단위 Stage1/Stage2 실행 시에만 runs/<rollup_run_id>/ 생성
 ```
@@ -82,6 +84,7 @@ sliding_window_scheduler.py
 - window별 중간 산출물과 Web UI report run의 의미를 분리한다.
 - 하루치 window 수가 많아져도 `runs/`와 Web UI list가 폭증하지 않는다.
 - 운영 scheduler가 `--processed-dir`, `--reports-dir`, `--run-dir` 조합을 매번 수동으로 맞추는 구조를 피한다.
+- `prepared/` 하위 디렉터리에 생성한 뒤 복사/링크하는 중간 단계를 피한다.
 
 ## 3. 실행 단위 재검토
 
@@ -134,7 +137,6 @@ data/windowed/
       analysis_candidates.json
       noise_summary.json
       window_summary.json
-      prepared/
 
     sw_1000_1100/
       export.json
@@ -142,7 +144,6 @@ data/windowed/
       analysis_candidates.json
       noise_summary.json
       window_summary.json
-      prepared/
 
 data/rollups/
   2026-05-23/
@@ -192,17 +193,28 @@ export_db_logs_cli.py
 
 prepare_llm_input.py
   --input data/windowed/<date>/<window_id>/export.json
-  --out-dir data/windowed/<date>/<window_id>/prepared
-  --base-name window
+  --out-dir data/windowed/<date>/<window_id>
+  --flat-output-names
 ```
 
-그 뒤 scheduler가 필요한 파일을 window root로 정규화한다.
+`--flat-output-names`는 기존 prepare/scoring/filtering 의미를 바꾸지 않고 파일명만 다음처럼 평탄화한다.
 
 ```text
-prepared/window_llm_input.json           -> llm_input.json
-prepared/window_analysis_candidates.json -> analysis_candidates.json
-prepared/window_noise_summary.json       -> noise_summary.json
+llm_input.json
+analysis_candidates.json
+noise_summary.json
+filtered_out_rows.json  # --write-filtered-out 사용 시
 ```
+
+기존 기본 출력명 규칙은 호환성을 위해 유지한다.
+
+```text
+<base>_llm_input.json
+<base>_analysis_candidates.json
+<base>_noise_summary.json
+```
+
+`--flat-output-names`와 `--base-name`은 함께 쓰지 않는다.
 
 `window_summary.json`은 prepare/scoring/filtering을 변경하지 않고 기존 prepare 산출물을 읽어서 만드는 후처리 artifact로 둔다.
 
@@ -389,6 +401,50 @@ python3 -m pytest -q \
 # 32 passed
 ```
 
+### 7.4 flat prepare output names 구현 및 검증 결과
+
+`src/prepare_llm_input.py`에 opt-in `--flat-output-names`를 추가했다.
+
+구현 범위:
+
+- 기존 기본 출력명 규칙은 유지한다.
+- `--flat-output-names` 지정 시 window root에 표준 파일명으로 출력한다.
+- `--base-name`과 `--flat-output-names`는 argparse 상호배타로 막는다.
+- 출력 파일명만 바꾸며 prepare/scoring/filtering 의미는 바꾸지 않는다.
+
+표준 출력명:
+
+```text
+llm_input.json
+analysis_candidates.json
+noise_summary.json
+filtered_out_rows.json  # --write-filtered-out 사용 시
+```
+
+검증 결과:
+
+```text
+python3 -m py_compile src/prepare_llm_input.py
+python3 -m pytest -q tests/test_prepare_llm_input_output_names.py
+# 4 passed
+
+python3 -m pytest -q tests/test_sliding_window_scheduler.py
+# 8 passed
+
+python3 -m pytest -q \
+  tests/test_sliding_window_scheduler.py \
+  tests/test_explain_prepare_candidates.py \
+  tests/test_prepare_status_error_only_candidate_policy.py \
+  tests/test_prepare_scanner_probe_candidate_policy.py
+# 32 passed
+
+python3 scripts/check_prepare_regression.py --strict
+# pass=25 warn=0 fail=0
+
+python3 scripts/check_stage_dryrun_regression.py --strict
+# pass=19 warn=0 fail=0
+```
+
 ## 8. 구현 전 보류 항목
 
 아래는 바로 구현하지 않는다.
@@ -420,14 +476,14 @@ Sliding Window는 실행 단위와 비용/토큰 제어를 위한 운영 전략�
 
 ## 10. 다음 판단 대상
 
-다음 단계는 Level 2 prepare smoke 구현 여부 판단이다.
+다음 단계는 `sliding_window_scheduler.py --mode prepare` 구현 여부 판단이다.
 
 Level 2 후보 범위:
 
 ```text
 - 일부 window의 export.json을 입력으로 prepare_llm_input.py 실행
-- data/windowed/<date>/<window_id>/prepared/에 원본 prepare 산출물 저장
-- window root에 llm_input.json / analysis_candidates.json / noise_summary.json 정규화 복사 또는 링크
+- prepare_llm_input.py --flat-output-names 사용
+- data/windowed/<date>/<window_id>/에 llm_input.json / analysis_candidates.json / noise_summary.json 직접 생성
 - window_summary.json 생성 후보 검토
 - stage1/stage2/viewer_payload 실행 없음
 - runs/ 생성 없음
