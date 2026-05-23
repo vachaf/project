@@ -272,7 +272,7 @@ class MariaDBWriter:
             in_bytes, out_bytes, total_bytes, duration_us, ttfb_us,
             keepalive_count, connection_status, handler,
             req_content_type, req_content_length, resp_content_type, location,
-            referer, origin, user_agent, host, req_host,
+            referer, origin, user_agent, req_host,
             x_forwarded_for, x_real_ip, forwarded,
             has_cookie, has_authorization,
             raw_log
@@ -285,7 +285,7 @@ class MariaDBWriter:
             %(in_bytes)s, %(out_bytes)s, %(total_bytes)s, %(duration_us)s, %(ttfb_us)s,
             %(keepalive_count)s, %(connection_status)s, %(handler)s,
             %(req_content_type)s, %(req_content_length)s, %(resp_content_type)s, %(location)s,
-            %(referer)s, %(origin)s, %(user_agent)s, %(host)s, %(req_host)s,
+            %(referer)s, %(origin)s, %(user_agent)s, %(req_host)s,
             %(x_forwarded_for)s, %(x_real_ip)s, %(forwarded)s,
             %(has_cookie)s, %(has_authorization)s,
             %(raw_log)s
@@ -454,8 +454,7 @@ def parse_security_line(line: str) -> Optional[Dict]:
         "referer": normalize_dash(kv.get("referer")),
         "origin": normalize_dash(kv.get("origin")),
         "user_agent": normalize_dash(kv.get("user_agent")),
-        "host": normalize_dash(kv.get("host")),
-        "req_host": normalize_dash(kv.get("req_host")),
+        "req_host": normalize_dash(kv.get("req_host") or kv.get("host")),
         "x_forwarded_for": normalize_dash(kv.get("x_forwarded_for")),
         "x_real_ip": normalize_dash(kv.get("x_real_ip")),
         "forwarded": normalize_dash(kv.get("forwarded")),
