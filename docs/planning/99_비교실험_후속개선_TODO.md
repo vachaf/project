@@ -23,26 +23,37 @@
 
 ## P0. 0523 우선 작업
 
-- [ ] Sliding Window 문서 세트 repo 수용 범위 검토
+- [x] Sliding Window 문서 세트 repo 수용 범위 검토
   - 검토 문서: [../design/99_sliding_window_adoption_review.md](../design/99_sliding_window_adoption_review.md)
-  - 팀원 작성 문서 4개를 그대로 편입할지, 요약 review 문서 기준으로만 둘지 결정한다.
-- [ ] Sliding Window 예시 명령과 현재 CLI 옵션 호환성 확인
+  - 팀원 작성 문서 4개는 그대로 편입하지 않고, 현재 repo 기준 adoption review 문서에 수용/보류 범위를 정리했다.
+- [x] Sliding Window 예시 명령과 현재 CLI 옵션 호환성 확인
   - `src/export_db_logs_cli.py`
   - `src/run_analysis_pipeline.py`
+  - `src/prepare_llm_input.py`
   - `src/llm_stage1_classifier.py`
   - `src/llm_stage2_reporter.py`
-  - 문서 예시의 `--run-dir`, `--work-dir`, `--export-input`, provider, mode, dry-run, stop-after, top-N 옵션명을 실제 코드와 대조한다.
-- [ ] Sliding Window dry-run 검증 범위 확정
-  - scheduler 구현 전 historical export 1~2시간 범위에서 window 목록 생성과 export/prepare-only dry-run 계획을 먼저 고정한다.
+  - direct CLI와 pipeline wrapper의 옵션명 차이를 adoption review에 기록했다.
+- [x] Sliding Window dry-run 검증 범위 확정
+  - scheduler 구현 전 historical export 1~2시간 범위에서 planner dry-run과 일부 export/prepare smoke를 단계 분리하는 방향으로 고정했다.
   - stage1/stage2 live 호출은 제외한다.
-  - partial final window 포함 여부와 run_dir skip 기준을 검증 항목으로 둔다.
+  - partial final window 포함 여부와 `runs/` 미생성 정책을 검증 항목으로 둔다.
   - prepare/scoring/filtering 변경은 하지 않는다.
+- [x] Sliding Window planner mode 구현 및 검증
+  - `src/sliding_window_scheduler.py` planner mode 추가 완료.
+  - `tests/test_sliding_window_scheduler.py` 추가 완료.
+  - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 5 passed.
+  - 검증: sliding window + candidate policy quick regression set → 29 passed.
+  - planner는 window/path 계산만 수행하며 export/prepare/stage1/stage2는 아직 실행하지 않는다.
+- [ ] Sliding Window Level 1 export smoke 구현 여부 판단
+  - 일부 window에 대해 `data/windowed/<date>/<window_id>/export.json`만 생성하는 mode를 검토한다.
+  - prepare/stage1/stage2는 계속 제외한다.
+  - `runs/`는 생성하지 않는다.
 - [ ] Sliding Window 실행 단위 재검토
-  - [ ] prepare-only window mode 검토
+  - [x] prepare-only window mode 검토
   - [ ] multi-window rollup input 포맷 설계
   - [ ] request_id dedup 기준 정리
   - [ ] src_ip / uri family / payload family 장기 aggregation 기준 정리
-  - [ ] window별 full stage2 report 생성을 기본안에서 제외
+  - [x] window별 full stage2 report 생성을 기본안에서 제외
   - [ ] rollup stage2와 daily summary의 역할 분리
 - [ ] token/cost 추정 재측정 항목 정리
   - 팀원 문서의 token/cost 값은 근사치로 두고, 실제 모델 단가와 현재 run artifact 기준으로 재측정할 항목을 표시한다.
