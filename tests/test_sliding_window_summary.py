@@ -226,4 +226,4 @@ def test_write_window_summary_creates_json_file(tmp_path: Path):
     assert output_path == window_dir / "window_summary.json"
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["schema"] == "sliding_window_summary_v1"
-    assert payload["artifact_status"]["window_summary"] == {"path": "window_summary.json", "exists": False}
+    assert payload["artifact_status"]["window_summary"] == {"path": "window_summary.json", "exists": True}
