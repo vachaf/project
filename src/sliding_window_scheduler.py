@@ -7,13 +7,13 @@ Phase 1 scope
 - Generate deterministic time windows.
 - Resolve data/windowed and data/rollups artifact paths.
 - Export window-scoped JSON artifacts when --mode export is used.
-- Do not run prepare/stage1/stage2 yet.
+- Generate prepare-only window artifacts when --mode prepare is used.
+- Do not run stage1/stage2 yet.
 - Do not create runs/ directories for window artifacts.
 
-Later phases may add prepare execution and rollup generation, but the scheduler
-should own the window/rollup artifact layout instead of requiring operators to
-manually combine run_analysis_pipeline.py --processed-dir/--reports-dir/--run-dir
-options.
+Later phases may add rollup generation, but the scheduler should own the
+window/rollup artifact layout instead of requiring operators to manually combine
+run_analysis_pipeline.py --processed-dir/--reports-dir/--run-dir options.
 """
 
 from __future__ import annotations
@@ -32,6 +32,11 @@ DEFAULT_TIMEZONE = "Asia/Seoul"
 DEFAULT_WINDOW_OUTPUT_ROOT = "data/windowed"
 DEFAULT_ROLLUP_OUTPUT_ROOT = "data/rollups"
 DEFAULT_EXPORT_TABLE = "security"
+PREPARE_OUTPUT_NAMES = (
+    "llm_input.json",
+    "analysis_candidates.json",
+    "noise_summary.json",
+)
 
 
 @dataclass(frozen=True)
@@ -238,8 +243,6 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
     warnings: list[str] = []
     if args.window_minutes < 10:
         warnings.append("window-minutes is below the current practical lower bound candidate of 10 minutes")
-    if args.mode == "prepare":
-        warnings.append("mode='prepare' is reserved for a later phase and is not implemented yet")
 
     return {
         "meta": {
@@ -287,6 +290,40 @@ def build_export_command(
     return cmd
 
 
+def build_prepare_command(
+    *,
+    prepare_script: Path,
+    export_path: Path,
+    window_dir: Path,
+) -> list[str]:
+    return [
+        sys.executable,
+        str(prepare_script),
+        "--input",
+        str(export_path),
+        "--out-dir",
+        str(window_dir),
+        "--flat-output-names",
+    ]
+
+
+def run_subprocess(cmd: list[str], work_dir: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        cmd,
+        cwd=str(work_dir),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def echo_completed_process(completed: subprocess.CompletedProcess[str]) -> None:
+    if completed.stdout:
+        print(completed.stdout, end="")
+    if completed.stderr:
+        print(completed.stderr, end="", file=sys.stderr)
+
+
 def run_export_mode(args: argparse.Namespace, plan: dict[str, Any]) -> dict[str, Any]:
     work_dir = Path(plan["meta"]["work_dir"])
     scripts_dir = resolve_scripts_dir(work_dir, args.scripts_dir)
@@ -323,17 +360,8 @@ def run_export_mode(args: argparse.Namespace, plan: dict[str, Any]) -> dict[str,
         result["command"] = cmd
         print(f"[SW] export #{item['index']:03d} {item['window_id']} -> {result['export_path']}")
 
-        completed = subprocess.run(
-            cmd,
-            cwd=str(work_dir),
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        if completed.stdout:
-            print(completed.stdout, end="")
-        if completed.stderr:
-            print(completed.stderr, end="", file=sys.stderr)
+        completed = run_subprocess(cmd, work_dir)
+        echo_completed_process(completed)
 
         result["return_code"] = completed.returncode
         if completed.returncode == 0:
@@ -355,6 +383,117 @@ def run_export_mode(args: argparse.Namespace, plan: dict[str, Any]) -> dict[str,
         "total_windows": len(plan["windows"]),
         "exported_count": sum(1 for item in results if item["status"] == "exported"),
         "skipped_existing_count": sum(1 for item in results if item["status"] == "skipped_existing"),
+        "failed_count": sum(1 for item in results if item["status"] == "failed"),
+        "first_error_return_code": first_error_rc,
+        "results": results,
+    }
+
+
+def prepare_output_paths(item: dict[str, Any], work_dir: Path) -> list[Path]:
+    return [
+        path_from_plan_value(work_dir, str(item["llm_input_path"])),
+        path_from_plan_value(work_dir, str(item["analysis_candidates_path"])),
+        path_from_plan_value(work_dir, str(item["noise_summary_path"])),
+    ]
+
+
+def classify_prepare_existing_outputs(output_paths: list[Path]) -> str:
+    existing = [path.exists() for path in output_paths]
+    if all(existing):
+        return "all"
+    if any(existing):
+        return "partial"
+    return "none"
+
+
+def run_prepare_mode(args: argparse.Namespace, plan: dict[str, Any]) -> dict[str, Any]:
+    work_dir = Path(plan["meta"]["work_dir"])
+    scripts_dir = resolve_scripts_dir(work_dir, args.scripts_dir)
+    prepare_script = scripts_dir / "prepare_llm_input.py"
+    if not prepare_script.exists():
+        raise FileNotFoundError(f"prepare script not found: {prepare_script}")
+
+    results: list[dict[str, Any]] = []
+    first_error_rc = 0
+
+    for item in plan["windows"]:
+        export_path = path_from_plan_value(work_dir, str(item["export_path"]))
+        window_dir = path_from_plan_value(work_dir, str(item["window_dir"]))
+        output_paths = prepare_output_paths(item, work_dir)
+        output_status = classify_prepare_existing_outputs(output_paths)
+
+        result: dict[str, Any] = {
+            "index": item["index"],
+            "window_id": item["window_id"],
+            "start": item["start"],
+            "end": item["end"],
+            "export_path": path_for_display(export_path, work_dir),
+            "window_dir": path_for_display(window_dir, work_dir),
+            "outputs": [path_for_display(path, work_dir) for path in output_paths],
+            "status": "pending",
+            "return_code": None,
+            "command": [],
+        }
+
+        if not export_path.exists():
+            result["status"] = "missing_export"
+            results.append(result)
+            print(f"[SW] prepare missing export: {result['export_path']}")
+            if first_error_rc == 0:
+                first_error_rc = 2
+            if not args.keep_going:
+                break
+            continue
+
+        if output_status == "all" and not args.overwrite:
+            result["status"] = "skipped_existing"
+            results.append(result)
+            print(f"[SW] prepare skip existing: {result['window_dir']}")
+            continue
+
+        if output_status == "partial" and not args.overwrite:
+            result["status"] = "partial_existing"
+            results.append(result)
+            print(f"[SW] prepare partial existing outputs: {result['window_dir']}")
+            if first_error_rc == 0:
+                first_error_rc = 2
+            if not args.keep_going:
+                break
+            continue
+
+        window_dir.mkdir(parents=True, exist_ok=True)
+        cmd = build_prepare_command(prepare_script=prepare_script, export_path=export_path, window_dir=window_dir)
+        result["command"] = cmd
+        print(f"[SW] prepare #{item['index']:03d} {item['window_id']} -> {result['window_dir']}")
+
+        completed = run_subprocess(cmd, work_dir)
+        echo_completed_process(completed)
+
+        result["return_code"] = completed.returncode
+        if completed.returncode == 0 and all(path.exists() for path in output_paths):
+            result["status"] = "prepared"
+        elif completed.returncode == 0:
+            result["status"] = "missing_output"
+            if first_error_rc == 0:
+                first_error_rc = 1
+        else:
+            result["status"] = "failed"
+            if first_error_rc == 0:
+                first_error_rc = completed.returncode or 1
+
+        results.append(result)
+        if result["status"] != "prepared" and not args.keep_going:
+            break
+
+    return {
+        "mode": "prepare",
+        "overwrite": bool(args.overwrite),
+        "total_windows": len(plan["windows"]),
+        "prepared_count": sum(1 for item in results if item["status"] == "prepared"),
+        "skipped_existing_count": sum(1 for item in results if item["status"] == "skipped_existing"),
+        "missing_export_count": sum(1 for item in results if item["status"] == "missing_export"),
+        "partial_existing_count": sum(1 for item in results if item["status"] == "partial_existing"),
+        "missing_output_count": sum(1 for item in results if item["status"] == "missing_output"),
         "failed_count": sum(1 for item in results if item["status"] == "failed"),
         "first_error_return_code": first_error_rc,
         "results": results,
@@ -395,6 +534,18 @@ def print_export_summary(summary: dict[str, Any]) -> None:
     )
 
 
+def print_prepare_summary(summary: dict[str, Any]) -> None:
+    print(
+        "[SW] prepare summary: "
+        f"prepared={summary['prepared_count']} "
+        f"skipped_existing={summary['skipped_existing_count']} "
+        f"missing_export={summary['missing_export_count']} "
+        f"partial_existing={summary['partial_existing_count']} "
+        f"missing_output={summary['missing_output_count']} "
+        f"failed={summary['failed_count']}"
+    )
+
+
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Sliding Window scheduler for Apache logs-only LLM pipeline",
@@ -419,17 +570,19 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--mode",
         choices=["planner", "export", "prepare"],
         default="planner",
-        help="실행 모드. Phase 1에서는 planner/export만 구현됨",
+        help="실행 모드",
     )
     parser.add_argument("--json", action="store_true", help="계획 또는 실행 결과를 JSON으로 출력")
     parser.add_argument("--pretty", action="store_true", help="JSON pretty 출력")
+
+    execution_group = parser.add_argument_group("Export/prepare execution")
+    execution_group.add_argument("--overwrite", action="store_true", help="기존 window 산출물 재생성")
+    execution_group.add_argument("--keep-going", action="store_true", help="실패 후에도 다음 window 계속 처리")
 
     export_group = parser.add_argument_group("Export mode")
     export_group.add_argument("--table", choices=["access", "security", "error", "all"], default=DEFAULT_EXPORT_TABLE, help="export 대상 테이블")
     export_group.add_argument("--limit", type=int, default=None, help="window별 table export 최대 건수")
     export_group.add_argument("--export-pretty", action="store_true", help="export.json pretty 출력")
-    export_group.add_argument("--overwrite", action="store_true", help="기존 export.json 재생성")
-    export_group.add_argument("--keep-going", action="store_true", help="export 실패 후에도 다음 window 계속 처리")
     return parser.parse_args(argv)
 
 
@@ -462,7 +615,21 @@ def main(argv: Optional[List[str]] = None) -> int:
             print_export_summary(summary)
         return int(summary["first_error_return_code"] or 0)
 
-    print(f"[SW] ERROR: mode={args.mode!r} is not implemented in Phase 1", file=sys.stderr)
+    if args.mode == "prepare":
+        try:
+            if not args.json:
+                print_text_plan(plan)
+            summary = run_prepare_mode(args, plan)
+        except Exception as exc:
+            print(f"[SW] ERROR: {exc}", file=sys.stderr)
+            return 2
+        if args.json:
+            print(json.dumps({"plan": plan, "prepare": summary}, ensure_ascii=False, indent=2 if args.pretty else None))
+        else:
+            print_prepare_summary(summary)
+        return int(summary["first_error_return_code"] or 0)
+
+    print(f"[SW] ERROR: unsupported mode={args.mode!r}", file=sys.stderr)
     return 2
 
 
