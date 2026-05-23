@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 
@@ -10,10 +11,14 @@ FIXTURE_PATH = PROJECT_ROOT / "tests" / "fixtures" / "prepare_scanner_probe_cand
 
 
 def load_module():
-    spec = importlib.util.spec_from_file_location("explain_prepare_candidates", SCRIPT_PATH)
+    spec = importlib.util.spec_from_file_location("sliding_window_scheduler", SCRIPT_PATH)
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
+    
+    # dataclasses 등이 모듈의 네임스페이스를 참조할 수 있도록 sys.modules에 등록
+    sys.modules["sliding_window_scheduler"] = module
+    
     spec.loader.exec_module(module)
     return module
 
