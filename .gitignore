@@ -39,3 +39,6 @@ lab/observability/runs/**/observation_matrix.md
 !lab/observability/runs/**/candidate_policy_explanation.md
 *.bak
 metadata.env
+
+/data/windowed/
+/data/rollups/
