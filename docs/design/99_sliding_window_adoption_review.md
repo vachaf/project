@@ -545,6 +545,46 @@ dry-run 결과를 본 뒤에만 CLI 변경을 검토한다.
 --skip-existing-complete
 ```
 
+### 7.7 Planner 구현 및 검증 결과
+
+`src/sliding_window_scheduler.py`의 Phase 1 planner mode를 추가했다.
+
+구현 범위:
+
+- window 목록 계산
+- `data/windowed/<date>/<window_id>/` 경로 계산
+- `data/rollups` root 경로 계산
+- full window only 기본 정책
+- `--include-partial-final` 지정 시 마지막 partial window 포함
+- text / JSON 출력 지원
+- `mode=export`, `mode=prepare`는 예약만 하고 아직 실행하지 않음
+- `runs/` 디렉터리 생성 없음
+
+검증 결과:
+
+```text
+python3 -m py_compile src/sliding_window_scheduler.py
+python3 -m pytest -q tests/test_sliding_window_scheduler.py
+# 5 passed
+
+python3 -m pytest -q \
+  tests/test_sliding_window_scheduler.py \
+  tests/test_explain_prepare_candidates.py \
+  tests/test_prepare_status_error_only_candidate_policy.py \
+  tests/test_prepare_scanner_probe_candidate_policy.py
+# 29 passed
+```
+
+확인된 동작:
+
+- 1시간 window / 1시간 stride / 2시간 범위는 2개 window를 생성한다.
+- 20분 window / 15분 stride / 2시간 범위는 partial final 제외 시 7개 window를 생성한다.
+- `--include-partial-final`을 주면 8번째 partial window `sw_1045_1100`을 생성한다.
+- window artifact 경로는 `data/windowed/YYYY-MM-DD/sw_HHMM_HHMM/` 형태로 계산된다.
+- planner output에는 `runs/` 경로가 포함되지 않는다.
+
+다음 단계는 Level 1 export smoke 구현 여부를 판단하는 것이다. Level 1에서는 일부 window에 대해 `export.json`만 생성하고, prepare/stage1/stage2는 계속 제외한다.
+
 ## 8. 구현 전 보류 항목
 
 아래는 바로 구현하지 않는다.
@@ -582,14 +622,14 @@ Sliding Window는 실행 단위와 비용/토큰 제어를 위한 운영 전략�
 4. prepare-only window mode와 multi-window rollup artifact 필요성을 먼저 검토한다.
 5. `data/windowed/`와 `data/rollups/` artifact layout을 검증한다.
 6. scheduler가 window/rollup layout ownership을 갖는 구조를 우선 검토한다.
-7. historical export 1~2시간 범위로 planner dry-run과 일부 prepare smoke를 수행하는 계획을 작성한다.
+7. planner mode 검증 결과를 기준으로 Level 1 export smoke 구현 여부를 판단한다.
 8. token/cost 문서는 실제 모델 단가와 현재 run artifact 기준으로 재측정할 항목을 표시한다.
 
 ## 11. 현재 결론
 
 Sliding Window 문서 세트는 운영 자동화/토큰 제어 관점에서 유효하다.
 
-다만 window마다 full pipeline을 실행하거나 window마다 `runs/`를 생성하는 구조로 확정하지 않는다. 0523에는 다음까지만 진행한다.
+다만 window마다 full pipeline을 실행하거나 window마다 `runs/`를 생성하는 구조로 확정하지 않는다. 0523에는 다음을 완료/확인했다.
 
 ```text
 - 문서 intake
@@ -597,8 +637,9 @@ Sliding Window 문서 세트는 운영 자동화/토큰 제어 관점에서 유�
 - dry-run 검증 범위 확정
 - prepare-only window mode 검토
 - scheduler의 data/windowed / data/rollups artifact layout ownership 검토
-- multi-window rollup 입력/summary artifact 필요성 검토
+- sliding_window_scheduler.py planner mode 구현
+- planner path/window count pytest 검증
 - prepare/scoring/filtering 변경 없음 확인
 ```
 
-그 다음에만 최소 scheduler 구현 여부를 판단한다.
+다음 판단 대상은 Level 1 export smoke 구현이다.
