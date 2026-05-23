@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-22
+- 기준 시점: 2026-05-24
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 완료 이력: [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md)
 - 관련 대시보드: [../진행상황.md](../진행상황.md)
@@ -21,7 +21,7 @@
 - observability run index: [../design/99_observability_run_summary_index.md](../design/99_observability_run_summary_index.md)
 - Sliding Window adoption review: [../design/99_sliding_window_adoption_review.md](../design/99_sliding_window_adoption_review.md)
 
-## P0. 0523 우선 작업
+## P0. Sliding Window 후속 작업
 
 - [x] Sliding Window 문서 세트 repo 수용 범위 검토
   - 검토 문서: [../design/99_sliding_window_adoption_review.md](../design/99_sliding_window_adoption_review.md)
@@ -67,13 +67,26 @@
   - 검증: sliding window + candidate policy quick regression set → 32 passed.
   - 검증: prepare regression → `pass=25 warn=0 fail=0`.
   - 검증: stage dry-run regression → `pass=19 warn=0 fail=0`.
-- [ ] Sliding Window Level 2 prepare mode 구현 여부 판단
-  - 일부 window의 `export.json`을 입력으로 `prepare_llm_input.py --flat-output-names`만 실행하는 mode를 검토한다.
+- [x] Sliding Window Level 2 prepare mode 구현 및 검증
+  - `src/sliding_window_scheduler.py --mode prepare` 추가 완료.
+  - 일부 window의 `export.json`을 입력으로 `prepare_llm_input.py --flat-output-names`만 실행하는 mode를 구현했다.
   - `data/windowed/<date>/<window_id>/`에 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json`을 직접 생성한다.
-  - `prepared/` 하위 디렉터리 생성 후 copy/symlink하는 구조는 기본안에서 제외한다.
-  - `window_summary.json` 생성 후보를 검토한다.
-  - stage1/stage2/viewer_payload는 계속 제외한다.
+  - `prepared/` 하위 디렉터리 생성 후 copy/symlink하는 구조는 기본안에서 제외했다.
+  - stage1/stage2/viewer_payload는 실행하지 않는다.
   - `runs/`는 생성하지 않는다.
+  - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 13 passed.
+  - 검증: sliding window + prepare output + candidate policy quick bundle → 41 passed.
+  - 수동 smoke: `prepared=1 skipped_existing=0 missing_export=0 partial_existing=0 missing_output=0 failed=0` 확인.
+  - window root artifact: `export.json`, `llm_input.json`, `analysis_candidates.json`, `noise_summary.json` 확인.
+  - `runs/sw_*` 미생성 및 `git status --short` clean 확인.
+- [ ] `window_summary.json` 최소 포맷 설계
+  - export_counts
+  - candidate_count
+  - noise_group_count
+  - artifact_status
+  - selected_source_tables
+  - policy_distribution 후보
+  - 새 보안 판단이나 severity/category/verdict 재계산 없이 기존 artifact 요약만 허용한다.
 - [ ] Sliding Window 실행 단위 재검토
   - [x] prepare-only window mode 검토
   - [ ] multi-window rollup input 포맷 설계
