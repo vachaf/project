@@ -274,7 +274,93 @@ Sliding Window는 prepare 내부 time aggregation을 깨면 안 된다.
 - 15분/30분/60분 stride별 일·월 비용
 - Anthropic `max_tokens` truncation 재발 여부
 
-## 5. 구현 전 보류 항목
+## 5. Dry-run 검증 범위
+
+Sliding Window scheduler 구현 전에는 실제 운영 자동화나 LLM 호출을 하지 않고, window 생성 규칙과 prepare-only 실행 가능성만 먼저 검증한다.
+
+### 5.1 검증 목표
+
+- 20분 window / 15분 또는 30분 stride에서 window 목록이 의도대로 생성되는지 확인한다.
+- recurring 운영에서는 partial final window를 기본 생성하지 않는 방향을 검토한다.
+- historical 검증에서는 partial final window 포함 여부를 별도 비교한다.
+- `export_db_logs_cli.py --start/--end`로 window별 export JSON을 생성할 수 있는지 확인한다.
+- `run_analysis_pipeline.py --stop-after prepare`로 window별 prepare artifact를 생성할 수 있는지 확인한다.
+- prepare/scoring/filtering 변경 없이 candidate/context/policy distribution shape가 유지되는지 확인한다.
+
+### 5.2 검증에서 제외하는 항목
+
+- stage1 live LLM 호출
+- stage2 report 생성
+- window마다 full pipeline 실행
+- multi-window rollup 구현
+- cron/systemd production 등록
+- Web UI timeline view
+- overlap 자동 dedup
+- cleanup 실제 삭제
+- prepare/scoring/filtering 변경
+
+### 5.3 1차 dry-run 범위
+
+1차 검증은 historical 1~2시간 범위로 제한한다.
+
+```text
+window_size: 20분
+stride:      30분, 15분 비교
+mode:        prepare-only
+stage1:      실행하지 않음
+stage2:      실행하지 않음
+viewer:      생성하지 않음
+```
+
+초기 명령 예시는 기존 pipeline wrapper를 우선 사용한다.
+
+```bash
+python3 src/run_analysis_pipeline.py \
+  --export-input data/raw/security_...json \
+  --work-dir /opt/web_log_analysis \
+  --run-dir runs/sw_dryrun_... \
+  --stop-after prepare \
+  --dry-run \
+  --pretty
+```
+
+`--stop-after prepare`가 stage1/stage2 실행을 막으므로, 초기 dry-run 단계에서는 pipeline CLI 변경 없이 검증한다.
+
+### 5.4 확인 항목
+
+- 생성된 window 개수
+- 각 window start/end 시각
+- partial final window 포함 여부
+- export JSON 생성 여부
+- prepare artifact 생성 여부
+- candidate_count
+- policy class distribution
+- context summary 생성 여부
+- overlap 구간 중복 request_id 존재 여부
+- run_dir collision / skip 정책 필요성
+
+### 5.5 CLI 변경 판단 기준
+
+dry-run 결과를 본 뒤에만 CLI 변경을 검토한다.
+
+현재 pipeline CLI는 `--stop-after prepare`로 prepare-only 실행이 가능하므로, 초기 검증 단계에서는 기존 CLI를 우선 사용한다.
+
+추가 CLI가 필요하다면 `run_analysis_pipeline.py`보다 scheduler 전용 옵션으로 먼저 검토한다.
+
+후보:
+
+```text
+--window-minutes
+--stride-minutes
+--analysis-start
+--analysis-end
+--lookback-hours
+--prepare-only
+--include-partial-final
+--skip-existing-complete
+```
+
+## 6. 구현 전 보류 항목
 
 아래는 바로 구현하지 않는다.
 
@@ -288,7 +374,7 @@ Sliding Window는 prepare 내부 time aggregation을 깨면 안 된다.
 - output cleanup 실제 삭제
 - cron/systemd production 등록
 
-## 6. Apache logs-only guardrail
+## 7. Apache logs-only guardrail
 
 Sliding Window는 실행 단위와 비용/토큰 제어를 위한 운영 전략이다. 다음을 바꾸지 않는다.
 
@@ -301,7 +387,7 @@ Sliding Window는 실행 단위와 비용/토큰 제어를 위한 운영 전략�
 - Web UI에서 severity/category/verdict 재계산 금지
 - prepare/scoring/filtering 변경 금지
 
-## 7. 0523 권장 작업 순서
+## 8. 0523 권장 작업 순서
 
 1. 팀원 문서 4개를 repo 경로로 편입할지, 요약 review 문서만 유지할지 결정한다.
 2. 현재 CLI와 문서 예시 명령어의 옵션명을 대조한다.
@@ -310,7 +396,7 @@ Sliding Window는 실행 단위와 비용/토큰 제어를 위한 운영 전략�
 5. historical export 1~2시간 범위로 window 목록만 생성하는 dry-run 검증 계획을 작성한다.
 6. token/cost 문서는 실제 모델 단가와 현재 run artifact 기준으로 재측정할 항목을 표시한다.
 
-## 8. 현재 결론
+## 9. 현재 결론
 
 Sliding Window 문서 세트는 운영 자동화/토큰 제어 관점에서 유효하다.
 
