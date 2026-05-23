@@ -44,10 +44,13 @@ export 단계에서 시간 window로 나누어 prepare/window artifact를 생성
 수용 가능성이 높은 구조:
 
 ```text
-scheduler
-  -> export_db_logs_cli.py --start <window_start> --end <window_end>
-  -> prepare-only artifact 저장: data/windowed/<date>/<window_id>/
-  -> multi-window rollup 저장: data/rollups/<date>/<rollup_id>/
+sliding_window_scheduler.py
+  -> window 목록 생성
+  -> data/windowed/<date>/<window_id>/ 경로 결정
+  -> export_db_logs_cli.py --start <window_start> --end <window_end> --out <window_dir>/export.json
+  -> prepare_llm_input.py --input <window_dir>/export.json --out-dir <window_dir>/prepared
+  -> window artifact 정규화/요약: llm_input.json, analysis_candidates.json, noise_summary.json, window_summary.json
+  -> data/rollups/<date>/<rollup_id>/ rollup 입력 생성
   -> rollup 단위 Stage1/Stage2 실행 시에만 runs/<rollup_run_id>/ 생성
 ```
 
@@ -58,6 +61,7 @@ scheduler
 - stage1/stage2 prompt나 report semantics를 변경하지 않는다.
 - window별 중간 산출물과 Web UI report run의 의미를 분리한다.
 - 하루치 window 수가 많아져도 `runs/`와 Web UI list가 폭증하지 않는다.
+- 운영 scheduler가 `--processed-dir`, `--reports-dir`, `--run-dir` 조합을 매번 수동으로 맞추는 구조를 피한다.
 
 ### 2.2 초기 운영 후보값
 
@@ -127,7 +131,8 @@ data/windowed/
       llm_input.json
       analysis_candidates.json
       noise_summary.json
-      window_summary.json        # 후보 artifact, rollup 설계 시 추가 검토
+      window_summary.json
+      prepared/                 # prepare_llm_input.py 원본 산출물 보관 후보
 
     sw_1000_1100/
       export.json
@@ -135,6 +140,7 @@ data/windowed/
       analysis_candidates.json
       noise_summary.json
       window_summary.json
+      prepared/
 
 data/rollups/
   2026-05-23/
@@ -163,9 +169,88 @@ runs/
 
 이 구분을 유지하면 window 수가 늘어나도 Web UI list와 report run 개념이 흐려지지 않는다.
 
-## 5. 반드시 검증할 항목
+## 5. Scheduler ownership / CLI boundary
 
-### 5.1 CLI 호환성
+운영 구조에서는 `run_analysis_pipeline.py` 옵션을 매 window마다 조합하는 방식에 의존하지 않는다.
+
+판단 기준:
+
+- `run_analysis_pipeline.py`는 export JSON에서 prepare -> stage1 -> stage2 -> viewer_payload로 이어지는 one-shot 실행기 또는 resume 실행기로 유지한다.
+- `sliding_window_scheduler.py`는 window 생성, export 실행, prepare-only artifact layout, window summary 생성, rollup 입력 생성을 담당한다.
+- prepare-only window에서는 `run_analysis_pipeline.py --run-dir`를 사용하지 않는다.
+- prepare-only window에서는 `runs/`를 만들지 않는다.
+- rollup 이후 Stage1/Stage2 report를 생성할 때만 `run_analysis_pipeline.py` 또는 stage1/stage2 wrapper를 사용해 `runs/<rollup_run_id>/`를 만든다.
+
+### 5.1 Window prepare 호출 방식
+
+운영 scheduler의 기본 후보는 `prepare_llm_input.py` 직접 호출이다.
+
+```text
+export_db_logs_cli.py
+  --start <window_start>
+  --end <window_end>
+  --table security
+  --out data/windowed/<date>/<window_id>/export.json
+
+prepare_llm_input.py
+  --input data/windowed/<date>/<window_id>/export.json
+  --out-dir data/windowed/<date>/<window_id>/prepared
+  --base-name window
+```
+
+그 뒤 scheduler가 필요한 파일을 window root로 정규화한다.
+
+```text
+prepared/window_llm_input.json           -> llm_input.json
+prepared/window_analysis_candidates.json -> analysis_candidates.json
+prepared/window_noise_summary.json       -> noise_summary.json
+```
+
+`window_summary.json`은 prepare/scoring/filtering을 변경하지 않고 기존 prepare 산출물을 읽어서 만드는 후처리 artifact로 둔다.
+
+### 5.2 Pipeline wrapper 사용 범위
+
+`run_analysis_pipeline.py --stop-after prepare --processed-dir ... --reports-dir ...` 방식은 smoke test 또는 호환성 검증에는 사용할 수 있다. 그러나 scheduler 운영 기본 구조로 확정하지 않는다.
+
+이유:
+
+- window마다 `--processed-dir`, `--reports-dir`, `--work-dir`, `--base-name`를 조합하는 방식은 운영 실수 가능성이 높다.
+- pipeline runner의 의미가 report pipeline과 window artifact generator 사이에서 흐려진다.
+- `reports/`라는 이름의 중간 디렉터리가 prepare-only window 안에 생겨 개념적으로 혼동될 수 있다.
+
+따라서 scheduler 구현에서는 layout ownership을 scheduler에 두고, window prepare는 `export_db_logs_cli.py` + `prepare_llm_input.py` 직접 호출을 우선 검토한다.
+
+### 5.3 Scheduler 후보 인자
+
+초기 scheduler 후보 인자는 다음 수준으로 제한한다.
+
+```text
+--work-dir
+--analysis-start
+--analysis-end
+--window-minutes
+--stride-minutes
+--include-partial-final
+--window-output-root
+--rollup-output-root
+--mode planner|export|prepare
+```
+
+추후 rollup 구현 시 후보:
+
+```text
+--rollup-minutes
+--rollup-stride-minutes
+--skip-existing-complete
+--overwrite-failed
+--prepare-source-tables
+```
+
+단, `--overwrite-failed` 같은 파괴적 동작은 기본값으로 두지 않는다.
+
+## 6. 반드시 검증할 항목
+
+### 6.1 CLI 호환성
 
 문서 예시가 현재 repo의 실제 CLI 옵션과 맞는지 확인한다.
 
@@ -173,28 +258,25 @@ runs/
 
 - `src/export_db_logs_cli.py`
 - `src/run_analysis_pipeline.py`
+- `src/prepare_llm_input.py`
 - `src/llm_stage1_classifier.py`
 - `src/llm_stage2_reporter.py`
 
 특히 다음 옵션은 실제 존재 여부와 이름을 확인해야 한다.
 
-- `--run-dir`
-- `--work-dir`
-- `--export-input`
-- `--llm-provider` 또는 provider 관련 옵션명
-- `--mode`
-- `--dry-run`
-- `--stop-after`
-- `--stage1-candidate-limit`
-- stage2 top-N 관련 옵션명
+- `export_db_logs_cli.py`: `--start`, `--end`, `--table`, `--out`, `--out-dir`, `--limit`
+- `prepare_llm_input.py`: `--input`, `--out-dir`, `--base-name`, `--min-score`, `--include-source-tables`
+- `run_analysis_pipeline.py`: `--run-dir`, `--work-dir`, `--export-input`, `--processed-dir`, `--reports-dir`, `--stop-after`
+- `llm_stage1_classifier.py`: `--input`, `--candidate-limit`, `--max-evidence-items`
+- `llm_stage2_reporter.py`: stage2 top-N 관련 옵션명
 
 문서 예시와 실제 CLI가 다르면 문서를 먼저 정정하고, 구현은 그 다음에 진행한다.
 
-### 5.2 CLI 옵션 호환성 검토 결과
+### 6.2 CLI 옵션 호환성 검토 결과
 
 현재 repo 기준으로 Sliding Window 문서 예시 명령은 대부분 호환된다. 다만 direct CLI와 pipeline wrapper CLI의 옵션명을 분리해서 문서화해야 한다.
 
-#### 5.2.1 호환되는 항목
+#### 6.2.1 호환되는 항목
 
 `export_db_logs_cli.py`는 Sliding Window scheduler가 필요로 하는 시간 범위 export 옵션과 호환된다.
 
@@ -208,7 +290,7 @@ runs/
 --limit
 ```
 
-`run_analysis_pipeline.py`는 window export JSON을 받아 prepare-only 또는 full pipeline으로 실행할 수 있는 wrapper 옵션과 호환된다. 다만 prepare-only window artifact를 `runs/`에 저장하지 않으려면 `--run-dir`를 사용하지 않고, `--processed-dir` 등 산출물 경로 분리 방식을 검토해야 한다.
+`run_analysis_pipeline.py`는 window export JSON을 받아 prepare-only 또는 full pipeline으로 실행할 수 있는 wrapper 옵션과 호환된다. 다만 prepare-only window artifact를 `runs/`에 저장하지 않으려면 `--run-dir`를 사용하지 않고, `--processed-dir` 등 산출물 경로 분리 방식을 검토해야 한다. 이는 smoke test에는 가능하지만 scheduler 운영 기본 구조로는 확정하지 않는다.
 
 ```text
 --export-input
@@ -226,7 +308,7 @@ runs/
 --stage2-top-ips
 ```
 
-#### 5.2.2 수정이 필요한 문서 예시
+#### 6.2.2 수정이 필요한 문서 예시
 
 `llm_stage1_classifier.py`를 직접 실행할 때는 `--llm-input`이 아니라 `--input`을 사용해야 한다.
 
@@ -263,7 +345,7 @@ python3 src/run_analysis_pipeline.py \
   --stage2-top-ips 5
 ```
 
-#### 5.2.3 dry-run window count 주의
+#### 6.2.3 dry-run window count 주의
 
 20분 window / 15분 stride / 2시간 범위는 기존 문서 예시처럼 6개 window가 아니다.
 
@@ -274,11 +356,11 @@ full window만 허용 시:      7개
 
 따라서 scheduler 설계 전 `partial final window`를 만들지 여부를 명시해야 한다. recurring 운영 기본값은 full window only가 더 안전하며, historical 검증에서만 partial final window 포함 여부를 별도 옵션으로 비교한다.
 
-#### 5.2.4 현재 판단
+#### 6.2.4 현재 판단
 
 CLI 옵션은 scheduler dry-run 설계로 진행할 수 있을 정도로 대체로 호환된다. 단, 팀원 작성 문서 4개를 그대로 편입할 경우 위 옵션명 차이와 window count 예시는 먼저 정정해야 한다.
 
-### 5.3 prepare 내부 time window와 export window 관계
+### 6.3 prepare 내부 time window와 export window 관계
 
 Sliding Window는 prepare 내부 time aggregation을 깨면 안 된다.
 
@@ -299,7 +381,7 @@ Sliding Window는 prepare 내부 time aggregation을 깨면 안 된다.
 - prepare-only 기본 검증값은 1시간으로 둘 수 있다.
 - 20분 window는 burst 민감도 비교용으로 유지한다.
 
-### 5.4 overlap 중복 처리
+### 6.4 overlap 중복 처리
 
 overlap을 두면 동일 request가 두 window에 들어갈 수 있다.
 
@@ -310,7 +392,7 @@ overlap을 두면 동일 request가 두 window에 들어갈 수 있다.
 - dedup 결과를 Web UI verdict/severity/category에 반영하지 않는다.
 - rollup 입력 생성 시점에 dedup 기준을 별도 문서화한다.
 
-### 5.5 Web UI run list 증가
+### 6.5 Web UI run list 증가
 
 15분 stride로 window마다 `runs/`를 만들면 하루 최대 96개 run이 생길 수 있다. 이 구조는 기본안에서 제외한다.
 
@@ -322,7 +404,7 @@ overlap을 두면 동일 request가 두 window에 들어갈 수 있다.
 - retention/cleanup 정책이 필요한가
 - output cleanup script는 여전히 별도 승인 전까지 실제 삭제를 보류한다.
 
-### 5.6 token/cost 실측
+### 6.6 token/cost 실측
 
 `token_cost_estimation.md`는 근사치 문서로 보고, 실제 운영 전에는 현재 모델 단가와 실제 run artifact 기반으로 재측정한다.
 
@@ -335,11 +417,11 @@ overlap을 두면 동일 request가 두 window에 들어갈 수 있다.
 - 2시간/4시간 rollup 단위 stage2 입력 크기
 - Anthropic `max_tokens` truncation 재발 여부
 
-## 6. Dry-run 검증 범위
+## 7. Dry-run 검증 범위
 
 Sliding Window scheduler 구현 전에는 실제 운영 자동화나 LLM 호출을 하지 않고, window 생성 규칙과 prepare-only artifact layout을 먼저 검증한다.
 
-### 6.1 Dry-run level 구분
+### 7.1 Dry-run level 구분
 
 `dry-run`이라는 용어가 넓기 때문에 검증 단계를 분리한다.
 
@@ -362,7 +444,7 @@ Level 2. prepare smoke
 
 초기 검증은 Level 0부터 시작하고, 그 다음 일부 window에 대해서만 Level 2 prepare smoke를 수행한다. 하루치 전체 window를 처음부터 모두 prepare-only로 실행하지 않는다.
 
-### 6.2 검증 목표
+### 7.2 검증 목표
 
 - 1시간 window / 1시간 또는 30분 stride에서 window 목록이 의도대로 생성되는지 확인한다.
 - 20분 window / 15분 또는 30분 stride는 burst 민감도 비교용으로만 확인한다.
@@ -372,7 +454,7 @@ Level 2. prepare smoke
 - prepare-only artifact를 `runs/`가 아니라 `data/windowed/`에 저장할 수 있는지 확인한다.
 - prepare/scoring/filtering 변경 없이 candidate/context/policy distribution shape가 유지되는지 확인한다.
 
-### 6.3 검증에서 제외하는 항목
+### 7.3 검증에서 제외하는 항목
 
 - stage1 live LLM 호출
 - stage2 report 생성
@@ -385,7 +467,7 @@ Level 2. prepare smoke
 - cleanup 실제 삭제
 - prepare/scoring/filtering 변경
 
-### 6.4 1차 dry-run 범위
+### 7.4 1차 dry-run 범위
 
 1차 검증은 historical 1~2시간 범위로 제한한다.
 
@@ -400,22 +482,34 @@ stage2:                 실행하지 않음
 viewer:                 생성하지 않음
 ```
 
-초기 prepare smoke는 기존 pipeline wrapper를 사용할 수 있지만, `--run-dir`를 기본으로 사용하지 않는다. 산출물은 window별 전용 경로로 분리한다.
+초기 planner dry-run은 새 scheduler의 `planner` mode로 검증한다.
 
 ```bash
-python3 src/run_analysis_pipeline.py \
-  --export-input data/windowed/2026-05-23/sw_0900_1000/export.json \
+python3 src/sliding_window_scheduler.py \
   --work-dir /opt/web_log_analysis \
-  --processed-dir data/windowed/2026-05-23/sw_0900_1000/processed \
-  --reports-dir data/windowed/2026-05-23/sw_0900_1000/reports \
-  --stop-after prepare \
-  --dry-run \
-  --pretty
+  --analysis-start "2026-05-23 09:00:00" \
+  --analysis-end "2026-05-23 11:00:00" \
+  --window-minutes 60 \
+  --stride-minutes 60 \
+  --mode planner
 ```
 
-`--stop-after prepare`가 stage1/stage2 실행을 막으므로, 초기 dry-run 단계에서는 pipeline CLI 변경 없이 검증한다. 다만 scheduler 구현 시에는 `prepare_llm_input.py`를 직접 호출하는 방식과 pipeline wrapper를 사용하는 방식 중 어느 쪽이 artifact layout에 더 적합한지 별도 판단한다.
+초기 prepare smoke는 scheduler가 `data/windowed/` layout을 직접 생성하는 방식으로 검증한다.
 
-### 6.5 확인 항목
+```bash
+python3 src/sliding_window_scheduler.py \
+  --work-dir /opt/web_log_analysis \
+  --analysis-start "2026-05-23 09:00:00" \
+  --analysis-end "2026-05-23 11:00:00" \
+  --window-minutes 60 \
+  --stride-minutes 60 \
+  --window-output-root data/windowed \
+  --mode prepare
+```
+
+`run_analysis_pipeline.py --stop-after prepare --processed-dir ... --reports-dir ...` 방식은 호환성 smoke test로만 둔다. scheduler 운영 기본 구조는 `export_db_logs_cli.py`와 `prepare_llm_input.py` 직접 호출을 우선 검토한다.
+
+### 7.5 확인 항목
 
 - 생성된 window 개수
 - 각 window start/end 시각
@@ -430,13 +524,11 @@ python3 src/run_analysis_pipeline.py \
 - `runs/`가 생성되지 않는지 여부
 - rollup 입력으로 필요한 추가 summary artifact 목록
 
-### 6.6 CLI 변경 판단 기준
+### 7.6 CLI 변경 판단 기준
 
 dry-run 결과를 본 뒤에만 CLI 변경을 검토한다.
 
-현재 pipeline CLI는 `--stop-after prepare`와 `--processed-dir`로 prepare-only smoke를 수행할 수 있으므로, 초기 검증 단계에서는 기존 CLI를 우선 사용한다.
-
-추가 CLI가 필요하다면 `run_analysis_pipeline.py`보다 scheduler 전용 옵션으로 먼저 검토한다.
+초기 구현은 `sliding_window_scheduler.py` 전용 옵션으로 제한한다. `run_analysis_pipeline.py`에는 window layout 전용 옵션을 추가하지 않는다.
 
 후보:
 
@@ -453,7 +545,7 @@ dry-run 결과를 본 뒤에만 CLI 변경을 검토한다.
 --skip-existing-complete
 ```
 
-## 7. 구현 전 보류 항목
+## 8. 구현 전 보류 항목
 
 아래는 바로 구현하지 않는다.
 
@@ -461,6 +553,7 @@ dry-run 결과를 본 뒤에만 CLI 변경을 검토한다.
 - prepare scoring/filtering 변경
 - window마다 full pipeline을 자동 실행하는 운영 구조 확정
 - window마다 `runs/`를 생성하는 구조 확정
+- `run_analysis_pipeline.py`에 window layout 전용 옵션을 추가하는 변경
 - stage2 report를 여러 window로 나눈 뒤 자동 병합하는 기능
 - overlap 자동 dedup으로 verdict/category/severity를 바꾸는 기능
 - Web UI timeline view
@@ -468,7 +561,7 @@ dry-run 결과를 본 뒤에만 CLI 변경을 검토한다.
 - output cleanup 실제 삭제
 - cron/systemd production 등록
 
-## 8. Apache logs-only guardrail
+## 9. Apache logs-only guardrail
 
 Sliding Window는 실행 단위와 비용/토큰 제어를 위한 운영 전략이다. 다음을 바꾸지 않는다.
 
@@ -481,17 +574,18 @@ Sliding Window는 실행 단위와 비용/토큰 제어를 위한 운영 전략�
 - Web UI에서 severity/category/verdict 재계산 금지
 - prepare/scoring/filtering 변경 금지
 
-## 9. 0523 권장 작업 순서
+## 10. 0523 권장 작업 순서
 
 1. 팀원 문서 4개를 repo 경로로 편입할지, 요약 review 문서만 유지할지 결정한다.
 2. 현재 CLI와 문서 예시 명령어의 옵션명을 대조한다.
 3. `sliding_window_scheduler.py` 구현 전 dry-run 설계만 확정한다.
 4. prepare-only window mode와 multi-window rollup artifact 필요성을 먼저 검토한다.
 5. `data/windowed/`와 `data/rollups/` artifact layout을 검증한다.
-6. historical export 1~2시간 범위로 planner dry-run과 일부 prepare smoke를 수행하는 계획을 작성한다.
-7. token/cost 문서는 실제 모델 단가와 현재 run artifact 기준으로 재측정할 항목을 표시한다.
+6. scheduler가 window/rollup layout ownership을 갖는 구조를 우선 검토한다.
+7. historical export 1~2시간 범위로 planner dry-run과 일부 prepare smoke를 수행하는 계획을 작성한다.
+8. token/cost 문서는 실제 모델 단가와 현재 run artifact 기준으로 재측정할 항목을 표시한다.
 
-## 10. 현재 결론
+## 11. 현재 결론
 
 Sliding Window 문서 세트는 운영 자동화/토큰 제어 관점에서 유효하다.
 
@@ -502,7 +596,7 @@ Sliding Window 문서 세트는 운영 자동화/토큰 제어 관점에서 유�
 - CLI 옵션 호환성 확인
 - dry-run 검증 범위 확정
 - prepare-only window mode 검토
-- data/windowed / data/rollups artifact layout 검토
+- scheduler의 data/windowed / data/rollups artifact layout ownership 검토
 - multi-window rollup 입력/summary artifact 필요성 검토
 - prepare/scoring/filtering 변경 없음 확인
 ```
