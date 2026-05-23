@@ -247,8 +247,20 @@ def build_window_summary_from_dir(window_plan: Mapping[str, Any], window_dir: Pa
     )
 
 
+def mark_window_summary_written(summary: dict[str, Any]) -> None:
+    artifact_status = summary.setdefault("artifact_status", {})
+    window_summary_status = artifact_status.setdefault(
+        "window_summary",
+        {"path": "window_summary.json", "exists": False},
+    )
+    if isinstance(window_summary_status, dict):
+        window_summary_status["path"] = "window_summary.json"
+        window_summary_status["exists"] = True
+
+
 def write_window_summary(window_plan: Mapping[str, Any], window_dir: Path) -> Path:
     summary = build_window_summary_from_dir(window_plan, window_dir)
+    mark_window_summary_written(summary)
     output_path = window_dir / "window_summary.json"
     write_json(output_path, summary)
     return output_path
