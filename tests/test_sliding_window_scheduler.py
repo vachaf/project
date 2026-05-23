@@ -63,6 +63,12 @@ def make_prepare_outputs(window_dir: Path, *names: str) -> None:
         (window_dir / name).write_text("{}", encoding="utf-8")
 
 
+def fake_prepare_run_creating_outputs(cmd, cwd, text, capture_output, check):
+    out_dir = Path(cmd[cmd.index("--out-dir") + 1])
+    make_prepare_outputs(out_dir, "llm_input.json", "analysis_candidates.json", "noise_summary.json")
+    return subprocess.CompletedProcess(cmd, 0, stdout="[OK] fake prepare\n", stderr="")
+
+
 def test_one_hour_windows_resolve_to_windowed_paths(tmp_path: Path):
     plan = build_plan(
         tmp_path,
@@ -304,9 +310,7 @@ def test_prepare_mode_builds_flat_prepare_commands_without_runs_dir(tmp_path: Pa
 
     def fake_run(cmd, cwd, text, capture_output, check):
         calls.append({"cmd": cmd, "cwd": cwd})
-        out_dir = Path(cmd[cmd.index("--out-dir") + 1])
-        make_prepare_outputs(out_dir, "llm_input.json", "analysis_candidates.json", "noise_summary.json")
-        return subprocess.CompletedProcess(cmd, 0, stdout="[OK] fake prepare\n", stderr="")
+        return fake_prepare_run_creating_outputs(cmd, cwd, text, capture_output, check)
 
     monkeypatch.setattr(module.subprocess, "run", fake_run)
 
@@ -328,7 +332,7 @@ def test_prepare_mode_builds_flat_prepare_commands_without_runs_dir(tmp_path: Pa
     assert "runs/" not in repr(summary)
 
 
-def test_prepare_mode_skips_when_all_flat_outputs_exist(tmp_path: Path):
+def test_prepare_mode_skips_when_all_flat_outputs_exist(tmp_path: Path, monkeypatch):
     module, args = build_args(
         tmp_path,
         "--window-minutes",
@@ -350,6 +354,14 @@ def test_prepare_mode_skips_when_all_flat_outputs_exist(tmp_path: Path):
     second_window = tmp_path / "data/windowed/2026-05-23/sw_1000_1100"
     make_export(second_window / "export.json")
 
+    calls = []
+
+    def fake_run(cmd, cwd, text, capture_output, check):
+        calls.append(cmd)
+        return fake_prepare_run_creating_outputs(cmd, cwd, text, capture_output, check)
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
     summary = module.run_prepare_mode(args, plan)
 
     assert summary["prepared_count"] == 1
@@ -357,6 +369,7 @@ def test_prepare_mode_skips_when_all_flat_outputs_exist(tmp_path: Path):
     assert summary["failed_count"] == 0
     assert summary["results"][0]["status"] == "skipped_existing"
     assert summary["results"][1]["status"] == "prepared"
+    assert len(calls) == 1
 
 
 def test_prepare_mode_reports_missing_export_and_stops_by_default(tmp_path: Path):
