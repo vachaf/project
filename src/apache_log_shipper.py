@@ -44,10 +44,13 @@ CONFIG = {
 RUNNING = True
 
 # access_db_aligned
+# Supports both Apache combined format and the extended format that appends
+# "host" and vhost after User-Agent.
 ACCESS_RE = re.compile(
     r'(?P<client_ip>\S+)\s+\S+\s+\S+\s+\[(?P<time>[^\]]+)\]\s+'
     r'"(?P<raw_request>[^"]*)"\s+(?P<status>\d{3})\s+(?P<bytes>\S+)\s+'
-    r'"(?P<referer>[^"]*)"\s+"(?P<ua>[^"]*)"\s+"(?P<host>[^"]*)"\s+(?P<vhost>\S+)'
+    r'"(?P<referer>[^"]*)"\s+"(?P<ua>[^"]*)"'
+    r'(?:\s+"(?P<host>[^"]*)"\s+(?P<vhost>\S+))?$'
 )
 
 # security_db_aligned key=value parser
