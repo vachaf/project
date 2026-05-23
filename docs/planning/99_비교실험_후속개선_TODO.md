@@ -33,7 +33,9 @@
   - `src/llm_stage2_reporter.py`
   - 문서 예시의 `--run-dir`, `--work-dir`, `--export-input`, provider, mode, dry-run, stop-after, top-N 옵션명을 실제 코드와 대조한다.
 - [ ] Sliding Window dry-run 검증 범위 확정
-  - scheduler 구현 전 historical export 1~2시간 범위에서 window 목록 생성과 export/pipeline dry-run 계획을 먼저 고정한다.
+  - scheduler 구현 전 historical export 1~2시간 범위에서 window 목록 생성과 export/prepare-only dry-run 계획을 먼저 고정한다.
+  - stage1/stage2 live 호출은 제외한다.
+  - partial final window 포함 여부와 run_dir skip 기준을 검증 항목으로 둔다.
   - prepare/scoring/filtering 변경은 하지 않는다.
 - [ ] Sliding Window 실행 단위 재검토
   - [ ] prepare-only window mode 검토
