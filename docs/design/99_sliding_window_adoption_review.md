@@ -1,8 +1,8 @@
 # 99_sliding_window_adoption_review
 
 - 문서 상태: 팀원 작성 Sliding Window 문서 intake / adoption review
-- 기준 시점: 2026-05-23
-- 목적: Sliding Window 문서 세트를 바로 구현하기 전에 현재 Apache logs-only LLM pipeline 기준으로 수용 범위, 검증 항목, 보류 항목을 정리한다.
+- 기준 시점: 2026-05-24
+- 목적: Sliding Window 문서 세트를 현재 Apache logs-only LLM pipeline 기준으로 수용할 범위, 검증 항목, 보류 항목을 정리한다.
 
 관련 입력 문서:
 
@@ -24,7 +24,7 @@ Sliding Window 문서 세트는 운영 자동화와 token/cost control 관점에
 
 다만 window마다 full pipeline을 실행하거나 window마다 `runs/`를 생성하는 구조로 확정하지 않는다.
 
-0523 기준 완료/확인:
+0524 기준 완료/확인:
 
 ```text
 - 문서 intake
@@ -33,15 +33,14 @@ Sliding Window 문서 세트는 운영 자동화와 token/cost control 관점에
 - prepare-only window mode 검토
 - scheduler의 data/windowed / data/rollups artifact layout ownership 검토
 - sliding_window_scheduler.py planner mode 구현
-- planner path/window count pytest 검증
 - sliding_window_scheduler.py export mode 구현
-- export artifact shape / skip policy / runs 미생성 smoke 검증
 - prepare_llm_input.py --flat-output-names 추가
-- flat prepare output names smoke/test 검증
+- sliding_window_scheduler.py prepare mode 구현
+- Level 0 planner / Level 1 export / Level 2 prepare smoke 통과
 - prepare/scoring/filtering 변경 없음 확인
 ```
 
-다음 판단 대상은 `sliding_window_scheduler.py --mode prepare` 구현이다.
+다음 판단 대상은 `window_summary.json` 최소 포맷과 multi-window rollup input 설계다.
 
 ## 2. 수용 방향
 
@@ -63,7 +62,7 @@ export 단계에서 시간 window로 나누어 prepare/window artifact를 생성
 - `runs/`는 Stage2 report와 `viewer_payload.json`이 생성되는 rollup/report 단위에 한정한다.
 - prepare/scoring/filtering 변경은 하지 않는다.
 
-수용 가능한 scheduler ownership:
+현재 scheduler ownership:
 
 ```text
 sliding_window_scheduler.py
@@ -71,8 +70,8 @@ sliding_window_scheduler.py
   -> data/windowed/<date>/<window_id>/ 경로 결정
   -> export_db_logs_cli.py --start <window_start> --end <window_end> --out <window_dir>/export.json
   -> prepare_llm_input.py --input <window_dir>/export.json --out-dir <window_dir> --flat-output-names
-  -> window artifact 요약: window_summary.json
-  -> data/rollups/<date>/<rollup_id>/ rollup 입력 생성
+  -> window artifact 요약: window_summary.json 후보
+  -> data/rollups/<date>/<rollup_id>/ rollup 입력 생성 후보
   -> rollup 단위 Stage1/Stage2 실행 시에만 runs/<rollup_run_id>/ 생성
 ```
 
@@ -90,7 +89,7 @@ sliding_window_scheduler.py
 
 Sliding Window는 window마다 full pipeline을 실행하는 구조로 확정하지 않는다.
 
-초기 수용 범위는 export 단계 windowing과 prepare-only window artifact 생성 가능성 검토로 제한한다. Stage1/Stage2는 window별 실행이 아니라 multi-window rollup 단위 실행을 우선 검토한다.
+초기 수용 범위는 export 단계 windowing과 prepare-only window artifact 생성으로 제한한다. Stage1/Stage2는 window별 실행이 아니라 multi-window rollup 단위 실행을 우선 검토한다.
 
 이 판단의 이유는 다음과 같다.
 
@@ -126,7 +125,7 @@ Sliding Window는 window마다 full pipeline을 실행하는 구조로 확정하
 
 prepare-only window 결과는 아직 보안 보고서가 아니라 rollup을 만들기 위한 중간 산출물이다. 따라서 기본적으로 `runs/`에 저장하지 않는다.
 
-권장 layout 후보:
+권장 layout:
 
 ```text
 data/windowed/
@@ -182,7 +181,7 @@ runs/
 - prepare-only window에서는 `runs/`를 만들지 않는다.
 - rollup 이후 Stage1/Stage2 report를 생성할 때만 `run_analysis_pipeline.py` 또는 stage1/stage2 wrapper를 사용해 `runs/<rollup_run_id>/`를 만든다.
 
-운영 scheduler의 window prepare 기본 후보는 `prepare_llm_input.py` 직접 호출이다.
+운영 scheduler의 window prepare 호출은 다음 형태를 기준으로 한다.
 
 ```text
 export_db_logs_cli.py
@@ -217,8 +216,6 @@ filtered_out_rows.json  # --write-filtered-out 사용 시
 `--flat-output-names`와 `--base-name`은 함께 쓰지 않는다.
 
 `window_summary.json`은 prepare/scoring/filtering을 변경하지 않고 기존 prepare 산출물을 읽어서 만드는 후처리 artifact로 둔다.
-
-`run_analysis_pipeline.py --stop-after prepare --processed-dir ... --reports-dir ...` 방식은 smoke test 또는 호환성 검증에는 사용할 수 있다. 그러나 scheduler 운영 기본 구조로 확정하지 않는다.
 
 ## 6. CLI 호환성 검토 결과
 
@@ -289,8 +286,6 @@ Level 2. prepare smoke
 - runs/가 아니라 data/windowed/<date>/<window_id>/에 저장
 ```
 
-초기 검증은 Level 0부터 시작하고, 그 다음 일부 window에 대해서만 Level 1 export smoke를 수행했다. 하루치 전체 window를 처음부터 모두 export/prepare하지 않는다.
-
 ### 7.2 Level 0 planner 구현 및 검증 결과
 
 `src/sliding_window_scheduler.py`의 planner mode를 추가했다.
@@ -348,16 +343,6 @@ python3 -m pytest -q \
 수동 smoke 결과:
 
 ```text
-python3 src/sliding_window_scheduler.py \
-  --work-dir /opt/web_log_analysis \
-  --analysis-start "2026-05-23 09:00:00" \
-  --analysis-end "2026-05-23 10:00:00" \
-  --window-minutes 60 \
-  --stride-minutes 60 \
-  --mode export \
-  --table security \
-  --export-pretty
-
 [SW] export summary: exported=1 skipped_existing=0 failed=0
 ```
 
@@ -428,22 +413,84 @@ python3 -m py_compile src/prepare_llm_input.py
 python3 -m pytest -q tests/test_prepare_llm_input_output_names.py
 # 4 passed
 
-python3 -m pytest -q tests/test_sliding_window_scheduler.py
-# 8 passed
-
-python3 -m pytest -q \
-  tests/test_sliding_window_scheduler.py \
-  tests/test_explain_prepare_candidates.py \
-  tests/test_prepare_status_error_only_candidate_policy.py \
-  tests/test_prepare_scanner_probe_candidate_policy.py
-# 32 passed
-
 python3 scripts/check_prepare_regression.py --strict
 # pass=25 warn=0 fail=0
 
 python3 scripts/check_stage_dryrun_regression.py --strict
 # pass=19 warn=0 fail=0
 ```
+
+### 7.5 Level 2 prepare mode 구현 및 검증 결과
+
+`src/sliding_window_scheduler.py --mode prepare`를 추가했다.
+
+구현 범위:
+
+- window별 `export.json` 존재 확인
+- `prepare_llm_input.py --flat-output-names` 호출
+- `--out-dir`은 window root로 지정
+- `llm_input.json`, `analysis_candidates.json`, `noise_summary.json` 생성 확인
+- stage1/stage2/viewer_payload 실행 없음
+- `runs/` 생성 없음
+
+보수적 상태 정책:
+
+```text
+export.json 없음
+  -> missing_export, 기본 stop
+
+output 3종 모두 이미 있음
+  -> skipped_existing
+
+output 일부만 있음
+  -> partial_existing, 기본 stop
+
+prepare 실행 성공 후 output 누락
+  -> missing_output
+
+--overwrite
+  -> 기존 output이 있어도 재실행 허용
+
+--keep-going
+  -> 실패 후 다음 window 계속 처리
+```
+
+테스트 결과:
+
+```text
+python3 -m py_compile src/sliding_window_scheduler.py
+python3 -m pytest -q tests/test_sliding_window_scheduler.py
+# 13 passed
+
+python3 -m pytest -q \
+  tests/test_sliding_window_scheduler.py \
+  tests/test_prepare_llm_input_output_names.py \
+  tests/test_explain_prepare_candidates.py \
+  tests/test_prepare_status_error_only_candidate_policy.py \
+  tests/test_prepare_scanner_probe_candidate_policy.py
+# 41 passed
+```
+
+수동 1-window smoke 결과:
+
+```text
+--mode export
+[SW] export summary: exported=1 skipped_existing=0 failed=0
+
+--mode prepare
+[SW] prepare summary: prepared=1 skipped_existing=0 missing_export=0 partial_existing=0 missing_output=0 failed=0
+```
+
+생성된 window root artifact:
+
+```text
+data/windowed/2026-05-23/sw_0900_1000/analysis_candidates.json
+data/windowed/2026-05-23/sw_0900_1000/export.json
+data/windowed/2026-05-23/sw_0900_1000/llm_input.json
+data/windowed/2026-05-23/sw_0900_1000/noise_summary.json
+```
+
+`runs/sw_*` 디렉터리는 생성되지 않았고, smoke 후 `git status --short`는 clean이었다.
 
 ## 8. 구현 전 보류 항목
 
@@ -476,16 +523,20 @@ Sliding Window는 실행 단위와 비용/토큰 제어를 위한 운영 전략�
 
 ## 10. 다음 판단 대상
 
-다음 단계는 `sliding_window_scheduler.py --mode prepare` 구현 여부 판단이다.
+다음 단계는 `window_summary.json` 최소 포맷 설계다.
 
-Level 2 후보 범위:
+후보 범위:
 
 ```text
-- 일부 window의 export.json을 입력으로 prepare_llm_input.py 실행
-- prepare_llm_input.py --flat-output-names 사용
-- data/windowed/<date>/<window_id>/에 llm_input.json / analysis_candidates.json / noise_summary.json 직접 생성
-- window_summary.json 생성 후보 검토
+- export_counts
+- candidate_count
+- noise_group_count
+- artifact_status
+- selected_source_tables
+- policy_distribution 후보
 - stage1/stage2/viewer_payload 실행 없음
 - runs/ 생성 없음
 - prepare/scoring/filtering 변경 없음
 ```
+
+그 다음에야 multi-window rollup input 포맷, request_id dedup 기준, src_ip/uri/payload family 장기 aggregation 기준을 설계한다.
