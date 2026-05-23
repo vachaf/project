@@ -6,6 +6,14 @@
 
 `prepare_llm_input.py`는 여전히 coordinator 역할을 유지한다. 이 폴더의 모듈들은 기존 공개 함수명 wrapper를 통해 호출되며, output key, counts, policy_notes, candidate/scoring/filtering, supporting_events 의미를 바꾸지 않는 mechanical refactor를 원칙으로 한다.
 
+## 출력 파일명
+
+`prepare_llm_input.py`의 기본 출력명은 기존 호환성을 위해 `<base>_llm_input.json`, `<base>_analysis_candidates.json`, `<base>_noise_summary.json` 형식을 유지한다.
+
+windowed/scheduler artifact처럼 표준 파일명이 필요한 경우 `--flat-output-names`를 사용한다. 이 옵션은 output key/count/scoring/filtering 의미를 바꾸지 않고 파일명만 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json`으로 바꾼다. `--write-filtered-out`를 함께 쓰면 `filtered_out_rows.json`도 같은 방식으로 저장한다.
+
+`--flat-output-names`와 `--base-name`은 함께 쓰지 않는다.
+
 ## 현재 모듈
 
 ```text

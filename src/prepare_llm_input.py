@@ -24,6 +24,7 @@ LLM 분석용 정제 산출물을 생성하는 전처리 스크립트.
 - <base>_analysis_candidates.json
 - <base>_noise_summary.json
 - <base>_filtered_out_rows.json (선택)
+- 또는 --flat-output-names 사용 시 접두어 없는 표준 파일명
 """
 
 from __future__ import annotations
@@ -530,7 +531,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Export JSON을 LLM 분석용으로 정제합니다.")
     parser.add_argument("--input", required=True, help="export_db_logs_cli.py 결과 JSON")
     parser.add_argument("--out-dir", default=".", help="산출물 저장 디렉터리")
-    parser.add_argument("--base-name", default=None, help="산출물 파일명 접두어")
+    output_name_group = parser.add_mutually_exclusive_group()
+    output_name_group.add_argument("--base-name", default=None, help="산출물 파일명 접두어")
+    output_name_group.add_argument(
+        "--flat-output-names",
+        action="store_true",
+        help="접두어 없이 표준 파일명(llm_input.json 등)으로 저장",
+    )
     parser.add_argument("--min-score", type=int, default=4, help="후보 포함 최소 점수")
     parser.add_argument("--min-repeat-aggregate", type=int, default=3, help="반복 정상 요청 집계 최소 건수")
     parser.add_argument("--include-source-tables", default="security", help="분석에 포함할 소스 테이블 쉼표 목록 (기본값: security, 예: security,error)")
@@ -4313,6 +4320,24 @@ def derive_base_name(input_path: str, explicit_base_name: Optional[str]) -> str:
     return os.path.splitext(os.path.basename(input_path))[0]
 
 
+def build_output_paths(input_path: str, out_dir: str, explicit_base_name: Optional[str], flat_output_names: bool) -> Dict[str, str]:
+    if flat_output_names:
+        return {
+            "llm_input": os.path.join(out_dir, "llm_input.json"),
+            "analysis_candidates": os.path.join(out_dir, "analysis_candidates.json"),
+            "noise_summary": os.path.join(out_dir, "noise_summary.json"),
+            "filtered_out_rows": os.path.join(out_dir, "filtered_out_rows.json"),
+        }
+
+    base_name = derive_base_name(input_path, explicit_base_name)
+    return {
+        "llm_input": os.path.join(out_dir, f"{base_name}_llm_input.json"),
+        "analysis_candidates": os.path.join(out_dir, f"{base_name}_analysis_candidates.json"),
+        "noise_summary": os.path.join(out_dir, f"{base_name}_noise_summary.json"),
+        "filtered_out_rows": os.path.join(out_dir, f"{base_name}_filtered_out_rows.json"),
+    }
+
+
 def main() -> None:
     args = parse_args()
     payload = load_json(args.input)
@@ -4325,26 +4350,25 @@ def main() -> None:
         source_tables=source_tables,
     )
 
-    base_name = derive_base_name(args.input, args.base_name)
-    out_dir = args.out_dir
+    output_paths = build_output_paths(
+        args.input,
+        args.out_dir,
+        explicit_base_name=args.base_name,
+        flat_output_names=args.flat_output_names,
+    )
 
-    llm_input_path = os.path.join(out_dir, f"{base_name}_llm_input.json")
-    candidates_path = os.path.join(out_dir, f"{base_name}_analysis_candidates.json")
-    noise_path = os.path.join(out_dir, f"{base_name}_noise_summary.json")
-    filtered_path = os.path.join(out_dir, f"{base_name}_filtered_out_rows.json")
-
-    dump_json(llm_input_path, llm_input, pretty=args.pretty)
-    dump_json(candidates_path, candidate_payload, pretty=args.pretty)
-    dump_json(noise_path, noise_payload, pretty=args.pretty)
+    dump_json(output_paths["llm_input"], llm_input, pretty=args.pretty)
+    dump_json(output_paths["analysis_candidates"], candidate_payload, pretty=args.pretty)
+    dump_json(output_paths["noise_summary"], noise_payload, pretty=args.pretty)
     if args.write_filtered_out:
-        dump_json(filtered_path, filtered_payload, pretty=args.pretty)
+        dump_json(output_paths["filtered_out_rows"], filtered_payload, pretty=args.pretty)
 
-    print(f"[OK] llm_input: {llm_input_path}")
+    print(f"[OK] llm_input: {output_paths['llm_input']}")
     print(f"[OK] selected_source_tables: {','.join(source_tables)}")
-    print(f"[OK] analysis_candidates: {candidates_path}")
-    print(f"[OK] noise_summary: {noise_path}")
+    print(f"[OK] analysis_candidates: {output_paths['analysis_candidates']}")
+    print(f"[OK] noise_summary: {output_paths['noise_summary']}")
     if args.write_filtered_out:
-        print(f"[OK] filtered_out_rows: {filtered_path}")
+        print(f"[OK] filtered_out_rows: {output_paths['filtered_out_rows']}")
     print(
         "[INFO] counts="
         f"total={llm_input['meta']['counts']['total_exported_rows']} "
