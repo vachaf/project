@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 
@@ -13,6 +14,10 @@ def load_module():
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
+    
+    # dataclasses가 모듈의 __dict__를 조회할 수 있도록 sys.modules에 강제로 등록
+    sys.modules["sliding_window_scheduler"] = module
+    
     spec.loader.exec_module(module)
     return module
 
