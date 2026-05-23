@@ -44,6 +44,25 @@ def build_plan(tmp_path: Path, *extra_args: str):
     return module.build_plan(args)
 
 
+def make_scripts_dir(tmp_path: Path, *script_names: str) -> Path:
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+    for script_name in script_names:
+        (scripts_dir / script_name).write_text(f"# fake {script_name}\n", encoding="utf-8")
+    return scripts_dir
+
+
+def make_export(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('{"meta":{"table_option":"security"},"data":{"security":[]}}', encoding="utf-8")
+
+
+def make_prepare_outputs(window_dir: Path, *names: str) -> None:
+    window_dir.mkdir(parents=True, exist_ok=True)
+    for name in names:
+        (window_dir / name).write_text("{}", encoding="utf-8")
+
+
 def test_one_hour_windows_resolve_to_windowed_paths(tmp_path: Path):
     plan = build_plan(
         tmp_path,
@@ -164,10 +183,8 @@ def test_export_mode_builds_export_commands_without_runs_dir(tmp_path: Path, mon
     )
     plan = module.build_plan(args)
 
-    scripts_dir = tmp_path / "scripts"
-    scripts_dir.mkdir()
+    scripts_dir = make_scripts_dir(tmp_path, "export_db_logs_cli.py")
     export_script = scripts_dir / "export_db_logs_cli.py"
-    export_script.write_text("# fake export script\n", encoding="utf-8")
     args.scripts_dir = str(scripts_dir)
 
     calls = []
@@ -182,8 +199,7 @@ def test_export_mode_builds_export_commands_without_runs_dir(tmp_path: Path, mon
         })
         # Simulate export_db_logs_cli.py creating the requested file.
         out_path = Path(cmd[cmd.index("--out") + 1])
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text('{"meta":{"table_option":"security"},"data":{"security":[]}}', encoding="utf-8")
+        make_export(out_path)
         return subprocess.CompletedProcess(cmd, 0, stdout="[OK] fake export\n", stderr="")
 
     monkeypatch.setattr(module.subprocess, "run", fake_run)
@@ -219,14 +235,11 @@ def test_export_mode_skips_existing_export_without_overwrite(tmp_path: Path):
     )
     plan = module.build_plan(args)
 
-    scripts_dir = tmp_path / "scripts"
-    scripts_dir.mkdir()
-    (scripts_dir / "export_db_logs_cli.py").write_text("# fake export script\n", encoding="utf-8")
+    scripts_dir = make_scripts_dir(tmp_path, "export_db_logs_cli.py")
     args.scripts_dir = str(scripts_dir)
 
     existing = tmp_path / "data/windowed/2026-05-23/sw_0900_1000/export.json"
-    existing.parent.mkdir(parents=True)
-    existing.write_text("{}", encoding="utf-8")
+    make_export(existing)
 
     summary = module.run_export_mode(args, plan)
 
@@ -249,9 +262,7 @@ def test_export_mode_reports_failure_and_stops_by_default(tmp_path: Path, monkey
     )
     plan = module.build_plan(args)
 
-    scripts_dir = tmp_path / "scripts"
-    scripts_dir.mkdir()
-    (scripts_dir / "export_db_logs_cli.py").write_text("# fake export script\n", encoding="utf-8")
+    scripts_dir = make_scripts_dir(tmp_path, "export_db_logs_cli.py")
     args.scripts_dir = str(scripts_dir)
 
     calls = []
@@ -268,3 +279,163 @@ def test_export_mode_reports_failure_and_stops_by_default(tmp_path: Path, monkey
     assert summary["failed_count"] == 1
     assert summary["first_error_return_code"] == 7
     assert len(calls) == 1
+
+
+def test_prepare_mode_builds_flat_prepare_commands_without_runs_dir(tmp_path: Path, monkeypatch):
+    module, args = build_args(
+        tmp_path,
+        "--window-minutes",
+        "60",
+        "--stride-minutes",
+        "60",
+        "--mode",
+        "prepare",
+    )
+    plan = module.build_plan(args)
+
+    scripts_dir = make_scripts_dir(tmp_path, "prepare_llm_input.py")
+    prepare_script = scripts_dir / "prepare_llm_input.py"
+    args.scripts_dir = str(scripts_dir)
+
+    for item in plan["windows"]:
+        make_export(tmp_path / item["export_path"])
+
+    calls = []
+
+    def fake_run(cmd, cwd, text, capture_output, check):
+        calls.append({"cmd": cmd, "cwd": cwd})
+        out_dir = Path(cmd[cmd.index("--out-dir") + 1])
+        make_prepare_outputs(out_dir, "llm_input.json", "analysis_candidates.json", "noise_summary.json")
+        return subprocess.CompletedProcess(cmd, 0, stdout="[OK] fake prepare\n", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    summary = module.run_prepare_mode(args, plan)
+
+    assert summary["prepared_count"] == 2
+    assert summary["skipped_existing_count"] == 0
+    assert summary["missing_export_count"] == 0
+    assert summary["partial_existing_count"] == 0
+    assert summary["failed_count"] == 0
+    assert len(calls) == 2
+
+    first_cmd = calls[0]["cmd"]
+    assert first_cmd[:2] == [sys.executable, str(prepare_script)]
+    assert first_cmd[first_cmd.index("--input") + 1] == str(tmp_path / "data/windowed/2026-05-23/sw_0900_1000/export.json")
+    assert first_cmd[first_cmd.index("--out-dir") + 1] == str(tmp_path / "data/windowed/2026-05-23/sw_0900_1000")
+    assert "--flat-output-names" in first_cmd
+    assert calls[0]["cwd"] == str(tmp_path)
+    assert "runs/" not in repr(summary)
+
+
+def test_prepare_mode_skips_when_all_flat_outputs_exist(tmp_path: Path):
+    module, args = build_args(
+        tmp_path,
+        "--window-minutes",
+        "60",
+        "--stride-minutes",
+        "60",
+        "--mode",
+        "prepare",
+    )
+    plan = module.build_plan(args)
+
+    scripts_dir = make_scripts_dir(tmp_path, "prepare_llm_input.py")
+    args.scripts_dir = str(scripts_dir)
+
+    first_window = tmp_path / "data/windowed/2026-05-23/sw_0900_1000"
+    make_export(first_window / "export.json")
+    make_prepare_outputs(first_window, "llm_input.json", "analysis_candidates.json", "noise_summary.json")
+
+    second_window = tmp_path / "data/windowed/2026-05-23/sw_1000_1100"
+    make_export(second_window / "export.json")
+
+    summary = module.run_prepare_mode(args, plan)
+
+    assert summary["prepared_count"] == 1
+    assert summary["skipped_existing_count"] == 1
+    assert summary["failed_count"] == 0
+    assert summary["results"][0]["status"] == "skipped_existing"
+    assert summary["results"][1]["status"] == "prepared"
+
+
+def test_prepare_mode_reports_missing_export_and_stops_by_default(tmp_path: Path):
+    module, args = build_args(
+        tmp_path,
+        "--window-minutes",
+        "60",
+        "--stride-minutes",
+        "60",
+        "--mode",
+        "prepare",
+    )
+    plan = module.build_plan(args)
+
+    scripts_dir = make_scripts_dir(tmp_path, "prepare_llm_input.py")
+    args.scripts_dir = str(scripts_dir)
+
+    summary = module.run_prepare_mode(args, plan)
+
+    assert summary["prepared_count"] == 0
+    assert summary["missing_export_count"] == 1
+    assert summary["first_error_return_code"] == 2
+    assert len(summary["results"]) == 1
+    assert summary["results"][0]["status"] == "missing_export"
+
+
+def test_prepare_mode_reports_partial_existing_outputs(tmp_path: Path):
+    module, args = build_args(
+        tmp_path,
+        "--window-minutes",
+        "60",
+        "--stride-minutes",
+        "60",
+        "--mode",
+        "prepare",
+    )
+    plan = module.build_plan(args)
+
+    scripts_dir = make_scripts_dir(tmp_path, "prepare_llm_input.py")
+    args.scripts_dir = str(scripts_dir)
+
+    first_window = tmp_path / "data/windowed/2026-05-23/sw_0900_1000"
+    make_export(first_window / "export.json")
+    make_prepare_outputs(first_window, "llm_input.json")
+
+    summary = module.run_prepare_mode(args, plan)
+
+    assert summary["prepared_count"] == 0
+    assert summary["partial_existing_count"] == 1
+    assert summary["first_error_return_code"] == 2
+    assert len(summary["results"]) == 1
+    assert summary["results"][0]["status"] == "partial_existing"
+
+
+def test_prepare_mode_reports_missing_output_after_success(tmp_path: Path, monkeypatch):
+    module, args = build_args(
+        tmp_path,
+        "--window-minutes",
+        "60",
+        "--stride-minutes",
+        "60",
+        "--mode",
+        "prepare",
+    )
+    plan = module.build_plan(args)
+
+    scripts_dir = make_scripts_dir(tmp_path, "prepare_llm_input.py")
+    args.scripts_dir = str(scripts_dir)
+
+    make_export(tmp_path / "data/windowed/2026-05-23/sw_0900_1000/export.json")
+
+    def fake_run(cmd, cwd, text, capture_output, check):
+        return subprocess.CompletedProcess(cmd, 0, stdout="[OK] fake prepare without outputs\n", stderr="")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    summary = module.run_prepare_mode(args, plan)
+
+    assert summary["prepared_count"] == 0
+    assert summary["missing_output_count"] == 1
+    assert summary["first_error_return_code"] == 1
+    assert summary["results"][0]["status"] == "missing_output"
