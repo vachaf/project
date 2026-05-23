@@ -55,10 +55,22 @@
   - skip smoke: `exported=0 skipped_existing=1 failed=0` 확인.
   - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 8 passed.
   - 검증: sliding window + candidate policy quick regression set → 32 passed.
-- [ ] Sliding Window Level 2 prepare smoke 구현 여부 판단
-  - 일부 window의 `export.json`을 입력으로 `prepare_llm_input.py`만 실행하는 mode를 검토한다.
-  - `data/windowed/<date>/<window_id>/prepared/`에 원본 prepare 산출물을 저장한다.
-  - window root에 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json` 정규화 복사 또는 링크를 둘지 판단한다.
+- [x] prepare flat output names 추가 및 검증
+  - `src/prepare_llm_input.py --flat-output-names` 추가 완료.
+  - 기본 `<base>_llm_input.json` naming은 유지한다.
+  - `--flat-output-names` 사용 시 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json`을 out-dir에 직접 생성한다.
+  - `--flat-output-names`와 `--base-name`은 argparse 상호배타로 막는다.
+  - `src/prepare/README.md`에 기본 naming과 flat naming 정책을 기록했다.
+  - `tests/test_prepare_llm_input_output_names.py` 추가 완료.
+  - 검증: `python3 -m pytest -q tests/test_prepare_llm_input_output_names.py` → 4 passed.
+  - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 8 passed.
+  - 검증: sliding window + candidate policy quick regression set → 32 passed.
+  - 검증: prepare regression → `pass=25 warn=0 fail=0`.
+  - 검증: stage dry-run regression → `pass=19 warn=0 fail=0`.
+- [ ] Sliding Window Level 2 prepare mode 구현 여부 판단
+  - 일부 window의 `export.json`을 입력으로 `prepare_llm_input.py --flat-output-names`만 실행하는 mode를 검토한다.
+  - `data/windowed/<date>/<window_id>/`에 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json`을 직접 생성한다.
+  - `prepared/` 하위 디렉터리 생성 후 copy/symlink하는 구조는 기본안에서 제외한다.
   - `window_summary.json` 생성 후보를 검토한다.
   - stage1/stage2/viewer_payload는 계속 제외한다.
   - `runs/`는 생성하지 않는다.
