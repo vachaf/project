@@ -24,36 +24,18 @@
 ## P0. Sliding Window 후속 작업
 
 - [x] Sliding Window 문서 세트 repo 수용 범위 검토
-  - 검토 문서: [../design/99_sliding_window_adoption_review.md](../design/99_sliding_window_adoption_review.md)
-  - 팀원 작성 문서 4개는 그대로 편입하지 않고, 현재 repo 기준 adoption review 문서에 수용/보류 범위를 정리했다.
 - [x] Sliding Window 예시 명령과 현재 CLI 옵션 호환성 확인
-  - `src/export_db_logs_cli.py`
-  - `src/run_analysis_pipeline.py`
-  - `src/prepare_llm_input.py`
-  - `src/llm_stage1_classifier.py`
-  - `src/llm_stage2_reporter.py`
-  - direct CLI와 pipeline wrapper의 옵션명 차이를 adoption review에 기록했다.
 - [x] Sliding Window dry-run 검증 범위 확정
-  - scheduler 구현 전 historical export 1~2시간 범위에서 planner dry-run, export smoke, prepare smoke를 단계 분리하는 방향으로 고정했다.
-  - stage1/stage2 live 호출은 제외한다.
-  - partial final window 포함 여부와 `runs/` 미생성 정책을 검증 항목으로 둔다.
-  - prepare/scoring/filtering 변경은 하지 않는다.
 - [x] Sliding Window planner mode 구현 및 검증
   - `src/sliding_window_scheduler.py` planner mode 추가 완료.
-  - `tests/test_sliding_window_scheduler.py` 추가 완료.
   - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 5 passed.
   - 검증: sliding window + candidate policy quick regression set → 29 passed.
-  - planner는 window/path 계산만 수행하며 export/prepare/stage1/stage2는 실행하지 않는다.
 - [x] Sliding Window Level 1 export mode 구현 및 검증
   - `src/sliding_window_scheduler.py --mode export` 추가 완료.
-  - 일부 window에 대해 `data/windowed/<date>/<window_id>/export.json`만 생성하는 mode를 구현했다.
-  - prepare/stage1/stage2는 계속 제외한다.
+  - `data/windowed/<date>/<window_id>/export.json`만 생성한다.
+  - prepare/stage1/stage2는 제외한다.
   - `runs/`는 생성하지 않는다.
-  - 기존 `export.json`이 있으면 기본 skip, `--overwrite` 지정 시 재생성한다.
-  - 수동 smoke: `exported=1 skipped_existing=0 failed=0` 확인.
-  - payload shape: `meta.table_option=security`, `data.security` 존재 확인.
-  - skip smoke: `exported=0 skipped_existing=1 failed=0` 확인.
-  - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 8 passed.
+  - 검증: scheduler test → 8 passed.
   - 검증: sliding window + candidate policy quick regression set → 32 passed.
 - [x] prepare flat output names 추가 및 검증
   - `src/prepare_llm_input.py --flat-output-names` 추가 완료.
@@ -61,32 +43,39 @@
   - `--flat-output-names` 사용 시 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json`을 out-dir에 직접 생성한다.
   - `--flat-output-names`와 `--base-name`은 argparse 상호배타로 막는다.
   - `src/prepare/README.md`에 기본 naming과 flat naming 정책을 기록했다.
-  - `tests/test_prepare_llm_input_output_names.py` 추가 완료.
-  - 검증: `python3 -m pytest -q tests/test_prepare_llm_input_output_names.py` → 4 passed.
-  - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 8 passed.
-  - 검증: sliding window + candidate policy quick regression set → 32 passed.
+  - 검증: `tests/test_prepare_llm_input_output_names.py` → 4 passed.
   - 검증: prepare regression → `pass=25 warn=0 fail=0`.
   - 검증: stage dry-run regression → `pass=19 warn=0 fail=0`.
 - [x] Sliding Window Level 2 prepare mode 구현 및 검증
   - `src/sliding_window_scheduler.py --mode prepare` 추가 완료.
-  - 일부 window의 `export.json`을 입력으로 `prepare_llm_input.py --flat-output-names`만 실행하는 mode를 구현했다.
+  - 일부 window의 `export.json`을 입력으로 `prepare_llm_input.py --flat-output-names`만 실행한다.
   - `data/windowed/<date>/<window_id>/`에 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json`을 직접 생성한다.
   - `prepared/` 하위 디렉터리 생성 후 copy/symlink하는 구조는 기본안에서 제외했다.
   - stage1/stage2/viewer_payload는 실행하지 않는다.
   - `runs/`는 생성하지 않는다.
-  - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 13 passed.
+  - 검증: scheduler test → 13 passed.
   - 검증: sliding window + prepare output + candidate policy quick bundle → 41 passed.
   - 수동 smoke: `prepared=1 skipped_existing=0 missing_export=0 partial_existing=0 missing_output=0 failed=0` 확인.
-  - window root artifact: `export.json`, `llm_input.json`, `analysis_candidates.json`, `noise_summary.json` 확인.
-  - `runs/sw_*` 미생성 및 `git status --short` clean 확인.
-- [ ] `window_summary.json` 최소 포맷 설계
-  - export_counts
-  - candidate_count
-  - noise_group_count
-  - artifact_status
-  - selected_source_tables
-  - policy_distribution 후보
-  - 새 보안 판단이나 severity/category/verdict 재계산 없이 기존 artifact 요약만 허용한다.
+- [x] `window_summary.json` v1 생성 및 검증
+  - `src/sliding_window_summary.py` 추가 완료.
+  - `src/sliding_window_scheduler.py --mode prepare`에서 prepare 성공 후 `window_summary.json`을 자동 생성한다.
+  - prepare output 3종이 이미 있어 `skipped_existing`인 경우에도 `window_summary.json`이 없으면 생성한다.
+  - `window_summary.json`이 이미 있고 `--overwrite`가 없으면 유지한다.
+  - `artifact_status.window_summary.exists=true`로 저장되는지 확인했다.
+  - `candidate_index`에는 `request_id`, `src_ip`, `method`, `uri`, `status_code`, `score`, `verdict_hint`, `reason_hint_prefixes`만 넣는다.
+  - `raw_log`, `raw_request`, `user_agent`, `referer`는 복제하지 않는다.
+  - `policy_distribution`, severity/category/final verdict/success 판단은 넣지 않는다.
+  - 검증: `tests/test_sliding_window_summary.py`, `tests/test_sliding_window_scheduler_summary.py`, `tests/test_sliding_window_scheduler.py` → 18 passed.
+  - 검증: sliding window summary + scheduler + prepare output + candidate policy quick bundle → 46 passed.
+- [ ] multi-window rollup input 포맷 설계
+  - rollup 대상 `window_summary.json` 목록 수집 기준
+  - request_id dedup 기준
+  - candidate_index merge 기준
+  - src_ip / uri family / reason_hint_prefix 장기 aggregation 기준
+  - low-and-slow 후보는 단일 window가 아니라 rollup 단계에서만 후보화한다.
+  - stage1/stage2/viewer_payload는 계속 제외한다.
+  - `runs/`는 생성하지 않는다.
+  - prepare/scoring/filtering 변경은 하지 않는다.
 - [ ] Sliding Window 실행 단위 재검토
   - [x] prepare-only window mode 검토
   - [ ] multi-window rollup input 포맷 설계
