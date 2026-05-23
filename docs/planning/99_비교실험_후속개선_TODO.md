@@ -34,7 +34,7 @@
   - `src/llm_stage2_reporter.py`
   - direct CLI와 pipeline wrapper의 옵션명 차이를 adoption review에 기록했다.
 - [x] Sliding Window dry-run 검증 범위 확정
-  - scheduler 구현 전 historical export 1~2시간 범위에서 planner dry-run과 일부 export/prepare smoke를 단계 분리하는 방향으로 고정했다.
+  - scheduler 구현 전 historical export 1~2시간 범위에서 planner dry-run, export smoke, prepare smoke를 단계 분리하는 방향으로 고정했다.
   - stage1/stage2 live 호출은 제외한다.
   - partial final window 포함 여부와 `runs/` 미생성 정책을 검증 항목으로 둔다.
   - prepare/scoring/filtering 변경은 하지 않는다.
@@ -43,10 +43,24 @@
   - `tests/test_sliding_window_scheduler.py` 추가 완료.
   - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 5 passed.
   - 검증: sliding window + candidate policy quick regression set → 29 passed.
-  - planner는 window/path 계산만 수행하며 export/prepare/stage1/stage2는 아직 실행하지 않는다.
-- [ ] Sliding Window Level 1 export smoke 구현 여부 판단
-  - 일부 window에 대해 `data/windowed/<date>/<window_id>/export.json`만 생성하는 mode를 검토한다.
+  - planner는 window/path 계산만 수행하며 export/prepare/stage1/stage2는 실행하지 않는다.
+- [x] Sliding Window Level 1 export mode 구현 및 검증
+  - `src/sliding_window_scheduler.py --mode export` 추가 완료.
+  - 일부 window에 대해 `data/windowed/<date>/<window_id>/export.json`만 생성하는 mode를 구현했다.
   - prepare/stage1/stage2는 계속 제외한다.
+  - `runs/`는 생성하지 않는다.
+  - 기존 `export.json`이 있으면 기본 skip, `--overwrite` 지정 시 재생성한다.
+  - 수동 smoke: `exported=1 skipped_existing=0 failed=0` 확인.
+  - payload shape: `meta.table_option=security`, `data.security` 존재 확인.
+  - skip smoke: `exported=0 skipped_existing=1 failed=0` 확인.
+  - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 8 passed.
+  - 검증: sliding window + candidate policy quick regression set → 32 passed.
+- [ ] Sliding Window Level 2 prepare smoke 구현 여부 판단
+  - 일부 window의 `export.json`을 입력으로 `prepare_llm_input.py`만 실행하는 mode를 검토한다.
+  - `data/windowed/<date>/<window_id>/prepared/`에 원본 prepare 산출물을 저장한다.
+  - window root에 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json` 정규화 복사 또는 링크를 둘지 판단한다.
+  - `window_summary.json` 생성 후보를 검토한다.
+  - stage1/stage2/viewer_payload는 계속 제외한다.
   - `runs/`는 생성하지 않는다.
 - [ ] Sliding Window 실행 단위 재검토
   - [x] prepare-only window mode 검토
