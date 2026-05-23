@@ -8,6 +8,7 @@ Phase 1 scope
 - Resolve data/windowed and data/rollups artifact paths.
 - Export window-scoped JSON artifacts when --mode export is used.
 - Generate prepare-only window artifacts when --mode prepare is used.
+- Generate window_summary.json as a summary-only index artifact.
 - Do not run stage1/stage2 yet.
 - Do not create runs/ directories for window artifacts.
 
@@ -27,6 +28,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, List, Optional
 from zoneinfo import ZoneInfo
+
+from sliding_window_summary import write_window_summary
 
 DEFAULT_TIMEZONE = "Asia/Seoul"
 DEFAULT_WINDOW_OUTPUT_ROOT = "data/windowed"
@@ -406,6 +409,20 @@ def classify_prepare_existing_outputs(output_paths: list[Path]) -> str:
     return "none"
 
 
+def maybe_write_summary(
+    *,
+    item: dict[str, Any],
+    window_dir: Path,
+    work_dir: Path,
+    overwrite: bool,
+) -> tuple[str, str]:
+    summary_path = path_from_plan_value(work_dir, str(item["window_summary_path"]))
+    if summary_path.exists() and not overwrite:
+        return "skipped_existing", path_for_display(summary_path, work_dir)
+    output_path = write_window_summary(item, window_dir)
+    return "written", path_for_display(output_path, work_dir)
+
+
 def run_prepare_mode(args: argparse.Namespace, plan: dict[str, Any]) -> dict[str, Any]:
     work_dir = Path(plan["meta"]["work_dir"])
     scripts_dir = resolve_scripts_dir(work_dir, args.scripts_dir)
@@ -430,6 +447,8 @@ def run_prepare_mode(args: argparse.Namespace, plan: dict[str, Any]) -> dict[str
             "export_path": path_for_display(export_path, work_dir),
             "window_dir": path_for_display(window_dir, work_dir),
             "outputs": [path_for_display(path, work_dir) for path in output_paths],
+            "window_summary_path": path_for_display(path_from_plan_value(work_dir, str(item["window_summary_path"])), work_dir),
+            "summary_status": "not_attempted",
             "status": "pending",
             "return_code": None,
             "command": [],
@@ -447,8 +466,28 @@ def run_prepare_mode(args: argparse.Namespace, plan: dict[str, Any]) -> dict[str
 
         if output_status == "all" and not args.overwrite:
             result["status"] = "skipped_existing"
-            results.append(result)
             print(f"[SW] prepare skip existing: {result['window_dir']}")
+            try:
+                summary_status, summary_path = maybe_write_summary(
+                    item=item,
+                    window_dir=window_dir,
+                    work_dir=work_dir,
+                    overwrite=args.overwrite,
+                )
+                result["summary_status"] = summary_status
+                result["window_summary_path"] = summary_path
+                if summary_status == "written":
+                    print(f"[SW] summary written: {summary_path}")
+            except Exception as exc:
+                result["summary_status"] = "summary_failed"
+                result["status"] = "summary_failed"
+                result["summary_error"] = str(exc)
+                print(f"[SW] summary failed: {exc}", file=sys.stderr)
+                if first_error_rc == 0:
+                    first_error_rc = 1
+            results.append(result)
+            if result["status"] == "summary_failed" and not args.keep_going:
+                break
             continue
 
         if output_status == "partial" and not args.overwrite:
@@ -471,7 +510,24 @@ def run_prepare_mode(args: argparse.Namespace, plan: dict[str, Any]) -> dict[str
 
         result["return_code"] = completed.returncode
         if completed.returncode == 0 and all(path.exists() for path in output_paths):
-            result["status"] = "prepared"
+            try:
+                summary_status, summary_path = maybe_write_summary(
+                    item=item,
+                    window_dir=window_dir,
+                    work_dir=work_dir,
+                    overwrite=True,
+                )
+                result["summary_status"] = summary_status
+                result["window_summary_path"] = summary_path
+                print(f"[SW] summary written: {summary_path}")
+                result["status"] = "prepared"
+            except Exception as exc:
+                result["summary_status"] = "summary_failed"
+                result["summary_error"] = str(exc)
+                result["status"] = "summary_failed"
+                if first_error_rc == 0:
+                    first_error_rc = 1
+                print(f"[SW] summary failed: {exc}", file=sys.stderr)
         elif completed.returncode == 0:
             result["status"] = "missing_output"
             if first_error_rc == 0:
@@ -494,7 +550,10 @@ def run_prepare_mode(args: argparse.Namespace, plan: dict[str, Any]) -> dict[str
         "missing_export_count": sum(1 for item in results if item["status"] == "missing_export"),
         "partial_existing_count": sum(1 for item in results if item["status"] == "partial_existing"),
         "missing_output_count": sum(1 for item in results if item["status"] == "missing_output"),
+        "summary_failed_count": sum(1 for item in results if item["status"] == "summary_failed"),
         "failed_count": sum(1 for item in results if item["status"] == "failed"),
+        "summary_written_count": sum(1 for item in results if item["summary_status"] == "written"),
+        "summary_skipped_existing_count": sum(1 for item in results if item["summary_status"] == "skipped_existing"),
         "first_error_return_code": first_error_rc,
         "results": results,
     }
@@ -542,6 +601,8 @@ def print_prepare_summary(summary: dict[str, Any]) -> None:
         f"missing_export={summary['missing_export_count']} "
         f"partial_existing={summary['partial_existing_count']} "
         f"missing_output={summary['missing_output_count']} "
+        f"summary_failed={summary['summary_failed_count']} "
+        f"summary_written={summary['summary_written_count']} "
         f"failed={summary['failed_count']}"
     )
 
