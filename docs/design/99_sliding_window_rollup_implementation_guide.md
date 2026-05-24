@@ -44,78 +44,43 @@ tests/test_sliding_window_rollup.py
 
 ## 4. v1.0 함수 구조
 
+구현된 주요 함수:
+
 ```python
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 
-def discover_window_summary_paths(
-    *,
-    work_dir: Path,
-    analysis_start: str,
-    analysis_end: str,
-    window_minutes: int,
-    stride_minutes: int,
-    timezone: str = "Asia/Seoul",
-) -> List[Path]:
+def discover_window_summary_paths(...) -> list[Path]:
     """analysis range에 해당하는 window_summary.json 후보 경로를 계산한다."""
-    raise NotImplementedError
 
 
-def load_window_summaries(
-    window_summary_paths: List[Path],
-    *,
-    work_dir: Path,
-    strict: bool = False,
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+def load_window_summaries(...) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """window_summary.json들을 로드하고 window load status를 반환한다."""
-    raise NotImplementedError
 
 
-def merge_candidate_index(
-    window_summaries: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+def merge_candidate_index(window_summaries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """각 window의 candidate_index를 평탄화한다. request_id가 없어도 후보를 버리지 않는다."""
-    raise NotImplementedError
 
 
-def dedup_candidates_by_request_id(
-    candidates: List[Dict[str, Any]],
-) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+def dedup_candidates_by_request_id(candidates: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """request_id가 같은 후보만 merge한다. fallback duplicate는 표시만 한다."""
-    raise NotImplementedError
 
 
-def aggregate_distributions(
-    window_summaries: List[Dict[str, Any]],
-) -> Dict[str, Dict[str, int]]:
+def aggregate_distributions(window_summaries: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
     """window별 distributions를 합산한다."""
-    raise NotImplementedError
 
 
-def build_rollup_input(
-    *,
-    rollup_id: str,
-    analysis_start: str,
-    analysis_end: str,
-    timezone: str,
-    window_summaries: List[Dict[str, Any]],
-    window_load_status: List[Dict[str, Any]],
-) -> Dict[str, Any]:
-    """sliding_window_rollup_input_v1 객체를 생성한다."""
-    raise NotImplementedError
+def classify_rollup_outputs(out_dir: Path) -> tuple[str, list[str], list[str]]:
+    """rollup output 3종의 none/all/partial 상태를 분류한다."""
 
 
-def write_rollup_artifacts(
-    *,
-    out_dir: Path,
-    rollup_input: Dict[str, Any],
-    dedup_report: Dict[str, Any],
-    rollup_summary: Dict[str, Any],
-    pretty: bool = False,
-) -> None:
-    """rollup_input.json / dedup_candidates.json / rollup_summary.json을 쓴다."""
-    raise NotImplementedError
+def build_rollup_input(...) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """rollup_input, dedup_candidates, rollup_summary 객체를 생성한다."""
+
+
+def build_and_write_rollup(...) -> dict[str, Any]:
+    """output reuse policy를 적용하고 rollup artifact를 생성 또는 skip한다."""
 ```
 
 v1.0에서 다음 함수는 구현하지 않는다.
@@ -130,14 +95,7 @@ build_analysis_candidates_projection
 
 ## 5. discover_window_summary_paths 주의점
 
-scheduler의 window 계산 로직과 중복이 생길 수 있다. v1.0에서는 다음 중 하나를 선택한다.
-
-권장:
-
-```text
-- sliding_window_scheduler.py의 generate_windows / build_window_plan 함수를 재사용하거나
-- 동일 계산을 최소 구현하되 테스트로 window_id/path를 고정한다.
-```
+scheduler의 window 계산 로직과 중복이 생길 수 있다. v1.0에서는 동일 계산을 최소 구현하고 테스트로 window_id/path를 고정한다.
 
 출력 path는 repo root 기준으로 표현한다.
 
@@ -255,7 +213,60 @@ fallback key는 제거에 쓰지 않는다.
 
 fallback duplicate는 `possible_duplicates`에만 기록한다.
 
-## 9. v1.1 후보: uri_family hint
+## 9. output reuse policy
+
+대상 artifact:
+
+```text
+rollup_input.json
+dedup_candidates.json
+rollup_summary.json
+```
+
+상태 정책:
+
+```text
+none
+  -> written
+
+all + no --overwrite
+  -> skipped_existing
+
+partial + no --overwrite
+  -> partial existing error / return 2
+
+all 또는 partial + --overwrite
+  -> written
+```
+
+구현 요소:
+
+```text
+ROLLUP_OUTPUT_NAMES
+PartialExistingRollupArtifactsError
+rollup_output_paths
+classify_rollup_outputs
+load_existing_rollup_counts
+--overwrite
+```
+
+CLI text summary에는 `status`가 포함된다.
+
+```text
+[ROLLUP] status=skipped_existing
+[ROLLUP] summary: status=skipped_existing windows_loaded=3 windows_missing_or_failed=0 candidate_rows_total=5 candidate_index_count=5 dedup_removed_by_request_id=0
+```
+
+JSON summary에는 다음 필드가 포함된다.
+
+```text
+status
+existing_outputs
+missing_outputs
+counts
+```
+
+## 10. v1.1 후보: uri_family hint
 
 초안의 uri_family candidate 생성 로직은 v1.0에서 사용하지 않는다. v1.1에서 hint-only로 검토한다.
 
@@ -280,7 +291,7 @@ fallback duplicate는 `possible_duplicates`에만 기록한다.
 - analysis_candidates에 추가하지 않음
 ```
 
-## 10. v1.1 후보: low_and_slow hint
+## 11. v1.1 후보: low_and_slow hint
 
 출력 후보:
 
@@ -307,7 +318,7 @@ fallback duplicate는 `possible_duplicates`에만 기록한다.
 - Stage1 후보가 아니라 rollup_context hint다.
 ```
 
-## 11. rollup_input 생성
+## 12. rollup_input 생성
 
 ```python
 def build_rollup_input(...):
@@ -357,7 +368,7 @@ def build_rollup_input(...):
     }
 ```
 
-## 12. CLI 옵션 후보
+## 13. CLI 옵션
 
 ```text
 --work-dir
@@ -365,11 +376,14 @@ def build_rollup_input(...):
 --analysis-end
 --window-minutes
 --stride-minutes
+--window-output-root
 --rollup-output-root
 --out-dir
 --timezone Asia/Seoul
 --strict
+--overwrite
 --pretty
+--json
 ```
 
 v1.0에서 제외할 CLI 옵션:
@@ -382,19 +396,40 @@ v1.0에서 제외할 CLI 옵션:
 
 이 옵션들은 v1.1 hint 구현 시 검토한다.
 
-## 13. 테스트 전략
+## 14. 테스트 전략 및 현황
+
+구현된 주요 테스트:
 
 ```text
-test_discover_window_summary_paths_matches_scheduler_window_ids
+test_discover_window_summary_paths_matches_scheduler_layout
 test_load_window_summaries_records_missing_window
-test_invalid_schema_is_recorded_or_strict_failed
 test_request_id_dedup_merges_same_request_across_windows
-test_missing_request_id_is_preserved
-test_fallback_duplicate_is_marked_not_removed
-test_distributions_are_merged
-test_no_new_score_or_verdict_hint
-test_rollup_input_guardrails_are_present
-test_rollup_artifacts_are_written
+test_missing_request_id_is_preserved_and_fallback_duplicate_marked
+test_build_rollup_input_merges_distributions_and_preserves_guardrails
+test_build_and_write_rollup_creates_three_artifacts
+test_missing_window_is_recorded_in_rollup_summary
+test_rollup_skips_when_all_outputs_exist_without_overwrite
+test_rollup_fails_when_partial_outputs_exist_without_overwrite
+test_rollup_overwrite_recreates_existing_outputs
+```
+
+검증:
+
+```text
+python3 -m py_compile src/sliding_window_rollup.py
+python3 -m pytest -q tests/test_sliding_window_rollup.py
+# 10 passed
+
+python3 -m pytest -q \
+  tests/test_sliding_window_rollup.py \
+  tests/test_sliding_window_summary.py \
+  tests/test_sliding_window_scheduler_summary.py \
+  tests/test_sliding_window_scheduler.py \
+  tests/test_prepare_llm_input_output_names.py \
+  tests/test_explain_prepare_candidates.py \
+  tests/test_prepare_status_error_only_candidate_policy.py \
+  tests/test_prepare_scanner_probe_candidate_policy.py
+# 56 passed
 ```
 
 v1.1 테스트 후보:
@@ -404,7 +439,7 @@ test_uri_family_hint_does_not_increase_candidate_index
 test_low_and_slow_hint_does_not_increase_candidate_index
 ```
 
-## 14. 완료 기준
+## 15. 완료 기준
 
 ```text
 - py_compile 통과
@@ -415,4 +450,9 @@ test_low_and_slow_hint_does_not_increase_candidate_index
 - missing window 상태가 source_windows에 남음
 - score/verdict_hint 새 생성 없음
 - uri_family/low_and_slow hint 미생성
+- all existing output은 skipped_existing
+- partial existing output은 기본 실패
+- --overwrite 시 재생성
 ```
+
+현재 v1.0 최소 구현과 output reuse policy는 완료 상태다.
