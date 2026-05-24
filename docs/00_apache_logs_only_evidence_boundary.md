@@ -86,6 +86,30 @@ Apache 로그 기반 분석은 request/response metadata 관찰이다.
 로그에 없는 body, DB, browser, filesystem, application state는 추론하지 않는다.
 ```
 
+## 2.1 오탐/미탐 균형 원칙
+
+이 문서의 단정 금지 원칙은 의심 정황을 제거하거나 위험도를 무조건 낮추기 위한 기준이 아니다.
+
+```text
+단정 금지 != 후보 삭제
+승격 금지 != 위험 신호 누락
+success inference 금지 != suspicious context 제거
+```
+
+Apache 로그만으로 성공, 침해, 노출을 확정하지 않되, 관찰 가능한 suspicious context, candidate signal, 반복 패턴, payload-like 요청은 누락하지 않고 Stage1/Stage2 및 sliding window/rollup 입력에 안전한 표현으로 전달한다.
+
+따라서 false positive를 줄이기 위해 성공 단정과 context promotion은 금지하지만, false negative를 줄이기 위해 observable suspicious evidence는 보존한다.
+
+권장 적용 방식:
+
+```text
+- 확정 판정은 만들지 않는다.
+- 관찰 가능한 의심 정황은 버리지 않는다.
+- 의심 정황은 context/candidate/suspicious signal로 보존한다.
+- Stage1/Stage2에는 성공 단정이 아니라 조사 우선순위와 해석 한계를 전달한다.
+- rollup은 중복 제거와 요약을 수행하되 payload-like/context signal을 임의로 삭제하지 않는다.
+```
+
 ## 3. 절대 단정 금지
 
 아래 표현은 Apache logs-only 증거만으로 사용하지 않는다.
@@ -558,6 +582,24 @@ Viewer는 저장된 payload를 읽고 보여주는 도구다.
 - design 문서에는 긴 원칙을 반복하지 말고 이 문서를 참조한다.
 - docs/01_용어_가이드.md는 Wording Guide가 커질 때 분리한다.
 - src/GUARDRAILS.md는 개발자용 체크리스트가 코드와 분리되어 필요해질 때 만든다.
+```
+
+## 18.1 적용 버전과 확장 가능성
+
+이 문서의 boundary는 현재 Apache logs-only 파이프라인, 특히 v1.0~v1.5 sliding window / rollup 구조를 기준으로 한다.
+
+추후 DB 감사 로그, 애플리케이션 인증 로그, WAF 로그, response body capture, 파일 무결성 로그 등 별도 증거원이 파이프라인에 공식 연동될 경우 evidence boundary는 확장될 수 있다.
+
+다만 확장 후에도 각 증거원이 직접 관찰할 수 있는 사실과 추론하면 안 되는 판정은 별도 계약으로 명시해야 한다. 새로운 증거원이 추가되더라도 해당 증거원으로 확인할 수 없는 성공, 침해, 노출, 인증 결과는 계속 단정하지 않는다.
+
+확장 시 필요한 최소 조건:
+
+```text
+- 새 증거원의 schema와 보존 필드가 문서화되어 있음
+- 해당 증거원이 직접 관찰 가능한 사실과 불가능한 추론이 분리되어 있음
+- Apache logs-only 결과와 외부 증거 결합 방식이 명시되어 있음
+- Stage1/Stage2 wording과 lint rule의 boundary가 함께 갱신되어 있음
+- viewer/UI가 새 증거를 표시하더라도 임의로 security verdict를 재계산하지 않음
 ```
 
 권장 참조 문장:
