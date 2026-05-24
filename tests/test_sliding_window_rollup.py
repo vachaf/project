@@ -5,6 +5,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = PROJECT_ROOT / "src" / "sliding_window_rollup.py"
@@ -115,6 +117,47 @@ def candidate(request_id: str | None, uri: str, *, status_code: int = 403, score
         "raw_request": f"GET {uri} HTTP/1.1",
         "user_agent": "browser",
     }
+
+
+def write_two_window_summaries(tmp_path: Path) -> None:
+    win1 = tmp_path / "data/windowed/2026-05-24/sw_0200_0300/window_summary.json"
+    win2 = tmp_path / "data/windowed/2026-05-24/sw_0300_0400/window_summary.json"
+    write_json(
+        win1,
+        make_window_summary(
+            window_id="sw_0200_0300",
+            start="2026-05-24T02:00:00+09:00",
+            end="2026-05-24T03:00:00+09:00",
+            candidates=[candidate("rid-1", "/admin.php")],
+        ),
+    )
+    write_json(
+        win2,
+        make_window_summary(
+            window_id="sw_0300_0400",
+            start="2026-05-24T03:00:00+09:00",
+            end="2026-05-24T04:00:00+09:00",
+            candidates=[candidate("rid-1", "/admin.php"), candidate("rid-2", "/login.php")],
+        ),
+    )
+
+
+def build_default_rollup(module, tmp_path: Path, **kwargs):
+    params = {
+        "work_dir": tmp_path,
+        "analysis_start": "2026-05-24 02:00:00",
+        "analysis_end": "2026-05-24 04:00:00",
+        "window_minutes": 60,
+        "stride_minutes": 60,
+        "timezone": "Asia/Seoul",
+        "window_output_root": "data/windowed",
+        "rollup_output_root": "data/rollups",
+        "out_dir": None,
+        "strict": False,
+        "pretty": True,
+    }
+    params.update(kwargs)
+    return module.build_and_write_rollup(**params)
 
 
 def test_discover_window_summary_paths_matches_scheduler_layout(tmp_path: Path):
@@ -282,43 +325,15 @@ def test_build_rollup_input_merges_distributions_and_preserves_guardrails(tmp_pa
 
 def test_build_and_write_rollup_creates_three_artifacts(tmp_path: Path):
     module = load_module()
-    win1 = tmp_path / "data/windowed/2026-05-24/sw_0200_0300/window_summary.json"
-    win2 = tmp_path / "data/windowed/2026-05-24/sw_0300_0400/window_summary.json"
-    write_json(
-        win1,
-        make_window_summary(
-            window_id="sw_0200_0300",
-            start="2026-05-24T02:00:00+09:00",
-            end="2026-05-24T03:00:00+09:00",
-            candidates=[candidate("rid-1", "/admin.php")],
-        ),
-    )
-    write_json(
-        win2,
-        make_window_summary(
-            window_id="sw_0300_0400",
-            start="2026-05-24T03:00:00+09:00",
-            end="2026-05-24T04:00:00+09:00",
-            candidates=[candidate("rid-1", "/admin.php"), candidate("rid-2", "/login.php")],
-        ),
-    )
+    write_two_window_summaries(tmp_path)
 
-    result = module.build_and_write_rollup(
-        work_dir=tmp_path,
-        analysis_start="2026-05-24 02:00:00",
-        analysis_end="2026-05-24 04:00:00",
-        window_minutes=60,
-        stride_minutes=60,
-        timezone="Asia/Seoul",
-        window_output_root="data/windowed",
-        rollup_output_root="data/rollups",
-        out_dir=None,
-        strict=False,
-        pretty=True,
-    )
+    result = build_default_rollup(module, tmp_path)
 
     out_dir = tmp_path / "data/rollups/2026-05-24/rollup_20260524_0200_0400"
+    assert result["status"] == "written"
     assert result["out_dir"] == "data/rollups/2026-05-24/rollup_20260524_0200_0400"
+    assert result["existing_outputs"] == []
+    assert result["missing_outputs"] == ["rollup_input.json", "dedup_candidates.json", "rollup_summary.json"]
     assert (out_dir / "rollup_input.json").exists()
     assert (out_dir / "dedup_candidates.json").exists()
     assert (out_dir / "rollup_summary.json").exists()
@@ -343,23 +358,56 @@ def test_missing_window_is_recorded_in_rollup_summary(tmp_path: Path):
         ),
     )
 
-    result = module.build_and_write_rollup(
-        work_dir=tmp_path,
-        analysis_start="2026-05-24 02:00:00",
-        analysis_end="2026-05-24 04:00:00",
-        window_minutes=60,
-        stride_minutes=60,
-        timezone="Asia/Seoul",
-        window_output_root="data/windowed",
-        rollup_output_root="data/rollups",
-        out_dir=None,
-        strict=False,
-        pretty=True,
-    )
+    result = build_default_rollup(module, tmp_path)
 
     rollup_summary = json.loads((tmp_path / result["rollup_summary_path"]).read_text(encoding="utf-8"))
+    assert result["status"] == "written"
     assert rollup_summary["counts"]["window_count"] == 2
     assert rollup_summary["counts"]["windows_successfully_loaded"] == 1
     assert rollup_summary["counts"]["windows_missing_or_failed"] == 1
     assert rollup_summary["incomplete_analysis"] is True
     assert rollup_summary["source_windows"][1]["status"] == "missing"
+
+
+def test_rollup_skips_when_all_outputs_exist_without_overwrite(tmp_path: Path):
+    module = load_module()
+    write_two_window_summaries(tmp_path)
+    first = build_default_rollup(module, tmp_path)
+    out_dir = tmp_path / first["out_dir"]
+    marker = {"schema": "existing", "counts": {"candidate_index_count": 99}}
+    write_json(out_dir / "rollup_input.json", marker)
+
+    second = build_default_rollup(module, tmp_path)
+
+    assert second["status"] == "skipped_existing"
+    assert second["counts"] == {"candidate_index_count": 99}
+    assert json.loads((out_dir / "rollup_input.json").read_text(encoding="utf-8")) == marker
+
+
+def test_rollup_fails_when_partial_outputs_exist_without_overwrite(tmp_path: Path):
+    module = load_module()
+    write_two_window_summaries(tmp_path)
+    out_dir = tmp_path / "data/rollups/2026-05-24/rollup_20260524_0200_0400"
+    write_json(out_dir / "rollup_input.json", {"schema": "partial"})
+
+    with pytest.raises(module.PartialExistingRollupArtifactsError) as exc_info:
+        build_default_rollup(module, tmp_path)
+
+    assert exc_info.value.existing == ["rollup_input.json"]
+    assert exc_info.value.missing == ["dedup_candidates.json", "rollup_summary.json"]
+
+
+def test_rollup_overwrite_recreates_existing_outputs(tmp_path: Path):
+    module = load_module()
+    write_two_window_summaries(tmp_path)
+    first = build_default_rollup(module, tmp_path)
+    out_dir = tmp_path / first["out_dir"]
+    write_json(out_dir / "rollup_input.json", {"schema": "existing"})
+
+    second = build_default_rollup(module, tmp_path, overwrite=True)
+
+    assert second["status"] == "written"
+    assert second["existing_outputs"] == ["rollup_input.json", "dedup_candidates.json", "rollup_summary.json"]
+    payload = json.loads((out_dir / "rollup_input.json").read_text(encoding="utf-8"))
+    assert payload["schema"] == "sliding_window_rollup_input_v1"
+    assert payload["counts"]["candidate_index_count"] == 2
