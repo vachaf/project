@@ -7,6 +7,7 @@
 문서를 해석할 때는 아래 원칙을 먼저 본다.
 
 - 현재 파이프라인 기준: `export -> prepare -> stage1 -> stage2`
+- Apache logs-only evidence boundary의 canonical 기준은 [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)를 따른다.
 - 분석 근거는 Apache 로그 표면에 직접 남는 필드로 제한한다.
 - raw POST body, response body 원문, DB 결과, 브라우저 실행 여부는 분석 근거로 사용하지 않는다.
 - `status_code=200`, `text/html`, `response_body_bytes`만으로 성공, 침해, 유출을 단정하지 않는다.
@@ -16,17 +17,18 @@
 현재 주요 문서는 주제별 하위 폴더로 1차 정리된 상태다. 아래 순서로 찾는 것이 빠르다.
 
 1. 현재 상태를 먼저 볼 때는 [진행상황.md](./진행상황.md)를 본다.
-2. 전체 흐름과 실행 순서를 볼 때는 [00_전체_흐름_요약_가이드.md](./operations/00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./operations/01_운영_기준_실행_가이드.md)를 본다.
+2. Apache logs-only 판정 경계와 금지/권장 표현 기준은 [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)를 본다.
+3. 전체 흐름과 실행 순서를 볼 때는 [00_전체_흐름_요약_가이드.md](./operations/00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./operations/01_운영_기준_실행_가이드.md)를 본다.
   - `export --table`과 pipeline `prepare_source_tables` 자동 해석(`run_analysis_pipeline.py --prepare-source-tables=auto`)은 01/05 문서에서 확인한다.
-3. 실험 세트 문서는 `experiments/` 아래의 `A_set/` ~ `H_set/`을 본다.
-4. 실험 표준과 결과 기록 양식은 `standards/`를 본다.
-5. 설계, 회귀 검증, 해석 한계, 보류 결정은 `design/`을 본다.
-6. prepare 모듈 분리, constants mini-move, hints evidence boundary, Stage2 prompt/lint 정리는 [design/README.md](./design/README.md)의 해당 묶음을 본다.
-7. Web UI Report Viewer(Phase 1A/1B, UI polish) 문서는 `design/`의 Web UI 묶음을 먼저 본다.
-8. prepare 하위 모듈의 실제 역할은 [../src/prepare/README.md](../src/prepare/README.md)를 본다.
-9. 중간정리, 샘플 리뷰, post-refactor spot check, wording 품질 검토는 `reviews/`를 본다.
-10. 환경 구축, 로그 구조, 실행 가이드, 운영 메모는 `operations/`를 본다.
-11. 후속 작업 계획과 TODO는 `planning/`을 본다.
+4. 실험 세트 문서는 `experiments/` 아래의 `A_set/` ~ `H_set/`을 본다.
+5. 실험 표준과 결과 기록 양식은 `standards/`를 본다.
+6. 설계, 회귀 검증, 해석 한계, 보류 결정은 `design/`을 본다.
+7. prepare 모듈 분리, constants mini-move, hints evidence boundary, Stage2 prompt/lint 정리는 [design/README.md](./design/README.md)의 해당 묶음을 본다.
+8. Web UI Report Viewer(Phase 1A/1B, UI polish) 문서는 `design/`의 Web UI 묶음을 먼저 본다.
+9. prepare 하위 모듈의 실제 역할은 [../src/prepare/README.md](../src/prepare/README.md)를 본다.
+10. 중간정리, 샘플 리뷰, post-refactor spot check, wording 품질 검토는 `reviews/`를 본다.
+11. 환경 구축, 로그 구조, 실행 가이드, 운영 메모는 `operations/`를 본다.
+12. 후속 작업 계획과 TODO는 `planning/`을 본다.
 
 ## 3. 문서 분류 기준
 
@@ -44,6 +46,7 @@
 docs/
 ├── README.md
 ├── 진행상황.md
+├── 00_apache_logs_only_evidence_boundary.md
 ├── standards/
 │   ├── README.md
 │   └── 실험 문서 작성 표준, 공통 템플릿, 품질 기준, naming rule
@@ -77,6 +80,7 @@ docs/
 
 ## 5. 폴더별 인덱스
 
+- [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md): Apache logs-only 판정 경계와 금지/권장 표현의 canonical 기준
 - [experiments/README.md](./experiments/README.md): A~H 세트 실험 문서 인덱스
 - [standards/README.md](./standards/README.md): 공통 표준, 품질 기준, 결과 기록 템플릿 인덱스
 - [design/README.md](./design/README.md): 설계, 회귀 검증, prepare split, constants/hints evidence boundary, Stage2 prompt/lint 문서 인덱스
@@ -92,6 +96,7 @@ docs/
 ### 운영/흐름
 
 - [진행상황.md](./진행상황.md)
+- [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)
 - [00_전체_흐름_요약_가이드.md](./operations/00_전체_흐름_요약_가이드.md)
 - [01_운영_기준_실행_가이드.md](./operations/01_운영_기준_실행_가이드.md)
 - [01_프로젝트_방향과_실험대상.md](./operations/01_프로젝트_방향과_실험대상.md)
@@ -147,6 +152,7 @@ docs/
 
 ### prepare split / evidence boundary
 
+- canonical evidence boundary: [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)
 - prepare 모듈 인덱스: [../src/prepare/README.md](../src/prepare/README.md)
 - 전체 설계 인덱스: [design/README.md](./design/README.md)
 - constants ownership: [99_prepare_constants_ownership_map.md](./design/99_prepare_constants_ownership_map.md)
