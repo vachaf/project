@@ -118,7 +118,7 @@ Unit 검증:
 ```text
 python3 -m py_compile src/sliding_window_operator_queue.py
 python3 -m pytest -q tests/test_sliding_window_operator_queue.py
-# 11 passed
+# 13 passed
 ```
 
 Sliding Window / Rollup / Operator Queue quick bundle:
@@ -134,7 +134,7 @@ python3 -m pytest -q \
   tests/test_explain_prepare_candidates.py \
   tests/test_prepare_status_error_only_candidate_policy.py \
   tests/test_prepare_scanner_probe_candidate_policy.py
-# 67 passed
+# 69 passed
 ```
 
 Actual smoke:
@@ -143,6 +143,7 @@ Actual smoke:
 python3 src/sliding_window_operator_queue.py \
   --work-dir /opt/web_log_analysis \
   --date 2026-05-24 \
+  --overwrite \
   --pretty
 ```
 
@@ -164,6 +165,13 @@ llm_required=0
 ```text
 data/operator_queue/2026-05-24/queue_items.json
 data/operator_queue/2026-05-24/queue_summary.json
+```
+
+Allowlist 보정 smoke:
+
+```text
+rollup_20260524_0200_0300: has_payload_like_reason_hint=true, llm_eligible=true, recommended_action=review_before_optional_briefing
+rollup_20260524_0200_0400: has_payload_like_reason_hint=true, llm_eligible=true, recommended_action=review_before_optional_briefing
 ```
 
 ## 5. 왜 Stage1/Stage2를 기본값으로 두지 않는가
@@ -479,12 +487,14 @@ is_quiet
 
 ### has_payload_like_reason_hint
 
-초기 allowlist는 코드에서 `PAYLOAD_LIKE_REASON_HINTS` set 상수로 관리한다.
+Allowlist는 코드에서 `PAYLOAD_LIKE_REASON_HINTS` set 상수로 관리한다.
 
 현재 allowlist:
 
 ```text
+sqli
 sqli_hint
+xss
 xss_hint
 path_traversal_candidate
 cmdi_hint
@@ -498,13 +508,24 @@ xxe_hint
 webshell_like
 ```
 
+Allowlist에 넣지 않는 현재 관찰 prefix:
+
+```text
+upload
+login_endpoint
+auth_payload_content_type
+error_linked
+error_status
+```
+
 주의:
 
 ```text
 - allowlist는 payload-like observation group일 뿐이다.
 - 성공/침해 판단이 아니다.
-- 실제 smoke에서 reason_hint_prefix=xss가 관찰되었으나 현재 allowlist에는 xss_hint만 있어 has_payload_like_reason_hint=false가 나왔다.
-- 이 때문에 xss를 allowlist에 추가할지 후속 검토가 필요하다.
+- sqli/xss 추가는 실제 prepare/rollup reason prefix에 맞춘 routing signal 정렬이다.
+- score/verdict_hint/candidate visibility는 변경하지 않는다.
+- LLM required로 승격하지 않는다.
 ```
 
 ## 14. top_observed derivation rules
@@ -678,6 +699,8 @@ Operator Queue v1은 다음을 하지 않는다.
 ```text
 test_queue_marks_quiet_rollup
 test_queue_marks_needs_review_and_llm_eligible_for_payload_like_candidate
+test_queue_treats_sqli_and_xss_prefix_variants_as_payload_like
+test_queue_does_not_treat_context_prefixes_as_payload_like_by_themselves
 test_queue_marks_data_quality_check_for_incomplete_rollup
 test_queue_marks_degraded_invalid_window_for_failed_source_window
 test_queue_marks_missing_rollup_artifact
@@ -692,31 +715,31 @@ test_atomic_write_does_not_leave_tmp_files
 검증 상태:
 
 ```text
-tests/test_sliding_window_operator_queue.py -> 11 passed
-sliding window/operator/rollup/scheduler/candidate policy quick bundle -> 67 passed
+tests/test_sliding_window_operator_queue.py -> 13 passed
+sliding window/operator/rollup/scheduler/candidate policy quick bundle -> 69 passed
 ```
 
 ## 22. 다음 판단
 
 다음 단계는 바로 LLM reporter 구현이 아니라 다음 중 하나를 선택한다.
 
-1. Operator Queue allowlist 보정
-   - 실제 reason_hint_prefix `xss`를 `PAYLOAD_LIKE_REASON_HINTS`에 추가할지 검토
-   - 다른 `_hint` 없는 payload-like prefix가 있는지 확인
-
-2. Operator Queue smoke/운영 분리
+1. Operator Queue smoke/운영 분리
    - 같은 날짜 아래 실험성 rollup cadence가 섞이는 문제 검토
    - 필요 시 `--rollup-pattern` 또는 별도 root를 검토
 
-3. Single Rollup Reporter 설계
+2. Single Rollup Reporter 설계
    - operator queue 이후 optional briefing으로 설계
    - detection engine이 아니라 observation briefing으로 제한
+
+3. Rollup v1.1 hint 설계
+   - uri_family_hints / low_and_slow_hints는 hint-only로 유지
+   - candidate_index 또는 Stage1 후보로 승격하지 않는다.
 
 권장 순서:
 
 ```text
-Operator Queue 문서/검증 반영
-  -> allowlist 보정 여부 판단
+Operator Queue allowlist 보정 완료
+  -> cadence 분리 여부 판단
   -> Single Rollup Reporter 설계
   -> projection/Stage1/Stage2 deep-analysis path 재검토
 ```
