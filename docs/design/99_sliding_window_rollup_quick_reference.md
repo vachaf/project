@@ -55,6 +55,7 @@ data/rollups/<date>/<rollup_id>/
 - rollup_input.json 생성
 - dedup_candidates.json 생성
 - rollup_summary.json 생성
+- 기존 rollup artifact 재사용/overwrite 정책 적용
 ```
 
 ## v1.0에서 하지 않는 일
@@ -145,6 +146,49 @@ v1.0의 `rollup_context`는 최소 notes만 담는다.
 }
 ```
 
+## output reuse policy
+
+Rollup v1.0은 scheduler 운영에 붙일 수 있도록 출력 3종의 재사용 정책을 가진다.
+
+대상 artifact:
+
+```text
+rollup_input.json
+dedup_candidates.json
+rollup_summary.json
+```
+
+상태 정책:
+
+```text
+3개 모두 없음
+  -> written
+
+3개 모두 있음 + --overwrite 없음
+  -> skipped_existing
+
+일부만 있음 + --overwrite 없음
+  -> partial existing error, return 2
+
+3개 모두 있음 + --overwrite
+  -> written, 재생성
+
+일부만 있음 + --overwrite
+  -> written, 재생성
+```
+
+CLI summary에는 `status`, `existing_outputs`, `missing_outputs`가 포함된다.
+
+예시:
+
+```text
+[ROLLUP] skip existing: data/rollups/2026-05-24/rollup_20260524_0200_0400
+[ROLLUP] status=skipped_existing
+[ROLLUP] summary: status=skipped_existing windows_loaded=3 windows_missing_or_failed=0 candidate_rows_total=5 candidate_index_count=5 dedup_removed_by_request_id=0
+```
+
+재생성하려면 `--overwrite`를 명시한다.
+
 ## v1.1 후보: uri_family_hints
 
 ```json
@@ -224,21 +268,66 @@ python3 src/sliding_window_rollup.py \
   --pretty
 ```
 
+기존 artifact를 재생성하려면 다음처럼 실행한다.
+
+```bash
+python3 src/sliding_window_rollup.py \
+  --work-dir /opt/web_log_analysis \
+  --analysis-start "2026-05-24 02:00:00" \
+  --analysis-end "2026-05-24 06:00:00" \
+  --window-minutes 60 \
+  --stride-minutes 60 \
+  --overwrite \
+  --pretty
+```
+
 ## v1.0 구현 체크리스트
 
 ```text
-[ ] schema = sliding_window_rollup_input_v1
-[ ] module = src/sliding_window_rollup.py
-[ ] tests = tests/test_sliding_window_rollup.py
-[ ] source_windows.path = repo root 기준 relative path
-[ ] request_id 없는 후보 보존
-[ ] fallback duplicate는 marked_only_not_removed
-[ ] score/verdict_hint 새 생성 없음
-[ ] low_and_slow는 v1.0에서 미생성
-[ ] uri_family는 v1.0에서 미생성
-[ ] guardrails 포함
-[ ] missing window 상태 기록
+[x] schema = sliding_window_rollup_input_v1
+[x] module = src/sliding_window_rollup.py
+[x] tests = tests/test_sliding_window_rollup.py
+[x] source_windows.path = repo root 기준 relative path
+[x] request_id 없는 후보 보존
+[x] fallback duplicate는 marked_only_not_removed
+[x] score/verdict_hint 새 생성 없음
+[x] low_and_slow는 v1.0에서 미생성
+[x] uri_family는 v1.0에서 미생성
+[x] guardrails 포함
+[x] missing window 상태 기록
+[x] output reuse policy
+[x] --overwrite
+[x] skipped_existing
+[x] partial existing error
 [ ] Stage1 compatibility는 v1.5 별도 테스트
+```
+
+## v1.0 검증 상태
+
+```text
+python3 -m py_compile src/sliding_window_rollup.py
+python3 -m pytest -q tests/test_sliding_window_rollup.py
+# 10 passed
+
+python3 -m pytest -q \
+  tests/test_sliding_window_rollup.py \
+  tests/test_sliding_window_summary.py \
+  tests/test_sliding_window_scheduler_summary.py \
+  tests/test_sliding_window_scheduler.py \
+  tests/test_prepare_llm_input_output_names.py \
+  tests/test_explain_prepare_candidates.py \
+  tests/test_prepare_status_error_only_candidate_policy.py \
+  tests/test_prepare_scanner_probe_candidate_policy.py
+# 56 passed
+```
+
+Smoke:
+
+```text
+single-window rollup: written
+missing-window rollup: incomplete_analysis=true
+overlap rollup: loaded=3, candidate_index_count=5, dedup_removed_by_request_id=0
+existing output reuse: skipped_existing
 ```
 
 ## v1.1 후보 체크리스트
@@ -253,5 +342,5 @@ python3 src/sliding_window_rollup.py \
 ## 권장 커밋 메시지
 
 ```text
-docs: align sliding window rollup input design
+docs: record rollup output reuse policy
 ```
