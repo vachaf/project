@@ -20,15 +20,20 @@
 - candidate policy history: [../design/99_prepare_candidate_policy_distribution_history.md](../design/99_prepare_candidate_policy_distribution_history.md)
 - observability run index: [../design/99_observability_run_summary_index.md](../design/99_observability_run_summary_index.md)
 - Sliding Window adoption review: [../design/99_sliding_window_adoption_review.md](../design/99_sliding_window_adoption_review.md)
+- Rollup input review: [../design/99_sliding_window_rollup_input_review.md](../design/99_sliding_window_rollup_input_review.md)
+- Rollup input format: [../design/99_sliding_window_rollup_input_format.md](../design/99_sliding_window_rollup_input_format.md)
+- Rollup pipeline integration: [../design/99_sliding_window_rollup_pipeline_integration.md](../design/99_sliding_window_rollup_pipeline_integration.md)
+- Rollup quick reference: [../design/99_sliding_window_rollup_quick_reference.md](../design/99_sliding_window_rollup_quick_reference.md)
+- Rollup implementation guide: [../design/99_sliding_window_rollup_implementation_guide.md](../design/99_sliding_window_rollup_implementation_guide.md)
 
-## P0. Sliding Window 후속 작업
+## P0. Sliding Window / Rollup 후속 작업
 
 - [x] Sliding Window 문서 세트 repo 수용 범위 검토
 - [x] Sliding Window 예시 명령과 현재 CLI 옵션 호환성 확인
 - [x] Sliding Window dry-run 검증 범위 확정
 - [x] Sliding Window planner mode 구현 및 검증
   - `src/sliding_window_scheduler.py` planner mode 추가 완료.
-  - 검증: `python3 -m pytest -q tests/test_sliding_window_scheduler.py` → 5 passed.
+  - 검증: `tests/test_sliding_window_scheduler.py` → 5 passed.
   - 검증: sliding window + candidate policy quick regression set → 29 passed.
 - [x] Sliding Window Level 1 export mode 구현 및 검증
   - `src/sliding_window_scheduler.py --mode export` 추가 완료.
@@ -42,7 +47,6 @@
   - 기본 `<base>_llm_input.json` naming은 유지한다.
   - `--flat-output-names` 사용 시 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json`을 out-dir에 직접 생성한다.
   - `--flat-output-names`와 `--base-name`은 argparse 상호배타로 막는다.
-  - `src/prepare/README.md`에 기본 naming과 flat naming 정책을 기록했다.
   - 검증: `tests/test_prepare_llm_input_output_names.py` → 4 passed.
   - 검증: prepare regression → `pass=25 warn=0 fail=0`.
   - 검증: stage dry-run regression → `pass=19 warn=0 fail=0`.
@@ -55,7 +59,6 @@
   - `runs/`는 생성하지 않는다.
   - 검증: scheduler test → 13 passed.
   - 검증: sliding window + prepare output + candidate policy quick bundle → 41 passed.
-  - 수동 smoke: `prepared=1 skipped_existing=0 missing_export=0 partial_existing=0 missing_output=0 failed=0` 확인.
 - [x] `window_summary.json` v1 생성 및 검증
   - `src/sliding_window_summary.py` 추가 완료.
   - `src/sliding_window_scheduler.py --mode prepare`에서 prepare 성공 후 `window_summary.json`을 자동 생성한다.
@@ -65,24 +68,37 @@
   - `candidate_index`에는 `request_id`, `src_ip`, `method`, `uri`, `status_code`, `score`, `verdict_hint`, `reason_hint_prefixes`만 넣는다.
   - `raw_log`, `raw_request`, `user_agent`, `referer`는 복제하지 않는다.
   - `policy_distribution`, severity/category/final verdict/success 판단은 넣지 않는다.
-  - 검증: `tests/test_sliding_window_summary.py`, `tests/test_sliding_window_scheduler_summary.py`, `tests/test_sliding_window_scheduler.py` → 18 passed.
+  - 검증: summary/scheduler tests → 18 passed.
   - 검증: sliding window summary + scheduler + prepare output + candidate policy quick bundle → 46 passed.
-- [ ] multi-window rollup input 포맷 설계
-  - rollup 대상 `window_summary.json` 목록 수집 기준
-  - request_id dedup 기준
-  - candidate_index merge 기준
-  - src_ip / uri family / reason_hint_prefix 장기 aggregation 기준
-  - low-and-slow 후보는 단일 window가 아니라 rollup 단계에서만 후보화한다.
-  - stage1/stage2/viewer_payload는 계속 제외한다.
-  - `runs/`는 생성하지 않는다.
-  - prepare/scoring/filtering 변경은 하지 않는다.
-- [ ] Sliding Window 실행 단위 재검토
-  - [x] prepare-only window mode 검토
-  - [ ] multi-window rollup input 포맷 설계
-  - [ ] request_id dedup 기준 정리
-  - [ ] src_ip / uri family / payload family 장기 aggregation 기준 정리
-  - [x] window별 full stage2 report 생성을 기본안에서 제외
-  - [ ] rollup stage2와 daily summary의 역할 분리
+- [x] Rollup input 문서 세트 repo 기준 정렬
+  - `99_sliding_window_rollup_input_review.md` 작성 완료.
+  - `99_sliding_window_rollup_input_format.md`, `99_sliding_window_rollup_pipeline_integration.md`, `99_sliding_window_rollup_quick_reference.md`, `99_sliding_window_rollup_implementation_guide.md`를 v1.0 최소 구현 기준으로 축소했다.
+  - v1.0: `window_summary.json` 수집, missing/invalid window 상태 기록, request_id dedup, candidate_index/distribution merge, rollup artifact 3종 생성.
+  - v1.1: `uri_family_hints`, `low_and_slow_hints` 후보.
+  - v1.5: Stage1 호환 `analysis_candidates` projection 후보.
+- [x] Rollup v1.0 최소 구현 및 검증
+  - `src/sliding_window_rollup.py` 추가 완료.
+  - `tests/test_sliding_window_rollup.py` 추가 완료.
+  - 구현 범위: window_summary path 계산, summary 로드, missing/invalid window 기록, request_id dedup, missing request_id 보존, fallback duplicate 표시, candidate_index merge, distributions merge, `rollup_input.json` / `dedup_candidates.json` / `rollup_summary.json` 생성.
+  - 제외 범위: Stage1/Stage2 실행, `runs/` 생성, `uri_family_hints`, `low_and_slow_hints`, Stage1 projection, confidence/threat_level/final verdict, 새 score/verdict_hint 생성, raw_log/raw_request/user_agent 복제.
+  - 검증: `tests/test_sliding_window_rollup.py` → 7 passed.
+  - 검증: sliding window rollup + summary + scheduler + candidate policy quick bundle → 53 passed.
+  - single-window smoke: `rollup_20260524_0200_0300`, windows_loaded=1, candidate_rows_total=5, candidate_index_count=5, dedup_removed_by_request_id=0.
+  - missing-window smoke: `rollup_20260524_0200_0400`, window_count=2, windows_successfully_loaded=1, windows_missing_or_failed=1, incomplete_analysis=true, missing reason=`window_summary_not_found`.
+  - 3-window overlap smoke: `sw_0200_0300`, `sw_0230_0330`, `sw_0300_0400` 모두 loaded, candidate_rows_total=5, candidate_index_count=5, dedup_removed_by_request_id=0.
+  - 실제 overlap smoke에서 중복 request_id는 발생하지 않았다. 중복 후보가 있는 window가 하나뿐이므로 정상이며, cross-window request_id dedup은 unit test로 검증했다.
+- [ ] Rollup v1.0 smoke 보강 여부 판단
+  - 실제 로그에서 request_id 중복이 발생하는 overlap 구간을 추가로 찾을지 판단한다.
+  - 현재는 unit test로 cross-window request_id dedup을 검증했고, 실제 smoke에서는 window load/merge/missing handling을 확인했다.
+- [ ] Rollup v1.1 hint 설계 여부 판단
+  - `uri_family_hints`
+  - `low_and_slow_hints`
+  - repeated src_ip / repeated uri / repeated reason_hint_prefix
+  - v1.1에서도 hint를 `candidate_index`나 Stage1 후보로 승격하지 않는다.
+- [ ] Rollup v1.5 Stage1 projection 검토
+  - Stage1 호환 `analysis_candidates` projection은 별도 fixture/test 전까지 보류한다.
+  - projection 과정에서 score/verdict_hint/severity/confidence를 새로 만들지 않는다.
+- [ ] rollup stage2와 daily summary의 역할 분리
 - [ ] token/cost 추정 재측정 항목 정리
   - 팀원 문서의 token/cost 값은 근사치로 두고, 실제 모델 단가와 현재 run artifact 기준으로 재측정할 항목을 표시한다.
 
