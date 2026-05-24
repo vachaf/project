@@ -25,8 +25,9 @@
 - Rollup pipeline integration: [../design/99_sliding_window_rollup_pipeline_integration.md](../design/99_sliding_window_rollup_pipeline_integration.md)
 - Rollup quick reference: [../design/99_sliding_window_rollup_quick_reference.md](../design/99_sliding_window_rollup_quick_reference.md)
 - Rollup implementation guide: [../design/99_sliding_window_rollup_implementation_guide.md](../design/99_sliding_window_rollup_implementation_guide.md)
+- Operator Queue design: [../design/99_sliding_window_operator_queue_design.md](../design/99_sliding_window_operator_queue_design.md)
 
-## P0. Sliding Window / Rollup 후속 작업
+## P0. Sliding Window / Rollup / Operator Queue 후속 작업
 
 - [x] Sliding Window 문서 세트 repo 수용 범위 검토
 - [x] Sliding Window 예시 명령과 현재 CLI 옵션 호환성 확인
@@ -96,6 +97,28 @@
   - 검증: `tests/test_sliding_window_rollup.py` → 10 passed.
   - 검증: sliding window rollup + summary + scheduler + candidate policy quick bundle → 56 passed.
   - smoke: 기존 `rollup_20260524_0200_0400` artifact 3종 존재 시 `status=skipped_existing` 확인.
+- [x] Operator Queue v1 설계 및 구현
+  - `docs/design/99_sliding_window_operator_queue_design.md` 작성 및 v1 구현 기준으로 보강 완료.
+  - `src/sliding_window_operator_queue.py` 추가 완료.
+  - `tests/test_sliding_window_operator_queue.py` 추가 완료.
+  - 입력: `data/rollups/<date>/rollup_*/rollup_input.json`, `rollup_summary.json`.
+  - 출력: `data/operator_queue/<date>/queue_items.json`, `queue_summary.json`.
+  - 구현 범위: quiet/needs_review/data_quality_check routing, data_quality_status 파생, llm_eligible 파생, llm_required=false 고정, top_observed distribution 생성, payload-like reason hint allowlist 상수화, atomic write, output reuse policy.
+  - 제외 범위: Stage1/Stage2 실행, LLM reporter 실행, Web UI 변경, DB/API, 보안 verdict/confidence/threat_level/success 판단 생성.
+  - 검증: `tests/test_sliding_window_operator_queue.py` → 11 passed.
+  - 검증: sliding window/operator/rollup/scheduler/candidate policy quick bundle → 67 passed.
+  - smoke: `python3 src/sliding_window_operator_queue.py --work-dir /opt/web_log_analysis --date 2026-05-24 --pretty` → `status=written`, `rollup_items_total=2`, `needs_review=2`, `llm_eligible=2`, `llm_required=0`.
+  - 생성 artifact: `data/operator_queue/2026-05-24/queue_items.json`, `queue_summary.json`.
+- [ ] Operator Queue allowlist 보정 여부 판단
+  - actual smoke에서 `top_observed.reason_hint_prefix`에 `xss`가 관찰됐으나 현재 allowlist에는 `xss_hint`만 있어 `has_payload_like_reason_hint=false`였다.
+  - 현재는 repeated src_ip/uri/reason_hint_prefix 때문에 `llm_eligible=true`가 되어 동작상 문제는 없다.
+  - `xss` 및 다른 `_hint` 없는 payload-like prefix를 `PAYLOAD_LIKE_REASON_HINTS`에 추가할지 검토한다.
+- [ ] Operator Queue smoke/운영 rollup cadence 분리 여부 판단
+  - 같은 날짜 아래 `rollup_0200_0300`과 `rollup_0200_0400` 같은 실험성 cadence가 함께 잡히면 queue에 중복처럼 보일 수 있다.
+  - 필요 시 `--rollup-pattern`, `--rollup-id-prefix`, 또는 별도 rollup root 사용을 검토한다.
+- [ ] Single Rollup Reporter 설계 여부 판단
+  - operator queue 이후 optional briefing으로 설계한다.
+  - detection engine이 아니라 observation briefing으로 제한한다.
 - [ ] Rollup v1.0 smoke 보강 여부 판단
   - 실제 로그에서 request_id 중복이 발생하는 overlap 구간을 추가로 찾을지 판단한다.
   - 현재는 unit test로 cross-window request_id dedup을 검증했고, 실제 smoke에서는 window load/merge/missing handling/output reuse policy를 확인했다.
