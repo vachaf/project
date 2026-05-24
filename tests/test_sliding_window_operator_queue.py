@@ -170,6 +170,62 @@ def test_queue_marks_needs_review_and_llm_eligible_for_payload_like_candidate(tm
     ]
 
 
+def test_queue_treats_sqli_and_xss_prefix_variants_as_payload_like(tmp_path: Path):
+    module = load_module()
+    write_rollup(
+        tmp_path,
+        rollup_id="rollup_20260524_0300_0400",
+        candidate_index_count=2,
+        distributions={
+            "candidate_status_code": {"403": 2},
+            "candidate_src_ip": {"192.168.56.114": 1, "192.168.56.115": 1},
+            "candidate_uri": {"/search.php": 1, "/comment.php": 1},
+            "candidate_reason_hint_prefix": {"sqli": 1, "xss": 1},
+        },
+    )
+
+    build_queue(module, tmp_path)
+    item = load_queue_items(tmp_path)[0]
+
+    assert item["signals"]["has_payload_like_reason_hint"] is True
+    assert item["llm_eligible"] is True
+    assert item["top_observed"]["reason_hint_prefix"] == [
+        {"value": "sqli", "count": 1},
+        {"value": "xss", "count": 1},
+    ]
+
+
+def test_queue_does_not_treat_context_prefixes_as_payload_like_by_themselves(tmp_path: Path):
+    module = load_module()
+    write_rollup(
+        tmp_path,
+        rollup_id="rollup_20260524_0300_0400",
+        candidate_index_count=5,
+        distributions={
+            "candidate_status_code": {"500": 5},
+            "candidate_src_ip": {"192.168.56.110": 1, "192.168.56.111": 1},
+            "candidate_uri": {"/login.php": 1, "/upload.php": 1},
+            "candidate_reason_hint_prefix": {
+                "auth_payload_content_type": 1,
+                "error_linked": 1,
+                "error_status": 1,
+                "login_endpoint": 1,
+                "upload": 1,
+            },
+        },
+    )
+
+    build_queue(module, tmp_path)
+    item = load_queue_items(tmp_path)[0]
+
+    assert item["signals"]["has_payload_like_reason_hint"] is False
+    assert item["signals"]["has_repeated_src_ip"] is False
+    assert item["signals"]["has_repeated_uri"] is False
+    assert item["signals"]["has_repeated_reason_hint_prefix"] is False
+    assert item["llm_eligible"] is False
+    assert item["recommended_action"] == "review_rollup_summary"
+
+
 def test_queue_marks_data_quality_check_for_incomplete_rollup(tmp_path: Path):
     module = load_module()
     write_rollup(
