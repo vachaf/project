@@ -38,6 +38,11 @@ DEFAULT_WINDOW_OUTPUT_ROOT = "data/windowed"
 DEFAULT_ROLLUP_OUTPUT_ROOT = "data/rollups"
 DEFAULT_WINDOW_MINUTES = 60
 DEFAULT_STRIDE_MINUTES = 60
+ROLLUP_OUTPUT_NAMES = (
+    "rollup_input.json",
+    "dedup_candidates.json",
+    "rollup_summary.json",
+)
 DISTRIBUTION_KEYS = (
     "candidate_status_code",
     "candidate_method",
@@ -47,6 +52,19 @@ DISTRIBUTION_KEYS = (
     "candidate_reason_hint_prefix",
     "filtered_out_breakdown",
 )
+
+
+class PartialExistingRollupArtifactsError(RuntimeError):
+    """Raised when only some rollup artifacts exist and overwrite is disabled."""
+
+    def __init__(self, out_dir: Path, existing: list[str], missing: list[str]) -> None:
+        self.out_dir = out_dir
+        self.existing = existing
+        self.missing = missing
+        super().__init__(
+            "partial existing rollup artifacts: "
+            f"out_dir={out_dir} existing={existing} missing={missing}"
+        )
 
 
 def parse_datetime_text(text: str, tz: ZoneInfo) -> datetime:
@@ -179,6 +197,32 @@ def as_mapping(value: Any) -> dict[str, Any]:
 
 def as_list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
+
+
+def rollup_output_paths(out_dir: Path) -> dict[str, Path]:
+    return {name: out_dir / name for name in ROLLUP_OUTPUT_NAMES}
+
+
+def classify_rollup_outputs(out_dir: Path) -> tuple[str, list[str], list[str]]:
+    paths = rollup_output_paths(out_dir)
+    existing = [name for name, path in paths.items() if path.exists()]
+    missing = [name for name, path in paths.items() if not path.exists()]
+    if len(existing) == len(paths):
+        return "all", existing, missing
+    if existing:
+        return "partial", existing, missing
+    return "none", existing, missing
+
+
+def load_existing_rollup_counts(out_dir: Path) -> dict[str, Any]:
+    rollup_input_path = out_dir / "rollup_input.json"
+    if not rollup_input_path.exists():
+        return {}
+    try:
+        payload = load_json(rollup_input_path)
+    except Exception:
+        return {}
+    return as_mapping(payload).get("counts", {}) if isinstance(payload, dict) else {}
 
 
 def load_window_summaries(
@@ -547,6 +591,7 @@ def build_and_write_rollup(
     out_dir: Optional[Path],
     strict: bool,
     pretty: bool,
+    overwrite: bool = False,
     include_partial_final: bool = False,
 ) -> dict[str, Any]:
     tz = ZoneInfo(timezone)
@@ -558,6 +603,36 @@ def build_and_write_rollup(
     normalized_start = fmt_dt(start_dt)
     normalized_end = fmt_dt(end_dt)
     rollup_id = make_rollup_id(start_dt, end_dt)
+    output_dir = out_dir or default_rollup_out_dir(
+        work_dir=work_dir,
+        rollup_output_root=rollup_output_root,
+        analysis_start=normalized_start,
+        analysis_end=normalized_end,
+        timezone=timezone,
+    )
+    if not output_dir.is_absolute():
+        output_dir = work_dir / output_dir
+
+    output_state, existing, missing = classify_rollup_outputs(output_dir)
+    result_base = {
+        "rollup_id": rollup_id,
+        "out_dir": path_for_display(output_dir, work_dir),
+        "rollup_input_path": path_for_display(output_dir / "rollup_input.json", work_dir),
+        "dedup_candidates_path": path_for_display(output_dir / "dedup_candidates.json", work_dir),
+        "rollup_summary_path": path_for_display(output_dir / "rollup_summary.json", work_dir),
+    }
+
+    if output_state == "all" and not overwrite:
+        return {
+            **result_base,
+            "status": "skipped_existing",
+            "existing_outputs": existing,
+            "missing_outputs": missing,
+            "counts": load_existing_rollup_counts(output_dir),
+        }
+
+    if output_state == "partial" and not overwrite:
+        raise PartialExistingRollupArtifactsError(output_dir, existing, missing)
 
     paths = discover_window_summary_paths(
         work_dir=work_dir,
@@ -579,15 +654,6 @@ def build_and_write_rollup(
         window_summaries=summaries,
         window_load_status=statuses,
     )
-    output_dir = out_dir or default_rollup_out_dir(
-        work_dir=work_dir,
-        rollup_output_root=rollup_output_root,
-        analysis_start=normalized_start,
-        analysis_end=normalized_end,
-        timezone=timezone,
-    )
-    if not output_dir.is_absolute():
-        output_dir = work_dir / output_dir
     write_rollup_artifacts(
         out_dir=output_dir,
         rollup_input=rollup_input,
@@ -596,11 +662,10 @@ def build_and_write_rollup(
         pretty=pretty,
     )
     return {
-        "rollup_id": rollup_id,
-        "out_dir": path_for_display(output_dir, work_dir),
-        "rollup_input_path": path_for_display(output_dir / "rollup_input.json", work_dir),
-        "dedup_candidates_path": path_for_display(output_dir / "dedup_candidates.json", work_dir),
-        "rollup_summary_path": path_for_display(output_dir / "rollup_summary.json", work_dir),
+        **result_base,
+        "status": "written",
+        "existing_outputs": existing,
+        "missing_outputs": missing,
         "counts": rollup_input["counts"],
     }
 
@@ -618,6 +683,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument("--out-dir", default=None, help="explicit output directory")
     parser.add_argument("--include-partial-final", action="store_true")
     parser.add_argument("--strict", action="store_true", help="fail on missing/invalid window_summary")
+    parser.add_argument("--overwrite", action="store_true", help="overwrite existing rollup artifacts")
     parser.add_argument("--pretty", action="store_true", help="pretty-print JSON artifacts")
     parser.add_argument("--json", action="store_true", help="print JSON summary")
     return parser.parse_args(argv)
@@ -640,6 +706,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             out_dir=out_dir,
             strict=args.strict,
             pretty=args.pretty,
+            overwrite=args.overwrite,
             include_partial_final=args.include_partial_final,
         )
     except Exception as exc:
@@ -649,19 +716,23 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
     else:
+        if result["status"] == "skipped_existing":
+            print(f"[ROLLUP] skip existing: {result['out_dir']}")
+        print(f"[ROLLUP] status={result['status']}")
         print(f"[ROLLUP] rollup_id={result['rollup_id']}")
         print(f"[ROLLUP] out_dir={result['out_dir']}")
         print(f"[ROLLUP] rollup_input={result['rollup_input_path']}")
         print(f"[ROLLUP] dedup_candidates={result['dedup_candidates_path']}")
         print(f"[ROLLUP] rollup_summary={result['rollup_summary_path']}")
-        counts = result["counts"]
+        counts = result.get("counts", {})
         print(
             "[ROLLUP] summary: "
-            f"windows_loaded={counts['windows_successfully_loaded']} "
-            f"windows_missing_or_failed={counts['windows_missing_or_failed']} "
-            f"candidate_rows_total={counts['candidate_rows_total']} "
-            f"candidate_index_count={counts['candidate_index_count']} "
-            f"dedup_removed_by_request_id={counts['dedup_removed_by_request_id']}"
+            f"status={result['status']} "
+            f"windows_loaded={counts.get('windows_successfully_loaded', 0)} "
+            f"windows_missing_or_failed={counts.get('windows_missing_or_failed', 0)} "
+            f"candidate_rows_total={counts.get('candidate_rows_total', 0)} "
+            f"candidate_index_count={counts.get('candidate_index_count', 0)} "
+            f"dedup_removed_by_request_id={counts.get('dedup_removed_by_request_id', 0)}"
         )
     return 0
 
