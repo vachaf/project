@@ -41,7 +41,9 @@ QUEUE_OUTPUT_NAMES = (
 )
 TOP_OBSERVED_LIMIT = 5
 PAYLOAD_LIKE_REASON_HINTS: set[str] = {
+    "sqli",
     "sqli_hint",
+    "xss",
     "xss_hint",
     "path_traversal_candidate",
     "cmdi_hint",
