@@ -87,9 +87,18 @@
   - missing-window smoke: `rollup_20260524_0200_0400`, window_count=2, windows_successfully_loaded=1, windows_missing_or_failed=1, incomplete_analysis=true, missing reason=`window_summary_not_found`.
   - 3-window overlap smoke: `sw_0200_0300`, `sw_0230_0330`, `sw_0300_0400` 모두 loaded, candidate_rows_total=5, candidate_index_count=5, dedup_removed_by_request_id=0.
   - 실제 overlap smoke에서 중복 request_id는 발생하지 않았다. 중복 후보가 있는 window가 하나뿐이므로 정상이며, cross-window request_id dedup은 unit test로 검증했다.
+- [x] Rollup v1.0 output reuse policy 구현 및 검증
+  - `src/sliding_window_rollup.py --overwrite` 추가 완료.
+  - output 3종(`rollup_input.json`, `dedup_candidates.json`, `rollup_summary.json`)이 모두 있으면 기본 `skipped_existing` 처리한다.
+  - 일부만 있으면 `PartialExistingRollupArtifactsError`로 실패한다.
+  - `--overwrite` 지정 시 모두 있음/일부 있음과 무관하게 재생성한다.
+  - CLI text/json summary에 `status`, `existing_outputs`, `missing_outputs`, `counts`를 포함한다.
+  - 검증: `tests/test_sliding_window_rollup.py` → 10 passed.
+  - 검증: sliding window rollup + summary + scheduler + candidate policy quick bundle → 56 passed.
+  - smoke: 기존 `rollup_20260524_0200_0400` artifact 3종 존재 시 `status=skipped_existing` 확인.
 - [ ] Rollup v1.0 smoke 보강 여부 판단
   - 실제 로그에서 request_id 중복이 발생하는 overlap 구간을 추가로 찾을지 판단한다.
-  - 현재는 unit test로 cross-window request_id dedup을 검증했고, 실제 smoke에서는 window load/merge/missing handling을 확인했다.
+  - 현재는 unit test로 cross-window request_id dedup을 검증했고, 실제 smoke에서는 window load/merge/missing handling/output reuse policy를 확인했다.
 - [ ] Rollup v1.1 hint 설계 여부 판단
   - `uri_family_hints`
   - `low_and_slow_hints`
