@@ -1,6 +1,6 @@
 # 99_sliding_window_operator_queue_design
 
-- 문서 상태: 설계 초안
+- 문서 상태: v1 구현 기준 명세
 - 기준 시점: 2026-05-24
 - 목적: Sliding Window / Rollup 이후 사람이 먼저 봐야 할 운영 queue 모델을 정의한다.
 - 배경: Rollup v1.0이 완료된 뒤, 기존 Stage1/Stage2를 모든 rollup에 기본 실행하는 구조가 적절한지 재검토한다.
@@ -46,7 +46,36 @@ Rollup 이후의 기본 운영 흐름은 Stage1/Stage2 자동 실행이 아니�
 
 기존 Stage1/Stage2는 제거하지 않는다. 다만 기본 실행 경로가 아니라 optional deep-analysis 또는 legacy analysis path로 둔다.
 
-## 2. 왜 Stage1/Stage2를 기본값으로 두지 않는가
+## 2. v1 결정 사항
+
+Operator Queue v1에서 확정한 결정은 다음과 같다.
+
+```text
+- queue artifact는 data/operator_queue/<date>/ 아래에 생성한다.
+- queue_items.json은 하루치 rollup item list다.
+- queue_summary.json은 하루치 queue aggregate summary다.
+- queue는 LLM을 실행하지 않는다.
+- queue는 Stage1/Stage2를 실행하지 않는다.
+- queue는 Web UI를 수정하지 않는다.
+- queue는 보안 verdict를 만들지 않는다.
+- queue는 사람에게 보여줄 review routing artifact다.
+```
+
+v1에서 생성하는 파일:
+
+```text
+data/operator_queue/<date>/queue_items.json
+data/operator_queue/<date>/queue_summary.json
+```
+
+v1에서 읽는 파일:
+
+```text
+data/rollups/<date>/rollup_*/rollup_input.json
+data/rollups/<date>/rollup_*/rollup_summary.json
+```
+
+## 3. 왜 Stage1/Stage2를 기본값으로 두지 않는가
 
 기존 Stage1/Stage2 구조는 단일 큰 `export.json` 또는 큰 prepare output을 LLM에 직접 넣기 어렵던 제약에서 나온 구조다.
 
@@ -78,7 +107,7 @@ rollup_input.json
 
 따라서 먼저 사람이 볼 queue를 정의하고, 그 queue에서 필요한 항목만 optional LLM briefing 또는 deep analysis로 올린다.
 
-## 3. 사람은 무엇을 먼저 봐야 하는가
+## 4. 사람은 무엇을 먼저 봐야 하는가
 
 운영자가 매일 먼저 볼 것은 다음 세 가지다.
 
@@ -99,9 +128,9 @@ rollup_input.json
 
 이 기본 화면은 Stage2 report list가 아니다.
 
-## 4. Artifact layout
+## 5. Artifact layout
 
-초기 설계에서는 queue artifact를 `data/operator_queue/`에 둘 수 있다.
+v1 layout:
 
 ```text
 data/operator_queue/
@@ -110,34 +139,32 @@ data/operator_queue/
     queue_items.json
 ```
 
-대안으로 rollup directory에 operator item을 둘 수도 있다.
-
-```text
-data/rollups/2026-05-24/rollup_20260524_0200_0600/
-  rollup_input.json
-  dedup_candidates.json
-  rollup_summary.json
-  operator_item.json
-```
-
-초기 구현 후보는 둘 중 하나를 선택해야 한다.
-
-권장:
-
-```text
-data/operator_queue/<date>/queue_items.json
-```
+rollup directory 안에 `operator_item.json`을 두는 대안은 v1에서 채택하지 않는다.
 
 이유:
 
 - 사람은 rollup별 디렉터리를 직접 탐색하지 않는다.
 - 하루치 queue를 한 파일로 정렬/필터링하기 쉽다.
 - Web UI가 나중에 읽기 쉽다.
-- rollup artifact와 operator review state를 분리할 수 있다.
+- rollup artifact와 operator review routing artifact를 분리할 수 있다.
 
-단, v1 구현 전에는 문서로만 유지한다.
+## 6. Queue items file schema
 
-## 5. Queue item v1 후보 schema
+`queue_items.json`은 top-level object로 저장한다. 단순 list로 저장하지 않는다.
+
+```json
+{
+  "schema": "sliding_window_operator_queue_items_v1",
+  "queue_date": "2026-05-24",
+  "generated_at": "2026-05-24T23:59:00+09:00",
+  "source_rollup_root": "data/rollups/2026-05-24",
+  "items": []
+}
+```
+
+`items`의 각 항목은 `sliding_window_operator_queue_item_v1` 구조를 따른다.
+
+## 7. Queue item v1 schema
 
 ```json
 {
@@ -154,6 +181,7 @@ data/operator_queue/<date>/queue_items.json
   },
   "data_quality_status": "complete",
   "review_status": "needs_review",
+  "operator_state": "unreviewed",
   "llm_eligible": true,
   "llm_required": false,
   "recommended_action": "review_before_optional_briefing",
@@ -170,6 +198,7 @@ data/operator_queue/<date>/queue_items.json
   "signals": {
     "has_candidates": true,
     "has_missing_windows": false,
+    "has_possible_duplicates": false,
     "has_repeated_src_ip": true,
     "has_repeated_uri": true,
     "has_repeated_reason_hint_prefix": true,
@@ -201,7 +230,59 @@ data/operator_queue/<date>/queue_items.json
 }
 ```
 
-## 6. Queue summary v1 후보 schema
+### 필드 설명
+
+```text
+schema
+  - 항상 sliding_window_operator_queue_item_v1
+
+queue_date
+  - KST 기준 YYYY-MM-DD
+
+rollup_id
+  - source rollup id
+
+rollup_path
+  - repo root 기준 rollup_input.json 상대경로
+
+rollup_summary_path
+  - repo root 기준 rollup_summary.json 상대경로
+
+time_range
+  - rollup_summary.rollup에서 복사
+
+data_quality_status
+  - data completeness 상태
+  - 보안 verdict가 아님
+
+review_status
+  - queue routing 상태
+  - 보안 verdict가 아님
+
+operator_state
+  - 사람 review workflow 상태
+  - v1 생성 시 기본 unreviewed
+
+llm_eligible
+  - optional LLM briefing에 넘길 수 있는 입력 상태인지 표시
+  - 공격/침해 가능성을 뜻하지 않음
+
+llm_required
+  - v1에서는 항상 false
+
+recommended_action
+  - 운영 routing action
+  - 보안 verdict가 아님
+
+counts
+  - rollup_summary.counts 기반
+
+top_observed
+  - rollup_input.distributions 기반 observed distribution
+  - anomaly/success 판단이 아님
+```
+
+## 8. Queue summary v1 schema
 
 ```json
 {
@@ -211,11 +292,18 @@ data/operator_queue/<date>/queue_items.json
   "source_rollup_root": "data/rollups/2026-05-24",
   "counts": {
     "rollup_items_total": 6,
-    "needs_review": 2,
     "quiet": 3,
-    "incomplete": 1,
+    "needs_review": 2,
+    "data_quality_check": 1,
+    "complete": 5,
+    "incomplete_missing_window": 1,
+    "degraded_invalid_window": 0,
+    "missing_rollup_artifact": 0,
     "llm_eligible": 2,
-    "llm_required": 0
+    "llm_required": 0,
+    "unreviewed": 6,
+    "reviewed": 0,
+    "deferred": 0
   },
   "items_path": "data/operator_queue/2026-05-24/queue_items.json",
   "guardrails": {
@@ -229,66 +317,131 @@ data/operator_queue/<date>/queue_items.json
 }
 ```
 
-## 7. Status taxonomy
+## 9. Status taxonomy
 
-### data_quality_status
+### data_quality_status enum
+
+v1 허용값:
 
 ```text
 complete
-  - source windows loaded
-  - rollup_summary incomplete_analysis=false
+incomplete_missing_window
+degraded_invalid_window
+missing_rollup_artifact
+```
+
+파생 규칙:
+
+```text
+missing_rollup_artifact
+  - rollup_input.json 또는 rollup_summary.json이 없음
 
 incomplete_missing_window
-  - one or more source windows missing
-  - rollup_summary incomplete_analysis=true
+  - rollup_summary.incomplete_analysis == true
+  - 또는 counts.windows_missing_or_failed > 0
 
 degraded_invalid_window
-  - one or more source window_summary failed schema/json validation
+  - rollup_summary.source_windows 중 status == failed 존재
+  - 또는 rollup_input/rollup_summary schema가 기대값과 다름
 
-empty_no_rollup
-  - expected rollup artifact not found
+complete
+  - rollup_input/rollup_summary 둘 다 로드 성공
+  - windows_missing_or_failed == 0
+  - incomplete_analysis == false
+```
+
+우선순위:
+
+```text
+missing_rollup_artifact
+  > degraded_invalid_window
+  > incomplete_missing_window
+  > complete
 ```
 
 이 상태는 보안 판단이 아니라 데이터 품질 상태다.
 
-### review_status
+### review_status enum
+
+v1 허용값:
 
 ```text
 quiet
-  - candidate_index_count=0
-  - missing/invalid window 없음
-
 needs_review
-  - candidate_index_count>0
-  - operator should inspect queue item or rollup_summary
-
 data_quality_check
-  - missing/invalid window 있음
-  - LLM보다 data completeness 확인 우선
-
-deferred
-  - operator intentionally postponed review
-
-reviewed
-  - operator reviewed item
 ```
 
-`review_status`는 보안 verdict가 아니다.
+파생 규칙:
 
-### recommended_action
+```text
+data_quality_check
+  - data_quality_status != complete
 
-허용 후보:
+quiet
+  - data_quality_status == complete
+  - candidate_index_count == 0
+
+needs_review
+  - data_quality_status == complete
+  - candidate_index_count > 0
+```
+
+`review_status`는 보안 verdict가 아니다. 이것은 사람이 어떤 queue item을 먼저 열어볼지 정하는 routing field다.
+
+### operator_state enum
+
+v1 생성 시 허용값:
+
+```text
+unreviewed
+```
+
+향후 UI나 별도 state file에서 허용할 수 있는 값:
+
+```text
+deferred
+reviewed
+```
+
+v1 generator는 `deferred`나 `reviewed`를 만들지 않는다. 이 값들은 사람의 후속 workflow 상태다.
+
+### recommended_action enum
+
+v1 허용값:
 
 ```text
 skip_no_candidates
 review_rollup_summary
-review_before_optional_briefing
 data_quality_check
+review_before_optional_briefing
+```
+
+향후 후보:
+
+```text
 optional_llm_briefing
 optional_deep_analysis
 ```
 
-금지 후보:
+v1 generator는 `optional_llm_briefing`, `optional_deep_analysis`를 만들지 않는다. 이 둘은 operator queue 이후 escalation 설계에서 검토한다.
+
+파생 규칙:
+
+```text
+data_quality_status != complete
+  -> data_quality_check
+
+review_status == quiet
+  -> skip_no_candidates
+
+review_status == needs_review and llm_eligible == true
+  -> review_before_optional_briefing
+
+review_status == needs_review and llm_eligible == false
+  -> review_rollup_summary
+```
+
+금지 값:
 
 ```text
 confirmed_attack
@@ -297,47 +450,154 @@ critical_incident
 exploit_success
 data_leak
 account_takeover
+breach
+compromise
 ```
 
-## 8. LLM eligibility
+## 10. LLM eligibility
 
 Operator Queue는 LLM 실행 여부를 강제하지 않는다.
 
-권장 표현:
+v1 규칙:
 
 ```text
-llm_eligible: true/false
-llm_required: false
+llm_required == false
 ```
 
-`llm_required=true`는 v1에서 사용하지 않는다.
+항상 false다.
 
-이유:
+`llm_eligible=true`는 공격/침해 가능성을 뜻하지 않는다. 단지 optional LLM briefing을 요청할 수 있는 입력 품질과 관찰 신호량이 있다는 뜻이다.
 
-- Apache logs-only artifact만으로 LLM 실행이 필수라고 단정하지 않는다.
-- LLM 비용과 운영 피로를 줄인다.
-- 사람이 먼저 queue를 보고 escalation 여부를 결정할 수 있다.
-
-초기 `llm_eligible=true` 후보:
+v1 `llm_eligible=true` 조건:
 
 ```text
-- candidate_index_count > 0
-- data_quality_status == complete
-- has_payload_like_reason_hint == true
-- repeated src_ip/uri/reason_hint_prefix가 관찰됨
+data_quality_status == complete
+and candidate_index_count > 0
+and (
+  has_payload_like_reason_hint == true
+  or has_repeated_src_ip == true
+  or has_repeated_uri == true
+  or has_repeated_reason_hint_prefix == true
+)
 ```
 
-초기 `llm_eligible=false` 후보:
+v1 `llm_eligible=false` 조건:
 
 ```text
-- quiet rollup
-- incomplete_missing_window
-- empty_no_rollup
+data_quality_status != complete
+or candidate_index_count == 0
+or no observed eligibility signal
 ```
 
-단, `llm_eligible=true`는 공격/침해 가능성을 뜻하지 않는다. 단지 LLM briefing을 요청할 수 있는 입력 품질과 신호량이 있다는 뜻이다.
+## 11. Signal derivation rules
 
-## 9. Single Rollup Reporter 위치
+### has_candidates
+
+```text
+candidate_index_count > 0
+```
+
+### has_missing_windows
+
+```text
+windows_missing_or_failed > 0
+```
+
+### has_possible_duplicates
+
+```text
+possible_duplicate_count > 0
+```
+
+### has_repeated_src_ip
+
+```text
+candidate_src_ip distribution 중 count >= 2인 값이 있음
+```
+
+### has_repeated_uri
+
+```text
+candidate_uri distribution 중 count >= 2인 값이 있음
+```
+
+### has_repeated_reason_hint_prefix
+
+```text
+candidate_reason_hint_prefix distribution 중 count >= 2인 값이 있음
+```
+
+### has_payload_like_reason_hint
+
+초기 allowlist:
+
+```text
+sqli_hint
+xss_hint
+path_traversal_candidate
+cmdi_hint
+hpp_hint
+php_wrapper_hint
+file_disclosure_hint
+log4shell_jndi_hint
+ssrf_like_target
+ssti_hint
+xxe_hint
+webshell_like
+```
+
+이 allowlist는 payload-like observation group일 뿐이다. 성공/침해 판단이 아니다.
+
+### is_quiet
+
+```text
+candidate_index_count == 0
+and data_quality_status == complete
+```
+
+## 12. top_observed derivation rules
+
+`top_observed`는 `rollup_input.distributions`에서 가져온다.
+
+매핑:
+
+```text
+top_observed.src_ip
+  <- distributions.candidate_src_ip
+
+top_observed.uri
+  <- distributions.candidate_uri
+
+top_observed.reason_hint_prefix
+  <- distributions.candidate_reason_hint_prefix
+
+top_observed.status_code
+  <- distributions.candidate_status_code
+```
+
+정렬:
+
+```text
+count desc
+value asc
+```
+
+v1 기본 limit:
+
+```text
+5
+```
+
+주의:
+
+```text
+- top_observed는 관찰 분포다.
+- anomaly ranking이 아니다.
+- 공격자 attribution이 아니다.
+- status_code 분포는 성공/실패 판단이 아니다.
+```
+
+## 13. Single Rollup Reporter 위치
 
 팀원 제안의 Single Rollup Reporter 방향은 유효하다.
 
@@ -377,7 +637,7 @@ attack_success_report.md
 breach_report.md
 ```
 
-## 10. 기존 Stage1/Stage2 위치
+## 14. 기존 Stage1/Stage2 위치
 
 기존 Stage1/Stage2는 다음 위치로 재정의한다.
 
@@ -410,7 +670,7 @@ Stage1/Stage2를 유지하는 이유:
 - 사람이 먼저 봐야 할 queue/data quality 상태가 Stage2 report 뒤에 묻힌다.
 - Rollup이 이미 dedup/merge/summary를 수행하므로 Stage1의 역할을 재검토할 수 있다.
 
-## 11. Web UI 관점
+## 15. Web UI 관점
 
 초기 구현은 file artifact만 만든다.
 
@@ -422,6 +682,7 @@ Operator Queue list
   - time range
   - data_quality_status
   - review_status
+  - operator_state
   - candidate_index_count
   - dedup_removed_by_request_id
   - missing window count
@@ -444,7 +705,7 @@ Web UI 원칙:
 - context-only 승격 금지
 ```
 
-## 12. Daily summary와의 관계
+## 16. Daily summary와의 관계
 
 Daily summary는 raw log를 다시 분석하지 않는다.
 
@@ -466,7 +727,7 @@ Daily summary의 역할:
 
 Daily summary도 success/intrusion/data exposure를 새로 단정하지 않는다.
 
-## 13. Non-goals
+## 17. Non-goals
 
 Operator Queue v1은 다음을 하지 않는다.
 
@@ -484,9 +745,11 @@ Operator Queue v1은 다음을 하지 않는다.
 - account takeover 판단
 - upload saved 판단
 - context-only 승격
+- llm_required=true 생성
+- optional_llm_briefing action 생성
 ```
 
-## 14. 구현 후보
+## 18. 구현 후보
 
 문서 확정 후 구현 후보:
 
@@ -495,21 +758,21 @@ src/sliding_window_operator_queue.py
 tests/test_sliding_window_operator_queue.py
 ```
 
-입력 후보:
+입력:
 
 ```text
 data/rollups/<date>/rollup_*/rollup_summary.json
 data/rollups/<date>/rollup_*/rollup_input.json
 ```
 
-출력 후보:
+출력:
 
 ```text
 data/operator_queue/<date>/queue_items.json
 data/operator_queue/<date>/queue_summary.json
 ```
 
-초기 CLI 후보:
+초기 CLI:
 
 ```bash
 python3 src/sliding_window_operator_queue.py \
@@ -529,32 +792,36 @@ output 일부만 있음 + --overwrite 없음 -> partial existing error
 --overwrite -> 재생성
 ```
 
-## 15. 테스트 후보
+## 19. 테스트 기준
+
+v1 구현 시 필요한 테스트:
 
 ```text
 test_queue_loads_rollup_summaries
 test_queue_marks_quiet_rollup
 test_queue_marks_needs_review_when_candidates_exist
 test_queue_marks_data_quality_check_for_incomplete_rollup
+test_queue_marks_missing_rollup_artifact
 test_queue_sets_llm_eligible_without_llm_required
 test_queue_does_not_create_security_verdict
 test_queue_top_observed_is_distribution_only
+test_queue_payload_like_reason_hint_allowlist
+test_queue_status_derivation_precedence
 test_queue_output_reuse_policy
 ```
 
-## 16. 다음 판단
+## 20. 다음 판단
 
 다음 단계는 바로 LLM reporter 구현이 아니라 다음 중 하나를 선택한다.
 
-1. Operator Queue 문서 보강
-   - status taxonomy 확정
-   - item schema 확정
-   - queue summary schema 확정
-
-2. Operator Queue v1 최소 구현
-   - rollup_summary 기반 queue item 생성
+1. Operator Queue v1 최소 구현
+   - rollup_summary/rollup_input 기반 queue item 생성
    - LLM 없음
    - Web UI 없음
+
+2. Operator Queue 문서 추가 검토
+   - enum/status/action 명칭을 팀 내에서 확정
+   - payload-like allowlist 보정
 
 3. Single Rollup Reporter 설계
    - operator queue 이후 optional briefing으로 설계
@@ -563,13 +830,13 @@ test_queue_output_reuse_policy
 권장 순서:
 
 ```text
-Operator Queue 문서 확정
-  -> Operator Queue v1 구현
+Operator Queue v1 구현
+  -> Operator Queue smoke
   -> Single Rollup Reporter 설계
   -> projection/Stage1/Stage2 deep-analysis path 재검토
 ```
 
-## 17. Guardrail
+## 21. Guardrail
 
 이 문서는 [00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)를 따른다.
 
