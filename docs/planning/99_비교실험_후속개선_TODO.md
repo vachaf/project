@@ -109,10 +109,14 @@
   - 검증: sliding window/operator/rollup/scheduler/candidate policy quick bundle → 67 passed.
   - smoke: `python3 src/sliding_window_operator_queue.py --work-dir /opt/web_log_analysis --date 2026-05-24 --pretty` → `status=written`, `rollup_items_total=2`, `needs_review=2`, `llm_eligible=2`, `llm_required=0`.
   - 생성 artifact: `data/operator_queue/2026-05-24/queue_items.json`, `queue_summary.json`.
-- [ ] Operator Queue allowlist 보정 여부 판단
-  - actual smoke에서 `top_observed.reason_hint_prefix`에 `xss`가 관찰됐으나 현재 allowlist에는 `xss_hint`만 있어 `has_payload_like_reason_hint=false`였다.
-  - 현재는 repeated src_ip/uri/reason_hint_prefix 때문에 `llm_eligible=true`가 되어 동작상 문제는 없다.
-  - `xss` 및 다른 `_hint` 없는 payload-like prefix를 `PAYLOAD_LIKE_REASON_HINTS`에 추가할지 검토한다.
+- [x] Operator Queue allowlist 보정 및 검증
+  - actual smoke의 `candidate_reason_hint_prefix` 분포에서 `sqli`, `xss`가 관찰되어 `PAYLOAD_LIKE_REASON_HINTS`에 `sqli`, `xss`를 추가했다.
+  - 기존 `sqli_hint`, `xss_hint`는 유지했다.
+  - `upload`, `login_endpoint`, `auth_payload_content_type`, `error_linked`, `error_status`는 payload-like allowlist에 추가하지 않았다.
+  - 이는 queue routing signal 정렬일 뿐이며 score/verdict_hint/candidate visibility/LLM required는 변경하지 않는다.
+  - 검증: `tests/test_sliding_window_operator_queue.py` → 13 passed.
+  - 검증: sliding window/operator/rollup/scheduler/candidate policy quick bundle → 69 passed.
+  - smoke: `--overwrite`로 queue 재생성 후 두 rollup 모두 `has_payload_like_reason_hint=true`, `llm_eligible=true`, `recommended_action=review_before_optional_briefing` 확인.
 - [ ] Operator Queue smoke/운영 rollup cadence 분리 여부 판단
   - 같은 날짜 아래 `rollup_0200_0300`과 `rollup_0200_0400` 같은 실험성 cadence가 함께 잡히면 queue에 중복처럼 보일 수 있다.
   - 필요 시 `--rollup-pattern`, `--rollup-id-prefix`, 또는 별도 rollup root 사용을 검토한다.
