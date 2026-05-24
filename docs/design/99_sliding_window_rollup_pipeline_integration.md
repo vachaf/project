@@ -1,14 +1,13 @@
 # 99_sliding_window_rollup_pipeline_integration
 
-- 문서 상태: 채택 후보 / pipeline 정렬본
+- 문서 상태: 채택 후보 / pipeline v1.0 정렬본
 - 기준 시점: 2026-05-24
 - 작성 배경: 안수홍님 작성 Rollup pipeline 초안을 `99_sliding_window_rollup_input_review.md` 기준으로 축소/정렬
 - 적용 범위: 파일 artifact 기반 Sliding Window + Rollup 흐름
 
 ## 1. 결론
 
-Rollup pipeline은 기존 single-window pipeline을 대체하지 않는다.  
-추가 분석 경로로 붙인다.
+Rollup pipeline은 기존 single-window pipeline을 대체하지 않는다. 추가 분석 경로로 붙인다.
 
 ```text
 Single Window:
@@ -22,12 +21,11 @@ export.json
 Sliding Window + Rollup:
 sw_*/window_summary.json
   -> sliding_window_rollup.py
-  -> rollup_input.json
-  -> Stage1/Stage2 compatibility target
+  -> rollup_input.json / dedup_candidates.json / rollup_summary.json
+  -> Stage1/Stage2 compatibility target (v1.5 후보)
 ```
 
-v1에서 `sliding_window_rollup.py`는 Stage1/Stage2 실행까지 담당하지 않는다.  
-v1은 rollup artifact 생성까지만 담당한다.
+v1.0에서 `sliding_window_rollup.py`는 Stage1/Stage2 실행까지 담당하지 않는다. v1.0은 rollup artifact 생성까지만 담당한다.
 
 ## 2. 기존 Single Window 구조
 
@@ -55,7 +53,7 @@ Web UI
 
 이 흐름은 변경하지 않는다.
 
-## 3. Sliding Window + Rollup v1 구조
+## 3. Sliding Window + Rollup v1.0 구조
 
 ```text
 Continuous Log Range
@@ -107,31 +105,45 @@ data/rollups/<date>/<rollup_id>/
 
 ### sliding_window_rollup.py
 
+v1.0 책임:
+
 ```text
 - 여러 window_summary.json 로드
+- missing/invalid window 상태 기록
 - request_id dedup
+- request_id 없는 후보 보존
+- fallback duplicate는 marked_only_not_removed로 표시
 - candidate_index merge
 - distribution merge
-- uri_family_hints / low_and_slow_hints 생성
 - rollup_input.json / dedup_candidates.json / rollup_summary.json 저장
+```
+
+v1.0에서 하지 않는 일:
+
+```text
+- uri_family_hints 생성
+- low_and_slow_hints 생성
+- Stage1/Stage2 실행
+- analysis_candidates projection 생성
+- runs/ 생성
+- Web UI 수정
 ```
 
 ### llm_stage1_classifier.py
 
 ```text
-- v1에서 직접 수정 대상 아님
-- rollup_input compatibility는 별도 테스트로 확인
-- 필요하면 analysis_candidates projection을 rollup_input에 추가
+- v1.0에서 직접 수정 대상 아님
+- rollup_input compatibility는 v1.5 후보로 별도 테스트 후 판단
 ```
 
 ### llm_stage2_reporter.py
 
 ```text
-- v1에서 직접 수정 대상 아님
-- rollup metadata/context 호환성은 별도 테스트로 확인
+- v1.0에서 직접 수정 대상 아님
+- rollup metadata/context 호환성은 v1.5 후보로 별도 테스트 후 판단
 ```
 
-## 5. v1 실행 예시
+## 5. v1.0 실행 예시
 
 ### 5.1 Planner
 
@@ -172,6 +184,14 @@ python3 src/sliding_window_scheduler.py \
 
 ### 5.4 Rollup
 
+`--out-dir`를 주지 않으면 기본값은 다음 후보를 사용한다.
+
+```text
+data/rollups/<date>/rollup_YYYYMMDD_HHMM_HHMM
+```
+
+명시적으로 지정할 수도 있다.
+
 ```bash
 python3 src/sliding_window_rollup.py \
   --work-dir /opt/web_log_analysis \
@@ -185,13 +205,14 @@ python3 src/sliding_window_rollup.py \
 
 ## 6. Stage1/Stage2 호환성 원칙
 
-초안의 “기존 코드 그대로” 표현은 v1 문서에서는 쓰지 않는다.
+초안의 “기존 코드 그대로” 표현은 v1.0 문서에서는 쓰지 않는다.
 
 대신 다음으로 정리한다.
 
 ```text
 - 목표: Stage1/Stage2가 기존 analysis_candidates 기반 처리를 유지하도록 한다.
 - 보장 전제: rollup_input이 필요한 compatibility projection을 제공한다.
+- 현재 상태: v1.0에서는 projection을 만들지 않는다.
 - 검증: 별도 fixture 기반 test가 필요하다.
 ```
 
@@ -219,10 +240,9 @@ tests/test_stage2_rollup_input_compat.py
 
 ```text
 - 여러 window에 걸친 중복 제거
-- low-and-slow hint 관찰
-- uri_family hint 관찰
+- 긴 기간의 후보 index 병합
 - 운영자 심화 검토
-- 긴 기간의 LLM 입력 후보 축약
+- 긴 기간의 LLM 입력 후보 축약 전 단계
 ```
 
 Rollup은 단기 대응용 alert 엔진이 아니다.
@@ -247,7 +267,7 @@ sw_0300_0400
     req_3 GET /search 200 sqli_hint
 ```
 
-### Rollup v1
+### Rollup v1.0
 
 ```text
 request_id dedup:
@@ -260,8 +280,8 @@ candidate_index:
   req_2 source_window_ids=[sw_0200_0300]
   req_3 source_window_ids=[sw_0300_0400]
 
-rollup_context.low_and_slow_hints:
-  sqli_hint가 여러 window에 보였다는 context만 기록
+rollup_context:
+  v1.0에서는 notes만 기록
 ```
 
 `req_2`, `req_3`을 합쳐 새 low-and-slow Stage1 후보를 만들지는 않는다.
@@ -294,7 +314,7 @@ rollup_context.low_and_slow_hints:
 
 ## 10. Web UI 통합 범위
 
-v1에서는 Web UI를 수정하지 않는다.
+v1.0에서는 Web UI를 수정하지 않는다.
 
 향후 후보:
 
@@ -309,7 +329,7 @@ Web UI는 새 security verdict를 만들거나 후보를 재계산하지 않는�
 
 ## 11. DB / FastAPI 범위
 
-v1에서는 제외한다.
+v1.0에서는 제외한다.
 
 ```text
 - MariaDB rollup table 생성 없음
@@ -322,10 +342,11 @@ DB/API는 포맷과 운영 흐름이 안정화된 뒤 별도 문서에서 검토
 ## 12. 구현 순서
 
 ```text
-1. docs/design/99_sliding_window_rollup_input_format.md 확정
+1. docs/design/99_sliding_window_rollup_input_format.md v1.0 확정
 2. src/sliding_window_rollup.py 최소 구현
 3. tests/test_sliding_window_rollup.py fixture 작성
 4. 실제 data/windowed fixture로 dry-run
 5. rollup_input.json schema 확인
-6. Stage1/Stage2 compatibility test는 별도 단계로 진행
+6. uri_family/low_and_slow는 v1.1에서 별도 검토
+7. Stage1/Stage2 compatibility test는 v1.5에서 별도 진행
 ```
