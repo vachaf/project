@@ -1,7 +1,7 @@
 # 99_sliding_window_operator_queue_design
 
 - 문서 상태: v1 구현 기준 명세 / v1 최소 구현 완료
-- 기준 시점: 2026-05-24
+- 기준 시점: 2026-05-25
 - 목적: Sliding Window / Rollup 이후 사람이 먼저 봐야 할 운영 queue 모델을 정의한다.
 - 구현 상태: `src/sliding_window_operator_queue.py` / `tests/test_sliding_window_operator_queue.py` 추가 완료
 
@@ -72,6 +72,10 @@ data/operator_queue/<date>/queue_summary.json
 data/rollups/<date>/rollup_*/rollup_input.json
 data/rollups/<date>/rollup_*/rollup_summary.json
 ```
+
+v1의 입력 선택은 단순하다. 지정한 날짜의 `data/rollups/<date>/rollup_*` 디렉터리를 모두 읽는다.
+
+v1.1에서는 운영용 rollup과 smoke/실험 rollup을 분리하기 위해 `--rollup-pattern`과 rollup naming convention을 추가 검토한다.
 
 ## 3. v1 구현 상태
 
@@ -248,7 +252,165 @@ rollup directory 안에 `operator_item.json`을 두는 대안은 v1에서 채택
 - Web UI가 나중에 읽기 쉽다.
 - rollup artifact와 operator review routing artifact를 분리할 수 있다.
 
-## 8. Queue items file schema
+## 8. Queue source selection / cadence 분리
+
+Operator Queue가 무엇을 대표하는지 명확해야 한다.
+
+운영 queue의 기본 의미는 다음과 같다.
+
+```text
+Operator Queue = 운영자가 먼저 볼 운영용 rollup 목록
+```
+
+따라서 smoke/실험 rollup은 기본 운영 queue에 섞지 않는다.
+
+문제 예시:
+
+```text
+data/rollups/2026-05-24/
+  rollup_20260524_0200_0300/
+  rollup_20260524_0200_0400/
+```
+
+두 rollup은 모두 같은 날짜 아래 있고 둘 다 `needs_review`가 될 수 있다. 그러나 첫 번째는 1시간 smoke이고, 두 번째는 2시간 overlap/missing-window smoke일 수 있다. 이 상태에서 queue가 둘 다 읽으면 운영자가 보는 queue가 운영 현황이 아니라 실험 artifact 목록처럼 보일 수 있다.
+
+따라서 v1.1에서는 다음 두 가지를 함께 검토한다.
+
+```text
+B. --rollup-pattern 옵션
+C. rollup naming convention
+```
+
+B + C 조합을 우선 검토한다.
+
+```text
+B 단독
+  - pattern은 있으나 naming이 약하면 의미가 흔들릴 수 있다.
+
+C 단독
+  - naming은 있으나 queue 입력을 강제하지 못한다.
+
+B + C
+  - naming으로 의미를 부여하고 pattern으로 입력을 제한한다.
+```
+
+### v1.1 후보: --rollup-pattern
+
+CLI 후보:
+
+```bash
+python3 src/sliding_window_operator_queue.py \
+  --work-dir /opt/web_log_analysis \
+  --date 2026-05-24 \
+  --rollup-pattern "rollup_ops_*" \
+  --pretty
+```
+
+동작 후보:
+
+```text
+- 기본값은 현재와 호환되도록 rollup_* 로 둔다.
+- pattern은 rollup directory name에만 적용한다.
+- path 전체가 아니라 directory basename에 적용한다.
+- Python fnmatch 기준 glob pattern을 사용한다.
+- pattern에 매칭되는 rollup만 queue item 후보가 된다.
+```
+
+### v1.1 후보: rollup naming convention
+
+운영용 rollup 후보:
+
+```text
+rollup_ops_<cadence>_<HHMM>_<HHMM>
+rollup_ops_4h_0200_0600
+rollup_ops_1h_0200_0300
+```
+
+smoke/실험용 rollup 후보:
+
+```text
+rollup_smoke_<purpose>_<HHMM>_<HHMM>
+rollup_smoke_single_0200_0300
+rollup_smoke_overlap_0200_0400
+rollup_smoke_missing_0200_0400
+```
+
+주의:
+
+```text
+- naming convention은 보안 의미를 만들지 않는다.
+- ops/smoke는 운영 artifact와 실험 artifact의 source selection을 구분하기 위한 label이다.
+- rollup_id label만으로 공격/침해/성공 여부를 표현하지 않는다.
+```
+
+### v1.1 후보: empty queue semantics
+
+`--rollup-pattern`을 지정했는데 매칭되는 rollup이 0개일 수 있다.
+
+예:
+
+```bash
+python3 src/sliding_window_operator_queue.py \
+  --date 2026-05-24 \
+  --rollup-pattern "rollup_ops_*" \
+  --pretty
+```
+
+아직 운영 rollup이 생성되지 않았으면 매칭 결과는 0개다.
+
+이 경우는 오류가 아니다.
+
+권장 동작:
+
+```text
+status=written
+rollup_items_total=0
+quiet=0
+needs_review=0
+data_quality_check=0
+llm_eligible=0
+llm_required=0
+```
+
+`queue_summary.json`에는 입력 source selection metadata를 남긴다.
+
+```json
+{
+  "source_selection": {
+    "rollup_root": "data/rollups/2026-05-24",
+    "rollup_pattern": "rollup_ops_*",
+    "matched_rollup_count": 0
+  }
+}
+```
+
+이 상태는 다음 중 하나로 해석한다.
+
+```text
+- 해당 날짜에 운영 rollup이 아직 생성되지 않았다.
+- pattern이 너무 좁다.
+- smoke/실험 rollup만 존재한다.
+```
+
+하지만 이것은 보안적으로 quiet하다는 뜻은 아니다.
+
+```text
+empty queue != quiet day
+```
+
+`quiet`은 rollup이 존재하고 `candidate_index_count=0`인 상태다. 매칭된 rollup이 0개인 상태는 관찰 대상 자체가 없는 것이므로 `quiet`으로 계산하지 않는다.
+
+### v1.1 테스트 후보
+
+```text
+test_rollup_pattern_includes_matching_rollups_only
+test_rollup_pattern_excludes_smoke_rollups
+test_default_rollup_pattern_keeps_existing_rollup_star_behavior
+test_empty_rollup_pattern_match_writes_empty_queue_not_quiet
+test_source_selection_metadata_records_pattern_and_match_count
+```
+
+## 9. Queue items file schema
 
 `queue_items.json`은 top-level object로 저장한다. 단순 list로 저장하지 않는다.
 
@@ -263,9 +425,21 @@ rollup directory 안에 `operator_item.json`을 두는 대안은 v1에서 채택
 }
 ```
 
+v1.1에서 `--rollup-pattern`을 추가하면 `queue_items.json`에도 `source_selection` metadata를 추가한다.
+
+```json
+{
+  "source_selection": {
+    "rollup_root": "data/rollups/2026-05-24",
+    "rollup_pattern": "rollup_ops_*",
+    "matched_rollup_count": 0
+  }
+}
+```
+
 `items`의 각 항목은 `sliding_window_operator_queue_item_v1` 구조를 따른다.
 
-## 9. Queue item v1 schema
+## 10. Queue item v1 schema
 
 ```json
 {
@@ -294,7 +468,7 @@ rollup directory 안에 `operator_item.json`을 두는 대안은 v1에서 채택
 }
 ```
 
-## 10. Queue summary v1 schema
+## 11. Queue summary v1 schema
 
 ```json
 {
@@ -322,7 +496,9 @@ rollup directory 안에 `operator_item.json`을 두는 대안은 v1에서 채택
 }
 ```
 
-## 11. Status taxonomy
+v1.1에서 `--rollup-pattern`을 추가하면 `queue_summary.json`에도 `source_selection` metadata를 추가한다.
+
+## 12. Status taxonomy
 
 ### data_quality_status
 
@@ -435,7 +611,7 @@ breach
 compromise
 ```
 
-## 12. LLM eligibility
+## 13. LLM eligibility
 
 Operator Queue는 LLM 실행 여부를 강제하지 않는다.
 
@@ -460,7 +636,7 @@ and (
 )
 ```
 
-## 13. Signal derivation rules
+## 14. Signal derivation rules
 
 ```text
 has_candidates
@@ -528,7 +704,7 @@ error_status
 - LLM required로 승격하지 않는다.
 ```
 
-## 14. top_observed derivation rules
+## 15. top_observed derivation rules
 
 `top_observed`는 `rollup_input.distributions`에서 가져온다.
 
@@ -570,7 +746,7 @@ v1 기본 limit:
 - status_code 분포는 성공/실패 판단이 아니다.
 ```
 
-## 15. Output reuse / atomic write
+## 16. Output reuse / atomic write
 
 Operator Queue v1은 Rollup과 같은 보수적 output reuse policy를 따른다.
 
@@ -590,7 +766,7 @@ os.replace(tmp, final)
 
 테스트에서 `.tmp` 파일이 남지 않는지 확인한다.
 
-## 16. Single Rollup Reporter 위치
+## 17. Single Rollup Reporter 위치
 
 팀원 제안의 Single Rollup Reporter 방향은 유효하다.
 
@@ -615,7 +791,7 @@ llm_rollup_observation_reporter.py
 llm_rollup_review_brief.py
 ```
 
-## 17. 기존 Stage1/Stage2 위치
+## 18. 기존 Stage1/Stage2 위치
 
 기존 Stage1/Stage2는 다음 위치로 재정의한다.
 
@@ -634,7 +810,7 @@ selected queue item
 
 그러나 projection은 v1 operator queue 범위 밖이다.
 
-## 18. Web UI 관점
+## 19. Web UI 관점
 
 초기 구현은 file artifact만 만든다.
 
@@ -655,7 +831,7 @@ Web UI 원칙:
 - context-only 승격 금지
 ```
 
-## 19. Daily summary와의 관계
+## 20. Daily summary와의 관계
 
 Daily summary는 raw log를 다시 분석하지 않는다.
 
@@ -670,7 +846,7 @@ optional Stage2 report metadata
 
 Daily summary도 success/intrusion/data exposure를 새로 단정하지 않는다.
 
-## 20. Non-goals
+## 21. Non-goals
 
 Operator Queue v1은 다음을 하지 않는다.
 
@@ -692,7 +868,15 @@ Operator Queue v1은 다음을 하지 않는다.
 - optional_llm_briefing action 생성
 ```
 
-## 21. 테스트 기준 및 현황
+Operator Queue v1.1 source selection도 다음을 하지 않는다.
+
+```text
+- pattern name으로 보안 의미 생성
+- ops/smoke label로 보안 verdict 생성
+- empty pattern match를 quiet day로 해석
+```
+
+## 22. 테스트 기준 및 현황
 
 구현된 테스트:
 
@@ -719,13 +903,25 @@ tests/test_sliding_window_operator_queue.py -> 13 passed
 sliding window/operator/rollup/scheduler/candidate policy quick bundle -> 69 passed
 ```
 
-## 22. 다음 판단
+v1.1 source selection 테스트 후보:
+
+```text
+test_rollup_pattern_includes_matching_rollups_only
+test_rollup_pattern_excludes_smoke_rollups
+test_default_rollup_pattern_keeps_existing_rollup_star_behavior
+test_empty_rollup_pattern_match_writes_empty_queue_not_quiet
+test_source_selection_metadata_records_pattern_and_match_count
+```
+
+## 23. 다음 판단
 
 다음 단계는 바로 LLM reporter 구현이 아니라 다음 중 하나를 선택한다.
 
-1. Operator Queue smoke/운영 분리
-   - 같은 날짜 아래 실험성 rollup cadence가 섞이는 문제 검토
-   - 필요 시 `--rollup-pattern` 또는 별도 root를 검토
+1. Operator Queue source selection 구현
+   - `--rollup-pattern` 추가
+   - 기본값은 `rollup_*`
+   - source_selection metadata 추가
+   - empty match는 오류가 아닌 empty queue로 처리
 
 2. Single Rollup Reporter 설계
    - operator queue 이후 optional briefing으로 설계
@@ -739,12 +935,12 @@ sliding window/operator/rollup/scheduler/candidate policy quick bundle -> 69 pas
 
 ```text
 Operator Queue allowlist 보정 완료
-  -> cadence 분리 여부 판단
+  -> source selection / cadence 분리 구현
   -> Single Rollup Reporter 설계
   -> projection/Stage1/Stage2 deep-analysis path 재검토
 ```
 
-## 23. Guardrail
+## 24. Guardrail
 
 이 문서는 [00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)를 따른다.
 
