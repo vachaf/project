@@ -11,14 +11,17 @@
 - 완료 기록은 history 문서, `docs/진행상황.md`, 개별 설계 문서, 작업일지로 이관한다.
 - Apache logs-only evidence boundary를 유지한다.
 - `status_code=200`, `text/html`, `response_body_bytes`, `handler`, `x_forwarded_for`만으로 공격 성공/유출/내부 결과를 단정하지 않는다.
-- Web UI는 read-only이며 새 보안 판단/관계/incident를 만들지 않는다.
+- Web UI는 보안 분석 결과 해석에 대해서는 read-only이며 새 보안 판단/관계/incident를 만들지 않는다.
+- DB-backed MVP에서 Web UI는 `analysis_jobs` 등록/조회에는 DB write/read를 수행할 수 있다.
 - Sliding Window/Rollup/Operator Queue는 LLM 실행 전 사람이 먼저 볼 운영용 artifact를 만드는 경로다.
 - DB-backed MVP의 `analysis_jobs` queue는 사용자가 등록한 분석 실행 queue이고, 기존 `operator queue`는 분석 결과 중 사람이 검토할 rollup 목록이다.
 - DB-backed MVP의 기본 `analysis_mode`는 `full_report`이며 Stage1/Stage2/viewer_payload 생성까지 완료되어야 `SUCCEEDED`로 본다.
+- Web UI/API/job_events/error_message에는 API key, `.env`, provider secret, raw provider error body를 노출하지 않는다.
 
 ## 현재 기준 문서
 
 - DB-backed log collection + analysis job design: [../design/99_db_backed_log_collection_and_analysis_job_design.md](../design/99_db_backed_log_collection_and_analysis_job_design.md)
+- DB-backed Web UI/API safety addendum: [../design/99_db_backed_web_ui_api_safety_addendum.md](../design/99_db_backed_web_ui_api_safety_addendum.md)
 - Sliding Window adoption review: [../design/99_sliding_window_adoption_review.md](../design/99_sliding_window_adoption_review.md)
 - Rollup input review: [../design/99_sliding_window_rollup_input_review.md](../design/99_sliding_window_rollup_input_review.md)
 - Rollup input format: [../design/99_sliding_window_rollup_input_format.md](../design/99_sliding_window_rollup_input_format.md)
@@ -38,6 +41,11 @@
   - 교수님 피드백을 반영해 Apache 로그 수집, DB 적재, Web UI 기반 분석 작업 등록, Analysis Agent 실행, 결과 표시까지의 상위 운영 흐름으로 정리했다.
   - `analysis_jobs queue`와 기존 `operator queue`를 분리했다.
   - Agent는 AI agent가 아니라 Python background worker/CLI process로 정의했다.
+- [x] DB-backed Web UI/API safety addendum 작성
+  - 문서: [../design/99_db_backed_web_ui_api_safety_addendum.md](../design/99_db_backed_web_ui_api_safety_addendum.md)
+  - 안수홍 검토를 반영해 viewer-only 원칙과 DB-backed MVP의 차이를 정리했다.
+  - Web UI read-only 원칙은 보안 결과 해석에 적용하고, `analysis_jobs` 등록/조회 DB write/read는 허용하는 것으로 분리했다.
+  - UI 표시 정책, secret/config 보호, time range 상한, 중복 job 처리, artifact overwrite/allowed path, timeout, retention/cleanup 정책을 보강했다.
 - [x] MariaDB 기준 DDL 정리
   - `users`, `analysis_jobs`, `analysis_reports`, `job_events`, `log_collection_checkpoints`를 MariaDB/MySQL 기준 DDL로 정리했다.
   - 기존 `apache_access_logs`, `apache_security_logs`, `apache_error_logs` 3개 로그 source table은 유지한다.
@@ -64,16 +72,25 @@
   - `analysis_jobs`, `analysis_reports`, `job_events` 추가.
   - 필요 시 `log_collection_checkpoints` DB table 도입 여부를 현재 file-state 방식과 비교한다.
   - MariaDB 기준 DDL을 실제 migration 또는 setup SQL로 분리한다.
+- [ ] DB-backed MVP validation/redaction policy 구현 기준 확정
+  - `requested_timezone` v1 허용값: `Asia/Seoul`.
+  - `analysis_mode` v1 허용값: `full_report`.
+  - 일반 Web UI job 최대 time range 후보: 24시간.
+  - PENDING/RUNNING 동일 범위 중복 job 차단 또는 기존 job 반환.
+  - job_events/error_message secret redaction.
+  - artifact_root는 job 단위 경로만 허용하고 사용자 임의 path 입력 금지.
 - [ ] `analysis_jobs` 등록/조회 API 설계 및 구현
   - POST job 등록.
   - GET job list/detail.
   - 상태: `PENDING`, `RUNNING`, `SUCCEEDED`, `FAILED`.
   - Web UI 입력 시간은 `Asia/Seoul`, DB 조회 시간은 UTC `DATETIME(3)` 기준으로 변환한다.
+  - missing provider는 `N/A`로 표시하고 missing provider detail link는 만들지 않는다.
 - [ ] 단일 Analysis Agent polling MVP 구현
   - PENDING job 조회.
   - atomic claim.
   - RUNNING/SUCCEEDED/FAILED 상태 갱신.
   - `job_events` 기록.
+  - step timeout 발생 시 `FAILED` 처리.
 - [ ] `src/export_db_logs_cli.py` 연동
   - `analysis_jobs.time_from/time_to` 기반 export.json 생성.
   - primary source: `apache_security_logs`.
@@ -82,7 +99,9 @@
   - Stage1 결과 경로 저장.
   - Stage2 report 경로 저장.
   - viewer_payload.json 경로 저장.
+  - operator_queue artifact 경로 저장.
   - viewer_payload 생성 완료 후 `SUCCEEDED` 처리.
+  - MVP에서는 자동 cleanup/delete를 제공하지 않는다.
 
 ## P1. Sliding Window / Rollup / Operator Queue
 
