@@ -1,15 +1,16 @@
 # 99_sliding_window_operator_queue_item_detail
 
-- 문서 상태: 설계 초안 / 구현 전 판단 문서
+- 문서 상태: 구현 완료 / CLI preview v1
 - 기준 시점: 2026-05-25
 - 목적: Operator Queue item 하나를 사람이 어떻게 읽고 drilldown할지 정의한다.
-- 관련 구현: `src/sliding_window_operator_queue.py`
-- 관련 테스트: `tests/test_sliding_window_operator_queue.py`
+- 구현: `src/sliding_window_operator_queue_detail.py`
+- 테스트: `tests/test_sliding_window_operator_queue_detail.py`
 
 관련 문서:
 
 - [00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)
 - [99_sliding_window_operator_queue_design.md](./99_sliding_window_operator_queue_design.md)
+- [99_sliding_window_single_rollup_observation_brief.md](./99_sliding_window_single_rollup_observation_brief.md)
 - [99_sliding_window_rollup_input_format.md](./99_sliding_window_rollup_input_format.md)
 - [99_sliding_window_rollup_pipeline_integration.md](./99_sliding_window_rollup_pipeline_integration.md)
 - [../planning/99_비교실험_후속개선_TODO.md](../planning/99_비교실험_후속개선_TODO.md)
@@ -28,191 +29,172 @@ Operator Queue item detail의 1차 목표는 새 보안 판단을 만드는 것�
 - 어디로 drilldown해야 하는가?
 ```
 
-따라서 다음 구현은 큰 schema 변경보다 **표시/정리 관점의 view 또는 projection**으로 시작하는 것이 적절하다.
-
-권장 방향:
+v1 구현 결론:
 
 ```text
-- queue item 원본 schema는 당장 크게 확장하지 않는다.
-- 기존 queue item의 counts/signals/top_observed/source paths를 사람이 읽기 쉬운 detail view로 정리한다.
-- 필요하면 별도 builder나 Web UI projection에서 detail view를 만든다.
-- 보안 verdict, success 판단, threat score는 추가하지 않는다.
+- queue item 원본 schema를 확장하지 않는다.
+- 새 detail artifact를 생성하지 않는다.
+- queue_items.json과 rollup_input.json을 읽어 stdout으로 deterministic preview를 출력한다.
+- Stage1/Stage2/LLM을 호출하지 않는다.
+- 보안 verdict, success 판단, threat score를 만들지 않는다.
 ```
 
-## 2. 현재 queue item v1 상태
+## 2. 구현 상태
 
-현재 `sliding_window_operator_queue_item_v1`은 다음 정보를 가진다.
+구현 파일:
 
 ```text
-identity
-  - rollup_id
-  - rollup_path
-  - rollup_summary_path
-  - queue_date
-  - generated_at
-
-time_range
-  - start
-  - end_exclusive
-  - timezone
-  - duration_minutes
-
-routing
-  - data_quality_status
-  - review_status
-  - operator_state
-  - llm_eligible
-  - llm_required
-  - recommended_action
-
-counts
-  - window_count
-  - windows_successfully_loaded
-  - windows_missing_or_failed
-  - candidate_rows_total
-  - candidate_index_count
-  - dedup_removed_by_request_id
-  - possible_duplicate_count
-  - noise_group_count_total
-
-signals
-  - has_candidates
-  - has_missing_windows
-  - has_possible_duplicates
-  - has_repeated_src_ip
-  - has_repeated_uri
-  - has_repeated_reason_hint_prefix
-  - has_payload_like_reason_hint
-  - is_quiet
-
-top_observed
-  - src_ip
-  - uri
-  - reason_hint_prefix
-  - status_code
-
-guardrails
-  - summary_only
-  - apache_logs_only
-  - no_success_inference
-  - no_body_inference
-  - no_context_promotion
-  - no_new_security_verdict
+src/sliding_window_operator_queue_detail.py
 ```
 
-이 정보는 machine-readable routing에는 충분하다. 하지만 사람이 읽기에는 다음이 부족하다.
+입력:
 
 ```text
-- 어떤 순서로 읽어야 하는지
-- 어떤 상태를 먼저 확인해야 하는지
-- 어떤 항목이 drilldown entrypoint인지
-- Apache logs-only 한계를 어디서 확인해야 하는지
-- empty queue와 quiet item을 어떻게 구분해야 하는지
+data/operator_queue/<date>/queue_items.json
+data/rollups/<date>/<rollup_id>/rollup_input.json  # payload-like prefix 보강용, optional fallback 있음
 ```
 
-## 3. Operator가 item detail에서 먼저 봐야 하는 것
-
-사람이 detail에서 보는 순서는 다음이 적절하다.
+출력:
 
 ```text
-1. Data quality
-2. Review routing
-3. Counts
-4. Observed signals
-5. Top observed distributions
-6. Drilldown paths
-7. Apache logs-only notes
+stdout
 ```
 
-이 순서는 보안 판단 순서가 아니라 운영 검토 순서다.
+지원 포맷:
 
-## 4. Detail view 권장 구조
+```text
+--format text      # 기본값, plain text heading
+--format markdown  # markdown heading
+--format json      # detail view JSON stdout
+```
 
-Queue item detail은 다음 섹션으로 표현한다.
+새로 만들지 않는 것:
 
-```json
-{
-  "schema": "sliding_window_operator_queue_item_detail_view_v1",
-  "rollup_id": "rollup_20260524_0200_0400",
-  "summary": {},
-  "quality_assessment": {},
-  "routing": {},
-  "observed_signals": {},
-  "top_observed": {},
-  "drilldown": {},
-  "apache_logs_only_notes": [],
-  "guardrails": {}
-}
+```text
+- detail artifact file
+- Stage1 result
+- Stage2 report
+- viewer_payload
+- LLM output
+- security verdict
+- severity/category/final verdict
+- confidence_score/threat_level
+```
+
+## 3. CLI 사용법
+
+기본 text preview:
+
+```bash
+python3 src/sliding_window_operator_queue_detail.py \
+  --work-dir /opt/web_log_analysis \
+  --date 2026-05-24 \
+  --rollup-id rollup_20260524_0200_0400
+```
+
+Markdown preview:
+
+```bash
+python3 src/sliding_window_operator_queue_detail.py \
+  --work-dir /opt/web_log_analysis \
+  --date 2026-05-24 \
+  --rollup-id rollup_20260524_0200_0400 \
+  --format markdown
+```
+
+JSON preview:
+
+```bash
+python3 src/sliding_window_operator_queue_detail.py \
+  --work-dir /opt/web_log_analysis \
+  --date 2026-05-24 \
+  --rollup-id rollup_20260524_0200_0400 \
+  --format json
 ```
 
 주의:
 
 ```text
-- 이 view는 원본 evidence가 아니다.
+- preview는 파일을 저장하지 않는다.
+- queue가 먼저 생성되어 있어야 한다.
+- 최근 queue를 rollup_ops_*로 overwrite해 empty queue가 된 경우, rollup_* 등 원하는 pattern으로 queue를 다시 생성한 뒤 실행한다.
+```
+
+## 4. 출력 순서
+
+기본 text 출력 순서:
+
+```text
+Operator Queue Item Detail
+==========================
+Rollup ID: ...
+Queue date: ...
+
+1. Data quality
+2. Review routing
+3. Scope
+4. Counts
+5. Observed signals
+6. Top observed distributions
+7. Drilldown
+8. Source selection
+9. Apache logs-only notes
+10. Non-conclusions
+```
+
+기본 `--format text`에서는 `##` markdown heading을 쓰지 않는다.
+
+`--format markdown`에서만 다음처럼 markdown heading을 쓴다.
+
+```text
+# Operator Queue Item Detail
+## 1. Data quality
+## 2. Review routing
+...
+```
+
+## 5. Detail view schema
+
+JSON 출력의 schema:
+
+```json
+{
+  "schema": "sliding_window_operator_queue_item_detail_view_v1",
+  "queue_date": "2026-05-24",
+  "rollup_id": "rollup_20260524_0200_0400",
+  "summary": {},
+  "quality_assessment": {},
+  "routing": {},
+  "counts": {},
+  "observed_signals": {},
+  "top_observed": {},
+  "drilldown": {},
+  "source_selection": {},
+  "apache_logs_only_notes": [],
+  "non_conclusions": [],
+  "guardrails": {}
+}
+```
+
+이 view는 원본 evidence가 아니다.
+
+```text
 - queue item과 rollup artifact를 사람이 읽기 쉽게 재배열한 projection이다.
 - 원본 확인은 rollup_input.json, rollup_summary.json, source window_summary, analysis_candidates, export에서 한다.
 ```
 
-## 5. summary 섹션
+## 6. Data quality
 
-예시:
-
-```json
-{
-  "summary": {
-    "time_range_label": "2026-05-24 02:00-04:00 Asia/Seoul",
-    "review_status": "needs_review",
-    "data_quality_status": "complete",
-    "recommended_action": "review_before_optional_briefing",
-    "llm_eligible": true,
-    "llm_required": false
-  }
-}
-```
-
-의미:
+표시 항목:
 
 ```text
-review_status
-  - 사람이 볼 queue routing 상태
-  - 보안 verdict가 아님
-
-data_quality_status
-  - 입력 artifact 품질/완전성 상태
-  - 공격/침해 판단이 아님
-
-recommended_action
-  - 다음 운영 행동 힌트
-  - 보안 결론이 아님
-
-llm_eligible
-  - optional LLM briefing을 요청할 수 있는 입력 상태
-  - LLM 필수 또는 위험 판단이 아님
-
-llm_required
-  - v1에서는 항상 false
+- status
+- missing_or_failed_windows
+- possible_duplicates_marked
+- dedup_removed_by_request_id
 ```
 
-## 6. quality_assessment 섹션
-
-예시:
-
-```json
-{
-  "quality_assessment": {
-    "status": "complete",
-    "missing_or_failed_windows": 0,
-    "possible_duplicates_marked": 0,
-    "dedup_removed_by_request_id": 0,
-    "notes": [
-      "All expected windows were loaded for this rollup.",
-      "No request_id dedup removals were observed."
-    ]
-  }
-}
-```
-
-상태별 해석:
+해석:
 
 ```text
 complete
@@ -240,20 +222,16 @@ complete는 보안적으로 안전하다는 뜻이 아니다.
 incomplete는 공격이 있다는 뜻이 아니다.
 ```
 
-## 7. routing 섹션
+## 7. Review routing
 
-예시:
+표시 항목:
 
-```json
-{
-  "routing": {
-    "review_status": "needs_review",
-    "operator_state": "unreviewed",
-    "recommended_action": "review_before_optional_briefing",
-    "llm_eligible": true,
-    "llm_required": false
-  }
-}
+```text
+- review_status
+- operator_state
+- recommended_action
+- llm_eligible
+- llm_required
 ```
 
 허용 review_status:
@@ -280,43 +258,85 @@ data_quality_check
   - 먼저 artifact 품질/누락/실패 상태 확인 필요
 ```
 
-## 8. observed_signals 섹션
+`llm_required`는 v1에서 `false`를 유지한다.
+
+## 8. Counts
+
+표시 항목:
+
+```text
+- window_count
+- windows_successfully_loaded
+- windows_missing_or_failed
+- candidate_rows_total
+- candidate_index_count
+- dedup_removed_by_request_id
+- possible_duplicate_count
+- noise_group_count_total
+```
+
+주의:
+
+```text
+candidate_index_count는 confirmed finding 수가 아니다.
+noise_group_count_total은 안전 판단이 아니다.
+dedup_removed_by_request_id는 overlap window 중복 제거 수다.
+```
+
+## 9. Observed signals
+
+표시 항목:
+
+```text
+- has_candidates
+- has_payload_like_reason_hint
+- has_repeated_src_ip
+- has_repeated_uri
+- has_repeated_reason_hint_prefix
+- has_missing_windows
+- has_possible_duplicates
+- is_quiet
+- matched_payload_like_reason_prefixes
+```
+
+`matched_payload_like_reason_prefixes`는 detail CLI에서 추가 표시한다.
 
 예시:
 
-```json
-{
-  "observed_signals": {
-    "has_candidates": true,
-    "has_payload_like_reason_hint": true,
-    "has_repeated_src_ip": true,
-    "has_repeated_uri": true,
-    "has_repeated_reason_hint_prefix": true,
-    "has_missing_windows": false,
-    "has_possible_duplicates": false
-  }
-}
+```text
+- matched_payload_like_reason_prefixes: xss (5), sqli (1)
 ```
 
-해석:
+필요성:
+
+```text
+- top_observed.reason_hint_prefix는 top limit 때문에 일부 prefix가 가려질 수 있다.
+- has_payload_like_reason_hint=yes인데 어떤 prefix 때문인지 사람이 확인하기 어려울 수 있다.
+- 따라서 rollup_input.json의 distributions.candidate_reason_hint_prefix 전체를 읽어 payload-like prefix를 별도로 표시한다.
+```
+
+fallback:
+
+```text
+- rollup_input.json을 읽을 수 있으면 전체 distribution에서 계산한다.
+- rollup_input.json을 읽을 수 없으면 queue item의 top_observed.reason_hint_prefix에서 계산한다.
+```
+
+주의:
 
 ```text
 has_payload_like_reason_hint
   - payload-like observation group이 있음
   - 공격 성공 판단이 아님
 
-has_repeated_src_ip / uri / reason_hint_prefix
-  - 같은 값이 distribution에서 반복 관찰됨
-  - attribution, campaign, compromise 판단이 아님
-
-has_possible_duplicates
-  - request_id 없는 fallback duplicate 후보가 표시됨
-  - 제거하지 않고 사람이 참고할 수 있게 표시
+matched_payload_like_reason_prefixes
+  - allowlist와 매칭된 reason prefix 관찰값
+  - severity/ranking/성공 판단이 아님
 ```
 
-## 9. top_observed 섹션
+## 10. Top observed distributions
 
-현재 queue item은 이미 다음을 포함한다.
+현재 queue item은 다음을 포함한다.
 
 ```text
 top_observed.src_ip
@@ -325,26 +345,13 @@ top_observed.reason_hint_prefix
 top_observed.status_code
 ```
 
-표시 예시:
+실제 smoke 예시:
 
-```json
-{
-  "top_observed": {
-    "src_ip": [
-      {"value": "192.168.56.114", "count": 5}
-    ],
-    "uri": [
-      {"value": "/search.php", "count": 5}
-    ],
-    "reason_hint_prefix": [
-      {"value": "xss", "count": 5},
-      {"value": "sqli", "count": 1}
-    ],
-    "status_code": [
-      {"value": "500", "count": 5}
-    ]
-  }
-}
+```text
+- src_ip: 192.168.56.1 (5)
+- uri: /error.php (2), /login.php (1), /private/secret.txt (1), /upload.php (1)
+- reason_hint_prefix: error_linked (5), error_status (5), xss (5), auth_payload_content_type (1), login_endpoint (1)
+- status_code: 403 (2), 400 (1), 401 (1), 500 (1)
 ```
 
 주의:
@@ -356,24 +363,14 @@ top_observed.status_code
 - src_ip 분포는 공격자 식별이 아니다.
 ```
 
-## 10. drilldown 섹션
+## 11. Drilldown
 
-Detail view는 사람이 원본으로 내려갈 수 있는 경로를 제공해야 한다.
+표시 항목:
 
-예시:
-
-```json
-{
-  "drilldown": {
-    "rollup_input_path": "data/rollups/2026-05-24/rollup_20260524_0200_0400/rollup_input.json",
-    "rollup_summary_path": "data/rollups/2026-05-24/rollup_20260524_0200_0400/rollup_summary.json",
-    "source_window_summary_paths": [
-      "data/windowed/2026-05-24/sw_0200_0300/window_summary.json",
-      "data/windowed/2026-05-24/sw_0300_0400/window_summary.json"
-    ],
-    "candidate_source": "rollup_input.candidate_index"
-  }
-}
+```text
+- rollup_input_path
+- rollup_summary_path
+- candidate_source
 ```
 
 권장 drilldown 순서:
@@ -387,24 +384,45 @@ queue item
   -> export.json
 ```
 
-## 11. apache_logs_only_notes 섹션
+## 12. Source selection
 
-예시:
+표시 항목:
 
-```json
-{
-  "apache_logs_only_notes": [
-    "This detail view is derived from Apache log artifacts only.",
-    "It does not include raw POST body, response body, DB result, or browser execution evidence.",
-    "HTTP 200, text/html, or response_body_bytes are not success evidence by themselves.",
-    "Review status and LLM eligibility are routing signals, not security verdicts."
-  ]
-}
+```text
+- rollup_root
+- rollup_pattern
+- matched_rollup_count
 ```
 
-이 notes는 detail view에서 항상 보이거나 접을 수 있는 형태로 제공하는 것이 좋다.
+이 정보는 현재 queue가 어떤 rollup 집합을 대상으로 생성됐는지 확인하기 위한 것이다.
 
-## 12. empty queue와 quiet item 구분
+주의:
+
+```text
+rollup_pattern은 보안 의미가 아니다.
+matched_rollup_count=0은 quiet day가 아니다.
+```
+
+## 13. Apache logs-only notes
+
+detail CLI는 다음 notes를 포함한다.
+
+```text
+- This detail view is derived from Apache log artifacts only.
+- It does not include raw POST body, response body, DB result, browser execution, or server-side application state.
+- HTTP 200, text/html, response_body_bytes, or repeated requests are not success evidence by themselves.
+- Review status, LLM eligibility, and recommended action are routing signals, not security verdicts.
+```
+
+## 14. Non-conclusions
+
+detail CLI는 다음 non-conclusion을 포함한다.
+
+```text
+This detail view does not conclude attack success, intrusion, data exposure, account takeover, upload persistence, browser execution, DB impact, or server compromise.
+```
+
+## 15. Empty queue와 quiet item 구분
 
 중요 구분:
 
@@ -424,119 +442,103 @@ quiet item
 
 Web UI나 CLI detail에서 이 둘을 섞으면 안 된다.
 
-## 13. 구현 선택지
+## 16. 검증 결과
 
-### 선택지 A: queue item schema 확장
+로컬 검증:
 
-`queue_items.json`에 `quality_assessment`, `apache_logs_only_notes`, `drilldown` 등을 직접 추가한다.
-
-장점:
-
-```text
-- item 하나만 읽어도 detail에 필요한 정보가 많다.
+```bash
+python3 -m py_compile src/sliding_window_operator_queue_detail.py
+python3 -m pytest -q tests/test_sliding_window_operator_queue_detail.py
 ```
 
-단점:
+결과:
 
 ```text
-- queue item artifact가 점점 UI projection에 가까워진다.
-- schema 변경이 잦아질 수 있다.
-- 원본과 view의 경계가 흐려질 수 있다.
+7 passed
 ```
 
-### 선택지 B: 별도 detail view builder
+quick bundle:
 
-예:
+```bash
+python3 -m pytest -q \
+  tests/test_sliding_window_operator_queue_detail.py \
+  tests/test_sliding_window_operator_queue.py \
+  tests/test_sliding_window_rollup.py \
+  tests/test_sliding_window_summary.py \
+  tests/test_sliding_window_scheduler_summary.py \
+  tests/test_sliding_window_scheduler.py \
+  tests/test_prepare_llm_input_output_names.py \
+  tests/test_explain_prepare_candidates.py \
+  tests/test_prepare_status_error_only_candidate_policy.py \
+  tests/test_prepare_scanner_probe_candidate_policy.py
+```
+
+결과:
 
 ```text
-src/sliding_window_operator_queue_detail.py
+80 passed
 ```
 
-출력 후보:
+테스트 범위:
 
 ```text
-data/operator_queue/<date>/details/<rollup_id>.json
+- detail view 생성 확인
+- text 출력 섹션 순서 확인
+- markdown heading 확인
+- 없는 rollup_id 오류 확인
+- verdict/success/threat 관련 금지 필드 미생성 확인
+- CLI json 출력 확인
+- CLI missing rollup 오류 확인
+- matched_payload_like_reason_prefixes 출력 확인
 ```
 
-장점:
+## 17. Actual smoke 결과
+
+Queue 재생성:
+
+```bash
+python3 src/sliding_window_operator_queue.py \
+  --work-dir /opt/web_log_analysis \
+  --date 2026-05-24 \
+  --rollup-pattern "rollup_*" \
+  --overwrite \
+  --pretty
+```
+
+결과:
 
 ```text
-- queue item 원본은 간결하게 유지한다.
-- 사람이 보는 detail view를 별도 schema로 관리할 수 있다.
+matched_rollup_count=2
+rollup_items_total=2
+quiet=0
+needs_review=2
+data_quality_check=0
+llm_eligible=2
+llm_required=0
 ```
 
-단점:
+Detail preview:
+
+```bash
+python3 src/sliding_window_operator_queue_detail.py \
+  --work-dir /opt/web_log_analysis \
+  --date 2026-05-24 \
+  --rollup-id rollup_20260524_0200_0400
+```
+
+확인:
 
 ```text
-- 파일 수가 늘어난다.
-- 아직 Web UI가 없으면 활용도가 낮을 수 있다.
+- 기본 text 출력에서 markdown ## heading이 제거됨.
+- matched_payload_like_reason_prefixes: xss (5), sqli (1) 표시됨.
+- top_observed.reason_hint_prefix에서는 top limit 때문에 sqli가 보이지 않지만, observed_signals에서 별도로 확인 가능함.
+- llm_required: no 유지.
+- Apache logs-only notes / Non-conclusions 포함.
 ```
 
-### 선택지 C: Web UI / CLI view projection
+## 18. Non-goals
 
-queue item 원본은 유지하고, UI/CLI에서 읽기 좋게 재배열한다.
-
-장점:
-
-```text
-- artifact schema 변경이 적다.
-- 사람용 표시와 원본 artifact를 분리할 수 있다.
-```
-
-단점:
-
-```text
-- Web UI/CLI 구현 전까지 문서상의 설계에 머문다.
-```
-
-## 14. 권장 판단
-
-현재는 선택지 C를 우선한다.
-
-```text
-결정 후보:
-  - queue item schema를 즉시 확장하지 않는다.
-  - 별도 detail artifact도 아직 만들지 않는다.
-  - 먼저 detail view projection 설계를 문서로 고정한다.
-  - 다음 구현은 Web UI 또는 CLI 출력 개선이 필요해질 때 최소 범위로 진행한다.
-```
-
-이유:
-
-```text
-- 현재 queue item에는 이미 counts/signals/top_observed/path가 있다.
-- 즉시 schema를 확장하지 않아도 사람이 볼 detail view를 구성할 수 있다.
-- 구현보다 먼저 사람이 어떤 순서로 읽는지 확정하는 것이 더 중요하다.
-- rollup naming generation처럼 CLI 옵션을 더 늘리는 것을 피해야 한다.
-```
-
-## 15. 구현 판단
-
-이 문서 기준의 구현 판단:
-
-```text
-지금 즉시 queue item schema 확장 구현은 보류한다.
-```
-
-다음에 구현한다면 우선순위는 다음과 같다.
-
-```text
-1. CLI detail preview
-   - queue_items.json을 읽어 사람이 보는 순서로 출력
-   - 새 artifact 생성 없음
-
-2. Web UI detail projection
-   - queue item list/detail 화면에서 기존 fields를 재배열
-   - 새 보안 판단 생성 없음
-
-3. 필요 시 detail artifact
-   - data/operator_queue/<date>/details/<rollup_id>.json
-   - Web UI 또는 daily summary가 실제로 필요로 할 때만 추가
-```
-
-## 16. Non-goals
-
-Queue item detail 설계는 다음을 하지 않는다.
+Queue item detail CLI preview는 다음을 하지 않는다.
 
 ```text
 - 보안 verdict 생성
@@ -551,14 +553,22 @@ Queue item detail 설계는 다음을 하지 않는다.
 - llm_required=true 생성
 - Stage1/Stage2 자동 실행
 - LLM briefing 자동 실행
+- artifact 저장
 ```
 
-## 17. 다음 단계
+## 19. 다음 단계
 
-다음 문서:
+다음 구현 후보:
 
 ```text
-docs/design/99_sliding_window_single_rollup_observation_brief.md
+src/sliding_window_rollup_observation_brief.py
 ```
 
-그 문서에서 queue item detail 이후의 optional observation brief가 어떤 역할인지 정의한다.
+범위:
+
+```text
+- selected rollup 하나를 markdown/text로 stdout 출력
+- 새 artifact 생성 없음
+- Stage1/Stage2/LLM 호출 없음
+- 보안 verdict/success/threat score 생성 없음
+```
