@@ -269,8 +269,8 @@ DB apache_security_logs 중심
   -> rollup_input.json / dedup_candidates.json / rollup_summary.json
   -> sliding_window_operator_queue.py
   -> queue_items.json / queue_summary.json
-  -> optional Stage1
-  -> optional Stage2
+  -> Stage1
+  -> Stage2
   -> viewer_payload.json
 ```
 
@@ -376,19 +376,32 @@ analysis_reports.operator_queue_path
 
 ## 5. DB table 초안
 
+이 문서의 DB DDL은 MariaDB/MySQL 기준으로 작성한다.
+
+```text
+- id는 BIGINT UNSIGNED AUTO_INCREMENT를 기본 후보로 둔다.
+- 시간 필드는 기존 Apache log source table과 맞춰 DATETIME(3)을 사용한다.
+- 문자열 상태값은 TEXT가 아니라 VARCHAR로 제한한다.
+- JSON 성격의 디버깅/상세 필드는 v1에서는 LONGTEXT 또는 TEXT로 둔다.
+- 실제 제약은 MariaDB 버전 차이를 고려해 DB CHECK와 application validation 중 선택한다.
+```
+
 ### 5.1 users
 
 MVP 최소:
 
 ```sql
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY,
-    username TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'operator',
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
-);
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    username VARCHAR(128) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(32) NOT NULL DEFAULT 'operator',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_users_username (username),
+    KEY idx_users_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
 역할:
@@ -586,15 +599,17 @@ ON apache_error_logs(log_time, error_link_id);
 Log Collector Agent 재시작과 logrotate 대응을 위한 checkpoint 테이블이다.
 
 ```sql
-CREATE TABLE log_collection_checkpoints (
-    id INTEGER PRIMARY KEY,
-    source_name TEXT NOT NULL UNIQUE,
+CREATE TABLE IF NOT EXISTS log_collection_checkpoints (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    source_name VARCHAR(64) NOT NULL,
     file_path TEXT NOT NULL,
-    inode TEXT,
-    last_offset INTEGER NOT NULL DEFAULT 0,
-    last_log_time TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL
-);
+    inode VARCHAR(128) DEFAULT NULL,
+    last_offset BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    last_log_time DATETIME(3) DEFAULT NULL,
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_log_checkpoint_source_name (source_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
 역할:
@@ -605,31 +620,47 @@ CREATE TABLE log_collection_checkpoints (
 - logrotate 이후 source 변경 감지 후보 제공
 ```
 
-MVP에서는 `source_name`, `file_path`, `last_offset`만 사용해도 된다.
+MVP에서는 `source_name`, `file_path`, `inode`, `last_offset`만 사용해도 된다.
+
+중복 저장 방지는 v1에서 checkpoint 기반으로 줄인다. 정확한 idempotent insert는 다음 후보로 둔다.
+
+```text
+후보:
+- source_name
+- file_path 또는 inode
+- file_offset
+- raw_log hash
+```
 
 ### 5.4 analysis_jobs
 
 사용자가 Web UI에서 등록한 분석 작업 queue다.
 
 ```sql
-CREATE TABLE analysis_jobs (
-    id INTEGER PRIMARY KEY,
-    requested_by INTEGER,
-    time_from TIMESTAMP NOT NULL,
-    time_to TIMESTAMP NOT NULL,
-    status TEXT NOT NULL DEFAULT 'PENDING',
-    analysis_mode TEXT NOT NULL DEFAULT 'standard',
-    created_at TIMESTAMP NOT NULL,
-    started_at TIMESTAMP,
-    finished_at TIMESTAMP,
-    worker_id TEXT,
-    heartbeat_at TIMESTAMP,
-    attempt_count INTEGER NOT NULL DEFAULT 0,
-    max_attempts INTEGER NOT NULL DEFAULT 1,
+CREATE TABLE IF NOT EXISTS analysis_jobs (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    requested_by BIGINT UNSIGNED DEFAULT NULL,
+    time_from DATETIME(3) NOT NULL,
+    time_to DATETIME(3) NOT NULL,
+    requested_timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Seoul',
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    analysis_mode VARCHAR(64) NOT NULL DEFAULT 'full_report',
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    started_at DATETIME(3) DEFAULT NULL,
+    finished_at DATETIME(3) DEFAULT NULL,
+    worker_id VARCHAR(128) DEFAULT NULL,
+    heartbeat_at DATETIME(3) DEFAULT NULL,
+    attempt_count INT UNSIGNED NOT NULL DEFAULT 0,
+    max_attempts INT UNSIGNED NOT NULL DEFAULT 1,
     error_message TEXT,
     artifact_root TEXT,
-    FOREIGN KEY (requested_by) REFERENCES users(id)
-);
+    PRIMARY KEY (id),
+    KEY idx_analysis_jobs_status_created_at (status, created_at),
+    KEY idx_analysis_jobs_time_range (time_from, time_to),
+    KEY idx_analysis_jobs_requested_by (requested_by),
+    CONSTRAINT fk_analysis_jobs_requested_by
+        FOREIGN KEY (requested_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
 상태 후보:
@@ -653,18 +684,25 @@ FAILED    = 실패
 
 `CANCELLED`는 v1.1 후보로 둔다.
 
-권장 제약/인덱스 후보:
+MVP의 기본 `analysis_mode`는 `full_report`다.
 
-```sql
-CREATE INDEX idx_analysis_jobs_status_created_at
-ON analysis_jobs(status, created_at);
+```text
+full_report:
+- export
+- prepare
+- sliding window / rollup 후보
+- operator queue 생성 후보
+- Stage1
+- Stage2
+- viewer_payload 생성
 ```
 
-구현 DB가 MySQL이면 `CHECK` 또는 application validation으로 다음 조건을 보장한다.
+구현 DB가 MariaDB이면 `CHECK` 제약에 의존하지 않고 application validation으로 다음 조건을 우선 보장한다.
 
 ```text
 - time_from < time_to
 - status in PENDING/RUNNING/SUCCEEDED/FAILED/CANCELLED
+- analysis_mode in full_report/...
 - attempt_count >= 0
 - max_attempts >= 1
 ```
@@ -677,9 +715,9 @@ report 연결은 `analysis_jobs.report_id`를 중복 저장하지 않고,
 분석 결과 metadata와 artifact 경로를 저장한다.
 
 ```sql
-CREATE TABLE analysis_reports (
-    id INTEGER PRIMARY KEY,
-    job_id INTEGER NOT NULL UNIQUE,
+CREATE TABLE IF NOT EXISTS analysis_reports (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    job_id BIGINT UNSIGNED NOT NULL,
     summary TEXT,
     artifact_root TEXT NOT NULL,
     export_path TEXT,
@@ -695,9 +733,12 @@ CREATE TABLE analysis_reports (
     stage2_report_md_path TEXT,
     viewer_payload_path TEXT,
     lint_result_path TEXT,
-    created_at TIMESTAMP NOT NULL,
-    FOREIGN KEY (job_id) REFERENCES analysis_jobs(id)
-);
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_analysis_reports_job_id (job_id),
+    CONSTRAINT fk_analysis_reports_job_id
+        FOREIGN KEY (job_id) REFERENCES analysis_jobs(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
 주의:
@@ -706,6 +747,7 @@ CREATE TABLE analysis_reports (
 - 큰 JSON payload를 DB에 직접 넣는 것은 v1 기본값이 아니다.
 - DB에는 경로와 compact summary를 저장한다.
 - 파일 artifact를 기준으로 재현성과 디버깅 가능성을 유지한다.
+- MVP full_report에서는 viewer_payload_path가 있어야 사용자에게 완료 report를 보여줄 수 있다.
 ```
 
 ### 5.6 시간대 저장 원칙
@@ -713,11 +755,27 @@ CREATE TABLE analysis_reports (
 시간 범위 기반 분석이 핵심이므로 시간대 기준을 명시한다.
 
 ```text
-- DB의 log_time, time_from, time_to는 같은 기준으로 비교한다.
-- 가능하면 UTC 기준으로 저장하고, UI에서 local timezone으로 표시한다.
-- Apache log_time 파싱 시 source timezone을 명시한다.
-- MySQL DATETIME(3)을 사용할 경우 애플리케이션 레벨에서 timezone 기준을 고정한다.
-- job 등록 화면에는 사용자가 입력한 timezone 또는 서버 기본 timezone을 명확히 표시한다.
+저장 기준:
+- MariaDB의 log_time / time_from / time_to는 UTC 기준의 naive DATETIME(3)로 저장한다.
+- src/apache_log_shipper.py는 timezone-aware access/security timestamp를 UTC naive DATETIME(3)로 변환해 저장한다.
+- error log_time도 같은 원칙으로 맞춘다. ErrorLogFormat timestamp가 timezone을 포함하지 않는 경우, shipper가 APACHE_ERROR_LOG_TIMEZONE 또는 기본 Asia/Seoul로 해석한 뒤 UTC naive DATETIME(3)로 저장한다.
+
+입력/표시 기준:
+- Web UI의 기본 입력/표시는 Asia/Seoul로 둔다.
+- 사용자가 입력한 time_from/time_to는 requested_timezone과 함께 저장 또는 기록한다.
+- Analysis Agent는 UI 입력 시간을 UTC DB 조회 범위로 변환한 뒤 src/export_db_logs_cli.py에 전달한다.
+
+artifact 기준:
+- sliding window / rollup artifact의 사람이 읽는 label과 window_id/rollup_id는 기존 repo 흐름과 맞춰 Asia/Seoul 기준을 유지한다.
+- artifact에는 DB 조회 기준과 표시 기준이 섞이지 않도록 timezone을 명시한다.
+```
+
+주의:
+
+```text
+- MariaDB DATETIME(3)은 timezone 정보를 직접 보존하지 않는다.
+- 따라서 애플리케이션 레벨에서 UTC 저장 원칙을 고정해야 한다.
+- 기존에 local time으로 저장된 error log row가 있다면, 재적재 또는 migration 없이 UTC row와 섞어 비교하지 않는다.
 ```
 
 ### 5.7 job_events
@@ -725,15 +783,19 @@ CREATE TABLE analysis_reports (
 job 진행 상황과 오류를 기록한다.
 
 ```sql
-CREATE TABLE job_events (
-    id INTEGER PRIMARY KEY,
-    job_id INTEGER NOT NULL,
-    event_time TIMESTAMP NOT NULL,
-    event_type TEXT NOT NULL,
+CREATE TABLE IF NOT EXISTS job_events (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    job_id BIGINT UNSIGNED NOT NULL,
+    event_time DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    event_type VARCHAR(64) NOT NULL,
     message TEXT,
-    detail_json TEXT,
-    FOREIGN KEY (job_id) REFERENCES analysis_jobs(id)
-);
+    detail_json LONGTEXT,
+    PRIMARY KEY (id),
+    KEY idx_job_events_job_time (job_id, event_time),
+    KEY idx_job_events_event_type (event_type),
+    CONSTRAINT fk_job_events_job_id
+        FOREIGN KEY (job_id) REFERENCES analysis_jobs(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
 event_type 후보:
@@ -798,7 +860,7 @@ RUNNING
   - Analysis Agent가 claim했고 분석 중인 상태
 
 SUCCEEDED
-  - 분석이 끝났고 report/artifact 저장이 완료된 상태
+  - MVP full_report 기준으로 Stage1, Stage2, viewer_payload 생성과 report/artifact 저장이 완료된 상태
 
 FAILED
   - 분석 중 오류가 발생했고 error_message 또는 job_events로 원인을 확인해야 하는 상태
@@ -822,9 +884,9 @@ Analysis Agent는 단순히 PENDING job을 읽고 실행하면 안 된다.
 ```sql
 UPDATE analysis_jobs
 SET status = 'RUNNING',
-    started_at = CURRENT_TIMESTAMP,
+    started_at = CURRENT_TIMESTAMP(3),
     worker_id = :worker_id,
-    heartbeat_at = CURRENT_TIMESTAMP,
+    heartbeat_at = CURRENT_TIMESTAMP(3),
     attempt_count = attempt_count + 1
 WHERE id = :job_id
   AND status = 'PENDING';
@@ -846,7 +908,7 @@ MVP에서는 단일 Analysis Agent만 운영하더라도, 문서상으로는 ato
 
 ## 8. Analysis Agent 내부 처리 단계
 
-표준 흐름 후보:
+MVP 기본 흐름은 `full_report`다.
 
 ```text
 1. analysis_jobs에서 PENDING job 조회
@@ -854,18 +916,34 @@ MVP에서는 단일 Analysis Agent만 운영하더라도, 문서상으로는 ato
 3. artifact_root 생성
 4. src/export_db_logs_cli.py를 사용해 time_from/time_to 범위 로그 export
    - primary source: apache_security_logs
-   - optional correlation: apache_error_logs
-   - optional fallback/reference: apache_access_logs
+   - correlation: apache_error_logs
+   - fallback/reference: apache_access_logs
 5. export.json 생성
 6. prepare_llm_input.py 실행
-7. sliding_window_scheduler.py 실행
-8. sliding_window_rollup.py 실행
-9. sliding_window_operator_queue.py 실행
-10. optional Stage1 실행
-11. optional Stage2 실행
-12. viewer_payload 생성
+7. sliding_window_scheduler.py 실행 후보
+8. sliding_window_rollup.py 실행 후보
+9. sliding_window_operator_queue.py 실행 후보
+10. Stage1 실행
+11. Stage2 실행
+12. viewer_payload.json 생성
 13. analysis_reports record 생성
 14. analysis_jobs.status = SUCCEEDED
+```
+
+MVP의 `analysis_jobs.status=SUCCEEDED`는 단순히 export/prepare/rollup이 끝났다는 뜻이 아니다.
+사용자가 Web UI에서 결과를 확인할 수 있도록 Stage1, Stage2, viewer_payload 생성까지 완료된 상태를 의미한다.
+
+따라서 MVP full_report에서는 최소한 다음 artifact가 생성되어야 SUCCEEDED로 본다.
+
+```text
+- export.json
+- llm_input.json
+- analysis_candidates.json
+- noise_summary.json
+- stage1_results.json
+- stage2_report.json
+- stage2_report.md
+- viewer_payload.json
 ```
 
 `src/export_db_logs_cli.py`는 Analysis Agent 내부의 export 단계로 둔다.
@@ -876,7 +954,7 @@ analysis_jobs
       -> src/export_db_logs_cli.py
       -> export.json
       -> prepare/sliding window/rollup/operator queue
-      -> optional Stage1/Stage2
+      -> Stage1/Stage2
       -> viewer_payload/report artifact
 ```
 
@@ -900,8 +978,9 @@ Analysis Agent
   -> sliding window
   -> rollup
   -> operator queue
-  -> optional LLM stage
-  -> report/viewer
+  -> Stage1
+  -> Stage2
+  -> viewer_payload/report
 ```
 
 기존 artifact 의미는 유지한다.
@@ -929,7 +1008,8 @@ Operator Queue의 역할:
 ```text
 - rollup 결과 중 quiet / needs_review / data_quality_check 상태를 표시한다.
 - llm_eligible을 표시할 수 있다.
-- llm_required는 v1에서 false를 유지한다.
+- llm_required는 operator queue 자체의 routing 의미에서는 v1에서 false를 유지한다.
+- 다만 MVP full_report job은 operator queue에서 멈추지 않고 Stage1/Stage2/viewer_payload까지 진행한다.
 - 보안 verdict, success 판단, threat score를 만들지 않는다.
 ```
 
@@ -1083,11 +1163,16 @@ MVP에 포함:
 ```text
 - users 최소 테이블
 - apache_access_logs / apache_security_logs / apache_error_logs 저장
+- UTC DATETIME(3) 저장 기준 정리
+- Web UI의 Asia/Seoul 입력/표시 기준 정리
 - analysis_jobs 등록
 - Analysis Agent의 PENDING job polling
 - atomic claim 원칙 적용
 - time range 기반 export
 - 기존 prepare pipeline 호출
+- Stage1 실행
+- Stage2 실행
+- viewer_payload.json 생성
 - artifact_root 저장
 - analysis_reports metadata 저장
 - PENDING/RUNNING/SUCCEEDED/FAILED UI 표시
@@ -1108,6 +1193,7 @@ MVP에서 보류:
 - 실시간 차단 기능
 - WAF 기능
 - 자동 대응 기능
+- operator_queue_only / observation_brief_only 같은 경량 analysis_mode
 ```
 
 ## 13. v1에서 하지 않는 것
@@ -1199,7 +1285,7 @@ artifact retention policy
 후보:
 
 ```text
-standard
+full_report
 sliding_window_rollup
 operator_queue_only
 stage1_stage2_full
@@ -1211,6 +1297,7 @@ observation_brief_only
 ```text
 analysis_mode 이름은 보안 verdict 의미를 만들지 않는다.
 실행 profile을 구분하기 위한 운영 설정일 뿐이다.
+MVP 기본값은 full_report이며, 이 모드에서는 Stage1/Stage2/viewer_payload 생성까지 수행한다.
 ```
 
 ## 15. 다음 구현 후보
@@ -1239,8 +1326,10 @@ analysis_mode 이름은 보안 verdict 의미를 만들지 않는다.
 
 ```text
 1. DB schema/migration 정리
+   - MariaDB 기준 DDL 사용
    - 기존 apache_access_logs / apache_security_logs / apache_error_logs 유지
    - analysis_jobs / analysis_reports / job_events 추가
+   - log_time / time_from / time_to UTC DATETIME(3) 기준 정리
 
 2. analysis_jobs 등록/조회 API
    - POST job 등록
@@ -1258,13 +1347,16 @@ analysis_mode 이름은 보안 verdict 의미를 만들지 않는다.
    - apache_error_logs 보조 상관 후보
 
 5. artifact_root / analysis_reports 연결
-   - viewer_payload.json
-   - stage2_report.md
+   - Stage1 결과 경로 저장
+   - Stage2 report 경로 저장
+   - viewer_payload.json 경로 저장
    - operator_queue artifact 경로 저장
+   - viewer_payload 생성 완료 후 SUCCEEDED 처리
 
 6. Log Collector Agent MVP
    - Apache log file tail/read
    - 기존 3개 log source table insert
+   - access/security/error log_time UTC 저장
    - checkpoint 저장
 ```
 
@@ -1276,8 +1368,8 @@ analysis_mode 이름은 보안 verdict 의미를 만들지 않는다.
 3. analysis_jobs에 PENDING row가 생성된다.
 4. Analysis Agent가 해당 job을 RUNNING으로 claim한다.
 5. src/export_db_logs_cli.py가 해당 시간 범위 로그를 export.json으로 생성한다.
-6. 기존 prepare/sliding window/rollup/report pipeline을 실행한다.
-7. viewer_payload.json과 stage2_report.md를 artifact_root에 저장한다.
+6. 기존 prepare/sliding window/rollup/Stage1/Stage2/viewer pipeline을 실행한다.
+7. stage1_results.json, stage2_report.md, viewer_payload.json을 artifact_root에 저장한다.
 8. analysis_reports에 artifact 경로를 저장한다.
 9. analysis_jobs 상태를 SUCCEEDED로 변경한다.
 10. 사용자가 Web UI에서 완료 job을 클릭해 결과를 확인한다.
@@ -1290,7 +1382,7 @@ analysis_mode 이름은 보안 verdict 의미를 만들지 않는다.
 ```text
 본 시스템은 Apache 로그를 Log Collector Agent가 수집하여 기존 apache_access_logs / apache_security_logs / apache_error_logs에 저장하고,
 사용자가 Web UI에서 특정 시간 범위의 분석 작업을 등록하면,
-Analysis Agent가 DB의 PENDING 작업을 가져와 기존 LLM 기반 분석 pipeline을 실행한 뒤,
+Analysis Agent가 DB의 PENDING 작업을 가져와 기존 LLM 기반 분석 pipeline을 Stage1/Stage2/viewer_payload까지 실행한 뒤,
 결과 JSON과 viewer artifact를 저장하고,
 Web UI에서 작업 상태와 최종 보고서를 확인할 수 있게 하는 DB-backed 웹 기반 로그 분석 플랫폼이다.
 ```
@@ -1314,5 +1406,5 @@ Agent
   - DB 상태를 기준으로 작업을 수행하는 Python background worker/CLI process
 
 export_db_logs_cli.py
-  - Analysis Agent 내부의 time range export 단계
+  - Analysis Agent 내부의 UTC time range export 단계
 ```
