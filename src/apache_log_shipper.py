@@ -9,6 +9,7 @@ import signal
 import time
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pymysql
 from pymysql.cursors import DictCursor
@@ -29,6 +30,7 @@ CONFIG = {
         "security": os.getenv("APACHE_SECURITY_LOG", "/var/log/apache2/app_security.log"),
         "error": os.getenv("APACHE_ERROR_LOG", "/var/log/apache2/app_error.log"),
     },
+    "error_log_timezone": os.getenv("APACHE_ERROR_LOG_TIMEZONE", "Asia/Seoul"),
     "state_dir": os.getenv("SHIPPER_STATE_DIR", "/var/lib/apache_log_shipper"),
     "spool_dir": os.getenv("SHIPPER_SPOOL_DIR", "/var/spool/apache_log_shipper"),
     "app_log": os.getenv("SHIPPER_APP_LOG", "/var/log/apache2/apache_log_shipper.log"),
@@ -151,15 +153,35 @@ def parse_iso8601_msec(raw: str) -> Optional[datetime]:
     return None
 
 
+def get_error_log_timezone():
+    tz_name = CONFIG.get("error_log_timezone") or "Asia/Seoul"
+    try:
+        return ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        logging.warning(
+            "Invalid APACHE_ERROR_LOG_TIMEZONE=%r; falling back to UTC.",
+            tz_name,
+        )
+        return timezone.utc
+
+
 def parse_error_time(raw: str) -> Optional[datetime]:
+    raw = raw.strip()
     for fmt in (
+        "%Y-%m-%d %H:%M:%S.%f %z",
+        "%Y-%m-%d %H:%M:%S %z",
+        "%a %b %d %H:%M:%S.%f %Y %z",
+        "%a %b %d %H:%M:%S %Y %z",
         "%Y-%m-%d %H:%M:%S.%f",
         "%Y-%m-%d %H:%M:%S",
         "%a %b %d %H:%M:%S.%f %Y",
         "%a %b %d %H:%M:%S %Y",
     ):
         try:
-            return datetime.strptime(raw, fmt)
+            dt = datetime.strptime(raw, fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=get_error_log_timezone())
+            return dt
         except Exception:
             continue
     return None
@@ -168,8 +190,8 @@ def parse_error_time(raw: str) -> Optional[datetime]:
 def to_mysql_datetime(dt: Optional[datetime]) -> Optional[str]:
     if dt is None:
         return None
-    # Apache access/security 로그는 %z offset을 가진 aware datetime일 수 있다.
-    # DB에는 항상 UTC naive datetime으로 저장한다.
+    # DB에는 항상 UTC naive DATETIME(3) 문자열로 저장한다.
+    # timezone 없는 값은 호출부에서 source timezone을 부여한 뒤 넘기는 것을 원칙으로 한다.
     if dt.tzinfo is not None:
         dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -581,6 +603,7 @@ def main() -> None:
         CONFIG["logs"]["security"],
         CONFIG["logs"]["error"],
     )
+    logging.info("Using error log timezone: %s", CONFIG["error_log_timezone"])
 
     while RUNNING:
         try:
