@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-25
+- 기준 시점: 2026-05-28
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 완료 이력: [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md)
 - 관련 대시보드: [../진행상황.md](../진행상황.md)
@@ -13,10 +13,12 @@
 - `status_code=200`, `text/html`, `response_body_bytes`, `handler`, `x_forwarded_for`만으로 공격 성공/유출/내부 결과를 단정하지 않는다.
 - Web UI는 read-only이며 새 보안 판단/관계/incident를 만들지 않는다.
 - Sliding Window/Rollup/Operator Queue는 LLM 실행 전 사람이 먼저 볼 운영용 artifact를 만드는 경로다.
-- Stage1/Stage2는 기본 scheduler path가 아니라 optional deep-analysis / legacy path로 둔다.
+- DB-backed MVP의 `analysis_jobs` queue는 사용자가 등록한 분석 실행 queue이고, 기존 `operator queue`는 분석 결과 중 사람이 검토할 rollup 목록이다.
+- DB-backed MVP의 기본 `analysis_mode`는 `full_report`이며 Stage1/Stage2/viewer_payload 생성까지 완료되어야 `SUCCEEDED`로 본다.
 
 ## 현재 기준 문서
 
+- DB-backed log collection + analysis job design: [../design/99_db_backed_log_collection_and_analysis_job_design.md](../design/99_db_backed_log_collection_and_analysis_job_design.md)
 - Sliding Window adoption review: [../design/99_sliding_window_adoption_review.md](../design/99_sliding_window_adoption_review.md)
 - Rollup input review: [../design/99_sliding_window_rollup_input_review.md](../design/99_sliding_window_rollup_input_review.md)
 - Rollup input format: [../design/99_sliding_window_rollup_input_format.md](../design/99_sliding_window_rollup_input_format.md)
@@ -27,7 +29,62 @@
 - Operator Queue item detail: [../design/99_sliding_window_operator_queue_item_detail.md](../design/99_sliding_window_operator_queue_item_detail.md)
 - Single Rollup Observation Brief: [../design/99_sliding_window_single_rollup_observation_brief.md](../design/99_sliding_window_single_rollup_observation_brief.md)
 
-## P0. Sliding Window / Rollup / Operator Queue
+## P0. DB-backed log collection / analysis job MVP
+
+### 완료
+
+- [x] DB-backed log collection + analysis job 설계 문서화
+  - 문서: [../design/99_db_backed_log_collection_and_analysis_job_design.md](../design/99_db_backed_log_collection_and_analysis_job_design.md)
+  - 교수님 피드백을 반영해 Apache 로그 수집, DB 적재, Web UI 기반 분석 작업 등록, Analysis Agent 실행, 결과 표시까지의 상위 운영 흐름으로 정리했다.
+  - `analysis_jobs queue`와 기존 `operator queue`를 분리했다.
+  - Agent는 AI agent가 아니라 Python background worker/CLI process로 정의했다.
+- [x] MariaDB 기준 DDL 정리
+  - `users`, `analysis_jobs`, `analysis_reports`, `job_events`, `log_collection_checkpoints`를 MariaDB/MySQL 기준 DDL로 정리했다.
+  - 기존 `apache_access_logs`, `apache_security_logs`, `apache_error_logs` 3개 로그 source table은 유지한다.
+  - DB의 `log_time`, `time_from`, `time_to`는 UTC naive `DATETIME(3)` 저장 기준으로 정리했다.
+  - Web UI 입력/표시는 `Asia/Seoul` 기준으로 둔다.
+- [x] DB-backed MVP full_report 완료 조건 정리
+  - MVP 기본 `analysis_mode`는 `full_report`다.
+  - `SUCCEEDED`는 export/prepare/rollup 완료가 아니라 Stage1, Stage2, viewer_payload 생성과 report/artifact 저장 완료를 의미한다.
+  - `viewer_payload.json` 생성 완료 후에만 완료 job을 Web UI에서 결과로 보여주는 방향으로 정리했다.
+- [x] `src/apache_log_shipper.py` error log UTC 저장 보정
+  - `APACHE_ERROR_LOG_TIMEZONE` 환경변수를 추가했다.
+  - 기본값은 `Asia/Seoul`이다.
+  - timezone 없는 error log timestamp를 source timezone으로 해석한 뒤 UTC naive `DATETIME(3)`로 저장하도록 수정했다.
+  - timezone 포함 error timestamp 포맷도 수용한다.
+  - smoke 확인:
+    - 입력: `2026-05-28 18:30:00.000`
+    - parse 결과: `2026-05-28 18:30:00+09:00`
+    - DB 저장 문자열: `2026-05-28 09:30:00.000`
+
+### 다음 우선순위
+
+- [ ] DB schema/migration 정리
+  - 기존 `apache_access_logs`, `apache_security_logs`, `apache_error_logs` 유지.
+  - `analysis_jobs`, `analysis_reports`, `job_events` 추가.
+  - 필요 시 `log_collection_checkpoints` DB table 도입 여부를 현재 file-state 방식과 비교한다.
+  - MariaDB 기준 DDL을 실제 migration 또는 setup SQL로 분리한다.
+- [ ] `analysis_jobs` 등록/조회 API 설계 및 구현
+  - POST job 등록.
+  - GET job list/detail.
+  - 상태: `PENDING`, `RUNNING`, `SUCCEEDED`, `FAILED`.
+  - Web UI 입력 시간은 `Asia/Seoul`, DB 조회 시간은 UTC `DATETIME(3)` 기준으로 변환한다.
+- [ ] 단일 Analysis Agent polling MVP 구현
+  - PENDING job 조회.
+  - atomic claim.
+  - RUNNING/SUCCEEDED/FAILED 상태 갱신.
+  - `job_events` 기록.
+- [ ] `src/export_db_logs_cli.py` 연동
+  - `analysis_jobs.time_from/time_to` 기반 export.json 생성.
+  - primary source: `apache_security_logs`.
+  - correlation/reference: `apache_error_logs`, `apache_access_logs`.
+- [ ] artifact_root / analysis_reports 연결
+  - Stage1 결과 경로 저장.
+  - Stage2 report 경로 저장.
+  - viewer_payload.json 경로 저장.
+  - viewer_payload 생성 완료 후 `SUCCEEDED` 처리.
+
+## P1. Sliding Window / Rollup / Operator Queue
 
 ### 완료
 
@@ -96,6 +153,7 @@
 ### 다음 우선순위
 
 - [ ] Single Rollup Observation Brief CLI preview 구현 여부 판단
+  - DB-backed MVP 우선순위가 올라가면서 기존 pipeline 연속 작업의 후순위 후보로 둔다.
   - 구현 후보: `src/sliding_window_rollup_observation_brief.py`.
   - selected rollup 하나를 markdown/text로 stdout 출력한다.
   - 새 artifact 생성 없음.
@@ -112,18 +170,18 @@
   - `uri_family_hints`, `low_and_slow_hints`, repeated src_ip / uri / reason_hint_prefix.
   - hint를 candidate_index나 Stage1 후보로 승격하지 않는다.
 - [ ] Rollup v1.5 Stage1 projection 검토
-  - selected rollup만 optional deep-analysis로 보낼 가능성을 검토한다.
+  - DB-backed MVP의 `full_report` 경로와 충돌하지 않도록 selected/job-scoped projection으로만 검토한다.
   - 별도 fixture/test 전까지 보류한다.
   - projection 과정에서 score/verdict_hint/severity/confidence를 새로 만들지 않는다.
 
-## P1. observability 후속 판단
+## P2. observability 후속 판단
 
 - [ ] `proxy_error_check`를 정식 scenario catalog extension으로 뺄지 검토
 - [ ] external client 기반 reverse proxy topology run 필요성 판단
 - [ ] OpenCart v2 추가 진행 여부 검토
 - [ ] `mod_remoteip`/remoteIP 환경 구성 여부 검토
 
-## P2. candidate policy 관찰
+## P3. candidate policy 관찰
 
 - [x] `obs_php_sample_v2_error_heavy_external_001` EH01~EH12 전체 external run을 수행하고 `explain_prepare_candidates.py` 결과를 baseline과 비교
   - 결과: local/internal baseline과 같은 `payload 3 / probe 4 / status-error 3 / auth 1 / upload 1` shape 유지.
@@ -133,25 +191,25 @@
 - [ ] broad status/error-only demotion은 계속 보류 유지
 - [ ] scanner/probe broad demotion은 계속 보류 유지
 
-## P3. Web UI read-only 관찰
+## P4. Web UI read-only 관찰
 
 - [ ] Interpretation Aid와 context badge가 과도하게 findings처럼 보이지 않는지 관찰
 - [ ] Related Contexts / Supporting Events 표시가 새 관계 추론처럼 보이지 않는지 점검
 - [ ] backend unavailable / proxy error badge는 scenario 정식화 여부가 정리된 뒤 다시 검토
 
-## P4. wording / taxonomy guard
+## P5. wording / taxonomy guard
 
 - [ ] actual LLM 출력에서 context-only 과승격이 반복되는지 관찰
 - [ ] file disclosure 성공, admin 접근 성공, upload 저장 성공 같은 과해석이 재발하는지 관찰
 
-## P5. run_dir / archive / retention
+## P6. run_dir / archive / retention
 
 - [ ] `--run-id` 필요성 관찰
 - [ ] legacy/lab archive opt-in scan 정책 후속 검토
 - [ ] raw observability log의 보관/커밋 정책 점검
 - [ ] output cleanup의 실제 삭제 기능은 별도 승인 전까지 계속 보류
 
-## P6. 새 coverage 후보
+## P7. 새 coverage 후보
 
 - [ ] API key / secret token probe fixture plan 작성 여부 판단
 - [ ] Webshell command query fixture plan 작성 여부 판단
