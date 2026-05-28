@@ -12,6 +12,8 @@
 - Apache logs-only evidence boundary를 유지한다.
 - `status_code=200`, `text/html`, `response_body_bytes`, `handler`, `x_forwarded_for`만으로 공격 성공/유출/내부 결과를 단정하지 않는다.
 - Web UI는 read-only이며 새 보안 판단/관계/incident를 만들지 않는다.
+- Sliding Window/Rollup/Operator Queue는 LLM 실행 전 사람이 먼저 볼 운영용 artifact를 만드는 경로다.
+- Stage1/Stage2는 기본 scheduler path가 아니라 optional deep-analysis / legacy path로 둔다.
 
 ## 현재 기준 문서
 
@@ -28,6 +30,8 @@
 - Operator Queue design: [../design/99_sliding_window_operator_queue_design.md](../design/99_sliding_window_operator_queue_design.md)
 
 ## P0. Sliding Window / Rollup / Operator Queue 후속 작업
+
+### 완료
 
 - [x] Sliding Window 문서 세트 repo 수용 범위 검토
 - [x] Sliding Window 예시 명령과 현재 CLI 옵션 호환성 확인
@@ -67,9 +71,6 @@
 - [x] Rollup input 문서 세트 repo 기준 정렬
   - `99_sliding_window_rollup_input_review.md` 작성 완료.
   - rollup input/format/integration/quick reference/implementation guide를 v1.0 최소 구현 기준으로 축소했다.
-  - v1.0: `window_summary.json` 수집, missing/invalid window 상태 기록, request_id dedup, candidate_index/distribution merge, rollup artifact 3종 생성.
-  - v1.1: `uri_family_hints`, `low_and_slow_hints` 후보.
-  - v1.5: Stage1 호환 `analysis_candidates` projection 후보.
 - [x] Rollup v1.0 최소 구현 및 검증
   - `src/sliding_window_rollup.py` 추가 완료.
   - `tests/test_sliding_window_rollup.py` 추가 완료.
@@ -109,13 +110,27 @@
   - 검증: sliding window/operator/rollup/scheduler/candidate policy quick bundle → 73 passed.
   - smoke: `--rollup-pattern "rollup_ops_*" --overwrite` → `matched_rollup_count=0`, `rollup_items_total=0`, `quiet=0`, `llm_required=0`.
   - smoke: `--rollup-pattern "rollup_*" --overwrite` → `matched_rollup_count=2`, `rollup_items_total=2`, `needs_review=2`, `llm_eligible=2`, `llm_required=0`.
-- [ ] 운영용 rollup naming convention을 실제 rollup/scheduler 생성 경로에 반영할지 판단
-  - 후보: `rollup_ops_<cadence>_<HHMM>_<HHMM>`.
-  - smoke 후보: `rollup_smoke_<purpose>_<HHMM>_<HHMM>`.
-  - 현재 `--rollup-pattern`으로 입력 선택은 가능하나, `src/sliding_window_rollup.py`의 기본 rollup_id 생성은 아직 기존 형식을 유지한다.
-- [ ] Single Rollup Reporter 설계 여부 판단
+- [x] 운영용 rollup naming convention을 실제 rollup/scheduler 생성 경로에 반영할지 판단
+  - 결정: 지금은 보류한다. `--rollup-id-prefix`를 추가하지 않는다.
+  - 근거: Operator Queue v1에서 `--rollup-pattern`으로 source selection이 가능하다.
+  - 근거: 생성 시점에 naming/prefix를 강제하면 scheduler, cron, smoke 실행, 사용자 명령에 prefix 의미가 퍼져 복잡도가 증가한다.
+  - 근거: 현재 단계의 핵심은 rollup 이름을 더 세분화하는 것이 아니라 사람이 queue를 보고 무엇을 판단할지 정리하는 것이다.
+  - 현재 `src/sliding_window_rollup.py`의 기본 rollup_id 생성은 기존 형식(`rollup_YYYYMMDD_HHMM_HHMM`)을 유지한다.
+  - `rollup_ops_*`, `rollup_smoke_*` naming은 문서상 후보/운영 label로만 둔다.
+  - 재검토 조건: Queue item detail / Single Rollup Observation Brief가 안정화되고, 실제 운영 cadence/profile이 필요해진 뒤 재검토한다.
+
+### 다음 우선순위
+
+- [ ] Operator Queue item detail 설계
+  - 신규 문서 후보: `docs/design/99_sliding_window_operator_queue_item_detail.md`.
+  - 목적: queue item 하나를 사람이 drilldown 전에 판단할 수 있도록 필요한 표시 정보를 정리한다.
+  - 후보 필드: `top_observed`, `quality_assessment`, `apache_logs_only_notes`, review notes.
+  - 구현 전 guardrail: 보안 verdict, success 판단, threat score를 추가하지 않는다.
+- [ ] Single Rollup Observation Brief 설계
+  - 신규 문서 후보: `docs/design/99_sliding_window_single_rollup_observation_brief.md`.
+  - 기존 “Single Rollup Reporter” 표현보다 “Observation Brief” 표현을 우선 검토한다.
   - operator queue 이후 optional briefing으로 설계한다.
-  - detection engine이 아니라 observation briefing으로 제한한다.
+  - detection engine이 아니라 사람이 drilldown 전에 읽는 관찰 요약으로 제한한다.
 - [ ] Rollup v1.0 smoke 보강 여부 판단
   - 실제 로그에서 request_id 중복이 발생하는 overlap 구간을 추가로 찾을지 판단한다.
   - 현재는 unit test로 cross-window request_id dedup을 검증했고, 실제 smoke에서는 window load/merge/missing handling/output reuse policy를 확인했다.
