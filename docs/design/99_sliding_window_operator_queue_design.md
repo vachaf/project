@@ -1,6 +1,6 @@
 # 99_sliding_window_operator_queue_design
 
-- 문서 상태: v1 구현 기준 명세 / Operator Queue source selection 구현 완료
+- 문서 상태: v1 구현 기준 명세 / Operator Queue source selection 구현 완료 / rollup naming generation 보류 결정
 - 기준 시점: 2026-05-25
 - 목적: Sliding Window / Rollup 이후 사람이 먼저 봐야 할 운영 queue 모델을 정의한다.
 - 구현 상태: `src/sliding_window_operator_queue.py` / `tests/test_sliding_window_operator_queue.py` 추가 완료
@@ -184,7 +184,9 @@ python3 src/sliding_window_operator_queue.py \
 }
 ```
 
-## 6. Rollup naming convention
+## 6. Rollup naming generation 결정
+
+운영용 rollup naming convention 후보는 존재한다.
 
 운영용 rollup 후보:
 
@@ -203,14 +205,41 @@ rollup_smoke_overlap_0200_0400
 rollup_smoke_missing_0200_0400
 ```
 
+그러나 이 naming convention을 지금 `src/sliding_window_rollup.py` 또는 scheduler 생성 경로에 강제하지 않는다.
+
+결정:
+
+```text
+- --rollup-id-prefix는 지금 추가하지 않는다.
+- src/sliding_window_rollup.py의 기본 rollup_id 생성은 기존 canonical 형식인 rollup_YYYYMMDD_HHMM_HHMM을 유지한다.
+- rollup_ops_* / rollup_smoke_* naming은 문서상 후보와 운영 label로만 둔다.
+```
+
+근거:
+
+```text
+- Operator Queue v1에서 --rollup-pattern으로 source selection이 가능하다.
+- 생성 시점에 naming/prefix를 강제하면 scheduler, cron, smoke 실행, 사용자 명령에 prefix 의미가 퍼져 복잡도가 증가한다.
+- 운영자는 queue에서 quiet / needs_review / data_quality_check / llm_eligible을 먼저 봐야 한다.
+- 운영자가 rollup_id prefix 의미를 알아야만 queue를 해석하는 구조는 피한다.
+- 현재 단계의 핵심은 rollup 이름을 더 세분화하는 것이 아니라 사람이 queue를 보고 무엇을 판단할지 정리하는 것이다.
+```
+
+재검토 조건:
+
+```text
+- Queue item detail 설계가 안정화된 뒤
+- Single Rollup Observation Brief가 안정화된 뒤
+- 실제 운영 cadence/profile이 필요해진 뒤
+- naming 없이 운영 혼선이 반복적으로 발생한 뒤
+```
+
 주의:
 
 ```text
 - naming convention은 보안 의미를 만들지 않는다.
-- ops/smoke는 운영 artifact와 실험 artifact의 source selection을 구분하기 위한 label이다.
+- ops/smoke는 운영 artifact와 실험 artifact의 source selection을 구분하기 위한 label일 뿐이다.
 - rollup_id label만으로 공격/침해/성공 여부를 표현하지 않는다.
-- 현재 src/sliding_window_rollup.py의 기본 rollup_id 생성은 기존 형식을 유지한다.
-- 운영 naming을 rollup/scheduler 생성 경로에 반영할지는 별도 판단한다.
 ```
 
 ## 7. Empty queue semantics
@@ -406,15 +435,6 @@ complete
 incomplete_missing_window
 degraded_invalid_window
 missing_rollup_artifact
-```
-
-파생 우선순위:
-
-```text
-missing_rollup_artifact
-  > degraded_invalid_window
-  > incomplete_missing_window
-  > complete
 ```
 
 ### review_status
@@ -644,22 +664,73 @@ selected queue item
 
 그러나 projection은 v1 operator queue 범위 밖이다.
 
-## 18. Single Rollup Reporter 위치
+## 18. Queue item detail 방향
 
-Single Rollup Reporter는 operator queue 이후 optional briefing으로 설계할 수 있다.
+다음으로 우선 검토할 것은 rollup naming 생성 옵션이 아니라 사람이 queue item 하나를 어떻게 읽을지다.
+
+신규 문서 후보:
+
+```text
+docs/design/99_sliding_window_operator_queue_item_detail.md
+```
+
+설계 후보:
+
+```text
+- top_observed 요약
+- quality_assessment
+- apache_logs_only_notes
+- review_notes
+- drilldown path
+```
+
+금지:
+
+```text
+- 보안 verdict 생성
+- attack/exploit success 판단
+- threat score 생성
+- context-only 승격
+```
+
+## 19. Single Rollup Observation Brief 위치
+
+Single Rollup Reporter라는 표현은 Stage2 report처럼 오해될 수 있으므로, 다음 설계에서는 Single Rollup Observation Brief 표현을 우선 검토한다.
 
 가능한 다음 단계:
 
 ```text
 Operator Queue
   -> selected queue item
-  -> llm_rollup_briefing.py
-  -> rollup_observation_brief.md
+  -> Single Rollup Observation Brief
+  -> optional Web UI drilldown
+  -> optional LLM deep-analysis
 ```
 
-이 reporter는 detection engine이 아니다.
+이 brief는 detection engine이 아니다.
 
-## 19. Web UI 관점
+해야 하는 것:
+
+```text
+- 관찰 요약
+- top src_ip / uri / reason prefix 설명
+- data quality 설명
+- Apache logs-only 한계 명시
+- 사람이 확인할 다음 포인트 제시
+```
+
+하면 안 되는 것:
+
+```text
+- 공격 성공 판단
+- 침해 판단
+- 파일 유출 판단
+- DB 영향 추론
+- browser execution 추론
+- threat score 생성
+```
+
+## 20. Web UI 관점
 
 초기 구현은 file artifact만 만든다.
 
@@ -669,6 +740,7 @@ Operator Queue
 Operator Queue list
 Operator Queue detail
 source rollup/window drilldown
+Observation Brief tab
 ```
 
 Web UI 원칙:
@@ -680,7 +752,7 @@ Web UI 원칙:
 - context-only 승격 금지
 ```
 
-## 20. Daily summary와의 관계
+## 21. Daily summary와의 관계
 
 Daily summary는 raw log를 다시 분석하지 않는다.
 
@@ -695,7 +767,7 @@ optional Stage2 report metadata
 
 Daily summary도 success/intrusion/data exposure를 새로 단정하지 않는다.
 
-## 21. Non-goals
+## 22. Non-goals
 
 Operator Queue v1/source selection은 다음을 하지 않는다.
 
@@ -718,35 +790,38 @@ Operator Queue v1/source selection은 다음을 하지 않는다.
 - pattern name으로 보안 의미 생성
 - ops/smoke label로 보안 verdict 생성
 - empty pattern match를 quiet day로 해석
+- rollup 생성 시점에 naming policy 강제
 ```
 
-## 22. 다음 판단
+## 23. 다음 판단
 
-다음 단계는 바로 LLM reporter 구현이 아니라 다음 중 하나를 선택한다.
+다음 단계는 rollup naming generation 구현이 아니라 다음 순서로 진행한다.
 
-1. 운영용 rollup naming convention을 생성 경로에 반영할지 판단
-   - 후보: `rollup_ops_<cadence>_<HHMM>_<HHMM>`
-   - smoke 후보: `rollup_smoke_<purpose>_<HHMM>_<HHMM>`
-   - 현재 `--rollup-pattern`으로 입력 선택은 가능하나, rollup 생성 기본값은 기존 형식을 유지한다.
+1. Operator Queue item detail 설계
+   - 사람이 queue item 하나를 보고 drilldown 전 판단할 수 있는 표시 정보를 정의한다.
 
-2. Single Rollup Reporter 설계
-   - operator queue 이후 optional briefing으로 설계한다.
-   - detection engine이 아니라 observation briefing으로 제한한다.
+2. Single Rollup Observation Brief 설계
+   - operator queue 이후 optional observation briefing으로 설계한다.
+   - detection engine이 아니라 관찰 요약으로 제한한다.
 
 3. Rollup v1.1 hint 설계
    - uri_family_hints / low_and_slow_hints는 hint-only로 유지한다.
    - candidate_index 또는 Stage1 후보로 승격하지 않는다.
 
+4. Rollup naming generation 재검토
+   - Observation Brief와 실제 운영 cadence/profile이 안정화된 뒤 필요하면 재검토한다.
+
 권장 순서:
 
 ```text
 Operator Queue source selection 구현 완료
-  -> 운영 rollup naming 생성 경로 반영 여부 판단
-  -> Single Rollup Reporter 설계
+  -> rollup naming generation 보류 결정
+  -> Queue item detail 설계
+  -> Single Rollup Observation Brief 설계
   -> projection/Stage1/Stage2 deep-analysis path 재검토
 ```
 
-## 23. Guardrail
+## 24. Guardrail
 
 이 문서는 [00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)를 따른다.
 
