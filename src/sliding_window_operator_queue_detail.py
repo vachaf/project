@@ -22,6 +22,22 @@ from typing import Any, Mapping, Optional
 DEFAULT_QUEUE_ROOT = "data/operator_queue"
 QUEUE_ITEMS_FILENAME = "queue_items.json"
 DETAIL_VIEW_SCHEMA = "sliding_window_operator_queue_item_detail_view_v1"
+PAYLOAD_LIKE_REASON_HINTS: set[str] = {
+    "sqli",
+    "sqli_hint",
+    "xss",
+    "xss_hint",
+    "path_traversal_candidate",
+    "cmdi_hint",
+    "hpp_hint",
+    "php_wrapper_hint",
+    "file_disclosure_hint",
+    "log4shell_jndi_hint",
+    "ssrf_like_target",
+    "ssti_hint",
+    "xxe_hint",
+    "webshell_like",
+}
 APACHE_LOGS_ONLY_NOTES = [
     "This detail view is derived from Apache log artifacts only.",
     "It does not include raw POST body, response body, DB result, browser execution, or server-side application state.",
@@ -123,13 +139,60 @@ def format_top_entries(entries: Any) -> str:
     return ", ".join(values) if values else "-"
 
 
-def build_detail_view(*, queue_payload: Mapping[str, Any], item: Mapping[str, Any]) -> dict[str, Any]:
+def is_section_heading(line: str) -> bool:
+    prefix, separator, _rest = line.partition(". ")
+    return bool(separator) and prefix.isdigit()
+
+
+def payload_like_entries_from_distribution(distribution: Mapping[str, Any]) -> list[dict[str, Any]]:
+    entries: list[tuple[str, int]] = []
+    for key, value in distribution.items():
+        if key in PAYLOAD_LIKE_REASON_HINTS and isinstance(value, int) and value > 0:
+            entries.append((str(key), value))
+    entries.sort(key=lambda item: (-item[1], item[0]))
+    return [{"value": key, "count": count} for key, count in entries]
+
+
+def payload_like_entries_from_top_observed(top_observed: Mapping[str, Any]) -> list[dict[str, Any]]:
+    distribution: dict[str, int] = {}
+    for entry in as_list(top_observed.get("reason_hint_prefix")):
+        if not isinstance(entry, dict):
+            continue
+        key = entry.get("value")
+        count = entry.get("count")
+        if isinstance(key, str) and isinstance(count, int):
+            distribution[key] = count
+    return payload_like_entries_from_distribution(distribution)
+
+
+def load_rollup_reason_hint_distribution(*, work_dir: Path, item: Mapping[str, Any]) -> dict[str, Any]:
+    rollup_path = item.get("rollup_path")
+    if not isinstance(rollup_path, str) or not rollup_path:
+        return {}
+    path = resolve_under_work_dir(work_dir, rollup_path)
+    if not path.exists():
+        return {}
+    try:
+        payload = load_json(path)
+    except Exception:
+        return {}
+    distributions = as_mapping(as_mapping(payload).get("distributions"))
+    return as_mapping(distributions.get("candidate_reason_hint_prefix"))
+
+
+def build_detail_view(
+    *,
+    queue_payload: Mapping[str, Any],
+    item: Mapping[str, Any],
+    matched_payload_like_reason_prefixes: Optional[list[dict[str, Any]]] = None,
+) -> dict[str, Any]:
     time_range = as_mapping(item.get("time_range"))
     counts = as_mapping(item.get("counts"))
     signals = as_mapping(item.get("signals"))
     top_observed = as_mapping(item.get("top_observed"))
     rollup_id = value_or_dash(item.get("rollup_id"))
     source_selection = as_mapping(queue_payload.get("source_selection"))
+    matched_payload_like_reason_prefixes = matched_payload_like_reason_prefixes or payload_like_entries_from_top_observed(top_observed)
 
     return {
         "schema": DETAIL_VIEW_SCHEMA,
@@ -174,6 +237,7 @@ def build_detail_view(*, queue_payload: Mapping[str, Any], item: Mapping[str, An
         "observed_signals": {
             "has_candidates": signals.get("has_candidates"),
             "has_payload_like_reason_hint": signals.get("has_payload_like_reason_hint"),
+            "matched_payload_like_reason_prefixes": matched_payload_like_reason_prefixes,
             "has_repeated_src_ip": signals.get("has_repeated_src_ip"),
             "has_repeated_uri": signals.get("has_repeated_uri"),
             "has_repeated_reason_hint_prefix": signals.get("has_repeated_reason_hint_prefix"),
@@ -216,26 +280,26 @@ def render_text(detail: Mapping[str, Any]) -> str:
         f"Rollup ID: {value_or_dash(detail.get('rollup_id'))}",
         f"Queue date: {value_or_dash(detail.get('queue_date'))}",
         "",
-        "## 1. Data quality",
+        "1. Data quality",
         f"- status: {value_or_dash(quality.get('status'))}",
         f"- missing_or_failed_windows: {value_or_dash(quality.get('missing_or_failed_windows'))}",
         f"- possible_duplicates_marked: {value_or_dash(quality.get('possible_duplicates_marked'))}",
         f"- dedup_removed_by_request_id: {value_or_dash(quality.get('dedup_removed_by_request_id'))}",
         "",
-        "## 2. Review routing",
+        "2. Review routing",
         f"- review_status: {value_or_dash(routing.get('review_status'))}",
         f"- operator_state: {value_or_dash(routing.get('operator_state'))}",
         f"- recommended_action: {value_or_dash(routing.get('recommended_action'))}",
         f"- llm_eligible: {bool_label(routing.get('llm_eligible'))}",
         f"- llm_required: {bool_label(routing.get('llm_required'))}",
         "",
-        "## 3. Scope",
+        "3. Scope",
         f"- start: {value_or_dash(time_range.get('start'))}",
         f"- end_exclusive: {value_or_dash(time_range.get('end_exclusive'))}",
         f"- timezone: {value_or_dash(time_range.get('timezone'))}",
         f"- duration_minutes: {value_or_dash(time_range.get('duration_minutes'))}",
         "",
-        "## 4. Counts",
+        "4. Counts",
     ]
     for key in (
         "window_count",
@@ -251,7 +315,7 @@ def render_text(detail: Mapping[str, Any]) -> str:
 
     lines.extend([
         "",
-        "## 5. Observed signals",
+        "5. Observed signals",
     ])
     for key in (
         "has_candidates",
@@ -264,31 +328,35 @@ def render_text(detail: Mapping[str, Any]) -> str:
         "is_quiet",
     ):
         lines.append(f"- {key}: {bool_label(signals.get(key))}")
+    lines.append(
+        "- matched_payload_like_reason_prefixes: "
+        f"{format_top_entries(signals.get('matched_payload_like_reason_prefixes'))}"
+    )
 
     lines.extend([
         "",
-        "## 6. Top observed distributions",
+        "6. Top observed distributions",
         f"- src_ip: {format_top_entries(top_observed.get('src_ip'))}",
         f"- uri: {format_top_entries(top_observed.get('uri'))}",
         f"- reason_hint_prefix: {format_top_entries(top_observed.get('reason_hint_prefix'))}",
         f"- status_code: {format_top_entries(top_observed.get('status_code'))}",
         "",
-        "## 7. Drilldown",
+        "7. Drilldown",
         f"- rollup_input_path: {value_or_dash(drilldown.get('rollup_input_path'))}",
         f"- rollup_summary_path: {value_or_dash(drilldown.get('rollup_summary_path'))}",
         f"- candidate_source: {value_or_dash(drilldown.get('candidate_source'))}",
         "",
-        "## 8. Source selection",
+        "8. Source selection",
         f"- rollup_root: {value_or_dash(source_selection.get('rollup_root'))}",
         f"- rollup_pattern: {value_or_dash(source_selection.get('rollup_pattern'))}",
         f"- matched_rollup_count: {value_or_dash(source_selection.get('matched_rollup_count'))}",
         "",
-        "## 9. Apache logs-only notes",
+        "9. Apache logs-only notes",
     ])
     lines.extend(f"- {note}" for note in as_list(detail.get("apache_logs_only_notes")))
     lines.extend([
         "",
-        "## 10. Non-conclusions",
+        "10. Non-conclusions",
     ])
     lines.extend(f"- {note}" for note in as_list(detail.get("non_conclusions")))
     return "\n".join(lines) + "\n"
@@ -303,7 +371,7 @@ def render_markdown(detail: Mapping[str, Any]) -> str:
             converted.append(f"# {line}")
         elif index == 1 and set(line) == {"="}:
             continue
-        elif line[:3].replace(".", "").isdigit() and ". " in line:
+        elif is_section_heading(line):
             converted.append(f"## {line}")
         else:
             converted.append(line)
@@ -313,7 +381,13 @@ def render_markdown(detail: Mapping[str, Any]) -> str:
 def build_detail_for_rollup(*, work_dir: Path, date: str, queue_root: str, rollup_id: str) -> dict[str, Any]:
     payload = load_queue_items_payload(work_dir=work_dir, date=date, queue_root=queue_root)
     item = find_queue_item(payload, rollup_id)
-    return build_detail_view(queue_payload=payload, item=item)
+    reason_distribution = load_rollup_reason_hint_distribution(work_dir=work_dir, item=item)
+    matched_payload_like_reason_prefixes = payload_like_entries_from_distribution(reason_distribution)
+    return build_detail_view(
+        queue_payload=payload,
+        item=item,
+        matched_payload_like_reason_prefixes=matched_payload_like_reason_prefixes,
+    )
 
 
 def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
