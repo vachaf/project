@@ -18,6 +18,7 @@ confidence levels, threat levels, or success/intrusion conclusions.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import sys
@@ -35,6 +36,7 @@ ROLLUP_SUMMARY_SCHEMA = "sliding_window_rollup_summary_v1"
 DEFAULT_TIMEZONE = "Asia/Seoul"
 DEFAULT_ROLLUP_ROOT = "data/rollups"
 DEFAULT_OUT_ROOT = "data/operator_queue"
+DEFAULT_ROLLUP_PATTERN = "rollup_*"
 QUEUE_OUTPUT_NAMES = (
     "queue_items.json",
     "queue_summary.json",
@@ -136,22 +138,39 @@ def classify_queue_outputs(out_dir: Path) -> tuple[str, list[str], list[str]]:
     return "none", existing, missing
 
 
-def load_existing_queue_counts(out_dir: Path) -> dict[str, Any]:
+def load_existing_queue_fields(out_dir: Path) -> dict[str, Any]:
     summary_path = out_dir / "queue_summary.json"
     if not summary_path.exists():
-        return {}
+        return {"counts": {}, "source_selection": {}}
     try:
         payload = load_json(summary_path)
     except Exception:
-        return {}
-    return as_mapping(payload).get("counts", {}) if isinstance(payload, dict) else {}
+        return {"counts": {}, "source_selection": {}}
+    mapping = as_mapping(payload)
+    return {
+        "counts": as_mapping(mapping.get("counts")),
+        "source_selection": as_mapping(mapping.get("source_selection")),
+    }
 
 
-def discover_rollup_dirs(*, work_dir: Path, date: str, rollup_root: str) -> list[Path]:
+def discover_rollup_dirs(*, work_dir: Path, date: str, rollup_root: str, rollup_pattern: str = DEFAULT_ROLLUP_PATTERN) -> list[Path]:
     root = resolve_under_work_dir(work_dir, rollup_root) / date
     if not root.exists():
         return []
-    return sorted(path for path in root.iterdir() if path.is_dir() and path.name.startswith("rollup_"))
+    return sorted(
+        path
+        for path in root.iterdir()
+        if path.is_dir() and fnmatch.fnmatch(path.name, rollup_pattern)
+    )
+
+
+def build_source_selection(*, work_dir: Path, date: str, rollup_root: str, rollup_pattern: str, matched_count: int) -> dict[str, Any]:
+    source_rollup_root = resolve_under_work_dir(work_dir, rollup_root) / date
+    return {
+        "rollup_root": path_for_display(source_rollup_root, work_dir),
+        "rollup_pattern": rollup_pattern,
+        "matched_rollup_count": matched_count,
+    }
 
 
 def top_observed_from_distribution(distribution: Mapping[str, Any], *, limit: int = TOP_OBSERVED_LIMIT) -> list[dict[str, Any]]:
@@ -416,11 +435,19 @@ def build_queue_payloads(
     rollup_root: str,
     out_root: str,
     timezone: str,
+    rollup_pattern: str = DEFAULT_ROLLUP_PATTERN,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     generated_at = now_iso(timezone)
-    rollup_dirs = discover_rollup_dirs(work_dir=work_dir, date=date, rollup_root=rollup_root)
+    rollup_dirs = discover_rollup_dirs(work_dir=work_dir, date=date, rollup_root=rollup_root, rollup_pattern=rollup_pattern)
     items = [build_queue_item(date=date, work_dir=work_dir, rollup_dir=rollup_dir, generated_at=generated_at) for rollup_dir in rollup_dirs]
     source_rollup_root = resolve_under_work_dir(work_dir, rollup_root) / date
+    source_selection = build_source_selection(
+        work_dir=work_dir,
+        date=date,
+        rollup_root=rollup_root,
+        rollup_pattern=rollup_pattern,
+        matched_count=len(rollup_dirs),
+    )
     out_dir = resolve_under_work_dir(work_dir, out_root) / date
     items_path = out_dir / "queue_items.json"
 
@@ -429,6 +456,7 @@ def build_queue_payloads(
         "queue_date": date,
         "generated_at": generated_at,
         "source_rollup_root": path_for_display(source_rollup_root, work_dir),
+        "source_selection": source_selection,
         "items": items,
         "guardrails": GUARDRAILS,
     }
@@ -437,6 +465,7 @@ def build_queue_payloads(
         "queue_date": date,
         "generated_at": generated_at,
         "source_rollup_root": path_for_display(source_rollup_root, work_dir),
+        "source_selection": source_selection,
         "counts": count_items(items),
         "items_path": path_for_display(items_path, work_dir),
         "guardrails": GUARDRAILS,
@@ -464,6 +493,7 @@ def build_and_write_queue(
     timezone: str,
     pretty: bool,
     overwrite: bool = False,
+    rollup_pattern: str = DEFAULT_ROLLUP_PATTERN,
 ) -> dict[str, Any]:
     out_dir = resolve_under_work_dir(work_dir, out_root) / date
     output_state, existing, missing = classify_queue_outputs(out_dir)
@@ -475,12 +505,14 @@ def build_and_write_queue(
     }
 
     if output_state == "all" and not overwrite:
+        existing_fields = load_existing_queue_fields(out_dir)
         return {
             **result_base,
             "status": "skipped_existing",
             "existing_outputs": existing,
             "missing_outputs": missing,
-            "counts": load_existing_queue_counts(out_dir),
+            "counts": existing_fields["counts"],
+            "source_selection": existing_fields["source_selection"],
         }
 
     if output_state == "partial" and not overwrite:
@@ -492,6 +524,7 @@ def build_and_write_queue(
         rollup_root=rollup_root,
         out_root=out_root,
         timezone=timezone,
+        rollup_pattern=rollup_pattern,
     )
     write_queue_artifacts(out_dir=out_dir, items_payload=items_payload, summary_payload=summary_payload, pretty=pretty)
     return {
@@ -500,6 +533,7 @@ def build_and_write_queue(
         "existing_outputs": existing,
         "missing_outputs": missing,
         "counts": summary_payload["counts"],
+        "source_selection": summary_payload["source_selection"],
     }
 
 
@@ -508,6 +542,7 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--work-dir", default=".", help="repository/work root")
     parser.add_argument("--date", required=True, help="queue date in YYYY-MM-DD")
     parser.add_argument("--rollup-root", default=DEFAULT_ROLLUP_ROOT)
+    parser.add_argument("--rollup-pattern", default=DEFAULT_ROLLUP_PATTERN, help="fnmatch pattern for rollup directory names")
     parser.add_argument("--out-root", default=DEFAULT_OUT_ROOT)
     parser.add_argument("--timezone", default=DEFAULT_TIMEZONE)
     parser.add_argument("--overwrite", action="store_true", help="overwrite existing queue artifacts")
@@ -528,6 +563,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             timezone=args.timezone,
             pretty=args.pretty,
             overwrite=args.overwrite,
+            rollup_pattern=args.rollup_pattern,
         )
     except Exception as exc:
         print(f"[QUEUE] ERROR: {exc}", file=sys.stderr)
@@ -543,6 +579,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(f"[QUEUE] out_dir={result['out_dir']}")
         print(f"[QUEUE] queue_items={result['queue_items_path']}")
         print(f"[QUEUE] queue_summary={result['queue_summary_path']}")
+        source_selection = result.get("source_selection", {})
+        print(
+            "[QUEUE] source_selection: "
+            f"rollup_root={source_selection.get('rollup_root', '')} "
+            f"rollup_pattern={source_selection.get('rollup_pattern', '')} "
+            f"matched_rollup_count={source_selection.get('matched_rollup_count', 0)}"
+        )
         counts = result.get("counts", {})
         print(
             "[QUEUE] summary: "
