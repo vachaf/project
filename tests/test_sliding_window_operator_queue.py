@@ -110,9 +110,13 @@ def build_queue(module, tmp_path: Path, **kwargs):
     return module.build_and_write_queue(**params)
 
 
-def load_queue_items(tmp_path: Path):
+def load_queue_payload(tmp_path: Path):
     path = tmp_path / "data/operator_queue/2026-05-24/queue_items.json"
-    return json.loads(path.read_text(encoding="utf-8"))["items"]
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_queue_items(tmp_path: Path):
+    return load_queue_payload(tmp_path)["items"]
 
 
 def load_queue_summary(tmp_path: Path):
@@ -403,3 +407,77 @@ def test_atomic_write_does_not_leave_tmp_files(tmp_path: Path):
     assert not list(out_dir.glob("*.tmp"))
     assert (out_dir / "queue_items.json").exists()
     assert (out_dir / "queue_summary.json").exists()
+
+
+def test_rollup_pattern_includes_matching_rollups_only(tmp_path: Path):
+    module = load_module()
+    write_rollup(tmp_path, rollup_id="rollup_ops_4h_0200_0600", candidate_index_count=1)
+    write_rollup(tmp_path, rollup_id="rollup_ops_4h_0600_1000", candidate_index_count=0)
+    write_rollup(tmp_path, rollup_id="rollup_smoke_single_0200_0300", candidate_index_count=1)
+
+    result = build_queue(module, tmp_path, rollup_pattern="rollup_ops_*")
+    payload = load_queue_payload(tmp_path)
+    items = payload["items"]
+
+    assert result["source_selection"] == {
+        "rollup_root": "data/rollups/2026-05-24",
+        "rollup_pattern": "rollup_ops_*",
+        "matched_rollup_count": 2,
+    }
+    assert payload["source_selection"] == result["source_selection"]
+    assert [item["rollup_id"] for item in items] == [
+        "rollup_ops_4h_0200_0600",
+        "rollup_ops_4h_0600_1000",
+    ]
+
+
+def test_default_rollup_pattern_keeps_existing_rollup_star_behavior(tmp_path: Path):
+    module = load_module()
+    write_rollup(tmp_path, rollup_id="rollup_20260524_0200_0300", candidate_index_count=0)
+    write_rollup(tmp_path, rollup_id="not_a_rollup_20260524_0200_0300", candidate_index_count=0)
+
+    result = build_queue(module, tmp_path)
+    items = load_queue_items(tmp_path)
+
+    assert result["source_selection"]["rollup_pattern"] == "rollup_*"
+    assert result["source_selection"]["matched_rollup_count"] == 1
+    assert [item["rollup_id"] for item in items] == ["rollup_20260524_0200_0300"]
+
+
+def test_empty_rollup_pattern_match_writes_empty_queue_not_quiet(tmp_path: Path):
+    module = load_module()
+    write_rollup(tmp_path, rollup_id="rollup_smoke_single_0200_0300", candidate_index_count=0)
+
+    result = build_queue(module, tmp_path, rollup_pattern="rollup_ops_*")
+    items_payload = load_queue_payload(tmp_path)
+    summary = load_queue_summary(tmp_path)
+
+    assert result["status"] == "written"
+    assert result["source_selection"] == {
+        "rollup_root": "data/rollups/2026-05-24",
+        "rollup_pattern": "rollup_ops_*",
+        "matched_rollup_count": 0,
+    }
+    assert items_payload["items"] == []
+    assert items_payload["source_selection"] == result["source_selection"]
+    assert summary["source_selection"] == result["source_selection"]
+    assert summary["counts"]["rollup_items_total"] == 0
+    assert summary["counts"]["quiet"] == 0
+    assert summary["counts"]["needs_review"] == 0
+    assert summary["counts"]["data_quality_check"] == 0
+    assert summary["counts"]["llm_eligible"] == 0
+    assert summary["counts"]["llm_required"] == 0
+
+
+def test_skipped_existing_preserves_source_selection_metadata(tmp_path: Path):
+    module = load_module()
+    write_rollup(tmp_path, rollup_id="rollup_ops_4h_0200_0600", candidate_index_count=0)
+
+    first = build_queue(module, tmp_path, rollup_pattern="rollup_ops_*")
+    second = build_queue(module, tmp_path, rollup_pattern="rollup_smoke_*")
+
+    assert first["status"] == "written"
+    assert second["status"] == "skipped_existing"
+    assert second["source_selection"] == first["source_selection"]
+    assert second["source_selection"]["rollup_pattern"] == "rollup_ops_*"
+    assert second["source_selection"]["matched_rollup_count"] == 1
