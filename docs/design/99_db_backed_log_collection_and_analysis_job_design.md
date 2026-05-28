@@ -10,6 +10,7 @@
   - DB-backed analysis_jobs queue
   - artifact storage integration
 - 관련 기존 구현:
+  - `src/export_db_logs_cli.py`
   - `src/prepare_llm_input.py`
   - `src/sliding_window_scheduler.py`
   - `src/sliding_window_summary.py`
@@ -63,6 +64,8 @@ Apache 로그 수집
 중요한 원칙:
 
 ```text
+- 이 문서의 Agent는 별도 AI agent를 의미하지 않는다.
+- Agent는 주기적으로 실행되거나 long-running으로 동작하는 Python background worker/CLI process를 의미한다.
 - Agent는 UI를 확인하지 않는다.
 - Agent는 DB의 job 상태를 확인한다.
 - UI는 DB 상태를 표시한다.
@@ -121,7 +124,7 @@ operator queue는 분석 결과의 검토 queue다.
    ↓
 [Log Collector Agent]
    ↓
-[DB: apache_logs]
+[DB: apache_access_logs / apache_security_logs / apache_error_logs]
 
 [User]
    ↓
@@ -220,7 +223,9 @@ UI는 DB 상태와 artifact를 보여주는 presentation layer다.
 출력:
 
 ```text
-DB: apache_logs
+DB: apache_access_logs
+DB: apache_security_logs
+DB: apache_error_logs
 DB: log_collection_checkpoints
 ```
 
@@ -251,7 +256,10 @@ DB: log_collection_checkpoints
 분석 pipeline 후보:
 
 ```text
-DB apache_logs
+DB apache_security_logs 중심
+  + 필요 시 apache_error_logs request_id/error_link_id/time range 상관
+  + 필요 시 apache_access_logs 보조 참조
+  -> src/export_db_logs_cli.py
   -> export.json
   -> prepare_llm_input.py
   -> llm_input.json / analysis_candidates.json / noise_summary.json
@@ -269,6 +277,22 @@ DB apache_logs
 v1에서는 기존 파일 artifact pipeline을 최대한 유지한다.
 
 ### 4.4 DB
+
+DB는 로그 원천 테이블과 운영/control 테이블을 함께 관리한다.
+
+```text
+Log source tables:
+- apache_access_logs
+- apache_security_logs
+- apache_error_logs
+
+Operation/control tables:
+- users
+- analysis_jobs
+- analysis_reports
+- job_events
+- log_collection_checkpoints
+```
 
 DB는 상태와 색인을 관리한다.
 
@@ -376,59 +400,185 @@ CREATE TABLE users (
 
 v1에서 복잡한 권한 체계는 보류한다.
 
-### 5.2 apache_logs
+### 5.2 Apache log source tables
 
-`apache_access_logs`
+로그 source 테이블은 기존 구성을 유지한다.
+
+```text
+기존 설계:
+- apache_access_logs
+- apache_security_logs
+- apache_error_logs
+
+이 문서에서 단순화를 위해 apache_logs라고 표현한 부분은
+실제 구현에서는 위 3개 테이블을 의미한다.
+```
+
+분석 export의 primary source는 `apache_security_logs`다.
+
+```text
+primary:
+- apache_security_logs
+
+correlation/reference:
+- apache_error_logs
+- apache_access_logs
+```
+
+#### 5.2.1 apache_access_logs
 
 ```sql
-CREATE TABLE apache_logs (
-    id INTEGER PRIMARY KEY,
-    log_time TIMESTAMP NOT NULL,
-    log_source TEXT NOT NULL,
-    vhost TEXT,
-    server_name TEXT,
-    server_port INTEGER,
-    local_ip TEXT,
-    src_ip TEXT,
-    peer_ip TEXT,
-    method TEXT,
+CREATE TABLE IF NOT EXISTS apache_access_logs (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    log_time DATETIME(3) NOT NULL,
+    client_ip VARCHAR(45) DEFAULT NULL,
+    method VARCHAR(16) DEFAULT NULL,
     raw_request TEXT,
     uri TEXT,
     query_string TEXT,
-    protocol TEXT,
-    status_code INTEGER,
-    original_status_code INTEGER,
-    response_body_bytes INTEGER,
-    in_bytes INTEGER,
-    out_bytes INTEGER,
-    total_bytes INTEGER,
-    duration_us INTEGER,
-    ttfb_us INTEGER,
-    request_id TEXT,
-    error_link_id TEXT,
-    user_agent TEXT,
+    protocol VARCHAR(16) DEFAULT NULL,
+    status_code SMALLINT UNSIGNED DEFAULT NULL,
+    response_body_bytes BIGINT UNSIGNED DEFAULT NULL,
     referer TEXT,
-    raw_line TEXT,
-    parsed_json TEXT,
-    ingested_at TIMESTAMP NOT NULL
-);
+    user_agent TEXT,
+    host VARCHAR(255) DEFAULT NULL,
+    vhost VARCHAR(255) DEFAULT NULL,
+    raw_log LONGTEXT,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_access_log_time (log_time),
+    KEY idx_access_client_ip (client_ip),
+    KEY idx_access_status_code (status_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
-권장 index:
+#### 5.2.2 apache_security_logs
 
 ```sql
-CREATE INDEX idx_apache_logs_log_time ON apache_logs(log_time);
-CREATE INDEX idx_apache_logs_src_ip ON apache_logs(src_ip);
-CREATE INDEX idx_apache_logs_request_id ON apache_logs(request_id);
-CREATE INDEX idx_apache_logs_status_code ON apache_logs(status_code);
+CREATE TABLE IF NOT EXISTS apache_security_logs (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+    -- schema / time / correlation
+    log_schema VARCHAR(64) DEFAULT NULL,
+    log_time DATETIME(3) NOT NULL,
+    request_id VARCHAR(128) DEFAULT NULL,
+    error_link_id VARCHAR(128) DEFAULT NULL,
+
+    -- vhost / server identity
+    vhost VARCHAR(255) DEFAULT NULL,
+    server_name VARCHAR(255) DEFAULT NULL,
+    server_port INT UNSIGNED DEFAULT NULL,
+    local_ip VARCHAR(45) DEFAULT NULL,
+
+    -- client / peer identity observations
+    client_ip_source VARCHAR(64) DEFAULT NULL,
+    src_ip VARCHAR(45) DEFAULT NULL,
+    peer_ip VARCHAR(45) DEFAULT NULL,
+    remoteip_proxy_chain TEXT,
+
+    -- request line / target
+    method VARCHAR(16) DEFAULT NULL,
+    raw_request TEXT,
+    request_target TEXT,
+    uri TEXT,
+    query_string TEXT,
+    protocol VARCHAR(16) DEFAULT NULL,
+
+    -- response / IO metadata
+    status_code SMALLINT UNSIGNED DEFAULT NULL,
+    original_status_code SMALLINT UNSIGNED DEFAULT NULL,
+    response_body_bytes BIGINT UNSIGNED DEFAULT NULL,
+    in_bytes BIGINT UNSIGNED DEFAULT NULL,
+    out_bytes BIGINT UNSIGNED DEFAULT NULL,
+    total_bytes BIGINT UNSIGNED DEFAULT NULL,
+    duration_us BIGINT UNSIGNED DEFAULT NULL,
+    ttfb_us BIGINT UNSIGNED DEFAULT NULL,
+    keepalive_count INT UNSIGNED DEFAULT NULL,
+    connection_status VARCHAR(8) DEFAULT NULL,
+    handler VARCHAR(255) DEFAULT NULL,
+
+    -- request / response headers as observed metadata
+    req_content_type VARCHAR(255) DEFAULT NULL,
+    req_content_length BIGINT UNSIGNED DEFAULT NULL,
+    resp_content_type VARCHAR(255) DEFAULT NULL,
+    location TEXT,
+    referer TEXT,
+    origin TEXT,
+    user_agent TEXT,
+    req_host VARCHAR(255) DEFAULT NULL,
+    x_forwarded_for TEXT,
+    x_real_ip TEXT,
+    forwarded TEXT,
+
+    -- privacy-preserving presence flags only
+    has_cookie TINYINT(1) DEFAULT NULL,
+    has_authorization TINYINT(1) DEFAULT NULL,
+
+    raw_log LONGTEXT,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    PRIMARY KEY (id),
+    KEY idx_security_log_time (log_time),
+    KEY idx_security_request_id (request_id),
+    KEY idx_security_error_link_id (error_link_id),
+    KEY idx_security_src_ip (src_ip),
+    KEY idx_security_status_code (status_code),
+    KEY idx_security_log_schema (log_schema),
+    KEY idx_security_client_ip_source (client_ip_source)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+#### 5.2.3 apache_error_logs
+
+```sql
+CREATE TABLE IF NOT EXISTS apache_error_logs (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    log_time DATETIME(3) NOT NULL,
+    error_link_id VARCHAR(128) DEFAULT NULL,
+    request_id VARCHAR(128) DEFAULT NULL,
+    module_name VARCHAR(128) DEFAULT NULL,
+    log_level VARCHAR(64) DEFAULT NULL,
+    src_ip VARCHAR(45) DEFAULT NULL,
+    peer_ip VARCHAR(45) DEFAULT NULL,
+    message LONGTEXT,
+    raw_log LONGTEXT,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_error_log_time (log_time),
+    KEY idx_error_error_link_id (error_link_id),
+    KEY idx_error_request_id (request_id),
+    KEY idx_error_log_level (log_level)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+#### 5.2.4 추가 index 후보
+
+MVP에서는 기존 index로 시작한다.
+
+time range export가 느려지면 다음 index를 추가 후보로 둔다.
+
+```sql
+CREATE INDEX idx_security_time_src_ip
+ON apache_security_logs(log_time, src_ip);
+
+CREATE INDEX idx_security_time_request_id
+ON apache_security_logs(log_time, request_id);
+
+CREATE INDEX idx_error_time_request_id
+ON apache_error_logs(log_time, request_id);
+
+CREATE INDEX idx_error_time_error_link_id
+ON apache_error_logs(log_time, error_link_id);
 ```
 
 주의:
 
 ```text
-- parsed_json은 디버깅용 원본 파싱 결과 보존 후보다.
-- raw_line은 원본 확인용으로 보존할 수 있다.
-- LLM 입력에는 raw_line/raw_request/raw query string을 무제한 복제하지 않는다.
+- apache_security_logs를 prepare/export의 기본 입력으로 본다.
+- apache_error_logs는 request_id / error_link_id / time range 기반 보조 상관 자료로 사용한다.
+- apache_access_logs는 기본 access 관찰 또는 fallback/reference로 사용한다.
+- Log Collector Agent는 각 log source를 해당 테이블에 저장한다.
+- LLM 입력에는 raw_log/raw_request/raw query string을 무제한 복제하지 않는다.
 ```
 
 ### 5.3 log_collection_checkpoints
@@ -477,7 +627,6 @@ CREATE TABLE analysis_jobs (
     attempt_count INTEGER NOT NULL DEFAULT 0,
     max_attempts INTEGER NOT NULL DEFAULT 1,
     error_message TEXT,
-    report_id INTEGER,
     artifact_root TEXT,
     FOREIGN KEY (requested_by) REFERENCES users(id)
 );
@@ -503,6 +652,25 @@ FAILED    = 실패
 ```
 
 `CANCELLED`는 v1.1 후보로 둔다.
+
+권장 제약/인덱스 후보:
+
+```sql
+CREATE INDEX idx_analysis_jobs_status_created_at
+ON analysis_jobs(status, created_at);
+```
+
+구현 DB가 MySQL이면 `CHECK` 또는 application validation으로 다음 조건을 보장한다.
+
+```text
+- time_from < time_to
+- status in PENDING/RUNNING/SUCCEEDED/FAILED/CANCELLED
+- attempt_count >= 0
+- max_attempts >= 1
+```
+
+report 연결은 `analysis_jobs.report_id`를 중복 저장하지 않고,
+`analysis_reports.job_id UNIQUE`를 기준으로 조회한다.
 
 ### 5.5 analysis_reports
 
@@ -540,7 +708,19 @@ CREATE TABLE analysis_reports (
 - 파일 artifact를 기준으로 재현성과 디버깅 가능성을 유지한다.
 ```
 
-### 5.6 job_events
+### 5.6 시간대 저장 원칙
+
+시간 범위 기반 분석이 핵심이므로 시간대 기준을 명시한다.
+
+```text
+- DB의 log_time, time_from, time_to는 같은 기준으로 비교한다.
+- 가능하면 UTC 기준으로 저장하고, UI에서 local timezone으로 표시한다.
+- Apache log_time 파싱 시 source timezone을 명시한다.
+- MySQL DATETIME(3)을 사용할 경우 애플리케이션 레벨에서 timezone 기준을 고정한다.
+- job 등록 화면에는 사용자가 입력한 timezone 또는 서버 기본 timezone을 명확히 표시한다.
+```
+
+### 5.7 job_events
 
 job 진행 상황과 오류를 기록한다.
 
@@ -669,19 +849,35 @@ MVP에서는 단일 Analysis Agent만 운영하더라도, 문서상으로는 ato
 표준 흐름 후보:
 
 ```text
-1. job claim
-2. artifact_root 생성
-3. DB apache_logs에서 time_from/time_to 범위 조회
-4. export.json 생성
-5. prepare 실행
-6. sliding window 필요 시 window artifact 생성
-7. rollup artifact 생성
-8. operator queue artifact 생성
-9. optional Stage1 실행
-10. optional Stage2 실행
-11. viewer_payload 생성
-12. analysis_reports record 생성
-13. job status SUCCEEDED
+1. analysis_jobs에서 PENDING job 조회
+2. atomic claim으로 RUNNING 변경
+3. artifact_root 생성
+4. src/export_db_logs_cli.py를 사용해 time_from/time_to 범위 로그 export
+   - primary source: apache_security_logs
+   - optional correlation: apache_error_logs
+   - optional fallback/reference: apache_access_logs
+5. export.json 생성
+6. prepare_llm_input.py 실행
+7. sliding_window_scheduler.py 실행
+8. sliding_window_rollup.py 실행
+9. sliding_window_operator_queue.py 실행
+10. optional Stage1 실행
+11. optional Stage2 실행
+12. viewer_payload 생성
+13. analysis_reports record 생성
+14. analysis_jobs.status = SUCCEEDED
+```
+
+`src/export_db_logs_cli.py`는 Analysis Agent 내부의 export 단계로 둔다.
+
+```text
+analysis_jobs
+  -> Analysis Agent
+      -> src/export_db_logs_cli.py
+      -> export.json
+      -> prepare/sliding window/rollup/operator queue
+      -> optional Stage1/Stage2
+      -> viewer_payload/report artifact
 ```
 
 오류 처리:
@@ -886,7 +1082,7 @@ MVP에 포함:
 
 ```text
 - users 최소 테이블
-- apache_logs 저장
+- apache_access_logs / apache_security_logs / apache_error_logs 저장
 - analysis_jobs 등록
 - Analysis Agent의 PENDING job polling
 - atomic claim 원칙 적용
@@ -923,7 +1119,7 @@ v1 설계에서 명시적으로 제외한다.
 - Web UI가 job 상태의 source of truth가 되지 않는다.
 - Agent가 UI를 scrape하거나 UI 상태를 확인하지 않는다.
 - Log Collector Agent가 보안 판단을 하지 않는다.
-- Analysis Agent가 Apache logs-only boundary를 넘는 성공/침해 판단을 만들지 않는다.
+- Analysis Agent와 Stage1/Stage2는 Apache logs-only evidence boundary를 넘는 공격 성공, 침해 성공, 서버 장악, 계정 탈취, 데이터 유출 확정 판단을 만들지 않는다.
 - Operator Queue가 Stage1/Stage2 report를 대체하지 않는다.
 - analysis_jobs queue와 operator queue를 같은 개념으로 취급하지 않는다.
 - Stage1/Stage2를 모든 window마다 자동 남발하지 않는다.
@@ -1019,7 +1215,9 @@ analysis_mode 이름은 보안 verdict 의미를 만들지 않는다.
 
 ## 15. 다음 구현 후보
 
-문서화 이후 구현 후보는 다음 순서가 적절하다.
+문서화 이후 구현 후보는 두 트랙으로 나눈다.
+
+### 15.1 기존 pipeline 연속 작업
 
 ```text
 1. Single Rollup Observation Brief CLI preview
@@ -1035,17 +1233,54 @@ analysis_mode 이름은 보안 verdict 의미를 만들지 않는다.
 3. Web UI Operator Queue item detail panel
    - 기존 queue item detail projection 재사용
    - CLI preview와 같은 해석 유지
+```
 
-4. DB-backed analysis_jobs MVP
-   - analysis_jobs table
-   - PENDING/RUNNING/SUCCEEDED/FAILED 상태
-   - 단일 Analysis Agent polling
-   - artifact_root 저장
+### 15.2 교수님 피드백 반영 운영 시스템 MVP
 
-5. Log Collector Agent MVP
+```text
+1. DB schema/migration 정리
+   - 기존 apache_access_logs / apache_security_logs / apache_error_logs 유지
+   - analysis_jobs / analysis_reports / job_events 추가
+
+2. analysis_jobs 등록/조회 API
+   - POST job 등록
+   - GET job list/detail
+   - PENDING/RUNNING/SUCCEEDED/FAILED 표시
+
+3. 단일 Analysis Agent polling
+   - PENDING job 조회
+   - atomic claim
+   - RUNNING/SUCCEEDED/FAILED 상태 갱신
+
+4. src/export_db_logs_cli.py 연동
+   - time_from/time_to 기반 export.json 생성
+   - apache_security_logs primary source
+   - apache_error_logs 보조 상관 후보
+
+5. artifact_root / analysis_reports 연결
+   - viewer_payload.json
+   - stage2_report.md
+   - operator_queue artifact 경로 저장
+
+6. Log Collector Agent MVP
    - Apache log file tail/read
-   - apache_logs insert
+   - 기존 3개 log source table insert
    - checkpoint 저장
+```
+
+### 15.3 MVP 데모 시나리오
+
+```text
+1. Log Collector Agent가 Apache 로그를 DB에 적재한다.
+2. 사용자가 Web UI에서 특정 시간 범위 분석 작업을 등록한다.
+3. analysis_jobs에 PENDING row가 생성된다.
+4. Analysis Agent가 해당 job을 RUNNING으로 claim한다.
+5. src/export_db_logs_cli.py가 해당 시간 범위 로그를 export.json으로 생성한다.
+6. 기존 prepare/sliding window/rollup/report pipeline을 실행한다.
+7. viewer_payload.json과 stage2_report.md를 artifact_root에 저장한다.
+8. analysis_reports에 artifact 경로를 저장한다.
+9. analysis_jobs 상태를 SUCCEEDED로 변경한다.
+10. 사용자가 Web UI에서 완료 job을 클릭해 결과를 확인한다.
 ```
 
 ## 16. 요약
@@ -1053,7 +1288,7 @@ analysis_mode 이름은 보안 verdict 의미를 만들지 않는다.
 교수님 피드백 반영 후 시스템의 한 문장 요약은 다음과 같다.
 
 ```text
-본 시스템은 Apache 로그를 Log Collector Agent가 수집하여 DB에 저장하고,
+본 시스템은 Apache 로그를 Log Collector Agent가 수집하여 기존 apache_access_logs / apache_security_logs / apache_error_logs에 저장하고,
 사용자가 Web UI에서 특정 시간 범위의 분석 작업을 등록하면,
 Analysis Agent가 DB의 PENDING 작업을 가져와 기존 LLM 기반 분석 pipeline을 실행한 뒤,
 결과 JSON과 viewer artifact를 저장하고,
@@ -1076,5 +1311,8 @@ Web UI
   - DB 상태와 artifact를 표시하는 presentation layer
 
 Agent
-  - DB 상태를 기준으로 작업을 수행하는 background worker
+  - DB 상태를 기준으로 작업을 수행하는 Python background worker/CLI process
+
+export_db_logs_cli.py
+  - Analysis Agent 내부의 time range export 단계
 ```
