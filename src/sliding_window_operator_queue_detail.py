@@ -216,26 +216,26 @@ def render_text(detail: Mapping[str, Any]) -> str:
         f"Rollup ID: {value_or_dash(detail.get('rollup_id'))}",
         f"Queue date: {value_or_dash(detail.get('queue_date'))}",
         "",
-        "1. Data quality",
+        "## 1. Data quality",
         f"- status: {value_or_dash(quality.get('status'))}",
         f"- missing_or_failed_windows: {value_or_dash(quality.get('missing_or_failed_windows'))}",
         f"- possible_duplicates_marked: {value_or_dash(quality.get('possible_duplicates_marked'))}",
         f"- dedup_removed_by_request_id: {value_or_dash(quality.get('dedup_removed_by_request_id'))}",
         "",
-        "2. Review routing",
+        "## 2. Review routing",
         f"- review_status: {value_or_dash(routing.get('review_status'))}",
         f"- operator_state: {value_or_dash(routing.get('operator_state'))}",
         f"- recommended_action: {value_or_dash(routing.get('recommended_action'))}",
         f"- llm_eligible: {bool_label(routing.get('llm_eligible'))}",
         f"- llm_required: {bool_label(routing.get('llm_required'))}",
         "",
-        "3. Scope",
+        "## 3. Scope",
         f"- start: {value_or_dash(time_range.get('start'))}",
         f"- end_exclusive: {value_or_dash(time_range.get('end_exclusive'))}",
         f"- timezone: {value_or_dash(time_range.get('timezone'))}",
         f"- duration_minutes: {value_or_dash(time_range.get('duration_minutes'))}",
         "",
-        "4. Counts",
+        "## 4. Counts",
     ]
     for key in (
         "window_count",
@@ -251,7 +251,7 @@ def render_text(detail: Mapping[str, Any]) -> str:
 
     lines.extend([
         "",
-        "5. Observed signals",
+        "## 5. Observed signals",
     ])
     for key in (
         "has_candidates",
@@ -267,28 +267,28 @@ def render_text(detail: Mapping[str, Any]) -> str:
 
     lines.extend([
         "",
-        "6. Top observed distributions",
+        "## 6. Top observed distributions",
         f"- src_ip: {format_top_entries(top_observed.get('src_ip'))}",
         f"- uri: {format_top_entries(top_observed.get('uri'))}",
         f"- reason_hint_prefix: {format_top_entries(top_observed.get('reason_hint_prefix'))}",
         f"- status_code: {format_top_entries(top_observed.get('status_code'))}",
         "",
-        "7. Drilldown",
+        "## 7. Drilldown",
         f"- rollup_input_path: {value_or_dash(drilldown.get('rollup_input_path'))}",
         f"- rollup_summary_path: {value_or_dash(drilldown.get('rollup_summary_path'))}",
         f"- candidate_source: {value_or_dash(drilldown.get('candidate_source'))}",
         "",
-        "8. Source selection",
+        "## 8. Source selection",
         f"- rollup_root: {value_or_dash(source_selection.get('rollup_root'))}",
         f"- rollup_pattern: {value_or_dash(source_selection.get('rollup_pattern'))}",
         f"- matched_rollup_count: {value_or_dash(source_selection.get('matched_rollup_count'))}",
         "",
-        "9. Apache logs-only notes",
+        "## 9. Apache logs-only notes",
     ])
     lines.extend(f"- {note}" for note in as_list(detail.get("apache_logs_only_notes")))
     lines.extend([
         "",
-        "10. Non-conclusions",
+        "## 10. Non-conclusions",
     ])
     lines.extend(f"- {note}" for note in as_list(detail.get("non_conclusions")))
     return "\n".join(lines) + "\n"
