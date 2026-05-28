@@ -28,6 +28,24 @@ def write_json(path: Path, payload) -> None:
 
 
 def write_queue_items(tmp_path: Path) -> None:
+    rollup_dir = tmp_path / "data/rollups/2026-05-24/rollup_20260524_0200_0400"
+    write_json(
+        rollup_dir / "rollup_input.json",
+        {
+            "schema": "sliding_window_rollup_input_v1",
+            "distributions": {
+                "candidate_reason_hint_prefix": {
+                    "error_linked": 5,
+                    "error_status": 5,
+                    "xss": 5,
+                    "auth_payload_content_type": 1,
+                    "login_endpoint": 1,
+                    "sqli": 1,
+                    "upload": 1,
+                }
+            },
+        },
+    )
     payload = {
         "schema": "sliding_window_operator_queue_items_v1",
         "queue_date": "2026-05-24",
@@ -82,8 +100,11 @@ def write_queue_items(tmp_path: Path) -> None:
                     "src_ip": [{"value": "192.168.56.114", "count": 5}],
                     "uri": [{"value": "/search.php", "count": 5}],
                     "reason_hint_prefix": [
+                        {"value": "error_linked", "count": 5},
+                        {"value": "error_status", "count": 5},
                         {"value": "xss", "count": 5},
-                        {"value": "sqli", "count": 1},
+                        {"value": "auth_payload_content_type", "count": 1},
+                        {"value": "login_endpoint", "count": 1},
                     ],
                     "status_code": [{"value": "500", "count": 5}],
                 },
@@ -120,9 +141,16 @@ def test_build_detail_for_rollup_contains_human_readable_sections(tmp_path: Path
     assert detail["routing"]["llm_required"] is False
     assert detail["counts"]["candidate_index_count"] == 5
     assert detail["observed_signals"]["has_payload_like_reason_hint"] is True
-    assert detail["top_observed"]["reason_hint_prefix"] == [
+    assert detail["observed_signals"]["matched_payload_like_reason_prefixes"] == [
         {"value": "xss", "count": 5},
         {"value": "sqli", "count": 1},
+    ]
+    assert detail["top_observed"]["reason_hint_prefix"] == [
+        {"value": "error_linked", "count": 5},
+        {"value": "error_status", "count": 5},
+        {"value": "xss", "count": 5},
+        {"value": "auth_payload_content_type", "count": 1},
+        {"value": "login_endpoint", "count": 1},
     ]
     assert detail["source_selection"]["rollup_pattern"] == "rollup_*"
 
@@ -150,7 +178,9 @@ def test_render_text_orders_detail_for_human_review(tmp_path: Path):
     assert "8. Source selection" in rendered
     assert "9. Apache logs-only notes" in rendered
     assert "10. Non-conclusions" in rendered
-    assert "- reason_hint_prefix: xss (5), sqli (1)" in rendered
+    assert "## 1. Data quality" not in rendered
+    assert "- reason_hint_prefix: error_linked (5), error_status (5), xss (5), auth_payload_content_type (1), login_endpoint (1)" in rendered
+    assert "- matched_payload_like_reason_prefixes: xss (5), sqli (1)" in rendered
     assert "- llm_required: no" in rendered
 
 
@@ -236,6 +266,10 @@ def test_cli_json_output(tmp_path: Path, capsys):
     assert rc == 0
     assert payload["rollup_id"] == "rollup_20260524_0200_0400"
     assert payload["routing"]["llm_required"] is False
+    assert payload["observed_signals"]["matched_payload_like_reason_prefixes"] == [
+        {"value": "xss", "count": 5},
+        {"value": "sqli", "count": 1},
+    ]
 
 
 def test_cli_missing_rollup_returns_error(tmp_path: Path, capsys):
