@@ -8,7 +8,7 @@
 ## 원칙
 
 - 이 문서는 남은 TODO만 유지한다.
-- 완료 기록은 [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md), `docs/진행상황.md`, 개별 설계 문서, 작업일지로 이관한다.
+- 완료 기록은 history 문서, `docs/진행상황.md`, 개별 설계 문서, 작업일지로 이관한다.
 - Apache logs-only evidence boundary를 유지한다.
 - `status_code=200`, `text/html`, `response_body_bytes`, `handler`, `x_forwarded_for`만으로 공격 성공/유출/내부 결과를 단정하지 않는다.
 - Web UI는 read-only이며 새 보안 판단/관계/incident를 만들지 않는다.
@@ -28,52 +28,25 @@
 - Rollup quick reference: [../design/99_sliding_window_rollup_quick_reference.md](../design/99_sliding_window_rollup_quick_reference.md)
 - Rollup implementation guide: [../design/99_sliding_window_rollup_implementation_guide.md](../design/99_sliding_window_rollup_implementation_guide.md)
 - Operator Queue design: [../design/99_sliding_window_operator_queue_design.md](../design/99_sliding_window_operator_queue_design.md)
+- Operator Queue item detail: [../design/99_sliding_window_operator_queue_item_detail.md](../design/99_sliding_window_operator_queue_item_detail.md)
+- Single Rollup Observation Brief: [../design/99_sliding_window_single_rollup_observation_brief.md](../design/99_sliding_window_single_rollup_observation_brief.md)
 
 ## P0. Sliding Window / Rollup / Operator Queue 후속 작업
 
 ### 완료
 
-- [x] Sliding Window 문서 세트 repo 수용 범위 검토
-- [x] Sliding Window 예시 명령과 현재 CLI 옵션 호환성 확인
-- [x] Sliding Window dry-run 검증 범위 확정
-- [x] Sliding Window planner mode 구현 및 검증
-  - `src/sliding_window_scheduler.py` planner mode 추가 완료.
-  - 검증: `tests/test_sliding_window_scheduler.py` → 5 passed.
-  - 검증: sliding window + candidate policy quick regression set → 29 passed.
-- [x] Sliding Window Level 1 export mode 구현 및 검증
-  - `src/sliding_window_scheduler.py --mode export` 추가 완료.
-  - `data/windowed/<date>/<window_id>/export.json`만 생성한다.
-  - prepare/stage1/stage2는 제외한다.
-  - `runs/`는 생성하지 않는다.
-- [x] prepare flat output names 추가 및 검증
-  - `src/prepare_llm_input.py --flat-output-names` 추가 완료.
-  - `--flat-output-names` 사용 시 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json`을 out-dir에 직접 생성한다.
-  - `--flat-output-names`와 `--base-name`은 argparse 상호배타로 막는다.
-  - 검증: `tests/test_prepare_llm_input_output_names.py` → 4 passed.
-  - 검증: prepare regression → `pass=25 warn=0 fail=0`.
-  - 검증: stage dry-run regression → `pass=19 warn=0 fail=0`.
-- [x] Sliding Window Level 2 prepare mode 구현 및 검증
-  - `src/sliding_window_scheduler.py --mode prepare` 추가 완료.
-  - 일부 window의 `export.json`을 입력으로 `prepare_llm_input.py --flat-output-names`만 실행한다.
-  - `data/windowed/<date>/<window_id>/`에 `llm_input.json`, `analysis_candidates.json`, `noise_summary.json`을 직접 생성한다.
+- [x] Sliding Window planner/export/prepare mode 구현 및 문서화
+  - `src/sliding_window_scheduler.py` planner/export/prepare mode 추가 완료.
+  - prepare mode는 `prepare_llm_input.py --flat-output-names`를 호출한다.
   - stage1/stage2/viewer_payload는 실행하지 않는다.
   - `runs/`는 생성하지 않는다.
-  - 검증: scheduler test → 13 passed.
-  - 검증: sliding window + prepare output + candidate policy quick bundle → 41 passed.
 - [x] `window_summary.json` v1 생성 및 검증
   - `src/sliding_window_summary.py` 추가 완료.
-  - `src/sliding_window_scheduler.py --mode prepare`에서 prepare 성공 후 `window_summary.json`을 자동 생성한다.
   - `candidate_index`에는 `request_id`, `src_ip`, `method`, `uri`, `status_code`, `score`, `verdict_hint`, `reason_hint_prefixes`만 넣는다.
   - `raw_log`, `raw_request`, `user_agent`, `referer`는 복제하지 않는다.
   - `policy_distribution`, severity/category/final verdict/success 판단은 넣지 않는다.
-  - 검증: summary/scheduler tests → 18 passed.
-  - 검증: sliding window summary + scheduler + prepare output + candidate policy quick bundle → 46 passed.
-- [x] Rollup input 문서 세트 repo 기준 정렬
-  - `99_sliding_window_rollup_input_review.md` 작성 완료.
-  - rollup input/format/integration/quick reference/implementation guide를 v1.0 최소 구현 기준으로 축소했다.
 - [x] Rollup v1.0 최소 구현 및 검증
   - `src/sliding_window_rollup.py` 추가 완료.
-  - `tests/test_sliding_window_rollup.py` 추가 완료.
   - 구현 범위: window_summary path 계산, summary 로드, missing/invalid window 기록, request_id dedup, missing request_id 보존, fallback duplicate 표시, candidate_index merge, distributions merge, `rollup_input.json` / `dedup_candidates.json` / `rollup_summary.json` 생성.
   - 제외 범위: Stage1/Stage2 실행, `runs/` 생성, `uri_family_hints`, `low_and_slow_hints`, Stage1 projection, confidence/threat_level/final verdict, 새 score/verdict_hint 생성, raw_log/raw_request/user_agent 복제.
   - 검증: `tests/test_sliding_window_rollup.py` → 10 passed.
@@ -84,9 +57,7 @@
   - 일부만 있으면 `PartialExistingRollupArtifactsError`로 실패한다.
   - `--overwrite` 지정 시 모두 있음/일부 있음과 무관하게 재생성한다.
 - [x] Operator Queue v1 설계 및 구현
-  - `docs/design/99_sliding_window_operator_queue_design.md` 작성 및 v1 구현 기준으로 보강 완료.
   - `src/sliding_window_operator_queue.py` 추가 완료.
-  - `tests/test_sliding_window_operator_queue.py` 추가 완료.
   - 입력: `data/rollups/<date>/rollup_*/rollup_input.json`, `rollup_summary.json`.
   - 출력: `data/operator_queue/<date>/queue_items.json`, `queue_summary.json`.
   - 구현 범위: quiet/needs_review/data_quality_check routing, data_quality_status 파생, llm_eligible 파생, llm_required=false 고정, top_observed distribution 생성, payload-like reason hint allowlist 상수화, atomic write, output reuse policy.
@@ -95,7 +66,6 @@
   - actual smoke의 `candidate_reason_hint_prefix` 분포에서 `sqli`, `xss`가 관찰되어 `PAYLOAD_LIKE_REASON_HINTS`에 `sqli`, `xss`를 추가했다.
   - 기존 `sqli_hint`, `xss_hint`는 유지했다.
   - `upload`, `login_endpoint`, `auth_payload_content_type`, `error_linked`, `error_status`는 payload-like allowlist에 추가하지 않았다.
-  - 이는 queue routing signal 정렬일 뿐이며 score/verdict_hint/candidate visibility/LLM required는 변경하지 않는다.
   - 검증: `tests/test_sliding_window_operator_queue.py` → 13 passed.
   - 검증: sliding window/operator/rollup/scheduler/candidate policy quick bundle → 69 passed.
 - [x] Operator Queue source selection / cadence 분리 구현 및 검증
@@ -103,34 +73,38 @@
   - 기본값은 기존 동작과 호환되도록 `rollup_*`로 유지한다.
   - Python `fnmatch` 기반으로 rollup directory basename만 필터링한다.
   - `queue_items.json`, `queue_summary.json`, CLI text output에 `source_selection` metadata를 남긴다.
-  - `source_selection`: `rollup_root`, `rollup_pattern`, `matched_rollup_count`.
   - pattern 매칭 0개는 오류가 아니라 empty queue로 저장한다.
   - empty queue는 quiet day가 아니므로 `quiet=0`으로 유지한다.
   - 검증: `tests/test_sliding_window_operator_queue.py` → 17 passed.
   - 검증: sliding window/operator/rollup/scheduler/candidate policy quick bundle → 73 passed.
-  - smoke: `--rollup-pattern "rollup_ops_*" --overwrite` → `matched_rollup_count=0`, `rollup_items_total=0`, `quiet=0`, `llm_required=0`.
-  - smoke: `--rollup-pattern "rollup_*" --overwrite` → `matched_rollup_count=2`, `rollup_items_total=2`, `needs_review=2`, `llm_eligible=2`, `llm_required=0`.
 - [x] 운영용 rollup naming convention을 실제 rollup/scheduler 생성 경로에 반영할지 판단
   - 결정: 지금은 보류한다. `--rollup-id-prefix`를 추가하지 않는다.
   - 근거: Operator Queue v1에서 `--rollup-pattern`으로 source selection이 가능하다.
   - 근거: 생성 시점에 naming/prefix를 강제하면 scheduler, cron, smoke 실행, 사용자 명령에 prefix 의미가 퍼져 복잡도가 증가한다.
-  - 근거: 현재 단계의 핵심은 rollup 이름을 더 세분화하는 것이 아니라 사람이 queue를 보고 무엇을 판단할지 정리하는 것이다.
   - 현재 `src/sliding_window_rollup.py`의 기본 rollup_id 생성은 기존 형식(`rollup_YYYYMMDD_HHMM_HHMM`)을 유지한다.
   - `rollup_ops_*`, `rollup_smoke_*` naming은 문서상 후보/운영 label로만 둔다.
-  - 재검토 조건: Queue item detail / Single Rollup Observation Brief가 안정화되고, 실제 운영 cadence/profile이 필요해진 뒤 재검토한다.
+- [x] Operator Queue item detail 설계
+  - 문서: [../design/99_sliding_window_operator_queue_item_detail.md](../design/99_sliding_window_operator_queue_item_detail.md)
+  - 목적: queue item 하나를 사람이 drilldown 전에 판단할 수 있도록 표시 순서와 detail view 구조를 정의했다.
+  - 결론: 즉시 queue item schema를 확장하지 않는다.
+  - 결론: 별도 detail artifact도 아직 만들지 않는다.
+  - 권장: 기존 queue item의 counts/signals/top_observed/source paths를 Web UI/CLI view projection으로 재배열한다.
+  - 다음 최소 구현 후보: deterministic CLI detail preview.
+- [x] Single Rollup Observation Brief 설계
+  - 문서: [../design/99_sliding_window_single_rollup_observation_brief.md](../design/99_sliding_window_single_rollup_observation_brief.md)
+  - 기존 “Single Rollup Reporter” 표현보다 “Observation Brief” 표현을 우선한다.
+  - 결론: LLM 기반 Single Rollup Reporter는 지금 구현하지 않는다.
+  - 결론: deterministic CLI preview-only brief builder가 가장 작은 다음 구현 후보이다.
+  - Observation Brief는 Stage2 report가 아니며 detection engine이 아니다.
 
 ### 다음 우선순위
 
-- [ ] Operator Queue item detail 설계
-  - 신규 문서 후보: `docs/design/99_sliding_window_operator_queue_item_detail.md`.
-  - 목적: queue item 하나를 사람이 drilldown 전에 판단할 수 있도록 필요한 표시 정보를 정리한다.
-  - 후보 필드: `top_observed`, `quality_assessment`, `apache_logs_only_notes`, review notes.
-  - 구현 전 guardrail: 보안 verdict, success 판단, threat score를 추가하지 않는다.
-- [ ] Single Rollup Observation Brief 설계
-  - 신규 문서 후보: `docs/design/99_sliding_window_single_rollup_observation_brief.md`.
-  - 기존 “Single Rollup Reporter” 표현보다 “Observation Brief” 표현을 우선 검토한다.
-  - operator queue 이후 optional briefing으로 설계한다.
-  - detection engine이 아니라 사람이 drilldown 전에 읽는 관찰 요약으로 제한한다.
+- [ ] deterministic CLI detail/brief preview 구현 여부 판단
+  - 구현 후보 1: queue item detail CLI preview.
+  - 구현 후보 2: `src/sliding_window_rollup_observation_brief.py` preview-only builder.
+  - 공통 원칙: 새 artifact 생성 없이 stdout markdown/text부터 시작한다.
+  - 공통 원칙: Stage1/Stage2/LLM을 호출하지 않는다.
+  - 공통 원칙: 보안 verdict, success 판단, threat score를 만들지 않는다.
 - [ ] Rollup v1.0 smoke 보강 여부 판단
   - 실제 로그에서 request_id 중복이 발생하는 overlap 구간을 추가로 찾을지 판단한다.
   - 현재는 unit test로 cross-window request_id dedup을 검증했고, 실제 smoke에서는 window load/merge/missing handling/output reuse policy를 확인했다.
