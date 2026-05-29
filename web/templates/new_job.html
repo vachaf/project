@@ -11,7 +11,7 @@
     <header class="job-topbar">
         <div class="job-brand">
             <span class="job-brand-mark">▣</span>
-            <span>Web Log Analysis</span>
+            <span>Security Intelligence</span>
         </div>
         <nav class="job-topnav">
             <a href="/">Dashboard</a>
@@ -22,13 +22,15 @@
     <main class="job-container">
         <div class="job-page-head">
             <div>
-                <h1 class="job-page-title">Create New Analysis Job</h1>
-                <p class="job-page-subtitle">Request analysis of Apache logs within a KST time range.</p>
+                <div class="job-page-kicker">Create analysis job</div>
+                <h1 class="job-page-title">새 분석 작업</h1>
+                <p class="job-page-subtitle">분석할 Apache 로그 시간 범위를 Asia/Seoul 기준으로 지정합니다.</p>
             </div>
         </div>
 
         {% if error %}
         <section class="job-card job-error-card">
+            <h2 class="job-card-title">작업 등록 실패</h2>
             <p>{{ error }}</p>
         </section>
         {% endif %}
@@ -36,39 +38,56 @@
         <section class="job-form-card">
             <form method="post" action="/new-job">
                 <div class="job-form-section">
-                    <div class="job-form-section-title">Time Range</div>
+                    <div class="job-form-section-title">분석 범위</div>
                     <div class="job-form-row">
                         <div class="job-form-group">
-                            <label for="time_from">From (KST)</label>
+                            <label for="time_from">시작 시간 (KST)</label>
                             <input type="datetime-local" id="time_from" name="time_from" value="{{ time_from_default }}" required>
+                            <p class="job-field-help">Asia/Seoul 기준 입력값으로 처리됩니다.</p>
                         </div>
                         <div class="job-form-group">
-                            <label for="time_to">To (KST)</label>
+                            <label for="time_to">종료 시간 (KST)</label>
                             <input type="datetime-local" id="time_to" name="time_to" value="{{ time_to_default }}" required>
+                            <p class="job-field-help">시작 시간보다 이후여야 합니다.</p>
                         </div>
+                    </div>
+                    <div class="job-info-box">
+                        <strong>제한</strong>
+                        <span>분석 범위는 최대 24시간입니다. 더 긴 기간은 여러 작업으로 나누어 등록하세요.</span>
                     </div>
                 </div>
 
                 <div class="job-form-section">
-                    <div class="job-form-section-title">Analysis Settings</div>
+                    <div class="job-form-section-title">분석 설정</div>
                     <div class="job-form-row">
                         <div class="job-form-group">
-                            <label>Timezone</label>
+                            <label>타임존</label>
                             <span class="job-fixed-badge">Asia/Seoul</span>
+                            <p class="job-field-help">MVP에서는 Asia/Seoul만 허용합니다.</p>
                         </div>
                         <div class="job-form-group">
-                            <label>Mode</label>
+                            <label>분석 모드</label>
                             <span class="job-fixed-badge">full_report</span>
+                            <p class="job-field-help">export, prepare, Stage1, Stage2 전체 파이프라인 대상입니다.</p>
                         </div>
                     </div>
                     <input type="hidden" name="requested_timezone" value="Asia/Seoul">
                     <input type="hidden" name="analysis_mode" value="full_report">
-                    <p class="job-muted">최대 분석 범위는 24시간입니다. 저장 시각은 UTC naive DATETIME(3)로 변환됩니다.</p>
+                    <p class="job-muted">저장 시각은 UTC naive DATETIME(3)로 정규화됩니다.</p>
+                </div>
+
+                <div class="job-policy-box">
+                    <strong>데이터 정책</strong>
+                    <ul>
+                        <li>분석은 Apache 로그 기반 데이터만 사용합니다.</li>
+                        <li>Raw request body와 response body는 수집하지 않습니다.</li>
+                        <li>분석 결과는 읽기 전용으로 표시됩니다.</li>
+                    </ul>
                 </div>
 
                 <div class="job-btn-row">
-                    <a href="/" class="job-btn">Cancel</a>
-                    <button type="submit" class="job-btn job-btn-primary">Submit Job</button>
+                    <a href="/" class="job-btn">취소</a>
+                    <button type="submit" class="job-btn job-btn-primary">작업 등록</button>
                 </div>
             </form>
         </section>
