@@ -6,18 +6,18 @@
     <title>New Analysis Job</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="page">
 <main class="container">
-    <header class="page-header">
+    <header class="page-header section">
         <h1>새 full_report 작업 등록</h1>
         <p><a href="/">대시보드로 돌아가기</a></p>
     </header>
 
     {% if error %}
-    <section class="card error-card"><p>{{ error }}</p></section>
+    <section class="card error-card section"><p>{{ error }}</p></section>
     {% endif %}
 
-    <section class="card">
+    <section class="card section">
         <form method="post" action="/new-job">
             <div class="form-row">
                 <div class="form-group">
@@ -31,8 +31,8 @@
             </div>
             <input type="hidden" name="requested_timezone" value="Asia/Seoul">
             <input type="hidden" name="analysis_mode" value="full_report">
-            <p class="text-muted">requested_timezone은 Asia/Seoul, analysis_mode는 full_report로 고정됩니다. 최대 범위는 24시간입니다.</p>
-            <button type="submit" class="btn btn-primary">작업 등록</button>
+            <p class="is-muted">requested_timezone은 Asia/Seoul, analysis_mode는 full_report로 고정됩니다. 최대 범위는 24시간입니다.</p>
+            <button type="submit" class="action-link">작업 등록</button>
         </form>
     </section>
 </main>
