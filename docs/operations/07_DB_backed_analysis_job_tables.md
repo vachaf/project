@@ -1,8 +1,10 @@
 # 07_DB_backed_analysis_job_tables
 
 - 문서 상태: 운영 적용 문서
-- 기준 시점: 2026-05-28
-- 관련 SQL: [`sql/01_analysis_job_tables.sql`](./sql/01_analysis_job_tables.sql)
+- 기준 시점: 2026-05-29
+- 관련 SQL:
+  - [`sql/01_analysis_job_tables.sql`](./sql/01_analysis_job_tables.sql)
+  - [`sql/11_analysis_app_grants.sql`](./sql/11_analysis_app_grants.sql)
 - 관련 설계:
   - [`../00_current_architecture.md`](../00_current_architecture.md)
   - [`../design/99_db_backed_log_collection_and_analysis_job_design.md`](../design/99_db_backed_log_collection_and_analysis_job_design.md)
@@ -12,10 +14,10 @@
 
 이 문서는 DB-backed MVP를 위해 MariaDB `web_logs` 데이터베이스에 추가하는 운영/control table 적용 절차를 정리한다.
 
-기존 Apache 로그 source table은 다음 문서에서 관리한다.
+기존 Apache 로그 source table은 다음 SQL에서 관리한다.
 
 ```text
-docs/operations/02_MariaDB_환경_구축_및_설치.md
+docs/operations/sql/01_apache_log_tables.sql
 ```
 
 이 문서는 그 위에 추가되는 job lifecycle table만 다룬다.
@@ -79,6 +81,12 @@ operator queue:
 docs/operations/sql/01_analysis_job_tables.sql
 ```
 
+권한 SQL:
+
+```text
+docs/operations/sql/11_analysis_app_grants.sql
+```
+
 포함 table:
 
 ```text
@@ -94,7 +102,7 @@ job_events
 apache_access_logs
 apache_security_logs
 apache_error_logs
-  - 기존 MariaDB 구축 문서에서 관리
+  - docs/operations/sql/01_apache_log_tables.sql에서 관리
 
 log_collection_checkpoints
   - src/apache_log_shipper.py가 현재 file-state offset tracking을 사용하므로 후속 판단
@@ -140,6 +148,14 @@ mariadb -u root -p web_logs < docs/operations/sql/01_analysis_job_tables.sql
 ```
 
 운영 계정으로 적용하는 경우 `CREATE TABLE`, `INDEX`, `FOREIGN KEY` 생성 권한이 필요하다.
+
+권한 적용:
+
+```bash
+mariadb -u root -p < docs/operations/sql/11_analysis_app_grants.sql
+```
+
+`analysis_app` 예시 계정은 Web UI backend / Analysis Agent가 job lifecycle metadata를 기록하기 위한 계정이다. `log_reader`는 source log read-only 계정이므로 이 table들의 write 계정으로 사용하지 않는다.
 
 ## 6. 적용 후 확인
 
@@ -200,6 +216,22 @@ analysis_reports:
 job_events:
 - idx_job_events_job_time
 - idx_job_events_event_type
+```
+
+계정 권한 확인:
+
+```sql
+SHOW GRANTS FOR 'analysis_app'@'192.168.56.110';
+```
+
+기대 권한:
+
+```text
+users: SELECT
+analysis_jobs: SELECT, INSERT, UPDATE
+analysis_reports: SELECT, INSERT, UPDATE
+job_events: SELECT, INSERT
+source Apache log tables: no write grants
 ```
 
 ## 7. 시간대 기준
