@@ -39,32 +39,34 @@ Apache logs
 - 환경 구축
   - [02_LLM_환경_구축_및_설치.md](./02_LLM_환경_구축_및_설치.md): LLM 환경 구축과 설치
   - [02_Juice_shop_환경_구축_및_설치.md](./02_Juice_shop_환경_구축_및_설치.md): Juice Shop 환경 구축과 설치
-  - [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md): MariaDB 환경 구축과 설치
+  - [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md): MariaDB 환경 구축과 기존 Apache 로그 source table 설치
   - [02_OpenCart_환경_구축_및_설치.md](./02_OpenCart_환경_구축_및_설치.md): OpenCart 환경 구축과 설치
 - 로그/DB/export
   - [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md): 로그 표준과 DB 구조
   - [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md): `apache_log_shipper.py` 기반 로그 적재와 운영
   - [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md): `export_db_logs_cli.py`와 LLM 분석 전략(`table_option/counts/data` 기반 auto resolution, run_dir 표준 산출물/manifest 중심 흐름 포함)
+  - [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md): DB-backed MVP용 `users`, `analysis_jobs`, `analysis_reports`, `job_events` 적용 절차
+  - [sql/01_analysis_job_tables.sql](./sql/01_analysis_job_tables.sql): DB-backed MVP operation/control table MariaDB DDL
   - [99_output_retention_policy.md](./99_output_retention_policy.md): 산출물 보존/정리 기준
 
 ## 읽는 순서
 
 1. [../00_current_architecture.md](../00_current_architecture.md)
-2. [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md)
-3. [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)
-4. [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)
-5. [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md)
-6. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
-7. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
-8. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
-9. [99_output_retention_policy.md](./99_output_retention_policy.md)
+2. [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)
+3. [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md)
+4. [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md)
+5. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
+6. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
+7. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
+8. [99_output_retention_policy.md](./99_output_retention_policy.md)
 
 환경을 처음 구축할 때는 다음 순서로 필요한 문서만 이어서 본다.
 
 1. [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)
-2. 필요한 대상 앱 환경 구축 문서
-3. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
-4. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
+2. [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md)
+3. 필요한 대상 앱 환경 구축 문서
+4. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
+5. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
 
 기존 수동 full_report 실행/검증은 아래 순서로 본다.
 
@@ -77,6 +79,19 @@ Apache logs
 - 실행 방법, 환경 구축, 로그 구조, 운영 절차는 `operations/`에 둔다.
 - 실험 요청 세트는 `experiments/`에 둔다.
 - 실험 결과 산출물은 `lab/`에 둔다.
+- 기존 Apache 로그 source table DDL은 [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)에 둔다.
+- DB-backed MVP operation/control table DDL은 [sql/01_analysis_job_tables.sql](./sql/01_analysis_job_tables.sql)에 둔다.
+
+## DB-backed MVP operation/control tables
+
+- 적용 문서: [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md)
+- SQL: [sql/01_analysis_job_tables.sql](./sql/01_analysis_job_tables.sql)
+- 포함 table:
+  - `users`
+  - `analysis_jobs`
+  - `analysis_reports`
+  - `job_events`
+- `log_collection_checkpoints`는 현재 `src/apache_log_shipper.py`의 file-state offset tracking과 비교 후 후속 판단한다.
 
 ## Web UI run_dir default scan
 
@@ -93,6 +108,7 @@ Apache logs
 - Web UI 표시를 운영 기본 흐름으로 사용할 때는 pipeline 실행 시 `--run-dir runs/<run_id>`를 지정한다.
 - run_dir 표준 파일은 `manifest.json`, `export.json`, `llm_input.json`, `stage1_results.json`, `stage2_report_input.json`, `stage2_report.json`, `stage2_report.md`, `viewer_payload.json`, `noise_summary.json`이다.
 - `--run-dir` 없이 flat output만 생성하는 실행은 분석 자체는 가능하지만 Web UI 기본 목록 연동 대상이 아니다.
+- DB-backed MVP에서는 job-scoped artifact root 후보로 `runs/jobs/<job_id>/` 또는 `runs/web_job_<job_id>/`를 사용한다.
 
 ## Operational Output Hygiene
 
@@ -105,6 +121,7 @@ git rm -r --cached runs/
 ```
 
 - `pathspec did not match any files`가 나오면 현재 index에 `runs/` tracked 항목이 없다는 의미다.
+- MVP에서는 Web UI destructive cleanup을 제공하지 않는다.
 
 ## Smoke Check
 
@@ -117,3 +134,5 @@ git rm -r --cached runs/
   - run_dir: `runs/webui_run_dir_smoke_actual_2026-05-10`
   - Web UI list/detail/payload 표시 확인
   - payload 요약: `finding_count=2`, `context_count=3`, `supporting_event_count=0`
+- DB-backed table setup:
+  - `docs/operations/sql/01_analysis_job_tables.sql` 적용 후 `analysis_jobs`, `analysis_reports`, `job_events`, `users` 존재 확인
