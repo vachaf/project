@@ -3,6 +3,10 @@
 - 작성일: 2026-05-08
 - 문서 역할: read-only viewer 범위와 execution console 후보 범위를 분리해 운영/개발 경계를 고정하는 scope review
 - 관련 문서:
+  - `docs/00_current_architecture.md`
+  - `docs/design/99_db_backed_log_collection_and_analysis_job_design.md`
+  - `docs/design/99_db_backed_web_ui_api_safety_addendum.md`
+  - `docs/design/99_run_analysis_pipeline_user_runner_ux_review.md`
   - `docs/design/99_web_ui_report_viewer_plan.md`
   - `docs/design/99_web_ui_report_viewer_phase2_candidate_review.md`
   - `docs/design/99_web_ui_report_viewer_phase2a_filter_plan.md`
@@ -12,9 +16,18 @@
   - `src/README.md`
   - `작업일지/0507.md`
 
+## 0. 현재 기준 상태 업데이트
+
+- 이 문서의 기존 viewer-only 판단은 2026-05-08 당시 Phase 2A/report viewer 표시 경로 기준으로 보존한다.
+- 2026-05-28 이후 현재 상위 운영 방향은 [../00_current_architecture.md](../00_current_architecture.md)의 DB-backed MVP다.
+- Web UI read-only 원칙은 보안 결과 해석 read-only로 재정의한다.
+- Web UI는 `analysis_jobs` 등록/조회와 job lifecycle 표시를 위해 DB read/write를 수행할 수 있다.
+- pipeline stage 실행은 Web UI가 직접 하지 않고 Analysis Agent가 `analysis_jobs`를 claim해 수행한다.
+- arbitrary pipeline run button, arbitrary path input, regression run button, scheduling, alerting, destructive cleanup은 여전히 제외한다.
+
 ## 1. 목적
 
-- Web UI Report Viewer의 현재 범위를 `read-only report viewer`로 고정한다.
+- 당시 Web UI Report Viewer의 표시 범위를 `read-only report viewer`로 고정한다.
 - 향후 실행 기능(execution console) 후보를 현재 운영 범위에서 분리한다.
 - 사용자 UX는 단일 콘솔처럼 유지하되, 운영 역할과 책임 경계는 분명히 한다.
 
@@ -28,13 +41,15 @@
   - `viewer_payload` JSON
   - pipeline manifest
   - Stage2 quality lint result
-- `web/`은 위 산출물을 읽어 보여주는 역할이며, pipeline 실행이나 report rewrite를 수행하지 않는다.
+- 당시 `web/` viewer-only display path는 위 산출물을 읽어 보여주는 역할이며, pipeline 실행이나 report rewrite를 수행하지 않는다.
 - `viewer_payload`는 웹 표시용 파생 산출물이며, 원본 report의 보안 의미를 새로 생성하지 않는다.
 - pipeline manifest는 run metadata, artifact path, 상태 확인용 산출물이며 보안 판정 결과가 아니다.
-- `web/`은 read-only 원칙을 유지한다.
-  - pipeline 실행 없음
+- `web/`은 보안 결과 해석 read-only 원칙을 유지한다.
+  - Web UI 직접 pipeline 실행 없음
+  - Analysis Agent를 통한 DB-backed `full_report` 실행은 별도 현재 MVP 경로
   - report rewrite 없음
-  - DB/SQLite 없음
+  - 당시 viewer-only display path에서는 DB/SQLite 없음
+  - 현재 DB-backed MVP에서는 `analysis_jobs` 등록/조회 DB read/write 허용
   - raw JSON/body full search 없음
   - source IP raw search 없음
 - Apache logs-only 해석 경계와 성공 단정 금지 원칙을 viewer 표시 정책에서도 유지한다.
@@ -65,7 +80,8 @@
   - 분석 대상 원천 데이터를 보관한다.
 - Analysis/LLM Server
   - DB export, `prepare`, Stage1, Stage2, `viewer_payload` 생성을 담당한다.
-  - read-only Web UI를 실행한다.
+  - 현재 DB-backed MVP에서는 Analysis Agent가 `analysis_jobs`를 claim해 pipeline stage를 실행한다.
+  - Web UI는 job 등록/조회와 결과 표시를 담당하며 보안 결과 의미를 변경하지 않는다.
 - 운영 관점 정리
   - 사용자에게는 하나의 콘솔처럼 보이지만 서버 역할은 운영상 분리된다.
 - 사용자 관점 UX
@@ -77,15 +93,18 @@
 - 생성된 결과(report JSON/Markdown, `viewer_payload`, manifest, lint result)를 저장하고 품질 검증을 수행한다.
 - 일반 분석 사용자는 웹에서 기존 산출물을 탐색/비교한다.
 - 단기 `Security Analysis Console`은 read-only console이다.
-- 단기 console은 아래를 수행하지 않는다.
-  - pipeline 실행
-  - DB export 실행
+- 당시 viewer-only console은 아래를 수행하지 않는다.
+  - Web UI 직접 pipeline 실행
+  - Web UI 직접 DB export 실행
   - regression 실행
   - report rewrite
+  - arbitrary path input
+  - destructive cleanup
   - raw JSON/body full search
   - source IP raw search
   - API key/config 노출
-- New Analysis / pipeline run button / live progress / regression run button은 Phase 2C 후보로 보류한다.
+- New Analysis 전체가 보류라는 뜻은 아니다. 현재 DB-backed MVP의 time range 기반 `analysis_jobs` 등록/조회는 허용된다.
+- arbitrary pipeline run button / arbitrary path input / live progress for direct process control / regression run button은 Phase 2C execution console 후보로 보류한다.
 
 ## 6. 중기 후보: New Analysis / Job Runner
 
@@ -94,8 +113,9 @@
   - 서버에서 DB export + pipeline 실행
   - status/progress/result 확인
 - 판단
-  - 위 항목은 Phase 2C execution console 후보로 분리한다.
-  - 현재 범위에서는 구현하지 않으며 보류 상태를 유지한다.
+  - 당시 문서의 위 항목은 Web UI가 직접 실행을 제어하는 execution console 후보였다.
+  - 현재 DB-backed MVP에서는 Web UI가 `analysis_jobs`를 등록하고 Analysis Agent가 실행하는 구조로 보정한다.
+  - 임의 provider/mode/path를 받는 arbitrary runner, regression 실행, destructive cleanup은 계속 보류한다.
 
 ## 7. `run_analysis_pipeline.py` UX 후보
 
@@ -120,7 +140,7 @@
 - Phase 2A: read-only filter/navigation 완료
 - Phase 2B: optional history/trend/navigation 후보
 - Phase 2C: execution console 후보
-  - New Analysis
+  - arbitrary New Analysis / direct runner
   - pipeline run button
   - live progress
   - regression run button
@@ -128,7 +148,8 @@
 
 ## 10. 결론
 
-- 현재 `web/`은 read-only viewer로 유지한다.
-- New Analysis / pipeline execution은 별도 risk review 전까지 보류한다.
+- 현재 `web/`은 보안 결과 해석 read-only viewer 원칙을 유지한다.
+- DB-backed MVP에서는 Web UI `analysis_jobs` 등록/조회와 Analysis Agent 기반 pipeline execution을 허용한다.
+- arbitrary New Analysis / direct pipeline execution은 별도 risk review 전까지 보류한다.
 - 사용자 UX는 하나의 Security Analysis Console로 유지하되, 운영 역할(Web/App, DB, Analysis)은 분리해 관리한다.
 - Apache logs-only 원칙과 credential 비노출 원칙은 execution 기능 검토 단계에서도 완화하지 않는다.

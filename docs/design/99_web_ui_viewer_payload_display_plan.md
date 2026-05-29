@@ -3,12 +3,25 @@
 - 작성일: 2026-05-08
 - 문서 역할: `viewer_payload.json`을 Web UI에서 read-only로 표시하기 위한 범위, fallback 전략, UI 정보 구조 후보를 정리하는 설계 문서
 - 관련 문서:
+  - `docs/00_current_architecture.md`
+  - `docs/design/99_db_backed_log_collection_and_analysis_job_design.md`
+  - `docs/design/99_db_backed_web_ui_api_safety_addendum.md`
   - `web/README.md`
   - `src/README.md`
   - `docs/design/99_web_ui_report_viewer_execution_scope_review.md`
   - `docs/design/99_run_analysis_pipeline_user_runner_ux_review.md`
   - `docs/진행상황.md`
   - `docs/planning/99_비교실험_후속개선_TODO.md`
+
+## 0. 현재 기준 상태 업데이트
+
+- 이 문서의 기존 판단은 2026-05-08 당시 `viewer_payload` display-only path 기준으로 보존한다.
+- 2026-05-28 이후 현재 상위 운영 방향은 [../00_current_architecture.md](../00_current_architecture.md)의 DB-backed MVP다.
+- Web UI read-only 원칙은 보안 결과 해석 read-only로 재정의한다.
+- Web UI는 `analysis_jobs` 등록/조회와 job lifecycle 표시를 위해 DB read/write를 수행할 수 있다.
+- pipeline stage 실행과 `viewer_payload` 생성은 Web UI가 직접 하지 않고 Analysis Agent가 수행한다.
+- `viewer_payload` display는 여전히 read-only projection이며 Stage2 report 의미를 변경하지 않는다.
+- arbitrary pipeline run button, arbitrary path input, regression run button, scheduling, alerting, destructive cleanup은 여전히 제외한다.
 
 ## 1. 목적
 
@@ -20,11 +33,13 @@
 
 - 현재 `web/`은 Stage2 report viewer를 중심으로 동작한다.
 - 제공 범위는 list/detail/compare/filter이며 기술 스택은 `FastAPI + Jinja2 + Plain CSS`를 유지한다.
-- 외부 CDN, React, npm, webpack, DB 의존은 도입하지 않는다.
-- read-only 원칙을 유지한다.
-  - pipeline execution 없음
+- 당시 viewer_payload display-only path에는 외부 CDN, React, npm, webpack, 별도 DB/SQLite 의존은 도입하지 않는다.
+- 보안 결과 해석 read-only 원칙을 유지한다.
+  - Web UI 직접 pipeline execution 없음
+  - Analysis Agent를 통한 DB-backed `full_report` 실행은 별도 현재 MVP 경로
   - report rewrite 없음
-  - DB/SQLite 없음
+  - display-only path에서는 DB/SQLite 없음
+  - DB-backed MVP의 `analysis_jobs` 등록/조회 DB read/write는 허용
   - raw JSON/body full search 없음
   - source IP raw search 없음
   - 새 보안 판정 생성 없음
@@ -40,6 +55,7 @@
   - `<work-dir>/pipeline_manifest.json`
 - Web UI는 위 파일을 read-only로 조회한다.
 - Web UI는 `viewer_payload`를 생성하거나 수정하지 않는다.
+- DB-backed MVP에서는 Analysis Agent가 job-scoped artifact root에 `viewer_payload`를 생성하고, Web UI는 DB의 artifact metadata를 통해 이를 표시할 수 있다.
 
 ## 4. Fallback 전략
 
@@ -65,7 +81,7 @@
 - Case D: `viewer_payload`와 `stage2_report` 모두 없음
   - 기존 invalid/missing report 처리 흐름을 따른다.
   - 복구/재실행 버튼은 제공하지 않는다.
-  - Phase 2C execution 기능으로 승격하지 않는다.
+  - arbitrary Phase 2C execution 기능으로 승격하지 않는다.
 
 ## 5. UI 정보 구조 후보
 
@@ -194,14 +210,16 @@
 
 ## 11. Non-goals
 
-- pipeline 실행 버튼 구현 아님
-- New Analysis 구현 아님
+- Web UI 직접 pipeline 실행 버튼 구현 아님
+- arbitrary path/provider/mode 기반 New Analysis runner 구현 아님
 - live progress 구현 아님
 - regression run button 구현 아님
 - scheduling/alert 구현 아님
-- DB 연결 구현 아님
+- destructive cleanup 구현 아님
+- display-only path의 별도 DB/SQLite 연결 구현 아님
+- DB-backed MVP의 `analysis_jobs` 등록/조회 DB read/write 금지를 뜻하지 않음
 - React/npm/webpack 도입 아님
-- `viewer_payload` 생성 기능 구현 아님
+- Web UI의 `viewer_payload` 생성 기능 구현 아님
 - category/severity 재계산 아님
 - raw log search 구현 아님
 
@@ -212,7 +230,7 @@
 - Phase VP-3: detail 화면에 `Overview/Findings/Contexts` 표시 MVP
 - Phase VP-4: Finding -> Supporting Events drill-down 개선
 - Phase VP-5: `viewer_payload` compare/history 후보 검토
-- Phase 2C execution console은 별도 risk review 전까지 보류
+- arbitrary Phase 2C execution console은 별도 risk review 전까지 보류
 
 ## 13. 검증 후보
 
@@ -232,4 +250,5 @@
 - `viewer_payload`가 없어도 기존 Stage2 report viewer는 계속 동작해야 한다.
 - 우선순위는 fallback-safe, read-only, low-risk 표시다.
 - drill-down은 유용하지만 단기에는 details/table filter 수준으로 제한한다.
-- execution console은 계속 보류한다.
+- DB-backed MVP에서는 Analysis Agent가 생성한 `viewer_payload`를 Web UI가 표시할 수 있다.
+- arbitrary execution console은 계속 보류한다.

@@ -3,7 +3,18 @@
 - 작성일: 2026-05-06
 - 문서 역할: Web UI Report Viewer Phase 2 후보 비교 및 scope 판단 문서
 - 기준 상태: Phase 1A/1B 핵심 구현 및 Phase 1B polish 마감 가능 상태
-- 결론 요약: 지금은 execution console로 바로 확장하지 않고, read-only viewer 범위를 유지하는 Phase 2A 후보부터 검토한다.
+- 당시 결론 요약: execution console로 바로 확장하지 않고, read-only viewer 범위를 유지하는 Phase 2A 후보부터 검토한다.
+
+---
+
+## 0. 현재 기준 상태 업데이트
+
+- 이 문서의 기존 판단은 2026-05-06 당시 Phase 2A/report viewer 표시 경로 기준으로 보존한다.
+- 2026-05-28 이후 현재 상위 운영 방향은 [../00_current_architecture.md](../00_current_architecture.md)의 DB-backed MVP다.
+- Web UI read-only 원칙은 보안 결과 해석 read-only로 재정의한다.
+- Web UI는 `analysis_jobs` 등록/조회와 job lifecycle 표시를 위해 DB read/write를 수행할 수 있다.
+- pipeline stage 실행은 Web UI가 직접 하지 않고 Analysis Agent가 `analysis_jobs`를 claim해 수행한다.
+- arbitrary pipeline run button, arbitrary path input, regression run button, scheduling, alerting, destructive cleanup은 여전히 제외한다.
 
 ---
 
@@ -87,13 +98,15 @@ Phase 2에서도 아래 원칙은 기본값으로 유지한다.
 - localhost-only 기본
 - 외부 CDN 사용 금지
 - React/npm/webpack 도입 보류
-- report files read-only 기본
+- report files / `viewer_payload` display는 read-only projection 기본
 - UI가 새 보안 판정을 생성하지 않음
 - Stage2 report 본문 의미 변경 금지
 - Apache logs-only 해석 한계 유지
 - metadata/source IP/known asset/raw preview 노출 제한 유지
 - API key / config secret 노출 금지
 - `status_code`, `response_body_bytes`, `content-type`만으로 성공/침해/유출 단정 금지
+- DB-backed MVP의 `analysis_jobs` 등록/조회 DB read/write는 허용
+- pipeline stage 실행은 Web UI가 직접 하지 않고 Analysis Agent가 수행
 
 Phase 2에서 위 원칙을 바꿔야 한다면, 해당 기능은 별도 설계 문서와 승인 조건이 필요하다.
 
@@ -123,7 +136,8 @@ Phase 2 후보는 세 갈래로 나눈다.
 
 - report 파일을 수정하지 않는다.
 - pipeline을 실행하지 않는다.
-- DB 없이 파일 scan 결과만으로 시작할 수 있다.
+- 당시 Phase 2A viewer-only display path는 DB 없이 파일 scan 결과만으로 시작할 수 있다.
+- 현재 DB-backed MVP의 job lifecycle DB 사용과 충돌하지 않는다.
 - Phase 1A/1B 구조와 가장 자연스럽게 이어진다.
 
 ### 4.2 Execution console 확장
@@ -141,10 +155,11 @@ UI에서 pipeline, regression, dry-run 같은 실행 기능을 제공하는 확�
 
 특징:
 
-- read-only viewer 원칙을 깨거나 완화한다.
+- 보안 결과 해석 read-only와 artifact overwrite/path 제한 원칙을 깨거나 완화할 수 있다.
 - output write, long-running process, 실패 로그, 권한, API key, overwrite 방지 문제가 생긴다.
 - 별도 보안/운영 설계가 필요하다.
 - Phase 2A가 아니라 후속 Phase 2C 이상으로 분리하는 것이 안전하다.
+- 현재 DB-backed MVP의 `analysis_jobs` 등록/조회는 이 arbitrary execution console 보류와 별개로 허용된다.
 
 ### 4.3 Storage / dashboard 확장
 
@@ -162,14 +177,15 @@ UI에서 pipeline, regression, dry-run 같은 실행 기능을 제공하는 확�
 특징:
 
 - DB 또는 cache 파일이 필요할 수 있다.
-- read-only report viewer에서 stateful application으로 이동한다.
+- 당시 viewer-only display path에서는 stateful application으로 이동한다.
+- 현재 DB-backed MVP의 MariaDB job lifecycle 저장은 별도 상위 운영 기준으로 허용된다.
 - 현재 report 수와 사용 빈도를 보고 필요성을 판단해야 한다.
 
 ---
 
 ## 5. 후보별 비교
 
-| 후보 | 사용자 가치 | 구현 난이도 | 정책/운영 리스크 | read-only 유지 | 추천 |
+| 후보 | 사용자 가치 | 구현 난이도 | 정책/운영 리스크 | 표시 read-only 유지 | 추천 |
 |---|---:|---:|---:|---:|---|
 | report search/filter | 높음 | 낮음~중간 | 낮음 | 유지 가능 | 1순위 |
 | provider/scenario/timeframe filter | 높음 | 낮음 | 낮음 | 유지 가능 | 1순위 |
@@ -202,9 +218,9 @@ Phase 2A 후보로 read-only search/filter/navigation 개선을 우선 검토한
 
 - Phase 1B는 내부 검증 콘솔로 충분히 동작한다.
 - report 수가 늘어날수록 탐색/필터의 효용이 가장 먼저 커진다.
-- read-only 원칙을 유지하면서 개선할 수 있다.
-- pipeline execution은 보안/운영 위험이 크고 별도 범위 합의가 필요하다.
-- SQLite/dashboard/alert는 아직 필요성이 확정되지 않았다.
+- 보안 결과 해석 read-only 원칙을 유지하면서 개선할 수 있다.
+- arbitrary pipeline execution은 보안/운영 위험이 크고 별도 범위 합의가 필요하다.
+- SQLite/dashboard/alert는 당시 viewer-only path에서는 필요성이 확정되지 않았다.
 
 ### 6.2 Phase 2A 권장 범위
 
@@ -238,7 +254,9 @@ Phase 2A는 아래로 제한한다.
 
 ### 7.1 기본 구현 방향
 
-Phase 2A는 DB 없이 시작한다.
+Phase 2A viewer-only display path는 DB 없이 시작한다.
+
+이는 현재 DB-backed MVP의 `analysis_jobs`, `job_events`, `analysis_reports` DB 사용을 금지한다는 뜻이 아니다.
 
 가능한 구현 방식:
 
@@ -327,9 +345,11 @@ pipeline run button, dry-run toggle, live progress, regression run button은 단
 - 실패 로그를 어느 수준까지 보여줄 것인가?
 - 실행 중복을 어떻게 막을 것인가?
 - 실행 결과를 어디에 저장할 것인가?
-- read-only viewer 원칙을 변경할 것인가?
+- 보안 결과 해석 read-only 원칙과 artifact overwrite/path 제한을 어떻게 유지할 것인가?
 
-따라서 execution console은 Phase 2A에 포함하지 않는다. 별도 문서가 필요하다.
+따라서 arbitrary execution console은 Phase 2A에 포함하지 않는다. 별도 문서가 필요하다.
+
+현재 DB-backed MVP에서는 Web UI가 `analysis_jobs`를 등록하고 Analysis Agent가 pipeline stage를 실행하는 구조를 사용한다.
 
 ---
 
@@ -340,7 +360,7 @@ SQLite history, comparison trend, alert/dashboard는 stateful 기능이다.
 보류 이유:
 
 - 현재는 report 파일 scan 기반으로 충분하다.
-- DB schema를 만들면 migration/cleanup 문제가 생긴다.
+- 별도 viewer history DB schema를 만들면 migration/cleanup 문제가 생긴다.
 - trend가 필요한지 아직 확인되지 않았다.
 - alert/dashboard는 운영 기능에 가까워 Phase 1B viewer의 목적과 다르다.
 
@@ -366,9 +386,9 @@ Phase 2A 착수 전 아래 질문에 답한다.
 
 Phase 2A를 시작하려면 아래 조건을 만족해야 한다.
 
-- read-only viewer 원칙을 유지한다.
-- pipeline 실행 기능을 포함하지 않는다.
-- DB/SQLite를 도입하지 않는다.
+- 보안 결과 해석 read-only 원칙을 유지한다.
+- Web UI 직접 pipeline 실행 기능을 포함하지 않는다.
+- Phase 2A viewer-only display path에는 별도 DB/SQLite를 도입하지 않는다.
 - search/filter의 실제 필요성이 확인된다.
 - filter 기준과 URL query contract를 먼저 문서화한다.
 - 기존 Phase 1A/1B route를 깨지 않는다.
@@ -434,6 +454,8 @@ Execution console 확장은 별도 scope review 없이는 진행하지 않는다
 SQLite/dashboard/alert는 장기 후보로 둔다.
 ```
 
+단, 이 결론은 당시 viewer-only Phase 2A 판단이다. 현재 DB-backed MVP의 time range 기반 `analysis_jobs` 등록/조회와 Analysis Agent 실행 경로는 상위 운영 방향으로 허용된다.
+
 따라서 다음 실제 후보는 둘 중 하나다.
 
 1. Phase 2A search/filter/navigation 설계 문서 작성
@@ -468,7 +490,7 @@ docs/design/99_web_ui_report_viewer_execution_console_risk_review.md
 
 그 문서에서 다룰 내용:
 
-- read-only 원칙 변경 여부
+- 보안 결과 해석 read-only 원칙 유지 여부
 - allowed input path
 - output overwrite 방지
 - process management
