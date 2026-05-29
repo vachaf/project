@@ -6,6 +6,7 @@
 <section class="section card">
   <h2>Stage2 Report Overview</h2>
   <p class="is-muted">Reports: {{ summary.total_count }} | Groups: {{ unfiltered_count }}</p>
+  <p><a class="action-link" href="/">Analysis Job Dashboard</a></p>
   <div class="meta-grid">
     <div><span class="badge badge-lint-pass">PASS</span> {{ summary.lint_aggregate.PASS }}</div>
     <div><span class="badge badge-lint-warn">WARN</span> {{ summary.lint_aggregate.WARN }}</div>
@@ -16,7 +17,7 @@
 
 <section class="section card filter-panel">
   <h3>Search & Filters</h3>
-  <form class="filter-form" method="get" action="/">
+  <form class="filter-form" method="get" action="{{ reports_index_url or '/reports' }}">
     <div class="filter-row">
       <label class="filter-field filter-field-q">
         <span>q</span>
@@ -65,7 +66,7 @@
 
     <div class="filter-actions">
       <button class="action-link" type="submit">Apply</button>
-      <a class="action-link" href="/">Reset</a>
+      <a class="action-link" href="{{ reports_index_url or '/reports' }}">Reset</a>
     </div>
   </form>
 
@@ -97,7 +98,7 @@
     {% if filters.sort and filters.sort != 'time_desc' %}
       <span class="filter-chip">Sort: {{ filters.sort.replace('_', ' ') }}</span>
     {% endif %}
-    <a class="action-link" href="/">Clear all</a>
+    <a class="action-link" href="{{ reports_index_url or '/reports' }}">Clear all</a>
   </div>
   {% endif %}
 </section>
@@ -218,119 +219,44 @@
         </div>
 
         {% if report.is_valid %}
-          <p><a class="action-link" href="/report/{{ report.report_id }}">Detail</a></p>
+        <div class="provider-actions">
+          <a class="action-link" href="/report/{{ report.report_id }}">Open detail</a>
+          {% if report.viewer_payload_available %}
+          <a class="action-link" href="/report/{{ report.report_id }}/payload">Payload dashboard</a>
+          {% endif %}
+        </div>
         {% else %}
-          <p><span class="badge badge-lint-error">Invalid JSON</span></p>
-          <p class="is-muted">{{ report.error or 'Failed to parse report file' }}</p>
+        <p class="error-text">{{ report.error or 'Invalid report JSON' }}</p>
         {% endif %}
       </article>
       {% else %}
-      {% if group.has_both %}
-      <article class="card provider-card provider-card-missing compare-panel-missing">
+      <article class="card provider-card provider-card-missing">
         <p class="provider-title">
           {% if provider_name == 'openai' %}
             <span class="badge badge-provider-openai">openai</span>
-          {% else %}
+          {% elif provider_name == 'anthropic' %}
             <span class="badge badge-provider-anthropic">anthropic</span>
+          {% else %}
+            <span class="badge badge-provider-unknown">unknown</span>
           {% endif %}
-          <span class="badge badge-missing-report">Missing report</span>
+          <strong>N/A</strong>
         </p>
-        <p class="is-muted">This provider report is not available for this timeframe group.</p>
         <div class="meta-compact meta-compact-missing">
-          <p><span class="meta-label">model</span><span class="compare-bar-value-na">N/A</span></p>
-          <p><span class="meta-label">incidents</span><span class="compare-bar-value-na">N/A</span></p>
-          <p><span class="meta-label">lint</span><span class="badge badge-missing-report">Missing report</span></p>
+          <p><span class="meta-label">file</span><span>N/A</span></p>
+          <p><span class="meta-label">model</span><span>N/A</span></p>
+          <p><span class="meta-label">generated_at</span><span>N/A</span></p>
+          <p><span class="meta-label">scenario</span><span>{{ group.scenario or 'unknown' }}</span></p>
         </div>
+        <p class="is-muted">해당 provider report가 없습니다.</p>
       </article>
       {% endif %}
-      {% endif %}
-      {% endfor %}
-
-      {% for report in group.unknown_reports %}
-      <article class="card provider-card {% if not report.is_valid %}is-invalid{% endif %}">
-        <p class="provider-title">
-          <span class="badge badge-provider-unknown">unknown</span>
-          <strong>{{ report.display_label or report.filename }}</strong>
-        </p>
-
-        <p class="provider-path is-muted">{{ report.repo_relative_path }}</p>
-        <div class="meta-compact">
-          <p><span class="meta-label">file</span><span>{{ report.filename }}</span></p>
-          {% if report.run_id %}
-          <p><span class="meta-label">run_id</span><span>{{ report.run_id }}</span></p>
-          {% endif %}
-          <p><span class="meta-label">model</span><span>{{ report.model or 'unknown' }}</span></p>
-          <p><span class="meta-label">generated_at</span><span>{{ report.generated_at or 'unknown' }}</span></p>
-          <p><span class="meta-label">scenario</span><span>{{ report.scenario or 'unknown' }}</span></p>
-          <p><span class="meta-label">incidents</span><span>{{ report.incident_count }}</span></p>
-        </div>
-
-        <p class="provider-badge-row">
-          <span class="meta-label">severity</span>
-          {% if report.severity_counts %}
-            {% set has_visible_severity = false %}
-            {% for severity, count in report.severity_counts.items() %}
-              {% if count > 0 %}
-                {% set has_visible_severity = true %}
-              {% endif %}
-            {% endfor %}
-            {% for severity, count in report.severity_counts.items() %}
-              {% if count > 0 %}
-                {% set severity_class = 'badge-severity-info' %}
-                {% if severity == 'critical' or severity == 'high' %}
-                  {% set severity_class = 'badge-severity-high' %}
-                {% elif severity == 'medium' %}
-                  {% set severity_class = 'badge-severity-medium' %}
-                {% elif severity == 'low' %}
-                  {% set severity_class = 'badge-severity-low' %}
-                {% endif %}
-                <span class="badge {{ severity_class }}">{{ severity }}={{ count }}</span>
-              {% endif %}
-            {% endfor %}
-            {% if not has_visible_severity %}
-              <span class="badge badge-muted">none</span>
-            {% endif %}
-          {% else %}
-            <span class="badge badge-muted">none</span>
-          {% endif %}
-        </p>
-
-        <p class="provider-badge-row">
-          <span class="meta-label">lint</span>
-          {% set lint_verdict = report.lint.verdict|upper %}
-          {% if lint_verdict == 'PASS' %}
-            <span class="badge badge-lint-pass">PASS</span>
-          {% elif lint_verdict == 'WARN' %}
-            <span class="badge badge-lint-warn">WARN</span>
-          {% elif lint_verdict == 'FAIL' %}
-            <span class="badge badge-lint-fail">FAIL</span>
-          {% elif lint_verdict == 'ERROR' %}
-            <span class="badge badge-lint-error">ERROR</span>
-          {% else %}
-            <span class="badge badge-muted">UNKNOWN</span>
-          {% endif %}
-        </p>
-
-        {% if report.is_valid %}
-          <p><a class="action-link" href="/report/{{ report.report_id }}">Detail</a></p>
-        {% else %}
-          <p><span class="badge badge-lint-error">Invalid JSON</span></p>
-          <p class="is-muted">{{ report.error or 'Failed to parse report file' }}</p>
-        {% endif %}
-      </article>
       {% endfor %}
     </div>
   </section>
   {% endfor %}
-{% elif unfiltered_count > 0 %}
-  <section class="section card no-result-card">
-    <p><strong>No groups match the current filters.</strong></p>
-    <p class="is-muted">Try adjusting your search or filter criteria.</p>
-    <p><a class="action-link" href="/">Clear all filters</a></p>
-  </section>
 {% else %}
-  <section class="section card is-empty">
-    <p>No Stage2 report files found.</p>
-  </section>
+<section class="section card">
+  <p class="is-muted">No reports found for current filters.</p>
+</section>
 {% endif %}
 {% endblock %}
