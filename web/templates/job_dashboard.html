@@ -4,72 +4,103 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analysis Job Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/job-dashboard.css">
 </head>
-<body class="page">
-<main class="container">
-    <header class="page-header section">
-        <h1>Analysis Job Dashboard</h1>
-        <p>DB-backed full_report 작업 상태를 표시합니다. 보안 결과 해석은 read-only로 유지됩니다.</p>
-        <p><a href="/reports">기존 Stage2 report list 보기</a></p>
+<body class="job-page">
+<div class="job-shell">
+    <header class="job-topbar">
+        <div class="job-brand">
+            <span class="job-brand-mark">▣</span>
+            <span>Web Log Analysis</span>
+        </div>
+        <nav class="job-topnav">
+            <span>operator</span>
+            <a href="/reports">Stage2 Reports</a>
+        </nav>
     </header>
 
-    {% if error %}
-    <section class="card error-card section">
-        <h2>DB-backed dashboard unavailable</h2>
-        <p>{{ error }}</p>
-        <p>MariaDB 연결 또는 analysis job table 적용 상태를 확인하세요.</p>
-    </section>
-    {% endif %}
-
-    <section class="summary-cards section">
-        <div class="card status-pending"><h3>PENDING</h3><p class="count" id="count-pending">{{ status_counts.PENDING }}</p></div>
-        <div class="card status-running"><h3>RUNNING</h3><p class="count" id="count-running">{{ status_counts.RUNNING }}</p></div>
-        <div class="card status-succeeded"><h3>SUCCEEDED</h3><p class="count" id="count-succeeded">{{ status_counts.SUCCEEDED }}</p></div>
-        <div class="card status-failed"><h3>FAILED</h3><p class="count" id="count-failed">{{ status_counts.FAILED }}</p></div>
-    </section>
-
-    <section class="actions section">
-        <a href="/new-job" class="action-link">새 full_report 작업 등록</a>
-    </section>
-
-    <section class="card section">
-        <h2>최근 작업</h2>
-        {% if jobs %}
-        <div class="jobs-table-wrapper">
-            <table class="jobs-table">
-                <thead>
-                    <tr>
-                        <th>Job</th>
-                        <th>Status</th>
-                        <th>Range (KST)</th>
-                        <th>Mode</th>
-                        <th>Created (KST)</th>
-                        <th>Attempt</th>
-                        <th>Artifact Root</th>
-                        <th>Detail</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for job in jobs %}
-                    <tr>
-                        <td>#{{ job.id }}</td>
-                        <td><span class="status-badge status-{{ job.status|lower }}">{{ job.status }}</span></td>
-                        <td>{{ job.time_from }} ~ {{ job.time_to }}</td>
-                        <td>{{ job.analysis_mode }}</td>
-                        <td>{{ job.created_at }}</td>
-                        <td>{{ job.attempt_count }}</td>
-                        <td><code>{{ job.artifact_root }}</code></td>
-                        <td><a href="/job/{{ job.id }}">상세</a></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <main class="job-container">
+        <div class="job-page-head">
+            <div>
+                <h1 class="job-page-title">Dashboard</h1>
+                <p class="job-page-subtitle">DB-backed full_report 작업 상태를 표시합니다. 보안 결과 해석은 read-only로 유지됩니다.</p>
+            </div>
+            <div class="job-actions">
+                <a href="/new-job" class="job-btn job-btn-primary">+ New Job</a>
+            </div>
         </div>
-        {% else %}
-        <p class="is-muted">등록된 analysis job이 없습니다.</p>
+
+        {% if error %}
+        <section class="job-card job-error-card">
+            <h2 class="job-card-title">DB-backed dashboard unavailable</h2>
+            <p>{{ error }}</p>
+            <p>MariaDB 연결 또는 analysis job table 적용 상태를 확인하세요.</p>
+        </section>
         {% endif %}
-    </section>
-</main>
+
+        <section class="job-stats-grid">
+            <div class="job-stat-card job-stat-pending">
+                <div class="job-stat-label">Pending</div>
+                <div class="job-stat-value" id="count-pending">{{ status_counts.PENDING }}</div>
+            </div>
+            <div class="job-stat-card job-stat-running">
+                <div class="job-stat-label">Running</div>
+                <div class="job-stat-value" id="count-running">{{ status_counts.RUNNING }}</div>
+            </div>
+            <div class="job-stat-card job-stat-succeeded">
+                <div class="job-stat-label">Succeeded</div>
+                <div class="job-stat-value" id="count-succeeded">{{ status_counts.SUCCEEDED }}</div>
+            </div>
+            <div class="job-stat-card job-stat-failed">
+                <div class="job-stat-label">Failed</div>
+                <div class="job-stat-value" id="count-failed">{{ status_counts.FAILED }}</div>
+            </div>
+        </section>
+
+        <section class="job-card">
+            <div class="job-card-head">
+                <h2 class="job-card-title">Recent Jobs</h2>
+            </div>
+
+            {% if jobs %}
+            <div class="job-table-wrap">
+                <table class="job-table">
+                    <thead>
+                        <tr>
+                            <th>Job ID</th>
+                            <th>Time Range (KST)</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Mode</th>
+                            <th>Attempt</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in jobs %}
+                        <tr>
+                            <td><a href="/job/{{ job.id }}" class="job-id-link">#{{ job.id }}</a></td>
+                            <td>{{ job.time_from }} ~ {{ job.time_to }}</td>
+                            <td><span class="job-status-badge job-status-{{ job.status|lower }}">{{ job.status }}</span></td>
+                            <td>{{ job.created_at }}</td>
+                            <td><code>{{ job.analysis_mode }}</code></td>
+                            <td>{{ job.attempt_count }}</td>
+                            <td><a href="/job/{{ job.id }}">View</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="job-empty-state">
+                <div class="job-empty-icon">□</div>
+                <h3 class="job-empty-title">No analysis jobs yet</h3>
+                <p class="job-muted">Start by creating a new analysis job to process logs.</p>
+                <a href="/new-job" class="job-btn job-btn-primary">Create First Job</a>
+            </div>
+            {% endif %}
+        </section>
+    </main>
+</div>
 </body>
 </html>
