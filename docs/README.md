@@ -6,29 +6,37 @@
 
 문서를 해석할 때는 아래 원칙을 먼저 본다.
 
-- 현재 파이프라인 기준: `export -> prepare -> stage1 -> stage2`
+- 현재 canonical architecture overview는 [00_current_architecture.md](./00_current_architecture.md)를 따른다.
+- 현재 상위 운영 기준은 DB-backed MVP다.
+- 상위 흐름: `Apache logs -> MariaDB -> analysis_jobs -> Analysis Agent -> full_report artifacts -> Web UI`
+- `full_report` 내부 분석 흐름: `export -> prepare -> sliding window / rollup / operator queue 후보 -> stage1 -> stage2 -> viewer_payload`
 - Apache logs-only evidence boundary의 canonical 기준은 [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)를 따른다.
 - 분석 근거는 Apache 로그 표면에 직접 남는 필드로 제한한다.
 - raw POST body, response body 원문, DB 결과, 브라우저 실행 여부는 분석 근거로 사용하지 않는다.
 - `status_code=200`, `text/html`, `response_body_bytes`만으로 성공, 침해, 유출을 단정하지 않는다.
+- Web UI read-only 원칙은 보안 결과 해석 read-only를 뜻한다.
+- DB-backed MVP에서 Web UI의 `analysis_jobs` 등록/조회 DB write/read는 허용된다.
+- `analysis_jobs` queue는 분석 실행 queue이고, `operator queue`는 rollup 결과 검토 queue다.
 
 ## 2. 현재 문서 탐색 방법
 
 현재 주요 문서는 주제별 하위 폴더로 1차 정리된 상태다. 아래 순서로 찾는 것이 빠르다.
 
-1. 현재 상태를 먼저 볼 때는 [진행상황.md](./진행상황.md)를 본다.
-2. Apache logs-only 판정 경계와 금지/권장 표현 기준은 [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)를 본다.
-3. 전체 흐름과 실행 순서를 볼 때는 [00_전체_흐름_요약_가이드.md](./operations/00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./operations/01_운영_기준_실행_가이드.md)를 본다.
+1. 현재 전체 구조와 DB-backed MVP 기준은 [00_current_architecture.md](./00_current_architecture.md)를 먼저 본다.
+2. 현재 상태를 볼 때는 [진행상황.md](./진행상황.md)를 본다.
+3. Apache logs-only 판정 경계와 금지/권장 표현 기준은 [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)를 본다.
+4. 전체 흐름과 실행 순서를 볼 때는 [operations/README.md](./operations/README.md), [00_전체_흐름_요약_가이드.md](./operations/00_전체_흐름_요약_가이드.md), [01_운영_기준_실행_가이드.md](./operations/01_운영_기준_실행_가이드.md)를 본다.
   - `export --table`과 pipeline `prepare_source_tables` 자동 해석(`run_analysis_pipeline.py --prepare-source-tables=auto`)은 01/05 문서에서 확인한다.
-4. 실험 세트 문서는 `experiments/` 아래의 `A_set/` ~ `H_set/`을 본다.
-5. 실험 표준과 결과 기록 양식은 `standards/`를 본다.
-6. 설계, 회귀 검증, 해석 한계, 보류 결정은 `design/`을 본다.
-7. prepare 모듈 분리, constants mini-move, hints evidence boundary, Stage2 prompt/lint 정리는 [design/README.md](./design/README.md)의 해당 묶음을 본다.
-8. Web UI Report Viewer(Phase 1A/1B, UI polish) 문서는 `design/`의 Web UI 묶음을 먼저 본다.
-9. prepare 하위 모듈의 실제 역할은 [../src/prepare/README.md](../src/prepare/README.md)를 본다.
-10. 중간정리, 샘플 리뷰, post-refactor spot check, wording 품질 검토는 `reviews/`를 본다.
-11. 환경 구축, 로그 구조, 실행 가이드, 운영 메모는 `operations/`를 본다.
-12. 후속 작업 계획과 TODO는 `planning/`을 본다.
+5. DB-backed MVP 설계, Web UI/API safety, runner UX, sliding window/operator queue는 [design/README.md](./design/README.md)의 해당 묶음을 본다.
+6. 실험 세트 문서는 `experiments/` 아래의 `A_set/` ~ `H_set/`을 본다.
+7. 실험 표준과 결과 기록 양식은 `standards/`를 본다.
+8. 설계, 회귀 검증, 해석 한계, 보류 결정은 `design/`을 본다.
+9. prepare 모듈 분리, constants mini-move, hints evidence boundary, Stage2 prompt/lint 정리는 [design/README.md](./design/README.md)의 해당 묶음을 본다.
+10. Web UI Report Viewer 문서는 DB-backed safety addendum을 먼저 보고, 기존 viewer 문서는 보안 결과 해석 read-only 기준으로 읽는다.
+11. prepare 하위 모듈의 실제 역할은 [../src/prepare/README.md](../src/prepare/README.md)를 본다.
+12. 중간정리, 샘플 리뷰, post-refactor spot check, wording 품질 검토는 `reviews/`를 본다.
+13. 환경 구축, 로그 구조, 실행 가이드, 운영 메모는 `operations/`를 본다.
+14. 후속 작업 계획과 TODO는 `planning/`을 본다.
 
 ## 3. 문서 분류 기준
 
@@ -46,6 +54,7 @@
 docs/
 ├── README.md
 ├── 진행상황.md
+├── 00_current_architecture.md
 ├── 00_apache_logs_only_evidence_boundary.md
 ├── standards/
 │   ├── README.md
@@ -80,6 +89,7 @@ docs/
 
 ## 5. 폴더별 인덱스
 
+- [00_current_architecture.md](./00_current_architecture.md): 현재 canonical architecture overview, DB-backed MVP 상위 흐름, queue 구분, Web UI/API safety 기준
 - [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md): Apache logs-only 판정 경계와 금지/권장 표현의 canonical 기준
 - [experiments/README.md](./experiments/README.md): A~H 세트 실험 문서 인덱스
 - [standards/README.md](./standards/README.md): 공통 표준, 품질 기준, 결과 기록 템플릿 인덱스
@@ -95,6 +105,7 @@ docs/
 
 ### 운영/흐름
 
+- [00_current_architecture.md](./00_current_architecture.md)
 - [진행상황.md](./진행상황.md)
 - [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)
 - [00_전체_흐름_요약_가이드.md](./operations/00_전체_흐름_요약_가이드.md)
@@ -129,6 +140,12 @@ docs/
 
 ### 설계/회귀 검증
 
+- [99_db_backed_log_collection_and_analysis_job_design.md](./design/99_db_backed_log_collection_and_analysis_job_design.md)
+- [99_db_backed_web_ui_api_safety_addendum.md](./design/99_db_backed_web_ui_api_safety_addendum.md)
+- [99_run_analysis_pipeline_user_runner_ux_review.md](./design/99_run_analysis_pipeline_user_runner_ux_review.md)
+- [99_sliding_window_operator_queue_design.md](./design/99_sliding_window_operator_queue_design.md)
+- [99_sliding_window_operator_queue_item_detail.md](./design/99_sliding_window_operator_queue_item_detail.md)
+- [99_sliding_window_single_rollup_observation_brief.md](./design/99_sliding_window_single_rollup_observation_brief.md)
 - [99_prepare_regression_fixture_설계.md](./design/99_prepare_regression_fixture_설계.md)
 - [99_stage_dryrun_regression_설계.md](./design/99_stage_dryrun_regression_설계.md)
 - [99_document_cleanup_plan.md](./design/99_document_cleanup_plan.md)

@@ -1,13 +1,16 @@
 # Apache Logs-Only LLM Intrusion Analysis Pipeline
 
-Apache 웹 로그를 MariaDB에 적재한 뒤 `export -> prepare -> stage1 -> stage2` 순서로 분석하는 LLM 기반 침입 로그 분석 파이프라인입니다.
+Apache 웹 로그를 MariaDB에 적재하고, Web UI에서 등록한 `analysis_jobs`를 Analysis Agent가 가져와 `full_report` 분석을 실행한 뒤 결과를 확인하는 DB-backed LLM 침입 로그 분석 플랫폼입니다.
+
+현재 canonical architecture overview는 [docs/00_current_architecture.md](docs/00_current_architecture.md)입니다. 처음 구조를 확인할 때 이 문서를 먼저 읽습니다.
 
 핵심 원칙은 `logs-only`와 보수적 해석입니다. Apache 로그에 직접 보이지 않는 raw POST body, response body 원문, DB 결과, 브라우저 실행 여부는 사용하지 않으며, `status_code`, `response_body_bytes`, `resp_content_type`만으로 성공, 침해, 유출을 단정하지 않습니다.
 
 ## 프로젝트 개요
 
 - Apache 웹 로그 기반 분석
-- `export -> prepare -> stage1 -> stage2` 구조로 동작
+- DB-backed MVP 상위 흐름: `Apache logs -> MariaDB -> analysis_jobs -> Analysis Agent -> full_report artifacts -> Web UI`
+- `full_report` 내부 분석 흐름: `export -> prepare -> sliding window / rollup / operator queue 후보 -> stage1 -> stage2 -> viewer_payload`
 - `prepare_llm_input.py`에서 후보와 context-only 문맥을 선별
 - `src/prepare/` 하위 모듈에서 decoder, hint, context summary, constants owner 일부를 분리 관리
 - `llm_stage1_classifier.py`에서 후보별 1차 분류
@@ -22,13 +25,24 @@ Apache 웹 로그를 MariaDB에 적재한 뒤 `export -> prepare -> stage1 -> st
 Apache logs
   -> apache_log_shipper.py
   -> MariaDB web_logs
+  -> Web UI analysis_jobs registration
+  -> Analysis Agent full_report
   -> export_db_logs_cli.py
   -> prepare_llm_input.py
+  -> sliding window / rollup / operator queue artifacts
   -> llm_stage1_classifier.py
   -> llm_stage2_reporter.py
-  -> run_analysis_pipeline.py
+  -> viewer_payload.json
+  -> analysis_reports / job_events
+  -> Web UI result view
   -> optional: check_stage2_report_quality.py
 ```
+
+`analysis_jobs` queue는 MariaDB table 기반의 실행 queue입니다. `operator queue`는 sliding window / rollup 결과를 사람이 검토하기 위한 artifact queue이며, 실행 lifecycle queue가 아닙니다.
+
+Web UI의 read-only 원칙은 보안 결과 해석에 적용됩니다. DB-backed MVP에서는 Web UI가 `analysis_jobs` 등록/조회와 job lifecycle 표시를 위해 DB write/read를 수행할 수 있습니다.
+
+MVP의 기본 `analysis_mode`는 `full_report`입니다. `SUCCEEDED`는 단순 export/prepare/rollup 완료가 아니라 Stage1, Stage2, `viewer_payload`, report/artifact 저장까지 완료되어 Web UI에서 결과를 확인할 수 있는 상태를 뜻합니다.
 
 ## Supported Signals
 
@@ -151,6 +165,7 @@ python3 scripts/check_stage2_report_quality.py --input path/to/stage2_report.jso
 
 ## Documentation Layout
 
+- `docs/00_current_architecture.md`: 현재 canonical architecture overview
 - `docs/README.md`: 전체 문서 허브
 - `src/`: 분석 파이프라인의 주요 Python 코드
 - `src/prepare/README.md`: prepare 하위 모듈 역할과 분리 원칙
@@ -167,6 +182,7 @@ python3 scripts/check_stage2_report_quality.py --input path/to/stage2_report.jso
 
 ## Documentation
 
+- 현재 canonical architecture overview: [docs/00_current_architecture.md](docs/00_current_architecture.md)
 - 문서 허브: [docs/README.md](docs/README.md)
 - 현재 상태 대시보드: [docs/진행상황.md](docs/진행상황.md)
 - 운영/실행: [docs/operations/01_운영_기준_실행_가이드.md](docs/operations/01_운영_기준_실행_가이드.md)

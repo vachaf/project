@@ -3,10 +3,33 @@
 ## 목적
 
 - `operations/`는 실행 가이드, 운영 기준, 환경 구축, 로그 구조 문서를 둔다.
-- `export -> prepare -> stage1 -> stage2` 흐름을 실제로 따라갈 때 필요한 운영 문서를 모아 둔다.
+- 현재 상위 운영 기준은 [../00_current_architecture.md](../00_current_architecture.md)의 DB-backed MVP 흐름이다.
+- 기존 `export -> prepare -> sliding window / rollup / operator queue 후보 -> stage1 -> stage2 -> viewer_payload` 흐름은 Analysis Agent가 수행하는 `full_report` 내부 경로이자 수동 운영/검증 경로로 유지한다.
+
+## 현재 운영 기준
+
+```text
+Apache logs
+  -> apache_log_shipper.py
+  -> MariaDB web_logs
+  -> Web UI analysis_jobs 등록
+  -> Analysis Agent full_report 실행
+  -> export / prepare / sliding window / rollup / operator queue 후보
+  -> Stage1 / Stage2 / viewer_payload 생성
+  -> analysis_reports / job_events 기록
+  -> Web UI 결과 확인
+```
+
+- `analysis_jobs` queue는 MariaDB table 기반의 분석 실행 queue다.
+- `operator queue`는 sliding window / rollup 결과를 사람이 검토하기 위한 artifact queue다.
+- Web UI read-only 원칙은 보안 결과 해석 read-only를 뜻한다.
+- Web UI는 `analysis_jobs` 등록/조회와 job lifecycle 표시를 위해 DB write/read를 수행할 수 있다.
+- `full_report`의 완료 조건은 Stage1, Stage2, `viewer_payload`, report/artifact 저장 완료다.
 
 ## 문서 목록
 
+- 현재 기준
+  - [../00_current_architecture.md](../00_current_architecture.md): 현재 canonical architecture overview와 DB-backed MVP 운영 흐름
 - 전체 흐름/실행
   - [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md): 전체 파이프라인 흐름 요약
   - [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md): 운영 기준과 실행 절차(`export --table`, pipeline auto prepare source table 해석, Web UI run_dir default scan 기준 포함)
@@ -20,20 +43,34 @@
   - [02_OpenCart_환경_구축_및_설치.md](./02_OpenCart_환경_구축_및_설치.md): OpenCart 환경 구축과 설치
 - 로그/DB/export
   - [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md): 로그 표준과 DB 구조
-  - [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md): 로그 적재와 운영
-  - [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md): export와 LLM 분석 전략(`table_option/counts/data` 기반 auto resolution, run_dir 표준 산출물/manifest 중심 흐름 포함)
+  - [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md): `apache_log_shipper.py` 기반 로그 적재와 운영
+  - [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md): `export_db_logs_cli.py`와 LLM 분석 전략(`table_option/counts/data` 기반 auto resolution, run_dir 표준 산출물/manifest 중심 흐름 포함)
   - [99_output_retention_policy.md](./99_output_retention_policy.md): 산출물 보존/정리 기준
 
 ## 읽는 순서
 
-1. [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md)
-2. [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)
-3. 필요한 환경 구축 문서
-4. [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md)
-5. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
-6. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
-7. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
-8. [99_output_retention_policy.md](./99_output_retention_policy.md)
+1. [../00_current_architecture.md](../00_current_architecture.md)
+2. [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md)
+3. [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)
+4. [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)
+5. [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md)
+6. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
+7. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
+8. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
+9. [99_output_retention_policy.md](./99_output_retention_policy.md)
+
+환경을 처음 구축할 때는 다음 순서로 필요한 문서만 이어서 본다.
+
+1. [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)
+2. 필요한 대상 앱 환경 구축 문서
+3. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
+4. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
+
+기존 수동 full_report 실행/검증은 아래 순서로 본다.
+
+1. [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)
+2. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
+3. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
 
 ## 관리 원칙
 
@@ -42,6 +79,8 @@
 - 실험 결과 산출물은 `lab/`에 둔다.
 
 ## Web UI run_dir default scan
+
+이 섹션은 기존 run_dir 기반 Web UI loader 운영 기준이다. DB-backed MVP에서는 Web UI job detail이 `analysis_reports`와 job-scoped artifact root를 통해 같은 표준 산출물을 찾는 방향으로 해석한다.
 
 - Web UI 기본 목록은 `runs/*/manifest.json`을 기준으로 구성한다.
   - `REPORT_GLOBS=["runs/*/manifest.json"]`
