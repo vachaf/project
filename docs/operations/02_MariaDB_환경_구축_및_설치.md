@@ -1,20 +1,29 @@
 # 02_MariaDB_환경_구축_및_설치
 
 - 문서 상태: 구축문서
-- 버전: v1.4
+- 버전: v1.5
 - 작성일: 2026-05-23
+- 최근 갱신: 2026-05-29
 - 기준 코드:
   - `src/apache_log_shipper.py`
   - `src/export_db_logs_cli.py`
+  - `src/prepare_llm_input.py`
 - 기준 로그 포맷:
   - `docs/operations/examples/apache_security_logformat_v1.conf`
   - `docs/operations/examples/apache_security_logformat_v2.conf`
+- 관련 SQL:
+  - `docs/operations/sql/00_database_and_log_accounts.sql`
+  - `docs/operations/sql/01_apache_log_tables.sql`
+  - `docs/operations/sql/01_analysis_job_tables.sql`
+  - `docs/operations/sql/10_log_source_table_grants.sql`
+  - `docs/operations/sql/11_analysis_app_grants.sql`
+  - `docs/operations/sql/90_verify_mariadb_setup.sql`
 
 ## 1. 목적
 
-이 문서는 Ubuntu 22.04 Server에 MariaDB를 설치하고, 현재 로그 파이프라인이 요구하는 `web_logs` 데이터베이스와 계정, 테이블, 인덱스를 재현 가능한 수준으로 구축하는 절차서다.
+이 문서는 Ubuntu 22.04 Server에 MariaDB를 설치하고, 현재 로그 파이프라인이 요구하는 `web_logs` 데이터베이스, 계정, 테이블, 인덱스를 재현 가능한 수준으로 구축하는 절차서다.
 
-이 문서의 DDL은 새 서버 구축 기준이다. 기존 DB를 점진 변경하는 `ALTER TABLE` 절차가 아니라, 새 환경에서 바로 읽고 적용하기 쉬운 `CREATE TABLE` 기준으로 유지한다.
+실행 가능한 SQL 원문은 이 문서 본문에 직접 두지 않고 `docs/operations/sql/` 아래에 둔다. 이 문서는 적용 순서, 권한 경계, 검증 방법, source log table 해석 기준을 설명한다.
 
 ## 2. 최종 구성
 
@@ -22,23 +31,35 @@
 - DB 서버 IP 예시: `192.168.56.109`
 - DB 이름: `web_logs`
 - 문자셋: `utf8mb4`
-- 테이블:
+- source log table:
   - `apache_access_logs`
   - `apache_security_logs`
   - `apache_error_logs`
+- DB-backed MVP operation/control table:
+  - `users`
+  - `analysis_jobs`
+  - `analysis_reports`
+  - `job_events`
 - 계정:
-  - `log_writer`: 웹서버 shipper 전용
-  - `log_reader`: LLM 서버 export/조회 전용
+  - `log_writer`: 웹서버 shipper 전용 source log 적재 계정
+  - `log_reader`: LLM/Analysis 서버 export 조회 전용 source log 읽기 계정
+  - `analysis_app`: Web UI backend / Analysis Agent의 job lifecycle metadata 기록 계정
 
 ## 3. 사전 조건
 
 - Ubuntu 22.04 Server 설치 완료
 - DB 서버에 `sudo` 가능한 계정으로 로그인 가능
-- 웹서버와 LLM 서버 IP를 알고 있어야 함
+- 웹서버와 LLM/Analysis 서버 IP를 알고 있어야 함
 - 예시 IP
   - juice 웹서버: `192.168.56.105`
   - opencart 웹서버: `192.168.56.111`
-  - LLM 서버: `192.168.56.110`
+  - LLM/Analysis 서버: `192.168.56.110`
+
+주의:
+
+- SQL 파일의 IP와 password 예시는 실제 환경에 맞게 수정해야 한다.
+- `log_reader`는 원본 로그 조회 전용이다.
+- DB-backed MVP의 `analysis_jobs`, `analysis_reports`, `job_events` 쓰기는 `analysis_app` 같은 별도 계정을 사용한다.
 
 ## 4. 구축 순서
 
@@ -46,11 +67,13 @@
 2. MariaDB 설치
 3. 서비스 시작
 4. `bind-address` 설정
-5. `web_logs` 생성
-6. 계정 생성
-7. 테이블 및 인덱스 생성
-8. 접속 검증
-9. 웹서버/LLM 서버에서 외부 접속 검증
+5. DB와 계정 생성 SQL 적용
+6. source log table DDL 적용
+7. DB-backed MVP operation/control table DDL 적용
+8. source log table grant 적용
+9. analysis app grant 적용
+10. 접속 및 schema 검증
+11. 웹서버/LLM 서버에서 외부 접속 검증
 
 ## 5. MariaDB 설치
 
@@ -98,40 +121,130 @@ ss -lntp | grep 3306
 
 - `3306` 이 DB 서버 IP에 바인딩되어 보여야 한다.
 
-## 7. DB와 계정 생성 SQL
+## 7. SQL 적용 순서
 
-MariaDB 접속:
+repo root 기준으로 실행한다.
+
+### 7.1 DB와 기본 계정 생성
 
 ```bash
-sudo mariadb
+sudo mariadb < docs/operations/sql/00_database_and_log_accounts.sql
 ```
 
-아래 SQL을 실행한다.
+포함 내용:
 
-```sql
-CREATE DATABASE IF NOT EXISTS web_logs
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_general_ci;
+- `web_logs` database
+- `log_writer` 예시 계정
+- `log_reader` 예시 계정
 
-CREATE USER IF NOT EXISTS 'log_writer'@'192.168.56.105' IDENTIFIED BY 'YourPass'; -- JUICE SHOP
-CREATE USER IF NOT EXISTS 'log_writer'@'192.168.56.111' IDENTIFIED BY 'YourPass'; -- OPENCART
-CREATE USER IF NOT EXISTS 'log_reader'@'192.168.56.110' IDENTIFIED BY 'YourPass'; -- LLM
+이 파일은 계정을 만들지만 source log table별 grant는 적용하지 않는다. table 생성 이후 `10_log_source_table_grants.sql`에서 최소 권한으로 부여한다.
 
-GRANT SELECT, INSERT, UPDATE ON web_logs.* TO 'log_writer'@'192.168.56.105'; -- JUICE SHOP
-GRANT SELECT, INSERT, UPDATE ON web_logs.* TO 'log_writer'@'192.168.56.111'; -- OPENCART
-GRANT SELECT ON web_logs.* TO 'log_reader'@'192.168.56.110'; -- LLM
+### 7.2 source Apache log table 생성
 
-FLUSH PRIVILEGES;
+```bash
+sudo mariadb < docs/operations/sql/01_apache_log_tables.sql
 ```
 
-현재 코드 기준:
+생성 table:
 
-- shipper는 INSERT만 사용하지만 기존 운영 편의를 위해 `UPDATE`까지 부여해도 된다.
-- `log_reader`는 `SELECT`만 주는 것이 기준이다.
+- `apache_access_logs`
+- `apache_security_logs`
+- `apache_error_logs`
 
-## 8. DDL 설계 기준
+### 7.3 DB-backed MVP operation/control table 생성
 
-이 문서의 `apache_security_logs` DDL은 Apache security log의 key=value 필드에 대응되는 컬럼만 둔다.
+```bash
+sudo mariadb < docs/operations/sql/01_analysis_job_tables.sql
+```
+
+생성 table:
+
+- `users`
+- `analysis_jobs`
+- `analysis_reports`
+- `job_events`
+
+자세한 적용 기준은 `docs/operations/07_DB_backed_analysis_job_tables.md`를 따른다.
+
+### 7.4 source log table grant 적용
+
+```bash
+sudo mariadb < docs/operations/sql/10_log_source_table_grants.sql
+```
+
+권한 기준:
+
+- `log_writer`: `apache_access_logs`, `apache_security_logs`, `apache_error_logs`에만 `SELECT`, `INSERT`, `UPDATE`
+- `log_reader`: `apache_access_logs`, `apache_security_logs`, `apache_error_logs`에만 `SELECT`
+
+기존처럼 `web_logs.*` 전체에 `log_writer` 쓰기 권한을 주면 DB-backed MVP operation/control table까지 쓰기 범위에 들어갈 수 있으므로 피한다.
+
+### 7.5 analysis app grant 적용
+
+```bash
+sudo mariadb < docs/operations/sql/11_analysis_app_grants.sql
+```
+
+권한 기준:
+
+- `analysis_app`: `analysis_jobs`, `analysis_reports`에 `SELECT`, `INSERT`, `UPDATE`
+- `analysis_app`: `job_events`에 `SELECT`, `INSERT`
+- `analysis_app`: `users`에 `SELECT`
+- `analysis_app`: source Apache log table에는 쓰기 권한 없음
+
+## 8. 권한 분리 기준
+
+### 8.1 `log_writer`
+
+`log_writer`는 웹서버의 `src/apache_log_shipper.py`가 Apache 로그를 MariaDB source log table에 적재하기 위한 계정이다.
+
+허용 범위:
+
+- `apache_access_logs`
+- `apache_security_logs`
+- `apache_error_logs`
+
+MVP 기준에서는 기존 운영 편의를 위해 `SELECT`, `INSERT`, `UPDATE`를 허용할 수 있다. 다만 operation/control table에는 권한을 주지 않는다.
+
+### 8.2 `log_reader`
+
+`log_reader`는 LLM/Analysis 서버가 `src/export_db_logs_cli.py`로 원본 로그를 export하기 위한 읽기 전용 계정이다.
+
+허용 범위:
+
+- source Apache log table `SELECT`
+
+금지/비권장 범위:
+
+- `analysis_jobs` insert/update
+- `analysis_reports` insert/update
+- `job_events` insert
+- source log table write
+
+따라서 분석서버 위에 DB-backed MVP 대시보드를 두더라도 `log_reader` 하나로 운영하지 않는다.
+
+### 8.3 `analysis_app`
+
+`analysis_app`는 Web UI backend와 Analysis Agent가 job lifecycle metadata를 기록하기 위한 계정이다.
+
+허용 범위:
+
+- job 생성
+- job claim/update
+- report/artifact path metadata 기록
+- job event append
+- Web UI job/report 조회
+
+금지/비권장 범위:
+
+- source Apache log table write
+- provider secret 저장
+- `.env` 내용 저장
+- raw request body/response body 저장
+
+## 9. DDL 설계 기준
+
+`apache_security_logs` DDL은 Apache security log의 key=value 필드에 대응되는 컬럼만 둔다.
 
 유지 원칙:
 
@@ -152,7 +265,7 @@ DDL에 두지 않는 prepare 산출 필드:
 - `path_normalized_from_raw_request`
 - `likely_html_fallback_response`
 
-위 3개는 DB 원본 컬럼이 아니다. `prepare_llm_input.py` 단계에서 `raw_request`, `uri`, `resp_content_type`, `response_body_bytes`, `raw_log` 등을 바탕으로 보강·정규화되어 downstream 분석에 사용된다. 따라서 이 문서의 MariaDB DDL에는 추가하지 않는다.
+위 3개는 DB 원본 컬럼이 아니다. `prepare_llm_input.py` 단계에서 `raw_request`, `uri`, `resp_content_type`, `response_body_bytes`, `raw_log` 등을 바탕으로 보강·정규화되어 downstream 분석에 사용된다. 따라서 MariaDB DDL에는 추가하지 않는다.
 
 주의:
 
@@ -175,233 +288,24 @@ DDL에 두지 않는 prepare 산출 필드:
 
 위 값들은 Apache key=value 원본 로그 필드가 아니다. 필요하면 LLM pipeline 산출물 또는 별도 분석 테이블에서 관리한다.
 
-## 9. full DDL
+## 10. 적용 검증
 
-DB 선택:
+전체 검증 SQL:
 
-```sql
-USE web_logs;
+```bash
+sudo mariadb < docs/operations/sql/90_verify_mariadb_setup.sql
 ```
 
-### 9.1 `apache_access_logs`
-
-```sql
-CREATE TABLE IF NOT EXISTS apache_access_logs (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    log_time DATETIME(3) NOT NULL,
-    client_ip VARCHAR(45) DEFAULT NULL,
-    method VARCHAR(16) DEFAULT NULL,
-    raw_request TEXT,
-    uri TEXT,
-    query_string TEXT,
-    protocol VARCHAR(16) DEFAULT NULL,
-    status_code SMALLINT UNSIGNED DEFAULT NULL,
-    response_body_bytes BIGINT UNSIGNED DEFAULT NULL,
-    referer TEXT,
-    user_agent TEXT,
-    host VARCHAR(255) DEFAULT NULL,
-    vhost VARCHAR(255) DEFAULT NULL,
-    raw_log LONGTEXT,
-    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    KEY idx_access_log_time (log_time),
-    KEY idx_access_client_ip (client_ip),
-    KEY idx_access_status_code (status_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-```
-
-### 9.2 `apache_security_logs`
-
-```sql
-CREATE TABLE IF NOT EXISTS apache_security_logs (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-
-    -- schema / time / correlation
-    log_schema VARCHAR(64) DEFAULT NULL,
-    log_time DATETIME(3) NOT NULL,
-    request_id VARCHAR(128) DEFAULT NULL,
-    error_link_id VARCHAR(128) DEFAULT NULL,
-
-    -- vhost / server identity
-    vhost VARCHAR(255) DEFAULT NULL,
-    server_name VARCHAR(255) DEFAULT NULL,
-    server_port INT UNSIGNED DEFAULT NULL,
-    local_ip VARCHAR(45) DEFAULT NULL,
-
-    -- client / peer identity observations
-    client_ip_source VARCHAR(64) DEFAULT NULL,
-    src_ip VARCHAR(45) DEFAULT NULL,
-    peer_ip VARCHAR(45) DEFAULT NULL,
-    remoteip_proxy_chain TEXT,
-
-    -- request line / target
-    method VARCHAR(16) DEFAULT NULL,
-    raw_request TEXT,
-    request_target TEXT,
-    uri TEXT,
-    query_string TEXT,
-    protocol VARCHAR(16) DEFAULT NULL,
-
-    -- response / IO metadata
-    status_code SMALLINT UNSIGNED DEFAULT NULL,
-    original_status_code SMALLINT UNSIGNED DEFAULT NULL,
-    response_body_bytes BIGINT UNSIGNED DEFAULT NULL,
-    in_bytes BIGINT UNSIGNED DEFAULT NULL,
-    out_bytes BIGINT UNSIGNED DEFAULT NULL,
-    total_bytes BIGINT UNSIGNED DEFAULT NULL,
-    duration_us BIGINT UNSIGNED DEFAULT NULL,
-    ttfb_us BIGINT UNSIGNED DEFAULT NULL,
-    keepalive_count INT UNSIGNED DEFAULT NULL,
-    connection_status VARCHAR(8) DEFAULT NULL,
-    handler VARCHAR(255) DEFAULT NULL,
-
-    -- request / response headers as observed metadata
-    req_content_type VARCHAR(255) DEFAULT NULL,
-    req_content_length BIGINT UNSIGNED DEFAULT NULL,
-    resp_content_type VARCHAR(255) DEFAULT NULL,
-    location TEXT,
-    referer TEXT,
-    origin TEXT,
-    user_agent TEXT,
-    req_host VARCHAR(255) DEFAULT NULL,
-    x_forwarded_for TEXT,
-    x_real_ip TEXT,
-    forwarded TEXT,
-
-    -- privacy-preserving presence flags only
-    has_cookie TINYINT(1) DEFAULT NULL,
-    has_authorization TINYINT(1) DEFAULT NULL,
-
-    raw_log LONGTEXT,
-    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (id),
-    KEY idx_security_log_time (log_time),
-    KEY idx_security_request_id (request_id),
-    KEY idx_security_error_link_id (error_link_id),
-    KEY idx_security_src_ip (src_ip),
-    KEY idx_security_status_code (status_code),
-    KEY idx_security_log_schema (log_schema),
-    KEY idx_security_client_ip_source (client_ip_source)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-```
-
-### 9.3 `apache_error_logs`
-
-```sql
-CREATE TABLE IF NOT EXISTS apache_error_logs (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    log_time DATETIME(3) NOT NULL,
-    error_link_id VARCHAR(128) DEFAULT NULL,
-    request_id VARCHAR(128) DEFAULT NULL,
-    module_name VARCHAR(128) DEFAULT NULL,
-    log_level VARCHAR(64) DEFAULT NULL,
-    src_ip VARCHAR(45) DEFAULT NULL,
-    peer_ip VARCHAR(45) DEFAULT NULL,
-    message LONGTEXT,
-    raw_log LONGTEXT,
-    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    KEY idx_error_log_time (log_time),
-    KEY idx_error_error_link_id (error_link_id),
-    KEY idx_error_request_id (request_id),
-    KEY idx_error_log_level (log_level)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-```
-
-## 10. DDL 적용 검증
-
-테이블 확인:
-
-```sql
-USE web_logs;
-SHOW TABLES;
-DESCRIBE apache_access_logs;
-DESCRIBE apache_security_logs;
-DESCRIBE apache_error_logs;
-SHOW INDEX FROM apache_access_logs;
-SHOW INDEX FROM apache_security_logs;
-SHOW INDEX FROM apache_error_logs;
-```
-
-v1/v2 호환 필드 확인:
-
-```sql
-DESCRIBE apache_security_logs;
-
-SELECT
-  COLUMN_NAME,
-  DATA_TYPE,
-  IS_NULLABLE
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = 'web_logs'
-  AND TABLE_NAME = 'apache_security_logs'
-  AND COLUMN_NAME IN (
-    'log_schema',
-    'request_target',
-    'client_ip_source',
-    'req_host',
-    'x_forwarded_for',
-    'x_real_ip',
-    'forwarded',
-    'has_cookie',
-    'has_authorization',
-    'remoteip_proxy_chain'
-  )
-ORDER BY ORDINAL_POSITION;
-```
-
-legacy `host` 컬럼이 security table에 남아 있지 않은지 확인:
-
-```sql
-SELECT COLUMN_NAME
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = 'web_logs'
-  AND TABLE_NAME = 'apache_security_logs'
-  AND COLUMN_NAME = 'host';
-```
-
-기대 결과:
-
-- 결과가 없어야 한다.
-
-prepare 산출 필드가 DB 컬럼으로 생성되지 않았는지 확인:
-
-```sql
-SELECT COLUMN_NAME
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = 'web_logs'
-  AND TABLE_NAME = 'apache_security_logs'
-  AND COLUMN_NAME IN (
-    'raw_request_target',
-    'path_normalized_from_raw_request',
-    'likely_html_fallback_response'
-  );
-```
-
-기대 결과:
-
-- 결과가 없어야 한다.
-- 위 값들은 `prepare_llm_input.py` 산출 필드이며 MariaDB 원본 저장 컬럼이 아니다.
-
-계정 확인:
-
-```sql
-SELECT User, Host FROM mysql.user WHERE User IN ('log_writer', 'log_reader');
-SHOW GRANTS FOR 'log_writer'@'192.168.56.105';
-SHOW GRANTS FOR 'log_writer'@'192.168.56.111';
-SHOW GRANTS FOR 'log_reader'@'192.168.56.110';
-```
-
-기대 결과:
+주요 기대 결과:
 
 - `web_logs` 존재
-- 3개 테이블 존재
+- source log table 3개 존재
+- DB-backed MVP operation/control table 4개 존재
 - 각 인덱스 존재
 - `apache_security_logs`에 v1/v2 key=value 대응 컬럼 존재
 - `apache_security_logs`에는 `req_host`가 있고 `host`는 없음
 - `raw_request_target`, `path_normalized_from_raw_request`, `likely_html_fallback_response`는 DB 컬럼으로 없음
-- `log_writer`, `log_reader` 계정과 권한 확인 가능
+- `log_writer`, `log_reader`, `analysis_app` 계정과 권한 확인 가능
 
 ## 11. 서버별 접속 검증
 
@@ -421,11 +325,9 @@ mariadb -u log_writer -p -h 192.168.56.109 -D web_logs -e "SHOW TABLES;"
 
 기대 결과:
 
-- 3개 테이블 이름이 출력되어야 한다.
+- source log table 이름이 출력되어야 한다.
 
-### 11.3 LLM 서버에서 검증
-
-LLM 서버에서 조회 계정으로 접속:
+### 11.3 LLM/Analysis 서버에서 source log export 연결 검증
 
 ```bash
 mariadb -u log_reader -p -h 192.168.56.109 -D web_logs -e "SHOW TABLES;"
@@ -447,19 +349,30 @@ python3 /opt/web_log_analysis/src/export_db_logs_cli.py \
 
 - `[OK] DB 연결 성공: ...`
 
+### 11.4 LLM/Analysis 서버에서 DB-backed MVP 계정 검증
+
+```bash
+mariadb -u analysis_app -p -h 192.168.56.109 -D web_logs -e "SHOW TABLES LIKE 'analysis_%';"
+```
+
+쓰기 권한은 operation/control table에만 있어야 한다.
+
 ## 12. 운영 체크포인트
 
 - `bind-address` 가 내부망 IP로 설정되었는가
-- `log_writer` 와 `log_reader` 계정이 분리되었는가
+- `log_writer`, `log_reader`, `analysis_app` 계정이 분리되었는가
 - 웹서버에서 `log_writer` 접속이 되는가
-- LLM 서버에서 `log_reader` 접속이 되는가
-- 3개 테이블이 모두 존재하는가
+- LLM/Analysis 서버에서 `log_reader` 접속이 되는가
+- LLM/Analysis 서버에서 `analysis_app` 접속이 되는가
+- source log table 3개가 모두 존재하는가
+- DB-backed MVP operation/control table 4개가 모두 존재하는가
 - 인덱스가 생성되었는가
-- `apache_security_logs.log_time` 인덱스가 있어 scheduler window export에 적합한가
+- `apache_security_logs.log_time` 인덱스가 scheduler window export에 적합한가
 - v1/v2/remoteip_v2가 섞여도 `log_schema`로 구분 가능한가
 - security log Host header가 `req_host`로 통일되어 저장되는가
 - `raw_log`가 항상 보존되는가
 - prepare 산출 필드를 DB 원본 컬럼으로 오해하지 않았는가
+- `log_reader`를 job/artifact metadata write 계정으로 사용하지 않는가
 
 ## 13. v1/v2/remoteip_v2 처리 기준
 
