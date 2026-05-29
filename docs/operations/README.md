@@ -39,15 +39,21 @@ Apache logs
 - 환경 구축
   - [02_LLM_환경_구축_및_설치.md](./02_LLM_환경_구축_및_설치.md): LLM 환경 구축과 설치
   - [02_Juice_shop_환경_구축_및_설치.md](./02_Juice_shop_환경_구축_및_설치.md): Juice Shop 환경 구축과 설치
-  - [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md): MariaDB 환경 구축과 기존 Apache 로그 source table 설치
+  - [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md): MariaDB 환경 구축, SQL 적용 순서, 계정 권한 경계
   - [02_OpenCart_환경_구축_및_설치.md](./02_OpenCart_환경_구축_및_설치.md): OpenCart 환경 구축과 설치
 - 로그/DB/export
   - [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md): 로그 표준과 DB 구조
   - [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md): `apache_log_shipper.py` 기반 로그 적재와 운영
   - [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md): `export_db_logs_cli.py`와 LLM 분석 전략(`table_option/counts/data` 기반 auto resolution, run_dir 표준 산출물/manifest 중심 흐름 포함)
   - [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md): DB-backed MVP용 `users`, `analysis_jobs`, `analysis_reports`, `job_events` 적용 절차
-  - [sql/01_analysis_job_tables.sql](./sql/01_analysis_job_tables.sql): DB-backed MVP operation/control table MariaDB DDL
   - [99_output_retention_policy.md](./99_output_retention_policy.md): 산출물 보존/정리 기준
+- SQL
+  - [sql/00_database_and_log_accounts.sql](./sql/00_database_and_log_accounts.sql): `web_logs`, `log_writer`, `log_reader` 생성
+  - [sql/01_apache_log_tables.sql](./sql/01_apache_log_tables.sql): Apache source log table DDL
+  - [sql/01_analysis_job_tables.sql](./sql/01_analysis_job_tables.sql): DB-backed MVP operation/control table DDL
+  - [sql/10_log_source_table_grants.sql](./sql/10_log_source_table_grants.sql): source log table 단위 `log_writer`/`log_reader` 권한
+  - [sql/11_analysis_app_grants.sql](./sql/11_analysis_app_grants.sql): DB-backed MVP `analysis_app` 권한
+  - [sql/90_verify_mariadb_setup.sql](./sql/90_verify_mariadb_setup.sql): MariaDB 구축 검증 쿼리
 
 ## 읽는 순서
 
@@ -79,7 +85,9 @@ Apache logs
 - 실행 방법, 환경 구축, 로그 구조, 운영 절차는 `operations/`에 둔다.
 - 실험 요청 세트는 `experiments/`에 둔다.
 - 실험 결과 산출물은 `lab/`에 둔다.
-- 기존 Apache 로그 source table DDL은 [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)에 둔다.
+- 실행 가능한 MariaDB DDL/DCL/검증 SQL은 `docs/operations/sql/`에 둔다.
+- [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)는 SQL 원문 보관 문서가 아니라 적용 순서와 권한 경계 문서다.
+- Apache source log table DDL은 [sql/01_apache_log_tables.sql](./sql/01_apache_log_tables.sql)에 둔다.
 - DB-backed MVP operation/control table DDL은 [sql/01_analysis_job_tables.sql](./sql/01_analysis_job_tables.sql)에 둔다.
 
 ## DB-backed MVP operation/control tables
