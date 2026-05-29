@@ -1,0 +1,307 @@
+from __future__ import annotations
+
+import os
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, Iterator, List, Optional
+
+import pymysql
+from pymysql.cursors import DictCursor
+
+from web.services.analysis_job_policy import (
+    ValidatedAnalysisJobRequest,
+    build_job_artifact_root,
+    redact_secret_text,
+)
+
+DEFAULT_STATUS_COUNTS = {"PENDING": 0, "RUNNING": 0, "SUCCEEDED": 0, "FAILED": 0}
+ACTIVE_JOB_STATUSES = ("PENDING", "RUNNING")
+
+
+class AnalysisJobRepositoryError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True)
+class CreatedAnalysisJob:
+    job_id: int
+    artifact_root: str
+    duplicate_existing_job_id: Optional[int] = None
+
+    @property
+    def created(self) -> bool:
+        return self.duplicate_existing_job_id is None
+
+
+def get_app_db_config() -> Dict[str, Any]:
+    """Return MariaDB connection config for the DB-backed Web UI/API.
+
+    The dashboard uses APP_DB_USER when present. This keeps it separate from
+    log_reader/log_writer roles used by export/log shipper flows.
+    """
+
+    user = os.getenv("APP_DB_USER") or os.getenv("LOG_DB_USER") or "analysis_app"
+    password = os.getenv("APP_DB_PASSWORD") or os.getenv("LOG_DB_PASSWORD") or ""
+    host = os.getenv("DB_HOST") or os.getenv("LOG_DB_HOST") or "127.0.0.1"
+    database = os.getenv("DB_NAME") or os.getenv("LOG_DB_NAME") or "web_logs"
+    port = int(os.getenv("DB_PORT") or os.getenv("LOG_DB_PORT") or "3306")
+    return {
+        "host": host,
+        "port": port,
+        "user": user,
+        "password": password,
+        "database": database,
+        "charset": "utf8mb4",
+        "autocommit": False,
+        "connect_timeout": int(os.getenv("APP_DB_CONNECT_TIMEOUT_SEC", "5")),
+        "read_timeout": int(os.getenv("APP_DB_READ_TIMEOUT_SEC", "10")),
+        "write_timeout": int(os.getenv("APP_DB_WRITE_TIMEOUT_SEC", "10")),
+        "cursorclass": DictCursor,
+    }
+
+
+@contextmanager
+def app_db_connection() -> Iterator[pymysql.connections.Connection]:
+    conn = pymysql.connect(**get_app_db_config())
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+class AnalysisJobRepository:
+    def __init__(self, connection_factory=app_db_connection):
+        self.connection_factory = connection_factory
+
+    def count_by_status(self) -> Dict[str, int]:
+        counts = dict(DEFAULT_STATUS_COUNTS)
+        with self.connection_factory() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT status, COUNT(*) AS count
+                    FROM analysis_jobs
+                    GROUP BY status
+                    """
+                )
+                for row in cur.fetchall():
+                    status = str(row.get("status") or "").upper()
+                    if status in counts:
+                        counts[status] = int(row.get("count") or 0)
+        return counts
+
+    def list_recent_jobs(self, limit: int = 100) -> List[Dict[str, Any]]:
+        safe_limit = max(1, min(int(limit), 1000))
+        with self.connection_factory() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT id, requested_by, time_from, time_to, requested_timezone,
+                           status, analysis_mode, created_at, started_at, finished_at,
+                           worker_id, heartbeat_at, attempt_count, max_attempts,
+                           error_message, artifact_root
+                    FROM analysis_jobs
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT {safe_limit}
+                    """
+                )
+                return list(cur.fetchall())
+
+    def get_job(self, job_id: int) -> Optional[Dict[str, Any]]:
+        with self.connection_factory() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, requested_by, time_from, time_to, requested_timezone,
+                           status, analysis_mode, created_at, started_at, finished_at,
+                           worker_id, heartbeat_at, attempt_count, max_attempts,
+                           error_message, artifact_root
+                    FROM analysis_jobs
+                    WHERE id = %s
+                    """,
+                    (job_id,),
+                )
+                return cur.fetchone()
+
+    def get_job_events(self, job_id: int) -> List[Dict[str, Any]]:
+        with self.connection_factory() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, job_id, event_time, event_type, message, detail_json
+                    FROM job_events
+                    WHERE job_id = %s
+                    ORDER BY event_time ASC, id ASC
+                    """,
+                    (job_id,),
+                )
+                return list(cur.fetchall())
+
+    def get_latest_report_for_job(self, job_id: int) -> Optional[Dict[str, Any]]:
+        with self.connection_factory() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, job_id, summary, artifact_root, export_path, llm_input_path,
+                           analysis_candidates_path, noise_summary_path, window_summary_path,
+                           rollup_input_path, rollup_summary_path, operator_queue_items_path,
+                           operator_queue_summary_path, stage1_result_path,
+                           stage2_report_path, stage2_report_md_path, viewer_payload_path,
+                           lint_result_path, created_at
+                    FROM analysis_reports
+                    WHERE job_id = %s
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT 1
+                    """,
+                    (job_id,),
+                )
+                return cur.fetchone()
+
+    def create_job(
+        self,
+        *,
+        requested_by: Optional[int],
+        validated_request: ValidatedAnalysisJobRequest,
+    ) -> CreatedAnalysisJob:
+        """Create a PENDING full_report job or return active duplicate.
+
+        Creates analysis_jobs and JOB_CREATED job_events in one transaction.
+        artifact_root is job-scoped and assigned after lastrowid is known.
+        """
+
+        with self.connection_factory() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("START TRANSACTION")
+                    cur.execute(
+                        """
+                        SELECT id, artifact_root
+                        FROM analysis_jobs
+                        WHERE ((requested_by = %s) OR (requested_by IS NULL AND %s IS NULL))
+                          AND analysis_mode = %s
+                          AND time_from = %s
+                          AND time_to = %s
+                          AND requested_timezone = %s
+                          AND status IN ('PENDING', 'RUNNING')
+                        ORDER BY id DESC
+                        LIMIT 1
+                        """,
+                        (
+                            requested_by,
+                            requested_by,
+                            validated_request.analysis_mode,
+                            validated_request.time_from_db,
+                            validated_request.time_to_db,
+                            validated_request.requested_timezone,
+                        ),
+                    )
+                    existing = cur.fetchone()
+                    if existing:
+                        conn.rollback()
+                        return CreatedAnalysisJob(
+                            job_id=int(existing["id"]),
+                            artifact_root=str(existing.get("artifact_root") or ""),
+                            duplicate_existing_job_id=int(existing["id"]),
+                        )
+
+                    cur.execute(
+                        """
+                        INSERT INTO analysis_jobs (
+                            requested_by, time_from, time_to, requested_timezone,
+                            status, analysis_mode, created_at, artifact_root
+                        ) VALUES (
+                            %s, %s, %s, %s,
+                            'PENDING', %s, UTC_TIMESTAMP(3), NULL
+                        )
+                        """,
+                        (
+                            requested_by,
+                            validated_request.time_from_db,
+                            validated_request.time_to_db,
+                            validated_request.requested_timezone,
+                            validated_request.analysis_mode,
+                        ),
+                    )
+                    job_id = int(cur.lastrowid)
+                    artifact_root = build_job_artifact_root(job_id)
+                    cur.execute(
+                        """
+                        UPDATE analysis_jobs
+                        SET artifact_root = %s
+                        WHERE id = %s
+                        """,
+                        (artifact_root, job_id),
+                    )
+                    cur.execute(
+                        """
+                        INSERT INTO job_events (
+                            job_id, event_time, event_type, message, detail_json
+                        ) VALUES (
+                            %s, UTC_TIMESTAMP(3), 'JOB_CREATED', %s, %s
+                        )
+                        """,
+                        (
+                            job_id,
+                            "Job created via Web UI/API",
+                            _job_created_detail_json(requested_by, validated_request),
+                        ),
+                    )
+                conn.commit()
+                return CreatedAnalysisJob(job_id=job_id, artifact_root=artifact_root)
+            except Exception as exc:
+                conn.rollback()
+                raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
+
+
+def _job_created_detail_json(requested_by: Optional[int], request: ValidatedAnalysisJobRequest) -> str:
+    import json
+
+    return json.dumps(
+        {
+            "requested_by": requested_by,
+            "requested_timezone": request.requested_timezone,
+            "analysis_mode": request.analysis_mode,
+            "time_from_db": request.time_from_db,
+            "time_to_db": request.time_to_db,
+            "time_from_local": request.time_from_local.isoformat(),
+            "time_to_local": request.time_to_local.isoformat(),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
+def utc_naive_to_kst_text(value: Any, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    if not isinstance(value, datetime):
+        return str(value)
+    from zoneinfo import ZoneInfo
+
+    utc = ZoneInfo("UTC")
+    kst = ZoneInfo("Asia/Seoul")
+    return value.replace(tzinfo=utc).astimezone(kst).strftime(fmt)
+
+
+def serialize_job_for_dashboard(row: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": int(row.get("id")),
+        "status": str(row.get("status") or "unknown"),
+        "time_from": utc_naive_to_kst_text(row.get("time_from")),
+        "time_to": utc_naive_to_kst_text(row.get("time_to")),
+        "requested_timezone": str(row.get("requested_timezone") or "Asia/Seoul"),
+        "analysis_mode": str(row.get("analysis_mode") or "full_report"),
+        "created_at": utc_naive_to_kst_text(row.get("created_at"), "%m-%d %H:%M"),
+        "started_at": utc_naive_to_kst_text(row.get("started_at"), "%m-%d %H:%M"),
+        "finished_at": utc_naive_to_kst_text(row.get("finished_at"), "%m-%d %H:%M"),
+        "worker_id": str(row.get("worker_id") or "-"),
+        "attempt_count": int(row.get("attempt_count") or 0),
+        "error_message": redact_secret_text(row.get("error_message") or ""),
+        "artifact_root": str(row.get("artifact_root") or ""),
+    }
