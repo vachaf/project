@@ -10,8 +10,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from web.config import DEBUG
+from web.routes.reports import _apply_src_ip_display_mode
+from web.routes.reports import _is_mask_src_ip_enabled
 from web.routes.reports import init_templates as init_report_templates
 from web.routes.reports import router as reports_router
+from web.routes.reports import sanitize_payload_contexts
+from web.routes.reports import sanitize_payload_findings
+from web.routes.reports import sanitize_viewer_payload_summary
 from web.services.analysis_job_policy import (
     AnalysisJobValidationError,
     redact_secret_text,
