@@ -4,37 +4,75 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>New Analysis Job</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/job-dashboard.css">
 </head>
-<body class="page">
-<main class="container">
-    <header class="page-header section">
-        <h1>새 full_report 작업 등록</h1>
-        <p><a href="/">대시보드로 돌아가기</a></p>
+<body class="job-page">
+<div class="job-shell">
+    <header class="job-topbar">
+        <div class="job-brand">
+            <span class="job-brand-mark">▣</span>
+            <span>Web Log Analysis</span>
+        </div>
+        <nav class="job-topnav">
+            <a href="/">Dashboard</a>
+            <a href="/reports">Stage2 Reports</a>
+        </nav>
     </header>
 
-    {% if error %}
-    <section class="card error-card section"><p>{{ error }}</p></section>
-    {% endif %}
-
-    <section class="card section">
-        <form method="post" action="/new-job">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="time_from">분석 시작(KST)</label>
-                    <input type="datetime-local" id="time_from" name="time_from" value="{{ time_from_default }}" required>
-                </div>
-                <div class="form-group">
-                    <label for="time_to">분석 종료(KST)</label>
-                    <input type="datetime-local" id="time_to" name="time_to" value="{{ time_to_default }}" required>
-                </div>
+    <main class="job-container">
+        <div class="job-page-head">
+            <div>
+                <h1 class="job-page-title">Create New Analysis Job</h1>
+                <p class="job-page-subtitle">Request analysis of Apache logs within a KST time range.</p>
             </div>
-            <input type="hidden" name="requested_timezone" value="Asia/Seoul">
-            <input type="hidden" name="analysis_mode" value="full_report">
-            <p class="is-muted">requested_timezone은 Asia/Seoul, analysis_mode는 full_report로 고정됩니다. 최대 범위는 24시간입니다.</p>
-            <button type="submit" class="action-link">작업 등록</button>
-        </form>
-    </section>
-</main>
+        </div>
+
+        {% if error %}
+        <section class="job-card job-error-card">
+            <p>{{ error }}</p>
+        </section>
+        {% endif %}
+
+        <section class="job-form-card">
+            <form method="post" action="/new-job">
+                <div class="job-form-section">
+                    <div class="job-form-section-title">Time Range</div>
+                    <div class="job-form-row">
+                        <div class="job-form-group">
+                            <label for="time_from">From (KST)</label>
+                            <input type="datetime-local" id="time_from" name="time_from" value="{{ time_from_default }}" required>
+                        </div>
+                        <div class="job-form-group">
+                            <label for="time_to">To (KST)</label>
+                            <input type="datetime-local" id="time_to" name="time_to" value="{{ time_to_default }}" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="job-form-section">
+                    <div class="job-form-section-title">Analysis Settings</div>
+                    <div class="job-form-row">
+                        <div class="job-form-group">
+                            <label>Timezone</label>
+                            <span class="job-fixed-badge">Asia/Seoul</span>
+                        </div>
+                        <div class="job-form-group">
+                            <label>Mode</label>
+                            <span class="job-fixed-badge">full_report</span>
+                        </div>
+                    </div>
+                    <input type="hidden" name="requested_timezone" value="Asia/Seoul">
+                    <input type="hidden" name="analysis_mode" value="full_report">
+                    <p class="job-muted">최대 분석 범위는 24시간입니다. 저장 시각은 UTC naive DATETIME(3)로 변환됩니다.</p>
+                </div>
+
+                <div class="job-btn-row">
+                    <a href="/" class="job-btn">Cancel</a>
+                    <button type="submit" class="job-btn job-btn-primary">Submit Job</button>
+                </div>
+            </form>
+        </section>
+    </main>
+</div>
 </body>
 </html>
