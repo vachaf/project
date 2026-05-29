@@ -6,34 +6,34 @@
     <title>Analysis Job Dashboard</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="page">
 <main class="container">
-    <header class="page-header">
+    <header class="page-header section">
         <h1>Analysis Job Dashboard</h1>
         <p>DB-backed full_report 작업 상태를 표시합니다. 보안 결과 해석은 read-only로 유지됩니다.</p>
         <p><a href="/reports">기존 Stage2 report list 보기</a></p>
     </header>
 
     {% if error %}
-    <section class="card error-card">
+    <section class="card error-card section">
         <h2>DB-backed dashboard unavailable</h2>
         <p>{{ error }}</p>
         <p>MariaDB 연결 또는 analysis job table 적용 상태를 확인하세요.</p>
     </section>
     {% endif %}
 
-    <section class="summary-cards">
+    <section class="summary-cards section">
         <div class="card status-pending"><h3>PENDING</h3><p class="count" id="count-pending">{{ status_counts.PENDING }}</p></div>
         <div class="card status-running"><h3>RUNNING</h3><p class="count" id="count-running">{{ status_counts.RUNNING }}</p></div>
         <div class="card status-succeeded"><h3>SUCCEEDED</h3><p class="count" id="count-succeeded">{{ status_counts.SUCCEEDED }}</p></div>
         <div class="card status-failed"><h3>FAILED</h3><p class="count" id="count-failed">{{ status_counts.FAILED }}</p></div>
     </section>
 
-    <section class="actions">
-        <a href="/new-job" class="btn btn-primary">새 full_report 작업 등록</a>
+    <section class="actions section">
+        <a href="/new-job" class="action-link">새 full_report 작업 등록</a>
     </section>
 
-    <section class="card">
+    <section class="card section">
         <h2>최근 작업</h2>
         {% if jobs %}
         <div class="jobs-table-wrapper">
@@ -67,7 +67,7 @@
             </table>
         </div>
         {% else %}
-        <p class="text-muted">등록된 analysis job이 없습니다.</p>
+        <p class="is-muted">등록된 analysis job이 없습니다.</p>
         {% endif %}
     </section>
 </main>
