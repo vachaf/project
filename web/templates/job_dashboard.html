@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analysis Job Dashboard</title>
+    <title>Security Intelligence Dashboard</title>
     <link rel="stylesheet" href="/static/job-dashboard.css">
 </head>
 <body class="job-page">
@@ -11,22 +11,25 @@
     <header class="job-topbar">
         <div class="job-brand">
             <span class="job-brand-mark">▣</span>
-            <span>Web Log Analysis</span>
+            <span>Security Intelligence</span>
         </div>
         <nav class="job-topnav">
-            <span>operator</span>
+            <span class="job-operator-badge">operator</span>
             <a href="/reports">Stage2 Reports</a>
+            <a href="/new-job">New Job</a>
         </nav>
     </header>
 
     <main class="job-container">
         <div class="job-page-head">
             <div>
-                <h1 class="job-page-title">Dashboard</h1>
-                <p class="job-page-subtitle">DB-backed full_report 작업 상태를 표시합니다. 보안 결과 해석은 read-only로 유지됩니다.</p>
+                <div class="job-page-kicker">DB-backed analysis queue</div>
+                <h1 class="job-page-title">분석 작업 대시보드</h1>
+                <p class="job-page-subtitle">작업 큐 상태를 표시합니다. 보안 판정과 보고서 내용은 Web UI에서 재해석하거나 수정하지 않습니다.</p>
             </div>
             <div class="job-actions">
-                <a href="/new-job" class="job-btn job-btn-primary">+ New Job</a>
+                <a href="/new-job" class="job-btn job-btn-primary">+ 새 작업 등록</a>
+                <a href="/" class="job-btn">새로고침</a>
             </div>
         </div>
 
@@ -34,32 +37,39 @@
         <section class="job-card job-error-card">
             <h2 class="job-card-title">DB-backed dashboard unavailable</h2>
             <p>{{ error }}</p>
-            <p>MariaDB 연결 또는 analysis job table 적용 상태를 확인하세요.</p>
+            <p>MariaDB 연결, APP_DB_USER 권한, analysis job table 적용 상태를 확인하세요.</p>
         </section>
         {% endif %}
 
-        <section class="job-stats-grid">
+        <section class="job-stats-grid" aria-label="analysis job status counts">
             <div class="job-stat-card job-stat-pending">
-                <div class="job-stat-label">Pending</div>
+                <div class="job-stat-label">대기 중</div>
                 <div class="job-stat-value" id="count-pending">{{ status_counts.PENDING }}</div>
+                <div class="job-stat-code">PENDING</div>
             </div>
             <div class="job-stat-card job-stat-running">
-                <div class="job-stat-label">Running</div>
+                <div class="job-stat-label">실행 중</div>
                 <div class="job-stat-value" id="count-running">{{ status_counts.RUNNING }}</div>
+                <div class="job-stat-code">RUNNING</div>
             </div>
             <div class="job-stat-card job-stat-succeeded">
-                <div class="job-stat-label">Succeeded</div>
+                <div class="job-stat-label">완료됨</div>
                 <div class="job-stat-value" id="count-succeeded">{{ status_counts.SUCCEEDED }}</div>
+                <div class="job-stat-code">SUCCEEDED</div>
             </div>
             <div class="job-stat-card job-stat-failed">
-                <div class="job-stat-label">Failed</div>
+                <div class="job-stat-label">실패</div>
                 <div class="job-stat-value" id="count-failed">{{ status_counts.FAILED }}</div>
+                <div class="job-stat-code">FAILED</div>
             </div>
         </section>
 
         <section class="job-card">
             <div class="job-card-head">
-                <h2 class="job-card-title">Recent Jobs</h2>
+                <div>
+                    <h2 class="job-card-title">최근 작업</h2>
+                    <p class="job-card-subtitle">최근 100개 full_report 작업을 생성 시각 역순으로 표시합니다.</p>
+                </div>
             </div>
 
             {% if jobs %}
@@ -73,6 +83,7 @@
                             <th>Created</th>
                             <th>Mode</th>
                             <th>Attempt</th>
+                            <th>Artifact</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -80,12 +91,13 @@
                         {% for job in jobs %}
                         <tr>
                             <td><a href="/job/{{ job.id }}" class="job-id-link">#{{ job.id }}</a></td>
-                            <td>{{ job.time_from }} ~ {{ job.time_to }}</td>
+                            <td class="job-table-time-range">{{ job.time_from }}<br><span>~ {{ job.time_to }}</span></td>
                             <td><span class="job-status-badge job-status-{{ job.status|lower }}">{{ job.status }}</span></td>
-                            <td>{{ job.created_at }}</td>
+                            <td class="job-mono">{{ job.created_at }}</td>
                             <td><code>{{ job.analysis_mode }}</code></td>
-                            <td>{{ job.attempt_count }}</td>
-                            <td><a href="/job/{{ job.id }}">View</a></td>
+                            <td class="job-mono">{{ job.attempt_count }}</td>
+                            <td class="job-artifact-cell">{{ job.artifact_root or 'N/A' }}</td>
+                            <td><a href="/job/{{ job.id }}" class="job-table-action">상세 보기</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -94,11 +106,16 @@
             {% else %}
             <div class="job-empty-state">
                 <div class="job-empty-icon">□</div>
-                <h3 class="job-empty-title">No analysis jobs yet</h3>
-                <p class="job-muted">Start by creating a new analysis job to process logs.</p>
-                <a href="/new-job" class="job-btn job-btn-primary">Create First Job</a>
+                <h3 class="job-empty-title">분석 작업이 없습니다</h3>
+                <p class="job-muted">시간 범위를 지정해 첫 번째 DB-backed full_report 작업을 등록하세요.</p>
+                <a href="/new-job" class="job-btn job-btn-primary">첫 작업 등록</a>
             </div>
             {% endif %}
+        </section>
+
+        <section class="job-policy-strip">
+            <strong>Apache logs-only 분석</strong>
+            <span>이 화면은 Apache 로그 기반 작업 메타데이터와 분석 아티팩트 경로만 표시합니다. Raw request body, response body, DB 쿼리 결과, 브라우저 실행 결과, 서버 내부 상태는 포함하지 않습니다.</span>
         </section>
     </main>
 </div>
