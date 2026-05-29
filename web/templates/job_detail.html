@@ -4,59 +4,107 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analysis Job #{{ job.id }}</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/job-dashboard.css">
 </head>
-<body class="page">
-<main class="container">
-    <header class="page-header section">
-        <h1>Analysis Job #{{ job.id }}</h1>
-        <p><a href="/">대시보드</a> · <a href="/reports">기존 Stage2 reports</a></p>
+<body class="job-page">
+<div class="job-shell">
+    <header class="job-topbar">
+        <div class="job-brand">
+            <span class="job-brand-mark">▣</span>
+            <span>Web Log Analysis</span>
+        </div>
+        <nav class="job-topnav">
+            <a href="/">Dashboard</a>
+            <a href="/reports">Stage2 Reports</a>
+        </nav>
     </header>
 
-    <section class="card section">
-        <h2>Metadata</h2>
-        <p><strong>Status:</strong> <span class="status-badge status-{{ job.status|lower }}">{{ job.status }}</span></p>
-        <p><strong>Range (KST):</strong> {{ job.time_from }} ~ {{ job.time_to }}</p>
-        <p><strong>Mode:</strong> {{ job.analysis_mode }}</p>
-        <p><strong>Created (KST):</strong> {{ job.created_at }}</p>
-        <p><strong>Artifact root:</strong> <code>{{ job.artifact_root }}</code></p>
-        {% if job.error_message %}<p><strong>Error:</strong> {{ job.error_message }}</p>{% endif %}
-    </section>
+    <main class="job-container">
+        <div class="job-page-head">
+            <div>
+                <h1 class="job-page-title">Analysis Job #{{ job.id }}</h1>
+                <p class="job-page-subtitle">Job metadata, execution timeline, and report artifact metadata.</p>
+            </div>
+        </div>
 
-    <section class="card section">
-        <h2>Job Events</h2>
-        {% if events %}
-        <table class="jobs-table">
-            <thead><tr><th>Time</th><th>Type</th><th>Message</th><th>Detail</th></tr></thead>
-            <tbody>
-            {% for event in events %}
-                <tr>
-                    <td>{{ event.event_time }}</td>
-                    <td>{{ event.event_type }}</td>
-                    <td>{{ event.message }}</td>
-                    <td>{% if event.detail_json %}<pre>{{ event.detail_json }}</pre>{% else %}-{% endif %}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="is-muted">아직 이벤트가 없습니다.</p>
-        {% endif %}
-    </section>
+        <section class="job-card job-detail-header">
+            <div class="job-detail-kicker">#{{ job.id }}</div>
+            <h2 class="job-detail-title">Job #{{ job.id }}</h2>
+            <div class="job-detail-grid">
+                <div>
+                    <div class="job-detail-label">Status</div>
+                    <div class="job-detail-value"><span class="job-status-badge job-status-{{ job.status|lower }}">{{ job.status }}</span></div>
+                </div>
+                <div>
+                    <div class="job-detail-label">Mode</div>
+                    <div class="job-detail-value">{{ job.analysis_mode }}</div>
+                </div>
+                <div>
+                    <div class="job-detail-label">Time From (KST)</div>
+                    <div class="job-detail-value">{{ job.time_from }}</div>
+                </div>
+                <div>
+                    <div class="job-detail-label">Time To (KST)</div>
+                    <div class="job-detail-value">{{ job.time_to }}</div>
+                </div>
+                <div>
+                    <div class="job-detail-label">Created (KST)</div>
+                    <div class="job-detail-value">{{ job.created_at }}</div>
+                </div>
+                <div>
+                    <div class="job-detail-label">Artifact Root</div>
+                    <div class="job-detail-value">{{ job.artifact_root or 'N/A' }}</div>
+                </div>
+            </div>
+            {% if job.error_message %}<div class="job-detail-error">{{ job.error_message }}</div>{% endif %}
+        </section>
 
-    <section class="card section">
-        <h2>Report Metadata</h2>
-        {% if report %}
-        <ul>
-            <li>summary: {{ report.summary or 'N/A' }}</li>
-            <li>stage2_report_path: <code>{{ report.stage2_report_path or 'N/A' }}</code></li>
-            <li>stage2_report_md_path: <code>{{ report.stage2_report_md_path or 'N/A' }}</code></li>
-            <li>viewer_payload_path: <code>{{ report.viewer_payload_path or 'N/A' }}</code></li>
-        </ul>
-        {% else %}
-        <p class="is-muted">아직 analysis_reports row가 없습니다.</p>
-        {% endif %}
-    </section>
-</main>
+        <section class="job-card">
+            <div class="job-card-head">
+                <h2 class="job-card-title">Execution Timeline</h2>
+            </div>
+            {% if events %}
+            <div class="job-timeline">
+                {% for event in events %}
+                {% set event_type = event.event_type or '' %}
+                {% set dot_class = 'is-info' %}
+                {% if 'FAILED' in event_type or 'ERROR' in event_type %}
+                    {% set dot_class = 'is-error' %}
+                {% elif 'FINISHED' in event_type or 'SUCCEEDED' in event_type or 'CREATED' in event_type or 'CLAIMED' in event_type %}
+                    {% set dot_class = 'is-success' %}
+                {% endif %}
+                <div class="job-timeline-item">
+                    <div class="job-timeline-dot {{ dot_class }}">•</div>
+                    <div>
+                        <div class="job-timeline-time">{{ event.event_time }} UTC</div>
+                        <div class="job-timeline-event">{{ event.event_type }}</div>
+                        <div class="job-timeline-message">{{ event.message or '-' }}</div>
+                        {% if event.detail_json %}<pre class="job-timeline-detail">{{ event.detail_json }}</pre>{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="job-muted">아직 이벤트가 없습니다.</p>
+            {% endif %}
+        </section>
+
+        <section class="job-card">
+            <div class="job-card-head">
+                <h2 class="job-card-title">Report Metadata</h2>
+            </div>
+            {% if report %}
+            <ul class="job-report-list">
+                <li>summary: {{ report.summary or 'N/A' }}</li>
+                <li>stage2_report_path: <code>{{ report.stage2_report_path or 'N/A' }}</code></li>
+                <li>stage2_report_md_path: <code>{{ report.stage2_report_md_path or 'N/A' }}</code></li>
+                <li>viewer_payload_path: <code>{{ report.viewer_payload_path or 'N/A' }}</code></li>
+            </ul>
+            {% else %}
+            <p class="job-muted">아직 analysis_reports row가 없습니다.</p>
+            {% endif %}
+        </section>
+    </main>
+</div>
 </body>
 </html>
