@@ -10,6 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from web.config import DEBUG
+from web.routes.reports import init_templates as init_report_templates
+from web.routes.reports import router as reports_router
 from web.services.analysis_job_policy import (
     AnalysisJobValidationError,
     redact_secret_text,
@@ -27,6 +29,8 @@ BASE_DIR = Path(__file__).resolve().parent
 app = FastAPI(title="Security Intelligence Console", debug=DEBUG)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+init_report_templates(templates)
+app.include_router(reports_router)
 job_repository = AnalysisJobRepository()
 
 
@@ -221,14 +225,6 @@ def api_job_status(job_id: int) -> JSONResponse:
         )
     except Exception as exc:
         return JSONResponse({"ok": False, "error": _public_error(exc)}, status_code=500)
-
-
-@app.get("/reports")
-def reports_migration_notice() -> Dict[str, Any]:
-    return {
-        "status": "pending_route_migration",
-        "message": "The legacy Stage2 report viewer was moved off the root. Restore it under /reports in the next refactor step.",
-    }
 
 
 @app.get("/health")
