@@ -144,6 +144,21 @@ FLUSH PRIVILEGES;
 - 특정 log format에 없는 필드는 `NULL` 상태가 정상이다.
 - `raw_log`는 항상 보존한다.
 - Apache가 `-` placeholder를 남긴 값은 shipper에서 `NULL`로 정규화한다.
+- `export_db_logs_cli.py`는 DB에서 `SELECT *`로 조회하고, export 단계에서 `raw_log`를 자동 재파싱하지 않는다.
+
+DDL에 두지 않는 prepare 산출 필드:
+
+- `raw_request_target`
+- `path_normalized_from_raw_request`
+- `likely_html_fallback_response`
+
+위 3개는 DB 원본 컬럼이 아니다. `prepare_llm_input.py` 단계에서 `raw_request`, `uri`, `resp_content_type`, `response_body_bytes`, `raw_log` 등을 바탕으로 보강·정규화되어 downstream 분석에 사용된다. 따라서 이 문서의 MariaDB DDL에는 추가하지 않는다.
+
+주의:
+
+- `request_target`은 v2 security log format에서 DB에 저장될 수 있는 원본 관찰 컬럼이다.
+- `raw_request_target`은 prepare 단계에서 `raw_request`의 request line에서 추출하는 산출 필드다.
+- 두 이름은 비슷하지만 저장 위치와 생성 단계가 다르다.
 
 제거한 파생/비로그 컬럼:
 
@@ -350,6 +365,25 @@ WHERE TABLE_SCHEMA = 'web_logs'
 
 - 결과가 없어야 한다.
 
+prepare 산출 필드가 DB 컬럼으로 생성되지 않았는지 확인:
+
+```sql
+SELECT COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'web_logs'
+  AND TABLE_NAME = 'apache_security_logs'
+  AND COLUMN_NAME IN (
+    'raw_request_target',
+    'path_normalized_from_raw_request',
+    'likely_html_fallback_response'
+  );
+```
+
+기대 결과:
+
+- 결과가 없어야 한다.
+- 위 값들은 `prepare_llm_input.py` 산출 필드이며 MariaDB 원본 저장 컬럼이 아니다.
+
 계정 확인:
 
 ```sql
@@ -366,6 +400,7 @@ SHOW GRANTS FOR 'log_reader'@'192.168.56.110';
 - 각 인덱스 존재
 - `apache_security_logs`에 v1/v2 key=value 대응 컬럼 존재
 - `apache_security_logs`에는 `req_host`가 있고 `host`는 없음
+- `raw_request_target`, `path_normalized_from_raw_request`, `likely_html_fallback_response`는 DB 컬럼으로 없음
 - `log_writer`, `log_reader` 계정과 권한 확인 가능
 
 ## 11. 서버별 접속 검증
@@ -424,6 +459,7 @@ python3 /opt/web_log_analysis/src/export_db_logs_cli.py \
 - v1/v2/remoteip_v2가 섞여도 `log_schema`로 구분 가능한가
 - security log Host header가 `req_host`로 통일되어 저장되는가
 - `raw_log`가 항상 보존되는가
+- prepare 산출 필드를 DB 원본 컬럼으로 오해하지 않았는가
 
 ## 13. v1/v2/remoteip_v2 처리 기준
 
@@ -461,13 +497,13 @@ python3 /opt/web_log_analysis/src/export_db_logs_cli.py \
 - 이 값들은 인증 성공, 로그인 성공, 계정 탈취 성공의 근거가 아니다.
 - `-`, 빈 값, missing 값은 `NULL` 또는 false-equivalent로 처리한다.
 
-## 14. shipper / export 연동 메모
+## 14. shipper / export / prepare 연동 메모
 
 `apache_log_shipper.py`는 Apache key=value 로그를 파싱하고, `-` placeholder를 `NULL`로 정규화한다.
 
 새 구축 DDL은 v1/v2 key=value 필드 중심으로 정리되어 있으므로, shipper insert mapping도 이 DDL과 일치해야 한다.
 
-확인할 항목:
+확인할 DB 저장 항목:
 
 - `log_schema`
 - `server_name`
@@ -486,7 +522,9 @@ python3 /opt/web_log_analysis/src/export_db_logs_cli.py \
 - `has_authorization`
 - `remoteip_proxy_chain`
 
-`export_db_logs_cli.py`는 DB에서 `SELECT *`로 조회한다. 따라서 downstream에서 v2 필드를 별도 JSON field로 사용하려면 해당 값이 DB 컬럼으로 저장되어 있어야 한다. `raw_log`는 원문 보존용이며, export 단계에서 자동 재파싱하지 않는다.
+`export_db_logs_cli.py`는 DB에서 `SELECT *`로 조회한다. 따라서 downstream에서 v2 원본 관찰 필드를 별도 JSON field로 사용하려면 해당 값이 DB 컬럼으로 저장되어 있어야 한다. `raw_log`는 원문 보존용이며, export 단계에서 자동 재파싱하지 않는다.
+
+`prepare_llm_input.py`는 export JSON을 입력받아 downstream 분석용 필드를 추가로 만든다. 대표적으로 `raw_request_target`, `path_normalized_from_raw_request`, `likely_html_fallback_response`는 이 단계의 산출 필드다.
 
 ## 15. Apache logs-only 해석 경계
 
@@ -495,6 +533,7 @@ DB에 v2 필드가 추가되어도 해석 경계는 바뀌지 않는다.
 - `status_code=200`으로 공격 성공/침해 성공을 단정하지 않는다.
 - `status_code=403/404/500/503`만으로 취약점/공격 성공/침해를 단정하지 않는다.
 - `response_body_bytes`, `resp_content_type`, `text/html`로 파일 노출/정보 유출을 단정하지 않는다.
+- `likely_html_fallback_response=True`로 파일 노출/path traversal 성공/침해 성공을 단정하지 않는다.
 - POST metadata만으로 로그인 성공/업로드 저장 성공을 단정하지 않는다.
 - Cookie/Auth presence flag만으로 인증 성공을 단정하지 않는다.
 - `x_forwarded_for`, `x_real_ip`, `forwarded`만으로 attacker identity를 확정하지 않는다.
