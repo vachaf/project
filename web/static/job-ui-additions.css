@@ -1,0 +1,210 @@
+/* Additional UI refinements for DB-backed analysis job pages.
+   Keep this layer small and compatible with the existing job-dashboard.css classes. */
+
+.job-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.job-operator-badge,
+.job-page-kicker,
+.job-stat-code,
+.job-card-subtitle,
+.job-field-help {
+  color: var(--job-muted);
+}
+
+.job-operator-badge {
+  border: 1px solid var(--job-border);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  background: rgba(255, 255, 255, 0.025);
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+}
+
+.job-page-kicker {
+  margin-bottom: 0.35rem;
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.job-stat-card {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.job-stat-card:hover {
+  border-color: rgba(0, 255, 136, 0.5);
+  box-shadow: 0 0 24px rgba(0, 255, 136, 0.12);
+  transform: translateY(-2px);
+}
+
+.job-stat-code {
+  margin-top: 0.35rem;
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.job-card-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 13px;
+}
+
+.job-table-time-range,
+.job-artifact-cell,
+.job-table-action {
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 12px;
+}
+
+.job-table-time-range span,
+.job-artifact-cell {
+  color: var(--job-muted);
+}
+
+.job-artifact-cell {
+  max-width: 220px;
+  overflow-wrap: anywhere;
+}
+
+.job-table-action {
+  font-weight: 700;
+}
+
+.job-policy-strip,
+.job-info-box,
+.job-policy-box,
+.job-artifact-panel {
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.job-policy-strip {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(0, 212, 255, 0.45);
+  background: rgba(0, 212, 255, 0.055);
+  color: #8dd9ff;
+  font-size: 13px;
+}
+
+.job-policy-strip strong,
+.job-info-box strong,
+.job-policy-box strong {
+  flex: 0 0 auto;
+  color: var(--job-text-2);
+}
+
+.job-info-box {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.95rem 1rem;
+  border-left: 4px solid var(--job-info);
+  background: rgba(0, 212, 255, 0.055);
+  color: #8dd9ff;
+  font-size: 13px;
+}
+
+.job-policy-box {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  background: rgba(0, 212, 255, 0.045);
+  color: #8dd9ff;
+  font-size: 13px;
+}
+
+.job-policy-box ul {
+  margin: 0.5rem 0 0 1.1rem;
+  padding: 0;
+}
+
+.job-policy-box li + li {
+  margin-top: 0.25rem;
+}
+
+.job-field-help {
+  margin: 0.35rem 0 0;
+  font-size: 11px;
+}
+
+.job-back-link {
+  display: inline-flex;
+  margin-bottom: 1rem;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.job-artifact-panel {
+  padding: 1rem;
+  border: 1px solid var(--job-border);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.job-report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.job-report-item {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--job-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.job-report-item code {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--job-text-2);
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.job-empty-state-compact {
+  padding: 1.75rem 1rem;
+}
+
+.job-timeline-body {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .job-stats-grid,
+  .job-report-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .job-topbar,
+  .job-page-head,
+  .job-policy-strip,
+  .job-info-box {
+    flex-direction: column;
+  }
+
+  .job-topnav {
+    flex-wrap: wrap;
+  }
+
+  .job-stats-grid,
+  .job-form-row,
+  .job-detail-grid,
+  .job-report-grid {
+    grid-template-columns: 1fr;
+  }
+}
