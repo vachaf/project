@@ -55,11 +55,12 @@ def _public_error(exc: Exception) -> str:
 def _get_requested_user_id(request: Request) -> Optional[int]:
     """Return authenticated user id when auth middleware is added.
 
-    Current MVP skeleton does not enforce login yet. Keeping this helper makes the
-    later auth integration local to one place.
+    Current MVP skeleton does not enforce login yet. Avoid request.session unless
+    SessionMiddleware has installed a session object in request.scope.
     """
 
-    user_id = getattr(request, "session", {}).get("user_id") if hasattr(request, "session") else None
+    session = request.scope.get("session")
+    user_id = session.get("user_id") if isinstance(session, dict) else None
     try:
         return int(user_id) if user_id is not None else None
     except (TypeError, ValueError):
