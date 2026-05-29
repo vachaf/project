@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Job #{{ job.id }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="container">
+    <header class="page-header">
+        <h1>Analysis Job #{{ job.id }}</h1>
+        <p><a href="/">대시보드</a> · <a href="/reports">기존 Stage2 reports</a></p>
+    </header>
+
+    <section class="card">
+        <h2>Metadata</h2>
+        <p><strong>Status:</strong> <span class="status-badge status-{{ job.status|lower }}">{{ job.status }}</span></p>
+        <p><strong>Range (KST):</strong> {{ job.time_from }} ~ {{ job.time_to }}</p>
+        <p><strong>Mode:</strong> {{ job.analysis_mode }}</p>
+        <p><strong>Created (KST):</strong> {{ job.created_at }}</p>
+        <p><strong>Artifact root:</strong> <code>{{ job.artifact_root }}</code></p>
+        {% if job.error_message %}<p><strong>Error:</strong> {{ job.error_message }}</p>{% endif %}
+    </section>
+
+    <section class="card">
+        <h2>Job Events</h2>
+        {% if events %}
+        <table class="jobs-table">
+            <thead><tr><th>Time</th><th>Type</th><th>Message</th><th>Detail</th></tr></thead>
+            <tbody>
+            {% for event in events %}
+                <tr>
+                    <td>{{ event.event_time }}</td>
+                    <td>{{ event.event_type }}</td>
+                    <td>{{ event.message }}</td>
+                    <td>{% if event.detail_json %}<pre>{{ event.detail_json }}</pre>{% else %}-{% endif %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">아직 이벤트가 없습니다.</p>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <h2>Report Metadata</h2>
+        {% if report %}
+        <ul>
+            <li>summary: {{ report.summary or 'N/A' }}</li>
+            <li>stage2_report_path: <code>{{ report.stage2_report_path or 'N/A' }}</code></li>
+            <li>stage2_report_md_path: <code>{{ report.stage2_report_md_path or 'N/A' }}</code></li>
+            <li>viewer_payload_path: <code>{{ report.viewer_payload_path or 'N/A' }}</code></li>
+        </ul>
+        {% else %}
+        <p class="text-muted">아직 analysis_reports row가 없습니다.</p>
+        {% endif %}
+    </section>
+</main>
+</body>
+</html>
