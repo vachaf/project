@@ -152,6 +152,7 @@ body.job-page a:hover {
   color: var(--job-text);
 }
 
+body.job-page a.job-btn-primary,
 .job-btn-primary,
 .job-page button.job-btn-primary {
   background: var(--job-accent);
@@ -159,6 +160,7 @@ body.job-page a:hover {
   border-color: var(--job-accent);
 }
 
+body.job-page a.job-btn-primary:hover,
 .job-btn-primary:hover,
 .job-page button.job-btn-primary:hover {
   background: var(--job-accent-2);
