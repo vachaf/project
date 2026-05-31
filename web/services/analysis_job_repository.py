@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -74,6 +75,20 @@ class AnalysisJobRepository:
     def __init__(self, connection_factory=app_db_connection):
         self.connection_factory = connection_factory
 
+    def _select_job_by_id(self, cur: Any, job_id: int) -> Optional[Dict[str, Any]]:
+        cur.execute(
+            """
+            SELECT id, requested_by, time_from, time_to, requested_timezone,
+                   status, analysis_mode, created_at, started_at, finished_at,
+                   worker_id, heartbeat_at, attempt_count, max_attempts,
+                   error_message, artifact_root
+            FROM analysis_jobs
+            WHERE id = %s
+            """,
+            (job_id,),
+        )
+        return cur.fetchone()
+
     def count_by_status(self) -> Dict[str, int]:
         counts = dict(DEFAULT_STATUS_COUNTS)
         with self.connection_factory() as conn:
@@ -124,6 +139,80 @@ class AnalysisJobRepository:
                 )
                 return cur.fetchone()
 
+    def claim_next_pending_full_report_job(self, *, worker_id: str) -> Optional[Dict[str, Any]]:
+        """Atomically claim one PENDING full_report job for a worker.
+
+        This intentionally uses SELECT ... FOR UPDATE followed by UPDATE by id so
+        the claimed row is unambiguous without relying on worker_id lookups,
+        LAST_INSERT_ID tricks, or SKIP LOCKED.
+        """
+
+        safe_worker_id = str(worker_id or "").strip()
+        if not safe_worker_id:
+            raise AnalysisJobRepositoryError("worker_id is required")
+
+        with self.connection_factory() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("START TRANSACTION")
+                    cur.execute(
+                        """
+                        SELECT *
+                        FROM analysis_jobs
+                        WHERE status = 'PENDING'
+                          AND analysis_mode = 'full_report'
+                          AND attempt_count < max_attempts
+                        ORDER BY created_at ASC, id ASC
+                        LIMIT 1
+                        FOR UPDATE
+                        """
+                    )
+                    candidate = cur.fetchone()
+                    if not candidate:
+                        conn.rollback()
+                        return None
+
+                    job_id = int(candidate["id"])
+                    cur.execute(
+                        """
+                        UPDATE analysis_jobs
+                        SET status = 'RUNNING',
+                            started_at = COALESCE(started_at, UTC_TIMESTAMP(3)),
+                            worker_id = %s,
+                            heartbeat_at = UTC_TIMESTAMP(3),
+                            attempt_count = attempt_count + 1,
+                            error_message = NULL
+                        WHERE id = %s
+                          AND status = 'PENDING'
+                        """,
+                        (safe_worker_id, job_id),
+                    )
+                    if cur.rowcount != 1:
+                        conn.rollback()
+                        return None
+
+                    claimed = self._select_job_by_id(cur, job_id)
+                    cur.execute(
+                        """
+                        INSERT INTO job_events (
+                            job_id, event_time, event_type, message, detail_json
+                        ) VALUES (
+                            %s, UTC_TIMESTAMP(3), %s, %s, %s
+                        )
+                        """,
+                        (
+                            job_id,
+                            "JOB_CLAIMED",
+                            "Job claimed by Analysis Job Worker",
+                            _event_detail_json({"worker_id": safe_worker_id}),
+                        ),
+                    )
+                conn.commit()
+                return claimed
+            except Exception as exc:
+                conn.rollback()
+                raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
+
     def get_job_events(self, job_id: int) -> List[Dict[str, Any]]:
         with self.connection_factory() as conn:
             with conn.cursor() as cur:
@@ -157,6 +246,156 @@ class AnalysisJobRepository:
                     (job_id,),
                 )
                 return cur.fetchone()
+
+    def append_job_event(
+        self,
+        *,
+        job_id: int,
+        event_type: str,
+        message: Optional[str] = None,
+        detail_json: Optional[Any] = None,
+    ) -> None:
+        with self.connection_factory() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO job_events (
+                            job_id, event_time, event_type, message, detail_json
+                        ) VALUES (
+                            %s, UTC_TIMESTAMP(3), %s, %s, %s
+                        )
+                        """,
+                        (
+                            int(job_id),
+                            str(event_type),
+                            message,
+                            _event_detail_json(detail_json),
+                        ),
+                    )
+                conn.commit()
+            except Exception as exc:
+                conn.rollback()
+                raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
+
+    def mark_job_failed(
+        self,
+        *,
+        job_id: int,
+        worker_id: str,
+        error_message: str,
+        detail_json: Optional[Any] = None,
+    ) -> bool:
+        safe_error = redact_secret_text(error_message)
+        with self.connection_factory() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("START TRANSACTION")
+                    cur.execute(
+                        """
+                        UPDATE analysis_jobs
+                        SET status = 'FAILED',
+                            finished_at = UTC_TIMESTAMP(3),
+                            heartbeat_at = UTC_TIMESTAMP(3),
+                            error_message = %s
+                        WHERE id = %s
+                          AND status = 'RUNNING'
+                          AND worker_id = %s
+                        """,
+                        (safe_error, int(job_id), str(worker_id)),
+                    )
+                    if cur.rowcount != 1:
+                        conn.rollback()
+                        return False
+                    cur.execute(
+                        """
+                        INSERT INTO job_events (
+                            job_id, event_time, event_type, message, detail_json
+                        ) VALUES (
+                            %s, UTC_TIMESTAMP(3), %s, %s, %s
+                        )
+                        """,
+                        (
+                            int(job_id),
+                            "JOB_FAILED",
+                            safe_error,
+                            _event_detail_json(detail_json),
+                        ),
+                    )
+                conn.commit()
+                return True
+            except Exception as exc:
+                conn.rollback()
+                raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
+
+    def mark_job_succeeded(
+        self,
+        *,
+        job_id: int,
+        worker_id: str,
+        detail_json: Optional[Any] = None,
+    ) -> bool:
+        with self.connection_factory() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("START TRANSACTION")
+                    cur.execute(
+                        """
+                        UPDATE analysis_jobs
+                        SET status = 'SUCCEEDED',
+                            finished_at = UTC_TIMESTAMP(3),
+                            heartbeat_at = UTC_TIMESTAMP(3),
+                            error_message = NULL
+                        WHERE id = %s
+                          AND status = 'RUNNING'
+                          AND worker_id = %s
+                        """,
+                        (int(job_id), str(worker_id)),
+                    )
+                    if cur.rowcount != 1:
+                        conn.rollback()
+                        return False
+                    cur.execute(
+                        """
+                        INSERT INTO job_events (
+                            job_id, event_time, event_type, message, detail_json
+                        ) VALUES (
+                            %s, UTC_TIMESTAMP(3), %s, %s, %s
+                        )
+                        """,
+                        (
+                            int(job_id),
+                            "JOB_SUCCEEDED",
+                            "Job succeeded",
+                            _event_detail_json(detail_json),
+                        ),
+                    )
+                conn.commit()
+                return True
+            except Exception as exc:
+                conn.rollback()
+                raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
+
+    def update_job_heartbeat(self, *, job_id: int, worker_id: str) -> bool:
+        with self.connection_factory() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE analysis_jobs
+                        SET heartbeat_at = UTC_TIMESTAMP(3)
+                        WHERE id = %s
+                          AND status = 'RUNNING'
+                          AND worker_id = %s
+                        """,
+                        (int(job_id), str(worker_id)),
+                    )
+                    changed = cur.rowcount == 1
+                conn.commit()
+                return changed
+            except Exception as exc:
+                conn.rollback()
+                raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
 
     def create_job(
         self,
@@ -270,6 +509,14 @@ def _job_created_detail_json(requested_by: Optional[int], request: ValidatedAnal
         ensure_ascii=False,
         sort_keys=True,
     )
+
+
+def _event_detail_json(value: Optional[Any]) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 
 def utc_naive_to_kst_text(value: Any, fmt: str = "%Y-%m-%d %H:%M") -> str:
