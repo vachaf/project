@@ -4,13 +4,15 @@ import json
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
-from web.services.analysis_job_repository import AnalysisJobRepository
+from web.services.analysis_job_repository import ANALYSIS_REPORT_UPSERT_COLUMNS, AnalysisJobRepository
 
 
 class FakeDb:
     def __init__(self, jobs: Optional[List[Dict[str, Any]]] = None) -> None:
         self.jobs = jobs or []
         self.events: List[Dict[str, Any]] = []
+        self.reports: List[Dict[str, Any]] = []
+        self.sql_statements: List[str] = []
         self.commits = 0
         self.rollbacks = 0
         self._tick = 0
@@ -54,6 +56,7 @@ class FakeCursor:
 
     def execute(self, sql: str, params: Any = None) -> None:
         normalized = " ".join(sql.lower().split())
+        self.db.sql_statements.append(normalized)
         self.rowcount = 0
         self._rows = []
 
@@ -136,6 +139,26 @@ class FakeCursor:
             self.rowcount = 1
             return
 
+        if "insert into analysis_reports" in normalized and "on duplicate key update" in normalized:
+            if "manifest_path" in normalized or "updated_at" in normalized:
+                raise AssertionError(f"DDL-mismatched column in SQL: {sql}")
+
+            values = dict(zip(ANALYSIS_REPORT_UPSERT_COLUMNS, params))
+            existing = self._report(int(values["job_id"]))
+            if existing:
+                existing.update(values)
+                self.rowcount = 2
+                return
+
+            row = {
+                "id": len(self.db.reports) + 1,
+                **values,
+                "created_at": self.db.now(),
+            }
+            self.db.reports.append(row)
+            self.rowcount = 1
+            return
+
         raise AssertionError(f"Unhandled SQL: {sql}")
 
     def fetchone(self) -> Optional[Dict[str, Any]]:
@@ -148,6 +171,12 @@ class FakeCursor:
         for job in self.db.jobs:
             if int(job["id"]) == job_id:
                 return job
+        return None
+
+    def _report(self, job_id: int) -> Optional[Dict[str, Any]]:
+        for report in self.db.reports:
+            if int(report["job_id"]) == job_id:
+                return report
         return None
 
 
@@ -323,3 +352,105 @@ def test_mark_job_succeeded_returns_false_for_worker_mismatch() -> None:
     assert repo.mark_job_succeeded(job_id=1, worker_id="worker-2") is False
     assert db.jobs[0]["status"] == "RUNNING"
     assert db.events == []
+
+
+def test_upsert_analysis_report_inserts_direct_full_report_paths() -> None:
+    db = FakeDb()
+    repo = make_repo(db)
+
+    repo.upsert_analysis_report(
+        job_id=1,
+        artifact_root="runs/jobs/1",
+        summary="direct report",
+        export_path="runs/jobs/1/export/security.json",
+        llm_input_path="runs/jobs/1/llm_input.json",
+        analysis_candidates_path="runs/jobs/1/analysis_candidates.json",
+        noise_summary_path="runs/jobs/1/noise_summary.json",
+        stage1_result_path="runs/jobs/1/stage1_result.json",
+        stage2_report_path="runs/jobs/1/stage2_report.json",
+        stage2_report_md_path="runs/jobs/1/stage2_report.md",
+        viewer_payload_path="runs/jobs/1/viewer_payload.json",
+        lint_result_path="runs/jobs/1/lint_result.json",
+    )
+
+    assert len(db.reports) == 1
+    report = db.reports[0]
+    assert report["job_id"] == 1
+    assert report["artifact_root"] == "runs/jobs/1"
+    assert report["summary"] == "direct report"
+    assert report["export_path"] == "runs/jobs/1/export/security.json"
+    assert report["llm_input_path"] == "runs/jobs/1/llm_input.json"
+    assert report["analysis_candidates_path"] == "runs/jobs/1/analysis_candidates.json"
+    assert report["noise_summary_path"] == "runs/jobs/1/noise_summary.json"
+    assert report["stage1_result_path"] == "runs/jobs/1/stage1_result.json"
+    assert report["stage2_report_path"] == "runs/jobs/1/stage2_report.json"
+    assert report["stage2_report_md_path"] == "runs/jobs/1/stage2_report.md"
+    assert report["viewer_payload_path"] == "runs/jobs/1/viewer_payload.json"
+    assert report["lint_result_path"] == "runs/jobs/1/lint_result.json"
+    assert report["window_summary_path"] is None
+    assert report["rollup_input_path"] is None
+    assert report["rollup_summary_path"] is None
+    assert report["operator_queue_items_path"] is None
+    assert report["operator_queue_summary_path"] is None
+    assert db.commits == 1
+
+
+def test_upsert_analysis_report_updates_existing_row_by_unique_job_id() -> None:
+    db = FakeDb()
+    repo = make_repo(db)
+
+    repo.upsert_analysis_report(
+        job_id=1,
+        artifact_root="runs/jobs/1",
+        summary="first",
+        stage2_report_path="runs/jobs/1/old_stage2_report.json",
+    )
+    first_created_at = db.reports[0]["created_at"]
+    repo.upsert_analysis_report(
+        job_id=1,
+        artifact_root="runs/jobs/1",
+        summary="second",
+        stage2_report_path="runs/jobs/1/stage2_report.json",
+        stage2_report_md_path="runs/jobs/1/stage2_report.md",
+        viewer_payload_path="runs/jobs/1/viewer_payload.json",
+    )
+
+    assert len(db.reports) == 1
+    assert db.reports[0]["summary"] == "second"
+    assert db.reports[0]["stage2_report_path"] == "runs/jobs/1/stage2_report.json"
+    assert db.reports[0]["stage2_report_md_path"] == "runs/jobs/1/stage2_report.md"
+    assert db.reports[0]["viewer_payload_path"] == "runs/jobs/1/viewer_payload.json"
+    assert db.reports[0]["created_at"] == first_created_at
+
+
+def test_upsert_analysis_report_sql_does_not_use_manifest_path_or_updated_at() -> None:
+    db = FakeDb()
+    repo = make_repo(db)
+
+    repo.upsert_analysis_report(job_id=1, artifact_root="runs/jobs/1")
+
+    sql = "\n".join(db.sql_statements)
+    assert "manifest_path" not in sql
+    assert "updated_at" not in sql
+
+
+def test_upsert_analysis_report_can_store_windowed_followup_paths_when_explicit() -> None:
+    db = FakeDb()
+    repo = make_repo(db)
+
+    repo.upsert_analysis_report(
+        job_id=2,
+        artifact_root="runs/jobs/2",
+        window_summary_path="runs/jobs/2/window_summary.json",
+        rollup_input_path="runs/jobs/2/rollup_input.json",
+        rollup_summary_path="runs/jobs/2/rollup_summary.json",
+        operator_queue_items_path="runs/jobs/2/queue_items.json",
+        operator_queue_summary_path="runs/jobs/2/queue_summary.json",
+    )
+
+    report = db.reports[0]
+    assert report["window_summary_path"] == "runs/jobs/2/window_summary.json"
+    assert report["rollup_input_path"] == "runs/jobs/2/rollup_input.json"
+    assert report["rollup_summary_path"] == "runs/jobs/2/rollup_summary.json"
+    assert report["operator_queue_items_path"] == "runs/jobs/2/queue_items.json"
+    assert report["operator_queue_summary_path"] == "runs/jobs/2/queue_summary.json"

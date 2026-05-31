@@ -18,6 +18,25 @@ from web.services.analysis_job_policy import (
 
 DEFAULT_STATUS_COUNTS = {"PENDING": 0, "RUNNING": 0, "SUCCEEDED": 0, "FAILED": 0}
 ACTIVE_JOB_STATUSES = ("PENDING", "RUNNING")
+ANALYSIS_REPORT_UPSERT_COLUMNS = (
+    "job_id",
+    "summary",
+    "artifact_root",
+    "export_path",
+    "llm_input_path",
+    "analysis_candidates_path",
+    "noise_summary_path",
+    "stage1_result_path",
+    "stage2_report_path",
+    "stage2_report_md_path",
+    "viewer_payload_path",
+    "lint_result_path",
+    "window_summary_path",
+    "rollup_input_path",
+    "rollup_summary_path",
+    "operator_queue_items_path",
+    "operator_queue_summary_path",
+)
 
 
 class AnalysisJobRepositoryError(RuntimeError):
@@ -246,6 +265,86 @@ class AnalysisJobRepository:
                     (job_id,),
                 )
                 return cur.fetchone()
+
+    def upsert_analysis_report(
+        self,
+        *,
+        job_id: int,
+        artifact_root: str,
+        summary: Optional[str] = None,
+        export_path: Optional[str] = None,
+        llm_input_path: Optional[str] = None,
+        analysis_candidates_path: Optional[str] = None,
+        noise_summary_path: Optional[str] = None,
+        stage1_result_path: Optional[str] = None,
+        stage2_report_path: Optional[str] = None,
+        stage2_report_md_path: Optional[str] = None,
+        viewer_payload_path: Optional[str] = None,
+        lint_result_path: Optional[str] = None,
+        window_summary_path: Optional[str] = None,
+        rollup_input_path: Optional[str] = None,
+        rollup_summary_path: Optional[str] = None,
+        operator_queue_items_path: Optional[str] = None,
+        operator_queue_summary_path: Optional[str] = None,
+    ) -> None:
+        """Insert or update analysis_reports metadata for one job.
+
+        The direct full_report runner is expected to populate only export,
+        prepare, Stage1, Stage2, viewer_payload, and lint paths. Window,
+        rollup, and operator queue paths are accepted for the later
+        windowed_triage mode but should remain NULL for the full_report MVP.
+        """
+
+        safe_artifact_root = str(artifact_root or "").strip()
+        if not safe_artifact_root:
+            raise AnalysisJobRepositoryError("artifact_root is required")
+
+        values = {
+            "job_id": int(job_id),
+            "summary": summary,
+            "artifact_root": safe_artifact_root,
+            "export_path": export_path,
+            "llm_input_path": llm_input_path,
+            "analysis_candidates_path": analysis_candidates_path,
+            "noise_summary_path": noise_summary_path,
+            "stage1_result_path": stage1_result_path,
+            "stage2_report_path": stage2_report_path,
+            "stage2_report_md_path": stage2_report_md_path,
+            "viewer_payload_path": viewer_payload_path,
+            "lint_result_path": lint_result_path,
+            "window_summary_path": window_summary_path,
+            "rollup_input_path": rollup_input_path,
+            "rollup_summary_path": rollup_summary_path,
+            "operator_queue_items_path": operator_queue_items_path,
+            "operator_queue_summary_path": operator_queue_summary_path,
+        }
+        column_list = ", ".join(ANALYSIS_REPORT_UPSERT_COLUMNS)
+        placeholders = ", ".join(["%s"] * len(ANALYSIS_REPORT_UPSERT_COLUMNS))
+        update_list = ", ".join(
+            f"{column} = VALUES({column})"
+            for column in ANALYSIS_REPORT_UPSERT_COLUMNS
+            if column != "job_id"
+        )
+
+        with self.connection_factory() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"""
+                        INSERT INTO analysis_reports (
+                            {column_list}
+                        ) VALUES (
+                            {placeholders}
+                        )
+                        ON DUPLICATE KEY UPDATE
+                            {update_list}
+                        """,
+                        tuple(values[column] for column in ANALYSIS_REPORT_UPSERT_COLUMNS),
+                    )
+                conn.commit()
+            except Exception as exc:
+                conn.rollback()
+                raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
 
     def append_job_event(
         self,
