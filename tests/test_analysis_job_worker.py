@@ -245,6 +245,54 @@ def test_main_once_without_run_pipeline_preserves_claim_only_default() -> None:
     assert repo.failed_calls == 0
 
 
+def test_run_pipeline_without_dry_run_passes_pipeline_dry_run_false() -> None:
+    repo = FakeRepository(claimed_job())
+    runner = FakeRunner()
+    factory = RecordingRunnerFactory(runner)
+
+    exit_code = analysis_job_worker.main(
+        ["--once", "--run-pipeline", "--worker-id", "local-dev"],
+        repository_factory=lambda: repo,
+        runner_factory=factory,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert factory.calls == [{"project_root": None, "timeout_seconds": None, "pipeline_dry_run": False}]
+
+
+def test_run_pipeline_with_pipeline_dry_run_passes_true_to_runner_factory() -> None:
+    repo = FakeRepository(claimed_job())
+    runner = FakeRunner()
+    factory = RecordingRunnerFactory(runner)
+
+    exit_code = analysis_job_worker.main(
+        ["--once", "--run-pipeline", "--pipeline-dry-run", "--worker-id", "local-dev"],
+        repository_factory=lambda: repo,
+        runner_factory=factory,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert factory.calls == [{"project_root": None, "timeout_seconds": None, "pipeline_dry_run": True}]
+
+
+def test_pipeline_dry_run_without_run_pipeline_is_argparse_error() -> None:
+    with pytest.raises(SystemExit) as exc:
+        analysis_job_worker.main(["--once", "--pipeline-dry-run"])
+
+    assert exc.value.code == 2
+
+
+def test_claim_only_with_pipeline_dry_run_is_argparse_error() -> None:
+    with pytest.raises(SystemExit) as exc:
+        analysis_job_worker.main(["--once", "--claim-only", "--pipeline-dry-run"])
+
+    assert exc.value.code == 2
+
+
 def test_run_pipeline_success_runs_runner_upserts_report_and_marks_succeeded() -> None:
     repo = FakeRepository(claimed_job())
     runner = FakeRunner()
@@ -374,7 +422,7 @@ def test_main_passes_timeout_and_project_root_to_runner_factory() -> None:
     )
 
     assert exit_code == 0
-    assert factory.calls == [{"project_root": "/tmp/project-root", "timeout_seconds": 321}]
+    assert factory.calls == [{"project_root": "/tmp/project-root", "timeout_seconds": 321, "pipeline_dry_run": False}]
     assert repo.claim_worker_id == "worker-x"
     assert repo.succeeded_kwargs[0]["worker_id"] == "worker-x"
 

@@ -107,6 +107,28 @@ def test_pipeline_command_uses_expected_direct_cli_contract(tmp_path: Path) -> N
     assert option_value(pipeline_cmd, "--run-dir") == str((tmp_path / "runs/jobs/123").resolve())
     assert option_value(pipeline_cmd, "--mode") == "routine"
     assert "--pretty" in pipeline_cmd
+    assert "--dry-run" not in pipeline_cmd
+
+
+def test_pipeline_dry_run_adds_dry_run_to_pipeline_command_only(tmp_path: Path) -> None:
+    fake = FakeSubprocess()
+    runner = FullReportJobRunner(project_root=tmp_path, pipeline_dry_run=True, subprocess_run=fake)
+
+    runner.run(make_job())
+
+    export_cmd = fake.calls[0][0]
+    pipeline_cmd = fake.calls[1][0]
+    assert "--dry-run" not in export_cmd
+    assert "--dry-run" in pipeline_cmd
+
+
+def test_pipeline_dry_run_false_does_not_add_dry_run(tmp_path: Path) -> None:
+    fake = FakeSubprocess()
+    runner = FullReportJobRunner(project_root=tmp_path, pipeline_dry_run=False, subprocess_run=fake)
+
+    runner.run(make_job())
+
+    assert "--dry-run" not in fake.calls[1][0]
 
 
 def test_existing_artifact_root_fails_before_subprocess(tmp_path: Path) -> None:

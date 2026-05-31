@@ -175,6 +175,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="project root passed to FullReportJobRunner",
     )
+    parser.add_argument(
+        "--pipeline-dry-run",
+        action="store_true",
+        help="ask the full_report runner to execute the pipeline in dry-run mode",
+    )
     return parser
 
 
@@ -188,6 +193,8 @@ def main(
 ) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.pipeline_dry_run and not args.run_pipeline:
+        parser.error("--pipeline-dry-run requires --run-pipeline")
     worker_id = args.worker_id or build_default_worker_id()
 
     if not args.once:
@@ -204,6 +211,7 @@ def main(
             runner = runner_factory(
                 project_root=args.project_root,
                 timeout_seconds=args.timeout_seconds,
+                pipeline_dry_run=bool(args.pipeline_dry_run),
             )
         return run_once(
             repository,

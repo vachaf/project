@@ -75,6 +75,7 @@ class FullReportJobRunner:
         python_executable: str = sys.executable,
         export_table: str = "security",
         pipeline_mode: str = "routine",
+        pipeline_dry_run: bool = False,
         timeout_seconds: Optional[int] = None,
         env: Optional[Mapping[str, str]] = None,
         subprocess_run: SubprocessRun = subprocess.run,
@@ -83,6 +84,7 @@ class FullReportJobRunner:
         self.python_executable = python_executable
         self.export_table = export_table
         self.pipeline_mode = pipeline_mode
+        self.pipeline_dry_run = bool(pipeline_dry_run)
         self.timeout_seconds = timeout_seconds
         self.env = dict(env) if env is not None else None
         self.subprocess_run = subprocess_run
@@ -137,7 +139,7 @@ class FullReportJobRunner:
         scratch_work_dir: Path,
         artifact_root_path: Path,
     ) -> list[str]:
-        return [
+        cmd = [
             self.python_executable,
             str(self.project_root / "src" / "run_analysis_pipeline.py"),
             "--export-input",
@@ -152,6 +154,9 @@ class FullReportJobRunner:
             self.pipeline_mode,
             "--pretty",
         ]
+        if self.pipeline_dry_run:
+            cmd.append("--dry-run")
+        return cmd
 
     def build_artifact_mapping(self, artifact_root: str, *, scratch_work_dir: Path) -> FullReportRunResult:
         artifact_root_path = self._resolve_under_project_root(artifact_root)
