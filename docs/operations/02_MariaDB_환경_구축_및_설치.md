@@ -3,7 +3,7 @@
 - 문서 상태: 구축문서
 - 버전: v1.5
 - 작성일: 2026-05-23
-- 최근 갱신: 2026-05-29
+- 최근 갱신: 2026-05-31
 - 기준 코드:
   - `src/apache_log_shipper.py`
   - `src/export_db_logs_cli.py`
@@ -58,6 +58,10 @@
 주의:
 
 - SQL 파일의 IP와 password 예시는 실제 환경에 맞게 수정해야 한다.
+- SQL 파일에 들어 있는 password 값은 재현용 임시값 또는 placeholder다. 그대로 운영/공유 환경에 적용하지 않는다.
+- SQL 적용 전에 `docs/operations/sql/00_database_and_log_accounts.sql`, `docs/operations/sql/10_log_source_table_grants.sql`, `docs/operations/sql/11_analysis_app_grants.sql`의 계정 host/IP와 password를 먼저 점검하고 교체한다.
+- SQL 적용 후에는 `config/.env`와 웹서버 shipper env에 같은 실제 DB 접속 정보를 반영한다.
+- 실제 password를 문서, git commit, issue, PR, 공유 로그에 남기지 않는다.
 - `log_reader`는 원본 로그 조회 전용이다.
 - DB-backed MVP의 `analysis_jobs`, `analysis_reports`, `job_events` 쓰기는 `analysis_app` 같은 별도 계정을 사용한다.
 
@@ -67,13 +71,14 @@
 2. MariaDB 설치
 3. 서비스 시작
 4. `bind-address` 설정
-5. DB와 계정 생성 SQL 적용
-6. source log table DDL 적용
-7. DB-backed MVP operation/control table DDL 적용
-8. source log table grant 적용
-9. analysis app grant 적용
-10. 접속 및 schema 검증
-11. 웹서버/LLM 서버에서 외부 접속 검증
+5. SQL 예시 IP/password 교체
+6. DB와 계정 생성 SQL 적용
+7. source log table DDL 적용
+8. DB-backed MVP operation/control table DDL 적용
+9. source log table grant 적용
+10. analysis app grant 적용
+11. 접속 및 schema 검증
+12. 웹서버/LLM 서버에서 외부 접속 검증
 
 ## 5. MariaDB 설치
 
@@ -129,6 +134,30 @@ cd ~
 git clone https://github.com/vachaf/project
 cd ~/project
 ```
+
+### 7.0 SQL 예시값 교체
+
+`docs/operations/sql/` 아래 SQL은 재현 가능한 초기 구축을 위해 예시 IP와 임시 password를 포함할 수 있다.
+
+실제 DB에 적용하기 전에 아래 항목을 먼저 교체한다.
+
+- 웹서버/LLM 서버 host 또는 IP
+- `log_writer` password
+- `log_reader` password
+- `analysis_app` password
+- 필요 시 계정 host 범위
+
+점검 예시:
+
+```bash
+grep -RniE "password|change_me|YOUR|192\.168\.56" docs/operations/sql
+```
+
+주의:
+
+- 예시 password를 그대로 운영 DB에 적용하지 않는다.
+- 실제 password를 SQL 파일에 넣은 상태로 commit하지 않는다.
+- SQL 적용 후 실제 접속 값은 `config/.env`와 웹서버 shipper env에도 동일하게 반영한다.
 
 ### 7.1 DB와 기본 계정 생성
 
@@ -365,6 +394,9 @@ mariadb -u analysis_app -p -h 192.168.56.109 -D web_logs -e "SHOW TABLES LIKE 'a
 ## 12. 운영 체크포인트
 
 - `bind-address` 가 내부망 IP로 설정되었는가
+- SQL 예시 IP/password를 실제 환경 값으로 교체했는가
+- 예시 password를 그대로 적용하지 않았는가
+- 실제 password가 git commit, 문서, issue, PR, 공유 로그에 남지 않았는가
 - `log_writer`, `log_reader`, `analysis_app` 계정이 분리되었는가
 - 웹서버에서 `log_writer` 접속이 되는가
 - LLM/Analysis 서버에서 `log_reader` 접속이 되는가
