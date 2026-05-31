@@ -133,6 +133,12 @@
                 </div>
             </div>
             {% if report %}
+            {% macro artifact_value(job_id, artifact_key, path_value) -%}
+            <code>{{ path_value or 'not generated' }}</code>
+            {% if path_value %}
+            <a class="job-artifact-open-link" href="/job/{{ job_id }}/artifact/{{ artifact_key }}">Open</a>
+            {% endif %}
+            {%- endmacro %}
             <div class="job-report-grid">
                 <div class="job-report-item">
                     <div class="job-detail-label">Summary</div>
@@ -144,39 +150,39 @@
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Export</div>
-                    <code>{{ report.export_path or 'not generated' }}</code>
+                    {{ artifact_value(job.id, 'export', report.export_path) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">LLM Input</div>
-                    <code>{{ report.llm_input_path or 'not generated' }}</code>
+                    {{ artifact_value(job.id, 'llm_input', report.llm_input_path) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Analysis Candidates</div>
-                    <code>{{ report.analysis_candidates_path or 'not generated' }}</code>
+                    {{ artifact_value(job.id, 'analysis_candidates', report.analysis_candidates_path) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Noise Summary</div>
-                    <code>{{ report.noise_summary_path or 'not generated' }}</code>
+                    {{ artifact_value(job.id, 'noise_summary', report.noise_summary_path) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Stage1 Result</div>
-                    <code>{{ report.stage1_result_path or 'not generated' }}</code>
+                    {{ artifact_value(job.id, 'stage1_result', report.stage1_result_path) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Stage2 Report JSON</div>
-                    <code>{{ report.stage2_report_path or 'not generated' }}</code>
+                    {{ artifact_value(job.id, 'stage2_report', report.stage2_report_path) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Stage2 Report Markdown</div>
-                    <code>{{ report.stage2_report_md_path or 'not generated' }}</code>
+                    {{ artifact_value(job.id, 'stage2_report_md', report.stage2_report_md_path) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Viewer Payload</div>
-                    <code>{{ report.viewer_payload_path or 'not generated' }}</code>
+                    {{ artifact_value(job.id, 'viewer_payload', report.viewer_payload_path) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Lint Result</div>
-                    <code>{{ report.lint_result_path or 'not generated' }}</code>
+                    {{ artifact_value(job.id, 'lint_result', report.lint_result_path) }}
                 </div>
             </div>
             {% else %}

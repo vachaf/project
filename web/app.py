@@ -4,12 +4,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from web.config import DEBUG
+from web.config import DEBUG, PROJECT_ROOT
 from web.routes.reports import _apply_src_ip_display_mode
 from web.routes.reports import _is_mask_src_ip_enabled
 from web.routes.reports import init_templates as init_report_templates
@@ -20,6 +20,7 @@ from web.routes.reports import sanitize_viewer_payload_summary
 from web.services.analysis_job_policy import (
     AnalysisJobValidationError,
     redact_secret_text,
+    validate_relative_artifact_path,
     validate_analysis_job_request,
 )
 from web.services.analysis_job_repository import (
@@ -37,6 +38,18 @@ templates = Jinja2Templates(directory=BASE_DIR / "templates")
 init_report_templates(templates)
 app.include_router(reports_router)
 job_repository = AnalysisJobRepository()
+
+ARTIFACT_KEY_TO_REPORT_COLUMN = {
+    "export": "export_path",
+    "llm_input": "llm_input_path",
+    "analysis_candidates": "analysis_candidates_path",
+    "noise_summary": "noise_summary_path",
+    "stage1_result": "stage1_result_path",
+    "stage2_report": "stage2_report_path",
+    "stage2_report_md": "stage2_report_md_path",
+    "viewer_payload": "viewer_payload_path",
+    "lint_result": "lint_result_path",
+}
 
 
 def _default_new_job_range() -> Dict[str, str]:
@@ -65,6 +78,61 @@ def _get_requested_user_id(request: Request) -> Optional[int]:
         return int(user_id) if user_id is not None else None
     except (TypeError, ValueError):
         return None
+
+
+def _artifact_not_found() -> HTTPException:
+    return HTTPException(status_code=404, detail="artifact not found")
+
+
+def _is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def _resolve_report_artifact_path(report: Dict[str, Any], artifact_key: str) -> Path:
+    column = ARTIFACT_KEY_TO_REPORT_COLUMN.get(artifact_key)
+    if not column:
+        raise _artifact_not_found()
+
+    raw_path = report.get(column)
+    if not raw_path:
+        raise _artifact_not_found()
+
+    try:
+        relative_path = validate_relative_artifact_path(raw_path)
+    except AnalysisJobValidationError:
+        raise _artifact_not_found() from None
+
+    project_root = PROJECT_ROOT.resolve()
+    resolved_path = (project_root / relative_path).resolve()
+    if not _is_relative_to(resolved_path, project_root):
+        raise _artifact_not_found()
+
+    raw_artifact_root = report.get("artifact_root")
+    if raw_artifact_root:
+        try:
+            relative_artifact_root = validate_relative_artifact_path(raw_artifact_root)
+        except AnalysisJobValidationError:
+            raise _artifact_not_found() from None
+        artifact_root_path = (project_root / relative_artifact_root).resolve()
+        if not _is_relative_to(resolved_path, artifact_root_path):
+            raise _artifact_not_found()
+
+    if not resolved_path.is_file():
+        raise _artifact_not_found()
+    return resolved_path
+
+
+def _artifact_media_type(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix == ".json":
+        return "application/json"
+    if suffix == ".md":
+        return "text/markdown; charset=utf-8"
+    return "text/plain; charset=utf-8"
 
 
 @app.get("/")
@@ -207,6 +275,20 @@ def job_detail(request: Request, job_id: int):
         name="job_detail.html",
         context={"job": job, "events": events, "report": report},
     )
+
+
+@app.get("/job/{job_id}/artifact/{artifact_key}")
+def job_artifact(job_id: int, artifact_key: str) -> Response:
+    report = job_repository.get_latest_report_for_job(job_id)
+    if report is None:
+        raise _artifact_not_found()
+
+    artifact_path = _resolve_report_artifact_path(report, artifact_key)
+    try:
+        content = artifact_path.read_bytes()
+    except OSError:
+        raise _artifact_not_found() from None
+    return Response(content=content, media_type=_artifact_media_type(artifact_path))
 
 
 @app.get("/api/job/{job_id}/status")
