@@ -1,6 +1,6 @@
 # Apache Logs-Only LLM Intrusion Analysis Pipeline
 
-Apache 웹 로그를 MariaDB에 적재하고, Web UI에서 등록한 `analysis_jobs`를 Analysis Agent가 가져와 `full_report` 분석을 실행한 뒤 결과를 확인하는 DB-backed LLM 침입 로그 분석 플랫폼입니다.
+Apache 웹 로그를 MariaDB에 적재하고, Web UI에서 등록한 `analysis_jobs`를 Analysis Job Worker가 가져와 `full_report` 분석을 실행한 뒤 결과를 확인하는 DB-backed LLM 침입 로그 분석 플랫폼입니다.
 
 현재 canonical architecture overview는 [docs/00_current_architecture.md](docs/00_current_architecture.md)입니다. 처음 구조를 확인할 때 이 문서를 먼저 읽습니다.
 
@@ -9,8 +9,9 @@ Apache 웹 로그를 MariaDB에 적재하고, Web UI에서 등록한 `analysis_j
 ## 프로젝트 개요
 
 - Apache 웹 로그 기반 분석
-- DB-backed MVP 상위 흐름: `Apache logs -> MariaDB -> analysis_jobs -> Analysis Agent -> full_report artifacts -> Web UI`
-- `full_report` 내부 분석 흐름: `export -> prepare -> sliding window / rollup / operator queue 후보 -> stage1 -> stage2 -> viewer_payload`
+- DB-backed MVP 상위 흐름: `Apache logs -> MariaDB -> analysis_jobs -> Analysis Job Worker -> full_report artifacts -> Web UI`
+- `full_report` 내부 분석 흐름: `export -> prepare -> stage1 -> stage2 -> viewer_payload`
+- `sliding_window / rollup / operator_queue` 기반 흐름은 후속 `analysis_mode=windowed_triage`로 분리
 - `prepare_llm_input.py`에서 후보와 context-only 문맥을 선별
 - `src/prepare/` 하위 모듈에서 decoder, hint, context summary, constants owner 일부를 분리 관리
 - `llm_stage1_classifier.py`에서 후보별 1차 분류
@@ -26,10 +27,10 @@ Apache logs
   -> apache_log_shipper.py
   -> MariaDB web_logs
   -> Web UI analysis_jobs registration
-  -> Analysis Agent full_report
+  -> Analysis Job Worker full_report
   -> export_db_logs_cli.py
+  -> run_analysis_pipeline.py direct path
   -> prepare_llm_input.py
-  -> sliding window / rollup / operator queue artifacts
   -> llm_stage1_classifier.py
   -> llm_stage2_reporter.py
   -> viewer_payload.json
@@ -42,7 +43,7 @@ Apache logs
 
 Web UI의 read-only 원칙은 보안 결과 해석에 적용됩니다. DB-backed MVP에서는 Web UI가 `analysis_jobs` 등록/조회와 job lifecycle 표시를 위해 DB write/read를 수행할 수 있습니다.
 
-MVP의 기본 `analysis_mode`는 `full_report`입니다. `SUCCEEDED`는 단순 export/prepare/rollup 완료가 아니라 Stage1, Stage2, `viewer_payload`, report/artifact 저장까지 완료되어 Web UI에서 결과를 확인할 수 있는 상태를 뜻합니다.
+MVP의 기본 `analysis_mode`는 `full_report`입니다. `SUCCEEDED`는 Stage1, Stage2, `viewer_payload`, report/artifact 저장까지 완료되어 Web UI에서 결과를 확인할 수 있는 상태를 뜻합니다. 현재 코드에는 PENDING job을 claim해 direct pipeline을 실행하고 `analysis_reports`를 저장하는 Analysis Job Worker가 아직 없습니다.
 
 ## Supported Signals
 

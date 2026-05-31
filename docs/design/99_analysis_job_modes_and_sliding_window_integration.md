@@ -277,12 +277,12 @@ selected rollup
 
 ### 4.1 짧은 구간
 
-예시:
+운영 권장 예시:
 
 ```text
 2~30분
 1시간
-보수적으로 2시간 이하
+보수적으로 2시간 이하 권장
 ```
 
 기본 정책:
@@ -301,7 +301,7 @@ full_report direct pipeline
 
 ### 4.2 중간~긴 구간
 
-예시:
+허용 상한 범위:
 
 ```text
 2시간 초과 ~ 24시간
@@ -310,7 +310,8 @@ full_report direct pipeline
 MVP 정책:
 
 ```text
-Web UI full_report로 자동 처리하지 않는다.
+Web UI full_report 등록은 코드/UI 기준 24시간까지 허용한다.
+다만 24시간은 권장값이 아니라 허용 상한이다.
 ```
 
 후속 정책:
@@ -322,7 +323,7 @@ windowed_triage mode 후보
 이유:
 
 ```text
-- 하루 로그를 한 번에 prepare/Stage1/Stage2에 넣는 것은 candidate 수, token 비용, report 품질 측면에서 부담이 크다.
+- 큰 구간을 한 번에 prepare/Stage1/Stage2에 넣는 것은 candidate 수, token 비용, report 품질 측면에서 부담이 크다.
 - window별 prepare와 rollup은 긴 구간에서 burst/반복/누락을 분리해 볼 수 있게 한다.
 - Stage2 report를 window마다 만들면 report가 과도하게 증가한다.
 ```

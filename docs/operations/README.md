@@ -4,7 +4,8 @@
 
 - `operations/`는 실행 가이드, 운영 기준, 환경 구축, 로그 구조 문서를 둔다.
 - 현재 상위 운영 기준은 [../00_current_architecture.md](../00_current_architecture.md)의 DB-backed MVP 흐름이다.
-- 기존 `export -> prepare -> sliding window / rollup / operator queue 후보 -> stage1 -> stage2 -> viewer_payload` 흐름은 Analysis Agent가 수행하는 `full_report` 내부 경로이자 수동 운영/검증 경로로 유지한다.
+- 기존 `export -> prepare -> stage1 -> stage2 -> viewer_payload` 흐름은 DB-backed MVP의 `full_report` direct path이자 수동 운영/검증 경로로 유지한다.
+- `sliding_window / rollup / operator_queue` 흐름은 후속 `analysis_mode=windowed_triage` 또는 수동/운영 triage 경로로 분리한다.
 
 ## 현재 운영 기준
 
@@ -13,8 +14,8 @@ Apache logs
   -> apache_log_shipper.py
   -> MariaDB web_logs
   -> Web UI analysis_jobs 등록
-  -> Analysis Agent full_report 실행
-  -> export / prepare / sliding window / rollup / operator queue 후보
+  -> Analysis Job Worker full_report 실행
+  -> export / prepare
   -> Stage1 / Stage2 / viewer_payload 생성
   -> analysis_reports / job_events 기록
   -> Web UI 결과 확인
@@ -25,6 +26,7 @@ Apache logs
 - Web UI read-only 원칙은 보안 결과 해석 read-only를 뜻한다.
 - Web UI는 `analysis_jobs` 등록/조회와 job lifecycle 표시를 위해 DB write/read를 수행할 수 있다.
 - `full_report`의 완료 조건은 Stage1, Stage2, `viewer_payload`, report/artifact 저장 완료다.
+- 현재 구현에는 job claim, direct pipeline 호출, `analysis_reports` 저장, SUCCEEDED/FAILED 전이를 수행하는 worker가 아직 없다.
 
 ## 문서 목록
 
@@ -117,6 +119,7 @@ Apache logs
 - run_dir 표준 파일은 `manifest.json`, `export.json`, `llm_input.json`, `stage1_results.json`, `stage2_report_input.json`, `stage2_report.json`, `stage2_report.md`, `viewer_payload.json`, `noise_summary.json`이다.
 - `--run-dir` 없이 flat output만 생성하는 실행은 분석 자체는 가능하지만 Web UI 기본 목록 연동 대상이 아니다.
 - DB-backed MVP에서는 job-scoped artifact root 후보로 `runs/jobs/<job_id>/` 또는 `runs/web_job_<job_id>/`를 사용한다.
+- Web UI `full_report` 시간 범위는 코드/UI 기준 최대 24시간까지 허용하지만, 24시간은 권장값이 아니라 허용 상한이다. 운영상 큰 구간은 비용/시간을 보고 후속 `windowed_triage`로 분리 검토한다.
 
 ## Operational Output Hygiene
 

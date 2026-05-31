@@ -8,8 +8,10 @@
 
 - 현재 canonical architecture overview는 [00_current_architecture.md](./00_current_architecture.md)를 따른다.
 - 현재 상위 운영 기준은 DB-backed MVP다.
-- 상위 흐름: `Apache logs -> MariaDB -> analysis_jobs -> Analysis Agent -> full_report artifacts -> Web UI`
-- `full_report` 내부 분석 흐름: `export -> prepare -> sliding window / rollup / operator queue 후보 -> stage1 -> stage2 -> viewer_payload`
+- 상위 흐름: `Apache logs -> MariaDB -> analysis_jobs -> Analysis Job Worker -> full_report artifacts -> Web UI`
+- `full_report` 내부 분석 흐름: `export -> prepare -> stage1 -> stage2 -> viewer_payload`
+- `sliding_window / rollup / operator_queue` 기반 흐름은 후속 `analysis_mode=windowed_triage`로 분리한다.
+- 현재 핵심 구현 gap은 PENDING `analysis_jobs`를 claim해 direct `full_report` pipeline을 실행하고 `analysis_reports`와 상태 전이를 저장하는 Analysis Job Worker다.
 - Apache logs-only evidence boundary의 canonical 기준은 [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)를 따른다.
 - 분석 근거는 Apache 로그 표면에 직접 남는 필드로 제한한다.
 - raw POST body, response body 원문, DB 결과, 브라우저 실행 여부는 분석 근거로 사용하지 않는다.

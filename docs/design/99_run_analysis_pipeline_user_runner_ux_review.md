@@ -991,7 +991,7 @@ MVP 포함:
 - time range 기반 job 등록
 - `analysis_mode=full_report`
 - `requested_timezone=Asia/Seoul`
-- 일반 Web UI job 최대 time range 후보 24시간
+- 일반 Web UI job 최대 time range 허용 상한 24시간
 - PENDING/RUNNING 동일 범위 중복 job 차단 또는 기존 job 반환
 - job-scoped artifact root
 - Stage1/Stage2/viewer_payload 완료 후 `SUCCEEDED`

@@ -14,7 +14,7 @@
 
 ## 1. 한 문장 요약
 
-본 시스템은 Apache access/security/error 로그를 수집해 MariaDB에 저장하고, 사용자가 Web UI에서 특정 시간 범위의 분석 작업을 등록하면, Analysis Agent가 해당 작업을 가져와 기존 LLM 기반 분석 파이프라인을 실행한 뒤 Stage1/Stage2/report/viewer artifact를 생성하고 Web UI에서 작업 상태와 결과를 확인할 수 있게 하는 DB-backed 웹 기반 로그 분석 플랫폼이다.
+본 시스템은 Apache access/security/error 로그를 수집해 MariaDB에 저장하고, 사용자가 Web UI에서 특정 시간 범위의 분석 작업을 등록하면, Analysis Job Worker가 해당 작업을 가져와 기존 direct `full_report` 파이프라인을 실행한 뒤 Stage1/Stage2/report/viewer artifact를 생성하고 Web UI에서 작업 상태와 결과를 확인할 수 있게 하는 DB-backed 웹 기반 로그 분석 플랫폼이다.
 
 핵심 흐름:
 
@@ -23,7 +23,7 @@ Apache 로그
   -> Log Collector Agent
   -> MariaDB
   -> Web UI analysis_jobs 등록
-  -> Analysis Agent full_report 실행
+  -> Analysis Job Worker full_report 실행
   -> Stage1 / Stage2 / viewer_payload 생성
   -> Web UI 결과 확인
 ```
@@ -52,7 +52,7 @@ Apache 로그
 [Analysis Agent]
   PENDING job atomic claim
   해당 시간 범위 export
-  prepare / sliding window / rollup / operator queue 후보 실행
+  prepare 실행
   Stage1 / Stage2 / viewer_payload 실행
     ↓
 [Artifact Storage]
@@ -215,7 +215,7 @@ Web UI가 하지 않는 일:
 - analysis_jobs에서 PENDING 작업 조회
 - atomic claim으로 RUNNING 전환
 - 해당 시간 범위 로그 export
-- 기존 분석 pipeline 실행
+- 기존 direct full_report pipeline 실행
 - artifact_root에 산출물 저장
 - analysis_reports 생성
 - job_events 기록
@@ -350,7 +350,7 @@ window별 export/prepare
   -> queue item detail preview 후보
 ```
 
-이 경로는 장시간 로그를 바로 Stage1/Stage2에 넣지 않고, 먼저 사람이 볼 summary/review routing artifact를 만드는 목적이다.
+이 경로는 장시간 로그를 바로 Stage1/Stage2에 넣지 않고, 먼저 사람이 볼 summary/review routing artifact를 만드는 목적이다. DB-backed MVP `full_report` worker에는 자동 삽입하지 않고, 후속 `analysis_mode=windowed_triage`로 분리한다.
 
 ### 5.3 DB-backed MVP full_report path
 
@@ -358,19 +358,19 @@ MVP의 `analysis_mode` 기본값은 `full_report`다.
 
 ```text
 analysis_jobs PENDING
-  -> Analysis Agent claim
+  -> Analysis Job Worker claim
   -> export_db_logs_cli.py
   -> export.json
+  -> run_analysis_pipeline.py direct path
   -> prepare
-  -> sliding window / rollup / operator queue 후보
   -> Stage1
   -> Stage2
   -> viewer_payload.json
   -> analysis_reports
-  -> analysis_jobs SUCCEEDED
+  -> analysis_jobs SUCCEEDED 또는 FAILED
 ```
 
-MVP에서 `SUCCEEDED`는 단순히 export/prepare/rollup이 끝났다는 뜻이 아니다.
+MVP에서 `SUCCEEDED`는 단순히 export/prepare가 끝났다는 뜻이 아니다.
 
 ```text
 SUCCEEDED = Stage1 + Stage2 + viewer_payload + report/artifact 저장 완료
@@ -483,13 +483,15 @@ STAGE2_FAILED: Authorization=Bearer sk-...
 
 ### 7.4 Job 입력 제한
 
-MVP 후보:
+현재 코드/UI 기준:
 
 ```text
 requested_timezone = Asia/Seoul
 analysis_mode = full_report
-max_time_range = 24 hours
+max_time_range 허용 상한 = 24 hours
 ```
+
+24시간은 권장 분석 크기가 아니라 Web UI `full_report` 등록 허용 상한이다. 운영상으로는 짧은 구간을 권장하고, 큰 구간은 비용/시간 문제를 보고 후속 `windowed_triage`로 분리 검토한다.
 
 중복 job 처리 후보:
 
@@ -629,35 +631,37 @@ DB-backed MVP 구현을 다음 우선순위로 둔다.
    - analysis_jobs / analysis_reports / job_events 추가
    - log_collection_checkpoints DB table 도입 여부 판단
 
-2. validation/redaction policy 구현 기준 확정
-   - requested_timezone = Asia/Seoul
-   - analysis_mode = full_report
-   - max_time_range 후보 24시간
-   - PENDING/RUNNING 중복 job 처리
-   - secret redaction
-   - job-scoped artifact_root
-
-3. analysis_jobs 등록/조회 API
-   - POST job 등록
-   - GET job list/detail
-   - PENDING/RUNNING/SUCCEEDED/FAILED 표시
-
-4. 단일 Analysis Agent polling
+2. Analysis Job Worker 구현
    - PENDING job 조회
    - atomic claim
    - RUNNING/SUCCEEDED/FAILED 상태 갱신
    - job_events 기록
 
-5. export_db_logs_cli.py 연동
-   - time_from/time_to 기반 export.json 생성
-   - apache_security_logs primary source
-   - apache_error_logs / apache_access_logs correlation/reference
+3. repository lifecycle methods 보강
+   - claim
+   - heartbeat
+   - append event 공통 메서드
+   - mark succeeded/failed
+   - analysis_reports upsert
 
-6. artifact_root / analysis_reports 연결
+4. direct full_report pipeline 연결
+   - export_db_logs_cli.py로 time_from/time_to 기반 export.json 생성
+   - run_analysis_pipeline.py direct path 호출
+   - job-scoped artifact_root 사용
+
+5. analysis_reports 저장
    - Stage1 결과 경로 저장
    - Stage2 report 경로 저장
    - viewer_payload.json 경로 저장
-   - viewer_payload 생성 완료 후 SUCCEEDED 처리
+
+6. validation/redaction policy 구현 기준 유지
+   - requested_timezone = Asia/Seoul
+   - analysis_mode = full_report
+   - max_time_range 허용 상한 24시간
+   - PENDING/RUNNING 중복 job 처리
+   - secret redaction
+   - job-scoped artifact_root
+
 ```
 
 후순위 후보:

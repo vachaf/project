@@ -19,7 +19,7 @@ DB-backed 설계 문서는 다음 항목에서 현재 repo 방향과 정합성�
 - local filesystem artifact storage 유지
 - DB는 상태/색인/경로 중심, 큰 JSON은 파일 artifact로 보존
 - analysis_jobs queue와 operator queue 분리
-- Sliding Window / Rollup / Operator Queue를 Analysis Agent 내부 pipeline 단계로 연결
+- Sliding Window / Rollup / Operator Queue는 후속 `windowed_triage` 흐름으로 분리
 - atomic claim
 - UTC 저장 / Asia-Seoul 입력·표시 분리
 - job_events 기반 단계별 추적
@@ -68,7 +68,7 @@ DB write = Web UI 범위 밖
 ```text
 Web UI = report/security interpretation은 read-only
 Web UI = analysis_jobs 등록/조회는 허용
-Analysis Agent = DB의 PENDING job을 claim하고 full_report pipeline 실행
+Analysis Job Worker = DB의 PENDING job을 claim하고 full_report pipeline 실행
 CLI = fallback/debug/manual path로 유지
 ```
 
@@ -254,7 +254,7 @@ max_time_range = 24 hours
 정책:
 
 ```text
-- 일반 Web UI 요청은 24시간 이하로 제한한다.
+- 일반 Web UI 요청은 24시간 이하로 제한한다. 이는 권장값이 아니라 허용 상한이다.
 - 더 긴 범위는 관리자/CLI/manual batch path에서 별도 검토한다.
 - 제한 초과 요청은 job을 만들지 않고 validation error를 반환한다.
 ```
@@ -293,9 +293,10 @@ full_report
 보류 값:
 
 ```text
-operator_queue_only
+windowed_triage
+selected_rollup_brief
+selected_rollup_full_report
 observation_brief_only
-sliding_window_rollup
 ```
 
 ## 7. 중복 job 처리 정책

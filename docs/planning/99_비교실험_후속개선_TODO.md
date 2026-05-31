@@ -59,8 +59,9 @@
   - `log_collection_checkpoints` DB table은 현재 file-state offset tracking과 비교 후 후속 판단으로 둔다.
 - [x] DB-backed MVP full_report 완료 조건 정리
   - MVP 기본 `analysis_mode`는 `full_report`다.
-  - `SUCCEEDED`는 export/prepare/rollup 완료가 아니라 Stage1, Stage2, viewer_payload 생성과 report/artifact 저장 완료를 의미한다.
+  - `SUCCEEDED`는 export/prepare 완료가 아니라 Stage1, Stage2, viewer_payload 생성과 report/artifact 저장 완료를 의미한다.
   - `viewer_payload.json` 생성 완료 후에만 완료 job을 Web UI에서 결과로 보여주는 방향으로 정리했다.
+  - `sliding_window / rollup / operator_queue`는 후속 `analysis_mode=windowed_triage`로 분리한다.
 - [x] `src/apache_log_shipper.py` error log UTC 저장 보정
   - `APACHE_ERROR_LOG_TIMEZONE` 환경변수를 추가했다.
   - 기본값은 `Asia/Seoul`이다.
@@ -80,7 +81,7 @@
 - [ ] DB-backed MVP validation/redaction policy 구현 기준 확정
   - `requested_timezone` v1 허용값: `Asia/Seoul`.
   - `analysis_mode` v1 허용값: `full_report`.
-  - 일반 Web UI job 최대 time range 후보: 24시간.
+  - 일반 Web UI job 최대 time range 허용 상한: 24시간.
   - PENDING/RUNNING 동일 범위 중복 job 차단 또는 기존 job 반환.
   - job_events/error_message secret redaction.
   - artifact_root는 job 단위 경로만 허용하고 사용자 임의 path 입력 금지.
@@ -90,7 +91,7 @@
   - 상태: `PENDING`, `RUNNING`, `SUCCEEDED`, `FAILED`.
   - Web UI 입력 시간은 `Asia/Seoul`, DB 조회 시간은 UTC `DATETIME(3)` 기준으로 변환한다.
   - missing provider는 `N/A`로 표시하고 missing provider detail link는 만들지 않는다.
-- [ ] 단일 Analysis Agent polling MVP 구현
+- [ ] Analysis Job Worker MVP 구현
   - PENDING job 조회.
   - atomic claim.
   - RUNNING/SUCCEEDED/FAILED 상태 갱신.
@@ -104,7 +105,6 @@
   - Stage1 결과 경로 저장.
   - Stage2 report 경로 저장.
   - viewer_payload.json 경로 저장.
-  - operator_queue artifact 경로 저장.
   - viewer_payload 생성 완료 후 `SUCCEEDED` 처리.
   - MVP에서는 자동 cleanup/delete를 제공하지 않는다.
 

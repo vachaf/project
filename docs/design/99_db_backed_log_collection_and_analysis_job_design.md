@@ -56,7 +56,7 @@ Apache 로그 수집
    - DB의 analysis_jobs 테이블에서 PENDING 작업을 확인한다.
    - 작업을 atomic하게 claim한 뒤 RUNNING으로 바꾼다.
    - 해당 시간 범위의 로그를 DB에서 조회한다.
-   - 기존 prepare / sliding window / rollup / Stage1 / Stage2 / viewer pipeline을 실행한다.
+   - 기존 direct full_report pipeline(export / prepare / Stage1 / Stage2 / viewer_payload)을 실행한다.
    - 결과 artifact를 파일로 저장하고 DB에는 경로와 요약을 남긴다.
    - job 상태를 SUCCEEDED 또는 FAILED로 변경한다.
 ```
@@ -690,12 +690,12 @@ MVP의 기본 `analysis_mode`는 `full_report`다.
 full_report:
 - export
 - prepare
-- sliding window / rollup 후보
-- operator queue 생성 후보
 - Stage1
 - Stage2
 - viewer_payload 생성
 ```
+
+`sliding_window / rollup / operator_queue` 기반 흐름은 MVP `full_report` worker에 자동 삽입하지 않고 후속 `analysis_mode=windowed_triage`로 분리한다.
 
 구현 DB가 MariaDB이면 `CHECK` 제약에 의존하지 않고 application validation으로 다음 조건을 우선 보장한다.
 
@@ -920,17 +920,15 @@ MVP 기본 흐름은 `full_report`다.
    - fallback/reference: apache_access_logs
 5. export.json 생성
 6. prepare_llm_input.py 실행
-7. sliding_window_scheduler.py 실행 후보
-8. sliding_window_rollup.py 실행 후보
-9. sliding_window_operator_queue.py 실행 후보
-10. Stage1 실행
-11. Stage2 실행
-12. viewer_payload.json 생성
-13. analysis_reports record 생성
-14. analysis_jobs.status = SUCCEEDED
+7. run_analysis_pipeline.py direct path 실행
+8. Stage1 실행
+9. Stage2 실행
+10. viewer_payload.json 생성
+11. analysis_reports record 생성
+12. analysis_jobs.status = SUCCEEDED 또는 FAILED
 ```
 
-MVP의 `analysis_jobs.status=SUCCEEDED`는 단순히 export/prepare/rollup이 끝났다는 뜻이 아니다.
+MVP의 `analysis_jobs.status=SUCCEEDED`는 단순히 export/prepare가 끝났다는 뜻이 아니다.
 사용자가 Web UI에서 결과를 확인할 수 있도록 Stage1, Stage2, viewer_payload 생성까지 완료된 상태를 의미한다.
 
 따라서 MVP full_report에서는 최소한 다음 artifact가 생성되어야 SUCCEEDED로 본다.
@@ -953,7 +951,8 @@ analysis_jobs
   -> Analysis Agent
       -> src/export_db_logs_cli.py
       -> export.json
-      -> prepare/sliding window/rollup/operator queue
+      -> run_analysis_pipeline.py direct path
+      -> prepare
       -> Stage1/Stage2
       -> viewer_payload/report artifact
 ```
@@ -969,18 +968,15 @@ analysis_jobs
 
 ## 9. 기존 Sliding Window / Rollup / Operator Queue와의 연결
 
-기존 pipeline의 위치는 다음과 같다.
+`sliding_window / rollup / operator_queue`는 `full_report` worker에 자동 삽입하지 않는다. 해당 흐름은 후속 `analysis_mode=windowed_triage` 또는 수동 운영 triage 경로로 둔다.
 
 ```text
-Analysis Agent
+windowed_triage 후보
   -> DB time range export
-  -> prepare
+  -> window prepare
   -> sliding window
   -> rollup
   -> operator queue
-  -> Stage1
-  -> Stage2
-  -> viewer_payload/report
 ```
 
 기존 artifact 의미는 유지한다.
@@ -1009,7 +1005,7 @@ Operator Queue의 역할:
 - rollup 결과 중 quiet / needs_review / data_quality_check 상태를 표시한다.
 - llm_eligible을 표시할 수 있다.
 - llm_required는 operator queue 자체의 routing 의미에서는 v1에서 false를 유지한다.
-- 다만 MVP full_report job은 operator queue에서 멈추지 않고 Stage1/Stage2/viewer_payload까지 진행한다.
+- full_report MVP의 SUCCEEDED 조건과는 분리한다.
 - 보안 verdict, success 판단, threat score를 만들지 않는다.
 ```
 
@@ -1286,9 +1282,9 @@ artifact retention policy
 
 ```text
 full_report
-sliding_window_rollup
-operator_queue_only
-stage1_stage2_full
+windowed_triage
+selected_rollup_brief
+selected_rollup_full_report
 observation_brief_only
 ```
 
@@ -1298,6 +1294,7 @@ observation_brief_only
 analysis_mode 이름은 보안 verdict 의미를 만들지 않는다.
 실행 profile을 구분하기 위한 운영 설정일 뿐이다.
 MVP 기본값은 full_report이며, 이 모드에서는 Stage1/Stage2/viewer_payload 생성까지 수행한다.
+windowed_triage는 full_report worker 구현 후 별도 단계에서 다룬다.
 ```
 
 ## 15. 다음 구현 후보
@@ -1336,24 +1333,29 @@ MVP 기본값은 full_report이며, 이 모드에서는 Stage1/Stage2/viewer_pay
    - GET job list/detail
    - PENDING/RUNNING/SUCCEEDED/FAILED 표시
 
-3. 단일 Analysis Agent polling
+3. Analysis Job Worker
    - PENDING job 조회
    - atomic claim
    - RUNNING/SUCCEEDED/FAILED 상태 갱신
 
-4. src/export_db_logs_cli.py 연동
+4. repository lifecycle methods 보강
+   - claim / heartbeat / append event
+   - mark succeeded/failed
+   - analysis_reports upsert
+
+5. src/export_db_logs_cli.py와 direct pipeline 연결
    - time_from/time_to 기반 export.json 생성
    - apache_security_logs primary source
    - apache_error_logs 보조 상관 후보
+   - run_analysis_pipeline.py direct path 호출
 
-5. artifact_root / analysis_reports 연결
+6. artifact_root / analysis_reports 연결
    - Stage1 결과 경로 저장
    - Stage2 report 경로 저장
    - viewer_payload.json 경로 저장
-   - operator_queue artifact 경로 저장
    - viewer_payload 생성 완료 후 SUCCEEDED 처리
 
-6. Log Collector Agent MVP
+7. Log Collector Agent MVP
    - Apache log file tail/read
    - 기존 3개 log source table insert
    - access/security/error log_time UTC 저장
@@ -1368,7 +1370,7 @@ MVP 기본값은 full_report이며, 이 모드에서는 Stage1/Stage2/viewer_pay
 3. analysis_jobs에 PENDING row가 생성된다.
 4. Analysis Agent가 해당 job을 RUNNING으로 claim한다.
 5. src/export_db_logs_cli.py가 해당 시간 범위 로그를 export.json으로 생성한다.
-6. 기존 prepare/sliding window/rollup/Stage1/Stage2/viewer pipeline을 실행한다.
+6. run_analysis_pipeline.py direct path로 prepare/Stage1/Stage2/viewer_payload pipeline을 실행한다.
 7. stage1_results.json, stage2_report.md, viewer_payload.json을 artifact_root에 저장한다.
 8. analysis_reports에 artifact 경로를 저장한다.
 9. analysis_jobs 상태를 SUCCEEDED로 변경한다.
