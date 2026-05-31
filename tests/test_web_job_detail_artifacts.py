@@ -59,6 +59,8 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     assert 'href="/job/123/artifact/stage2_report"' in body
     assert 'href="/job/123/artifact/stage2_report_md"' in body
     assert 'href="/job/123/artifact/viewer_payload"' in body
+    assert 'href="/job/123/viewer"' in body
+    assert "/report/job-123/payload" not in body
     assert "severity" not in body.lower()
 
 
@@ -81,6 +83,7 @@ def test_job_detail_shows_no_data_report_without_error_state() -> None:
     assert 'href="/job/123/artifact/export"' in body
     assert 'href="/job/123/artifact/stage2_report"' not in body
     assert 'href="/job/123/artifact/viewer_payload"' not in body
+    assert 'href="/job/123/viewer"' not in body
     assert body.count("not generated") >= 6
     assert "FAILED" not in body
 

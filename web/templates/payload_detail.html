@@ -80,11 +80,11 @@
         <span class="badge payload-badge payload-badge-default">lint {{ qa_result.verdict }}</span>
       {% endif %}
       {% if src_ip_mask_enabled %}
-        <a href="/report/{{ report.report_id }}/payload?mask_src_ip=0" class="action-link">Show full source IP</a>
+        <a href="{{ request.url.path }}?mask_src_ip=0" class="action-link">Show full source IP</a>
       {% else %}
-        <a href="/report/{{ report.report_id }}/payload?mask_src_ip=1" class="action-link">Mask source IP</a>
+        <a href="{{ request.url.path }}?mask_src_ip=1" class="action-link">Mask source IP</a>
       {% endif %}
-      <a href="/report/{{ report.report_id }}" class="action-link">Back To Stage2 Detail</a>
+      <a href="{{ back_url|default('/report/' ~ report.report_id) }}" class="action-link">{{ back_label|default('Back To Stage2 Detail') }}</a>
     </div>
   </header>
 

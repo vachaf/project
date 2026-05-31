@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -17,6 +18,7 @@ from web.routes.reports import router as reports_router
 from web.routes.reports import sanitize_payload_contexts
 from web.routes.reports import sanitize_payload_findings
 from web.routes.reports import sanitize_viewer_payload_summary
+from web.routes.reports import sort_payload_findings_for_timeline
 from web.services.analysis_job_policy import (
     AnalysisJobValidationError,
     redact_secret_text,
@@ -133,6 +135,42 @@ def _artifact_media_type(path: Path) -> str:
     if suffix == ".md":
         return "text/markdown; charset=utf-8"
     return "text/plain; charset=utf-8"
+
+
+def _load_viewer_payload_json(path: Path) -> Dict[str, Any]:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid viewer payload JSON: {exc}") from None
+    except OSError:
+        raise _artifact_not_found() from None
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="invalid viewer payload JSON: expected object")
+    return payload
+
+
+def _build_job_viewer_payload_summary(payload: Dict[str, Any]) -> Dict[str, Any]:
+    summary = dict(payload.get("summary")) if isinstance(payload.get("summary"), dict) else {}
+    if payload.get("schema_version") and not summary.get("schema_version"):
+        summary["schema_version"] = str(payload.get("schema_version"))
+
+    policies = payload.get("policies") if isinstance(payload.get("policies"), dict) else {}
+    if "guardrails" not in summary and isinstance(policies.get("guardrails"), list):
+        summary["guardrails"] = policies.get("guardrails")
+
+    return sanitize_viewer_payload_summary(summary)
+
+
+def _build_job_viewer_report_context(job_id: int, report: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "report_id": f"job-{job_id}",
+        "filename": "viewer_payload.json",
+        "run_id": f"job-{job_id}",
+        "storage_type": "db_job",
+        "viewer_payload_path": str(report.get("viewer_payload_path") or ""),
+    }
 
 
 @app.get("/")
@@ -289,6 +327,43 @@ def job_artifact(job_id: int, artifact_key: str) -> Response:
     except OSError:
         raise _artifact_not_found() from None
     return Response(content=content, media_type=_artifact_media_type(artifact_path))
+
+
+@app.get("/job/{job_id}/viewer")
+def job_viewer_payload(request: Request, job_id: int):
+    report = job_repository.get_latest_report_for_job(job_id)
+    if report is None:
+        raise _artifact_not_found()
+
+    viewer_payload_path = _resolve_report_artifact_path(report, "viewer_payload")
+    payload_obj = _load_viewer_payload_json(viewer_payload_path)
+    payload_summary = _build_job_viewer_payload_summary(payload_obj)
+    mask_src_ip = _is_mask_src_ip_enabled(request.query_params.get("mask_src_ip"))
+
+    findings = sanitize_payload_findings(payload_obj.get("findings"), payload_summary.get("findings_preview"))
+    findings = sort_payload_findings_for_timeline(findings)
+    contexts_preview = sanitize_payload_contexts(payload_obj.get("contexts"), payload_summary.get("contexts_preview"))
+    findings_display = _apply_src_ip_display_mode(findings, mask_src_ip)
+    contexts_preview_display = _apply_src_ip_display_mode(contexts_preview, mask_src_ip)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="payload_detail.html",
+        context={
+            "report": _build_job_viewer_report_context(job_id, report),
+            "qa_result": None,
+            "payload": payload_obj,
+            "payload_summary": payload_summary,
+            "payload_error": "",
+            "findings": findings,
+            "findings_display": findings_display,
+            "contexts_preview": contexts_preview,
+            "contexts_preview_display": contexts_preview_display,
+            "mask_src_ip": mask_src_ip,
+            "back_url": f"/job/{job_id}",
+            "back_label": "Back To Job Detail",
+        },
+    )
 
 
 @app.get("/api/job/{job_id}/status")

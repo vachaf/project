@@ -179,6 +179,9 @@
                 <div class="job-report-item">
                     <div class="job-detail-label">Viewer Payload</div>
                     {{ artifact_value(job.id, 'viewer_payload', report.viewer_payload_path) }}
+                    {% if report.viewer_payload_path %}
+                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/viewer">Open Viewer</a>
+                    {% endif %}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Lint Result</div>
