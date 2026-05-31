@@ -124,6 +124,11 @@ ss -lntp | grep 3306
 ## 7. SQL 적용 순서
 
 repo root 기준으로 실행한다.
+```bash
+cd ~
+git clone https://github.com/vachaf/project
+cd ~/project
+```
 
 ### 7.1 DB와 기본 계정 생성
 

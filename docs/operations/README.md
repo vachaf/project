@@ -26,7 +26,7 @@ Apache logs
 - Web UI read-only 원칙은 보안 결과 해석 read-only를 뜻한다.
 - Web UI는 `analysis_jobs` 등록/조회와 job lifecycle 표시를 위해 DB write/read를 수행할 수 있다.
 - `full_report`의 완료 조건은 Stage1, Stage2, `viewer_payload`, report/artifact 저장 완료다.
-- 현재 구현에는 job claim, direct pipeline 호출, `analysis_reports` 저장, SUCCEEDED/FAILED 전이를 수행하는 worker가 아직 없다.
+- 2026-05-31 실제 smoke 기준으로 job claim, direct pipeline 호출, `analysis_reports` 저장, SUCCEEDED/FAILED 전이, `/job/{id}/viewer` 표시까지 확인했다.
 
 ## 문서 목록
 
@@ -139,6 +139,52 @@ git rm -r --cached runs/
 - loader 회귀:
   - `tests/test_web_loader_run_dir_scan.py`: `5 passed`
   - 관련 묶음: `24 passed`
+- DB-backed full_report MVP real LLM smoke:
+  - Web UI에서 job 등록 후 shell에서 실행:
+
+```bash
+python3 src/analysis_job_worker.py --once --worker-id smoke-real --run-pipeline
+```
+
+  - job_id=5 기준:
+    - `analysis_reports.artifact_root = runs/jobs/5`
+    - `stage2_report_path = runs/jobs/5/stage2_report.json`
+    - `stage2_report_md_path = runs/jobs/5/stage2_report.md`
+    - `viewer_payload_path = runs/jobs/5/viewer_payload.json`
+  - run artifacts:
+    - `analysis_candidates.json`
+    - `export.json`
+    - `llm_input.json`
+    - `manifest.json`
+    - `noise_summary.json`
+    - `stage1_results.json`
+    - `stage2_report.json`
+    - `stage2_report.md`
+    - `stage2_report_input.json`
+    - `viewer_payload.json`
+  - manifest 확인:
+    - `dry_run=false`
+    - `provider=openai`
+    - `run_dir=runs/jobs/5`
+    - `run_dir_collision_policy=fail_fast`
+  - Stage1 확인:
+    - `selected_model=gpt-5.4-mini`
+    - `success_count=5`
+    - `error_count=0`
+  - viewer payload 확인:
+    - `schema_version=viewer_payload.v1`
+    - `finding_count=5`
+    - `context_count=2`
+    - `supporting_event_count=0`
+  - 브라우저 확인:
+    - `/job/5`
+    - `/job/5/viewer`
+    - `/job/5/artifact/viewer_payload`
+    - `/job/5/artifact/stage2_report_md`
+- DB-backed no-data smoke:
+  - empty export job은 `JOB_NO_DATA` event를 기록하고 `SUCCEEDED`로 닫힌다.
+  - `analysis_reports.summary`와 `export_path`만 저장되고 stage/viewer paths는 `NULL`이다.
+  - no-data artifact는 `runs/jobs/<id>/export.json`만 생성된다.
 - actual smoke:
   - scenario: `Mixed_Context_Heavy`
   - security export 기준 actual LLM 실행

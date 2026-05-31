@@ -43,7 +43,7 @@ Apache logs
 
 Web UI의 read-only 원칙은 보안 결과 해석에 적용됩니다. DB-backed MVP에서는 Web UI가 `analysis_jobs` 등록/조회와 job lifecycle 표시를 위해 DB write/read를 수행할 수 있습니다.
 
-MVP의 기본 `analysis_mode`는 `full_report`입니다. `SUCCEEDED`는 Stage1, Stage2, `viewer_payload`, report/artifact 저장까지 완료되어 Web UI에서 결과를 확인할 수 있는 상태를 뜻합니다. 현재 코드에는 PENDING job을 claim해 direct pipeline을 실행하고 `analysis_reports`를 저장하는 Analysis Job Worker가 아직 없습니다.
+MVP의 기본 `analysis_mode`는 `full_report`입니다. `SUCCEEDED`는 Stage1, Stage2, `viewer_payload`, report/artifact 저장까지 완료되어 Web UI에서 결과를 확인할 수 있는 상태를 뜻합니다. 2026-05-31 실제 smoke 기준으로 Web UI job 등록, Analysis Job Worker `--run-pipeline`, direct pipeline 실행, `analysis_reports` 저장, `/job/{id}/viewer` dashboard 표시까지 확인했습니다.
 
 ## Supported Signals
 

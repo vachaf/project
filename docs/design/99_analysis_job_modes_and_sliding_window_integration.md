@@ -1,7 +1,7 @@
 # Analysis Job Modes and Sliding Window Integration
 
 - 문서 상태: 설계 기준 / Web UI MVP와 Sliding Window 통합 판단
-- 기준 시점: 2026-05-29
+- 기준 시점: 2026-05-31
 - 목적: DB-backed `analysis_jobs` 실행 큐와 Sliding Window / Rollup / Operator Queue 계층의 관계를 정리하고, 짧은 구간과 긴 구간 분석을 어떤 mode로 분리할지 고정한다.
 
 관련 문서:
@@ -46,6 +46,8 @@ operator_queue에서 사람이 선택한 rollup:
 따라서 현재 Web UI MVP는 `full_report`만 노출한다.
 
 `windowed_triage`, `selected_rollup_brief`, `selected_rollup_full_report`는 후속 mode로 문서화하되, 즉시 Web UI 입력 폼에 노출하지 않는다.
+
+2026-05-31 실제 smoke 기준으로 `full_report` direct pipeline은 DB-backed job 등록, worker claim, export, prepare, Stage1, Stage2, viewer_payload, `analysis_reports` 저장, `/job/{id}/viewer` 표시까지 확인했다. 이 smoke에는 sliding_window, rollup, operator_queue를 삽입하지 않았다.
 
 ---
 

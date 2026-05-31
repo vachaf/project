@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-28
+- 기준 시점: 2026-05-31
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 완료 이력: [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md)
 - 관련 대시보드: [../진행상황.md](../진행상황.md)
@@ -71,42 +71,34 @@
     - 입력: `2026-05-28 18:30:00.000`
     - parse 결과: `2026-05-28 18:30:00+09:00`
     - DB 저장 문자열: `2026-05-28 09:30:00.000`
+- [x] DB-backed full_report MVP 실제 smoke
+  - Web UI job 등록 후 `python3 src/analysis_job_worker.py --once --worker-id smoke-real --run-pipeline` 실행을 확인했다.
+  - job_id=5 기준 `runs/jobs/5`에 direct pipeline artifact가 생성됐다.
+  - `analysis_reports`에 `artifact_root`, `stage2_report_path`, `stage2_report_md_path`, `viewer_payload_path`가 저장됐다.
+  - manifest 기준 `dry_run=false`, `provider=openai`, `run_dir=runs/jobs/5`, `run_dir_collision_policy=fail_fast`를 확인했다.
+  - Stage1 기준 `selected_model=gpt-5.4-mini`, `success_count=5`, `error_count=0`을 확인했다.
+  - viewer payload 기준 `schema_version=viewer_payload.v1`, `finding_count=5`, `context_count=2`, `supporting_event_count=0`을 확인했다.
+  - `/job/5`, `/job/5/viewer`, `/job/5/artifact/viewer_payload`, `/job/5/artifact/stage2_report_md` 브라우저 표시를 확인했다.
+  - no-data smoke는 `JOB_NO_DATA`, `SUCCEEDED`, `analysis_reports.summary`, `export_path`만 저장, stage/viewer paths `NULL` 기준으로 확인했다.
 
 ### 다음 우선순위
 
-- [ ] SQL 적용 smoke / 문법 검증
-  - `docs/operations/sql/01_analysis_job_tables.sql`을 MariaDB test DB에 적용한다.
-  - `SHOW TABLES`, `DESCRIBE`, `SHOW INDEX`로 `users`, `analysis_jobs`, `analysis_reports`, `job_events` 생성을 확인한다.
-  - 필요 시 FK/인덱스/컬럼명 보정 커밋을 별도로 수행한다.
-- [ ] DB-backed MVP validation/redaction policy 구현 기준 확정
-  - `requested_timezone` v1 허용값: `Asia/Seoul`.
-  - `analysis_mode` v1 허용값: `full_report`.
-  - 일반 Web UI job 최대 time range 허용 상한: 24시간.
-  - PENDING/RUNNING 동일 범위 중복 job 차단 또는 기존 job 반환.
-  - job_events/error_message secret redaction.
-  - artifact_root는 job 단위 경로만 허용하고 사용자 임의 path 입력 금지.
-- [ ] `analysis_jobs` 등록/조회 API 설계 및 구현
-  - POST job 등록.
-  - GET job list/detail.
-  - 상태: `PENDING`, `RUNNING`, `SUCCEEDED`, `FAILED`.
-  - Web UI 입력 시간은 `Asia/Seoul`, DB 조회 시간은 UTC `DATETIME(3)` 기준으로 변환한다.
-  - missing provider는 `N/A`로 표시하고 missing provider detail link는 만들지 않는다.
-- [ ] Analysis Job Worker MVP 구현
-  - PENDING job 조회.
-  - atomic claim.
-  - RUNNING/SUCCEEDED/FAILED 상태 갱신.
-  - `job_events` 기록.
-  - step timeout 발생 시 `FAILED` 처리.
-- [ ] `src/export_db_logs_cli.py` 연동
-  - `analysis_jobs.time_from/time_to` 기반 export.json 생성.
-  - primary source: `apache_security_logs`.
-  - correlation/reference: `apache_error_logs`, `apache_access_logs`.
-- [ ] artifact_root / analysis_reports 연결
-  - Stage1 결과 경로 저장.
-  - Stage2 report 경로 저장.
-  - viewer_payload.json 경로 저장.
-  - viewer_payload 생성 완료 후 `SUCCEEDED` 처리.
-  - MVP에서는 자동 cleanup/delete를 제공하지 않는다.
+- [ ] worker loop/daemon 운영화
+  - 현재 smoke는 `--once --run-pipeline` 기준이다.
+  - 반복 실행, supervisor/systemd/cron 운용, graceful shutdown은 후속이다.
+- [ ] timeout/heartbeat 운영 정책 강화
+  - 장시간 Stage1/Stage2 실행 중 heartbeat 갱신 주기와 timeout 기준을 정리한다.
+- [ ] failed/partial artifact 정책 고도화
+  - runner 실패 후 partial artifact scan/save 여부를 정한다.
+  - secret redaction 기준은 유지한다.
+- [ ] legacy `/report/*` UI 정리
+  - DB-backed `/job/{id}/viewer`를 primary viewer로 두고 기존 run_dir/manifest scanner route는 legacy로 분리한다.
+- [ ] Markdown report HTML 렌더링 UX 개선
+  - 현재 artifact route는 raw markdown/text 표시가 가능하다.
+  - HTML report viewer는 후속 UX 개선으로 둔다.
+- [ ] `windowed_triage` 후속 mode 설계/연결
+  - `full_report` worker에 sliding_window / rollup / operator_queue를 자동 삽입하지 않는다.
+  - operator queue 기반 triage는 후속 mode에서 연결한다.
 
 ## P1. Sliding Window / Rollup / Operator Queue
 

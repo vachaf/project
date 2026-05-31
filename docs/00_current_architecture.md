@@ -1,7 +1,7 @@
 # 00_current_architecture
 
 - 문서 상태: 현재 기준 아키텍처 요약
-- 기준 시점: 2026-05-28
+- 기준 시점: 2026-05-31
 - 목적: Apache 로그 기반 LLM 침입 로그 분석 시스템의 현재 구조, 주요 경계, artifact 흐름, DB-backed MVP 방향을 한 문서에서 확인할 수 있게 한다.
 - 관련 문서:
   - [진행상황.md](./진행상황.md)
@@ -89,6 +89,37 @@ Apache 로그
 ```
 
 사용자는 내부의 export JSON, prepare 산출물, Stage1/Stage2 중간 파일을 직접 선택하지 않는다.
+
+### 2.3 실제 smoke 상태
+
+2026-05-31 기준 DB-backed `full_report` MVP는 실제 smoke로 아래 흐름을 확인했다.
+
+```text
+analysis_jobs(PENDING)
+  -> Analysis Job Worker claim
+  -> export_db_logs_cli.py
+  -> run_analysis_pipeline.py direct path
+  -> prepare
+  -> Stage1
+  -> Stage2
+  -> viewer_payload
+  -> analysis_reports 저장
+  -> analysis_jobs(SUCCEEDED)
+  -> /job/{id}/viewer dashboard 표시
+```
+
+확인 범위:
+
+```text
+- Web UI job 등록
+- shell에서 analysis_job_worker.py --once --run-pipeline 실행
+- runs/jobs/5 표준 artifact 생성
+- stage2_report.json / stage2_report.md / viewer_payload.json 경로 저장
+- /job/5, /job/5/viewer, raw artifact routes 브라우저 표시
+- no-data job은 JOB_NO_DATA + SUCCEEDED + export_path only로 닫힘
+```
+
+이 smoke는 `full_report` direct pipeline 기준이다. `sliding_window / rollup / operator_queue`는 자동 삽입하지 않았으며 후속 `windowed_triage` mode 범위로 유지한다.
 
 ## 3. 주요 구성 요소
 

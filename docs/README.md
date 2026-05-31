@@ -11,7 +11,7 @@
 - 상위 흐름: `Apache logs -> MariaDB -> analysis_jobs -> Analysis Job Worker -> full_report artifacts -> Web UI`
 - `full_report` 내부 분석 흐름: `export -> prepare -> stage1 -> stage2 -> viewer_payload`
 - `sliding_window / rollup / operator_queue` 기반 흐름은 후속 `analysis_mode=windowed_triage`로 분리한다.
-- 현재 핵심 구현 gap은 PENDING `analysis_jobs`를 claim해 direct `full_report` pipeline을 실행하고 `analysis_reports`와 상태 전이를 저장하는 Analysis Job Worker다.
+- 2026-05-31 실제 smoke 기준으로 PENDING `analysis_jobs` claim, direct `full_report` pipeline 실행, `analysis_reports` 저장, 상태 전이, `/job/{id}/viewer` dashboard 표시까지 확인했다.
 - Apache logs-only evidence boundary의 canonical 기준은 [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)를 따른다.
 - 분석 근거는 Apache 로그 표면에 직접 남는 필드로 제한한다.
 - raw POST body, response body 원문, DB 결과, 브라우저 실행 여부는 분석 근거로 사용하지 않는다.
