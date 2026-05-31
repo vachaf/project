@@ -90,6 +90,8 @@ def claimed_job() -> Dict[str, Any]:
 def full_report_result() -> Dict[str, Any]:
     return {
         "artifact_root": "runs/jobs/123",
+        "summary": None,
+        "no_data": False,
         "export_path": "runs/jobs/123/export.json",
         "llm_input_path": "runs/jobs/123/llm_input.json",
         "analysis_candidates_path": None,
@@ -106,6 +108,25 @@ def full_report_result() -> Dict[str, Any]:
         "operator_queue_summary_path": None,
         "manifest_path": "runs/jobs/123/manifest.json",
     }
+
+
+def no_data_result() -> Dict[str, Any]:
+    result = full_report_result()
+    result.update(
+        {
+            "summary": "No logs found in requested time range.",
+            "no_data": True,
+            "llm_input_path": None,
+            "analysis_candidates_path": None,
+            "noise_summary_path": None,
+            "stage1_result_path": None,
+            "stage2_report_path": None,
+            "stage2_report_md_path": None,
+            "viewer_payload_path": None,
+            "lint_result_path": None,
+        }
+    )
+    return result
 
 
 def test_run_once_claims_pending_job_and_does_not_finish_it() -> None:
@@ -318,16 +339,50 @@ def test_run_pipeline_success_runs_runner_upserts_report_and_marks_succeeded() -
         }
     ]
     assert repo.upsert_calls[0]["job_id"] == 123
+    assert repo.upsert_calls[0]["summary"] is None
     assert repo.upsert_calls[0]["artifact_root"] == "runs/jobs/123"
     assert repo.upsert_calls[0]["stage2_report_path"] == "runs/jobs/123/stage2_report.json"
     assert repo.upsert_calls[0]["stage2_report_md_path"] == "runs/jobs/123/stage2_report.md"
     assert repo.upsert_calls[0]["viewer_payload_path"] == "runs/jobs/123/viewer_payload.json"
     assert "manifest_path" not in repo.upsert_calls[0]
+    assert "no_data" not in repo.upsert_calls[0]
     assert repo.succeeded_calls == 1
     assert repo.succeeded_kwargs[0]["job_id"] == 123
     assert repo.succeeded_kwargs[0]["worker_id"] == "local-dev"
     assert repo.failed_calls == 0
     assert "succeeded job_id=123 worker_id=local-dev" in stdout.getvalue()
+
+
+def test_run_pipeline_no_data_upserts_summary_appends_event_and_marks_succeeded() -> None:
+    repo = FakeRepository(claimed_job())
+    runner = FakeRunner(result=no_data_result())
+
+    exit_code = analysis_job_worker.run_once(
+        repo,
+        worker_id="local-dev",
+        run_pipeline=True,
+        runner=runner,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert repo.upsert_calls[0]["summary"] == "No logs found in requested time range."
+    assert repo.upsert_calls[0]["export_path"] == "runs/jobs/123/export.json"
+    assert repo.upsert_calls[0]["stage2_report_path"] is None
+    assert repo.events[0]["event_type"] == "JOB_STARTED"
+    assert repo.events[1] == {
+        "job_id": 123,
+        "event_type": "JOB_NO_DATA",
+        "message": "No logs found in requested time range",
+        "detail_json": {
+            "worker_id": "local-dev",
+            "artifact_root": "runs/jobs/123",
+            "export_path": "runs/jobs/123/export.json",
+        },
+    }
+    assert repo.succeeded_calls == 1
+    assert repo.failed_calls == 0
 
 
 def test_run_pipeline_runner_failure_marks_failed_with_redacted_error() -> None:

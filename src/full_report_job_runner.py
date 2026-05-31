@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import os
+import json
+import shutil
 import subprocess
 import sys
 from dataclasses import asdict, dataclass
@@ -45,6 +47,8 @@ class FullReportJob:
 @dataclass(frozen=True)
 class FullReportRunResult:
     artifact_root: str
+    summary: Optional[str]
+    no_data: bool
     export_path: Optional[str]
     llm_input_path: Optional[str]
     analysis_candidates_path: Optional[str]
@@ -60,7 +64,7 @@ class FullReportRunResult:
     operator_queue_items_path: Optional[str] = None
     operator_queue_summary_path: Optional[str] = None
 
-    def as_upsert_kwargs(self) -> dict[str, Optional[str]]:
+    def as_upsert_kwargs(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -105,6 +109,11 @@ class FullReportJobRunner:
 
         export_cmd = self.build_export_command(job, scratch_export_path)
         self._run_subprocess(export_cmd, "export")
+        if self._is_no_data_export(scratch_export_path):
+            return self._materialize_no_data_result(
+                artifact_root_path=artifact_root_path,
+                scratch_export_path=scratch_export_path,
+            )
 
         pipeline_cmd = self.build_pipeline_command(
             job=job,
@@ -173,20 +182,60 @@ class FullReportJobRunner:
         if missing:
             raise FullReportRunnerError("required full_report artifacts missing: " + ", ".join(missing))
 
-        analysis_candidates = scratch_work_dir / "data" / "processed"
-        candidates = sorted(analysis_candidates.glob("*_analysis_candidates.json")) if analysis_candidates.exists() else []
-        analysis_candidates_path = self.normalize_relative_path(candidates[0]) if candidates else None
+        analysis_candidates_path = artifact_root_path / "analysis_candidates.json"
 
         return FullReportRunResult(
             artifact_root=self.normalize_relative_path(artifact_root_path),
+            summary=None,
+            no_data=False,
             export_path=self.normalize_relative_path(required_files["export_path"]),
             llm_input_path=self.normalize_relative_path(required_files["llm_input_path"]),
-            analysis_candidates_path=analysis_candidates_path,
+            analysis_candidates_path=self.normalize_relative_path(analysis_candidates_path) if analysis_candidates_path.exists() else None,
             noise_summary_path=self.normalize_relative_path(required_files["noise_summary_path"]),
             stage1_result_path=self.normalize_relative_path(required_files["stage1_result_path"]),
             stage2_report_path=self.normalize_relative_path(required_files["stage2_report_path"]),
             stage2_report_md_path=self.normalize_relative_path(required_files["stage2_report_md_path"]),
             viewer_payload_path=self.normalize_relative_path(required_files["viewer_payload_path"]),
+            lint_result_path=None,
+        )
+
+    def _is_no_data_export(self, export_path: Path) -> bool:
+        try:
+            with open(export_path, "r", encoding="utf-8") as f:
+                payload = json.load(f)
+        except Exception as exc:
+            raise FullReportRunnerError(f"failed to read export JSON: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise FullReportRunnerError("export JSON must be an object")
+        meta = payload.get("meta")
+        if not isinstance(meta, dict) or "total_count" not in meta:
+            return False
+        try:
+            return int(meta.get("total_count") or 0) == 0
+        except (TypeError, ValueError) as exc:
+            raise FullReportRunnerError(f"invalid export total_count: {meta.get('total_count')}") from exc
+
+    def _materialize_no_data_result(
+        self,
+        *,
+        artifact_root_path: Path,
+        scratch_export_path: Path,
+    ) -> FullReportRunResult:
+        artifact_root_path.mkdir(parents=True, exist_ok=False)
+        export_path = artifact_root_path / "export.json"
+        shutil.copy2(scratch_export_path, export_path)
+        return FullReportRunResult(
+            artifact_root=self.normalize_relative_path(artifact_root_path),
+            summary="No logs found in requested time range.",
+            no_data=True,
+            export_path=self.normalize_relative_path(export_path),
+            llm_input_path=None,
+            analysis_candidates_path=None,
+            noise_summary_path=None,
+            stage1_result_path=None,
+            stage2_report_path=None,
+            stage2_report_md_path=None,
+            viewer_payload_path=None,
             lint_result_path=None,
         )
 

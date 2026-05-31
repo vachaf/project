@@ -28,9 +28,18 @@ def option_value(cmd: list[str], option: str) -> str:
 
 
 class FakeSubprocess:
-    def __init__(self, *, fail_step: Optional[str] = None, write_candidates: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        fail_step: Optional[str] = None,
+        total_count: Optional[int | str] = 1,
+        write_run_dir_candidates: bool = True,
+        write_scratch_candidates: bool = False,
+    ) -> None:
         self.fail_step = fail_step
-        self.write_candidates = write_candidates
+        self.total_count = total_count
+        self.write_run_dir_candidates = write_run_dir_candidates
+        self.write_scratch_candidates = write_scratch_candidates
         self.calls: list[tuple[list[str], dict[str, Any]]] = []
 
     def __call__(self, cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -40,7 +49,13 @@ class FakeSubprocess:
             if self.fail_step == "export":
                 return subprocess.CompletedProcess(cmd, 7, stdout="export out", stderr="export err")
             Path(option_value(cmd, "--out")).parent.mkdir(parents=True, exist_ok=True)
-            Path(option_value(cmd, "--out")).write_text('{"ok": true}\n', encoding="utf-8")
+            if self.total_count is None:
+                payload = '{"meta": {}}\n'
+            elif isinstance(self.total_count, str):
+                payload = f'{{"meta": {{"total_count": "{self.total_count}"}}}}\n'
+            else:
+                payload = f'{{"meta": {{"total_count": {self.total_count}}}}}\n'
+            Path(option_value(cmd, "--out")).write_text(payload, encoding="utf-8")
             return subprocess.CompletedProcess(cmd, 0, stdout="export ok", stderr="")
 
         if script_name == "run_analysis_pipeline.py":
@@ -59,7 +74,9 @@ class FakeSubprocess:
                 "manifest.json",
             ):
                 (run_dir / filename).write_text("{}\n", encoding="utf-8")
-            if self.write_candidates:
+            if self.write_run_dir_candidates:
+                (run_dir / "analysis_candidates.json").write_text("{}\n", encoding="utf-8")
+            if self.write_scratch_candidates:
                 processed_dir = Path(option_value(cmd, "--work-dir")) / "data" / "processed"
                 processed_dir.mkdir(parents=True, exist_ok=True)
                 (processed_dir / "job_123_analysis_candidates.json").write_text("{}\n", encoding="utf-8")
@@ -178,6 +195,7 @@ def test_success_returns_required_artifact_mapping_without_manifest(tmp_path: Pa
     assert result.stage2_report_path == "runs/jobs/123/stage2_report.json"
     assert result.stage2_report_md_path == "runs/jobs/123/stage2_report.md"
     assert result.viewer_payload_path == "runs/jobs/123/viewer_payload.json"
+    assert result.analysis_candidates_path == "runs/jobs/123/analysis_candidates.json"
     assert result.lint_result_path is None
     assert not hasattr(result, "manifest_path")
 
@@ -195,8 +213,8 @@ def test_window_rollup_operator_paths_are_none_by_default(tmp_path: Path) -> Non
     assert result.operator_queue_summary_path is None
 
 
-def test_analysis_candidates_path_is_none_unless_existing_in_scratch_work_dir(tmp_path: Path) -> None:
-    fake = FakeSubprocess()
+def test_analysis_candidates_path_is_none_unless_existing_in_run_dir(tmp_path: Path) -> None:
+    fake = FakeSubprocess(write_run_dir_candidates=False)
     runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
 
     result = runner.run(make_job())
@@ -204,13 +222,55 @@ def test_analysis_candidates_path_is_none_unless_existing_in_scratch_work_dir(tm
     assert result.analysis_candidates_path is None
 
 
-def test_analysis_candidates_path_is_returned_when_pipeline_leaves_flat_file(tmp_path: Path) -> None:
-    fake = FakeSubprocess(write_candidates=True)
+def test_analysis_candidates_path_ignores_scratch_file_and_uses_run_dir_canonical_path(tmp_path: Path) -> None:
+    fake = FakeSubprocess(write_run_dir_candidates=True, write_scratch_candidates=True)
     runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
 
     result = runner.run(make_job())
 
-    assert result.analysis_candidates_path == "runs/jobs/.scratch/job_123/work/data/processed/job_123_analysis_candidates.json"
+    assert result.analysis_candidates_path == "runs/jobs/123/analysis_candidates.json"
+
+
+def test_empty_export_returns_no_data_result_without_pipeline_subprocess(tmp_path: Path) -> None:
+    fake = FakeSubprocess(total_count=0)
+    runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
+
+    result = runner.run(make_job())
+
+    assert len(fake.calls) == 1
+    assert result.no_data is True
+    assert result.summary == "No logs found in requested time range."
+    assert result.artifact_root == "runs/jobs/123"
+    assert result.export_path == "runs/jobs/123/export.json"
+    assert result.llm_input_path is None
+    assert result.analysis_candidates_path is None
+    assert result.noise_summary_path is None
+    assert result.stage1_result_path is None
+    assert result.stage2_report_path is None
+    assert result.stage2_report_md_path is None
+    assert result.viewer_payload_path is None
+    assert (tmp_path / "runs/jobs/123/export.json").exists()
+
+
+def test_empty_export_string_zero_returns_no_data_result(tmp_path: Path) -> None:
+    fake = FakeSubprocess(total_count="0")
+    runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
+
+    result = runner.run(make_job())
+
+    assert len(fake.calls) == 1
+    assert result.no_data is True
+
+
+def test_missing_total_count_continues_existing_pipeline_path(tmp_path: Path) -> None:
+    fake = FakeSubprocess(total_count=None)
+    runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
+
+    result = runner.run(make_job())
+
+    assert len(fake.calls) == 2
+    assert result.no_data is False
+    assert result.stage2_report_path == "runs/jobs/123/stage2_report.json"
 
 
 def test_requested_timezone_must_be_asia_seoul(tmp_path: Path) -> None:

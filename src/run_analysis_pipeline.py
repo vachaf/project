@@ -327,6 +327,7 @@ def build_flat_files(manifest_path: Path, run_manifest_path: Optional[Path], pat
     return {
         "export": None,
         "llm_input": str(paths["llm_input"]) if paths.get("llm_input") else None,
+        "analysis_candidates": str(paths["analysis_candidates"]) if paths.get("analysis_candidates") else None,
         "stage1_results": str(paths["stage1_results"]) if paths.get("stage1_results") else None,
         "stage2_report_input": str(paths["stage2_report_input"]) if paths.get("stage2_report_input") else None,
         "stage2_report_json": str(paths["stage2_report_json"]) if paths.get("stage2_report_json") else None,
@@ -354,6 +355,7 @@ def sync_run_dir_outputs(
     run_dir_files: Dict[str, Optional[str]] = {
         "export": None,
         "llm_input": None,
+        "analysis_candidates": None,
         "stage1_results": None,
         "stage2_report_input": None,
         "stage2_report_json": None,
@@ -365,6 +367,7 @@ def sync_run_dir_outputs(
 
     copy_plan: List[tuple[str, Optional[Path], str]] = [
         ("llm_input", paths.get("llm_input"), "llm_input.json"),
+        ("analysis_candidates", paths.get("analysis_candidates"), "analysis_candidates.json"),
         ("stage1_results", paths.get("stage1_results"), "stage1_results.json"),
         ("stage2_report_input", paths.get("stage2_report_input"), "stage2_report_input.json"),
         ("stage2_report_json", paths.get("stage2_report_json"), "stage2_report.json"),

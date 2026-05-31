@@ -73,6 +73,17 @@ def run_once(
         result = runner.run(claimed)
         upsert_kwargs = _result_to_upsert_kwargs(job_id=job_id, result=result)
         repository.upsert_analysis_report(**upsert_kwargs)
+        if _result_no_data(result):
+            repository.append_job_event(
+                job_id=job_id,
+                event_type="JOB_NO_DATA",
+                message="No logs found in requested time range",
+                detail_json={
+                    "worker_id": worker_id,
+                    "artifact_root": upsert_kwargs.get("artifact_root"),
+                    "export_path": upsert_kwargs.get("export_path"),
+                },
+            )
         marked_succeeded = repository.mark_job_succeeded(
             job_id=job_id,
             worker_id=worker_id,
@@ -114,6 +125,7 @@ def _result_to_upsert_kwargs(*, job_id: Any, result: Any) -> dict[str, Any]:
         raw = dict(vars(result))
 
     allowed = {
+        "summary",
         "artifact_root",
         "export_path",
         "llm_input_path",
@@ -131,6 +143,12 @@ def _result_to_upsert_kwargs(*, job_id: Any, result: Any) -> dict[str, Any]:
         "operator_queue_summary_path",
     }
     return {"job_id": int(job_id), **{key: raw.get(key) for key in allowed}}
+
+
+def _result_no_data(result: Any) -> bool:
+    if isinstance(result, Mapping):
+        return bool(result.get("no_data"))
+    return bool(getattr(result, "no_data", False))
 
 
 def build_parser() -> argparse.ArgumentParser:

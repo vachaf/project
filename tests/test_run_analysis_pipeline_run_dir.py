@@ -65,6 +65,7 @@ def test_run_dir_creates_parallel_outputs(tmp_path: Path) -> None:
     assert run_manifest_in_dir.exists()
 
     assert (work_dir / "data" / "processed" / f"{base}_llm_input.json").exists()
+    assert (work_dir / "data" / "processed" / f"{base}_analysis_candidates.json").exists()
     assert (work_dir / "data" / "processed" / f"{base}_stage1_results.json").exists()
     assert (work_dir / "reports" / f"{base}_stage2_report_input.json").exists()
     assert (work_dir / "reports" / f"{base}_stage2_report.json").exists()
@@ -73,6 +74,7 @@ def test_run_dir_creates_parallel_outputs(tmp_path: Path) -> None:
 
     assert (run_dir / "export.json").exists()
     assert (run_dir / "llm_input.json").exists()
+    assert (run_dir / "analysis_candidates.json").exists()
     assert (run_dir / "stage1_results.json").exists()
     assert (run_dir / "stage2_report_input.json").exists()
     assert (run_dir / "stage2_report.json").exists()
@@ -84,6 +86,7 @@ def test_run_dir_creates_parallel_outputs(tmp_path: Path) -> None:
     assert payload["run_id"] == "run1"
     assert payload["run_dir"] == str(run_dir.resolve())
     assert payload["run_dir_files"]["manifest"] == str((run_dir / "manifest.json").resolve())
+    assert payload["run_dir_files"]["analysis_candidates"] == str((run_dir / "analysis_candidates.json").resolve())
 
 
 def test_run_dir_collision_fail_fast(tmp_path: Path) -> None:
