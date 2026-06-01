@@ -162,6 +162,10 @@ grep -RniE "password|change_me|YOUR|192\.168\.56" docs/operations/sql
 ### 7.1 DB와 기본 계정 생성
 
 ```bash
+sudo mysql -u root
+```
+
+```bash
 sudo mariadb < docs/operations/sql/00_database_and_log_accounts.sql
 ```
 
