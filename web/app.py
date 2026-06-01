@@ -113,15 +113,13 @@ def _resolve_report_artifact_path(report: Dict[str, Any], artifact_key: str) -> 
     if not _is_relative_to(resolved_path, project_root):
         raise _artifact_not_found()
 
-    raw_artifact_root = report.get("artifact_root")
-    if raw_artifact_root:
-        try:
-            relative_artifact_root = validate_relative_artifact_path(raw_artifact_root)
-        except AnalysisJobValidationError:
-            raise _artifact_not_found() from None
-        artifact_root_path = (project_root / relative_artifact_root).resolve()
-        if not _is_relative_to(resolved_path, artifact_root_path):
-            raise _artifact_not_found()
+    try:
+        relative_artifact_root = validate_relative_artifact_path(report.get("artifact_root"))
+    except AnalysisJobValidationError:
+        raise _artifact_not_found() from None
+    artifact_root_path = (project_root / relative_artifact_root).resolve()
+    if not _is_relative_to(resolved_path, artifact_root_path):
+        raise _artifact_not_found()
 
     if not resolved_path.is_file():
         raise _artifact_not_found()

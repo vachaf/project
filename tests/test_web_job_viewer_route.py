@@ -182,6 +182,16 @@ def test_missing_viewer_payload_file_is_404(monkeypatch: pytest.MonkeyPatch, tmp
     assert exc_info.value.status_code == 404
 
 
+def test_missing_artifact_root_is_404(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    write_payload(tmp_path)
+    install_repo(monkeypatch, tmp_path, make_report(artifact_root=None))
+
+    with assert_http_error(404) as exc_info:
+        web_app_module.job_viewer_payload(make_request(), 123)
+
+    assert exc_info.value.status_code == 404
+
+
 def test_absolute_viewer_payload_path_is_rejected(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     path = write_payload(tmp_path)
     install_repo(monkeypatch, tmp_path, make_report(viewer_payload_path=str(path)))

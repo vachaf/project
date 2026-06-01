@@ -114,6 +114,21 @@ def test_null_artifact_path_is_404(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert exc_info.value.status_code == 404
 
 
+@pytest.mark.parametrize("artifact_root", [None, "", "   "])
+def test_missing_artifact_root_is_404(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    artifact_root: Optional[str],
+) -> None:
+    write_artifact(tmp_path, "runs/jobs/123/export.json", '{"ok": true}')
+    install_artifact_repo(monkeypatch, tmp_path, make_report(artifact_root=artifact_root))
+
+    with assert_artifact_404() as exc_info:
+        web_app_module.job_artifact(123, "export")
+
+    assert exc_info.value.status_code == 404
+
+
 def test_unknown_artifact_key_is_404(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     install_artifact_repo(monkeypatch, tmp_path, make_report())
 
