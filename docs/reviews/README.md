@@ -29,6 +29,8 @@
 7. Stage2 표현 품질은 [99_stage2_wording_quality_review.md](./99_stage2_wording_quality_review.md)
 8. 후속 작업은 [../planning/99_비교실험_후속개선_TODO.md](../planning/99_비교실험_후속개선_TODO.md)
 
+Observability review 문서는 run별 결론과 topology 비교를 다루며, scenario catalog와 matrix template의 docs-side 설계 요약은 [../design/99_observability_run_summary_index.md](../design/99_observability_run_summary_index.md)에서 연결한다.
+
 ## 관리 원칙
 
 - 평가, 검토, 품질 리뷰 문서는 `reviews/`에 둔다.
