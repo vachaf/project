@@ -2,6 +2,11 @@
 
 - 작성 기준일: 2026-05-03
 - 문서 역할: 실제 LLM Stage1/Stage2 산출물을 고정 샘플 기준으로 수동 검토하기 위한 계획
+- 현재 문서 성격: historical review plan / future manual validation checklist
+- docs-side summary: [99_llm_sample_validation_review.md](./99_llm_sample_validation_review.md)
+- legacy lab source:
+  - `../../lab/LLM샘플검증/2026-05-03_FGH_sample_review.md`
+  - `../../lab/LLM샘플검증/2026-05-04_BCE_sample_review.md`
 - 적용 범위: `prepare -> Stage1 -> Stage2` 산출물
 - 비적용 범위: 자동 채점형 LLM 품질 평가, 모델 성능 벤치마크, 공격 성공 판정
 
@@ -10,6 +15,8 @@
 ## 1. 목적
 
 이 문서는 실제 LLM Stage1/Stage2 결과가 Apache 로그 기반 분석 원칙을 잘 지키는지 검토하기 위한 기준을 정의한다.
+
+현재 이미 수행된 수동 LLM sample validation의 docs-side 결론은 [99_llm_sample_validation_review.md](./99_llm_sample_validation_review.md)를 우선 참조한다. 이 문서는 향후 같은 방식의 수동 review를 반복하기 위한 계획/체크리스트 성격으로 읽는다.
 
 검증의 핵심은 “공격을 얼마나 세게 탐지했는가”가 아니라 다음이다.
 
@@ -396,18 +403,20 @@ scripts/check_llm_report_safety.py
 docs/reviews/99_llm_sample_review_plan.md
 ```
 
-실제 검토 결과:
+현재 docs-side summary:
 
 ```text
-lab/LLM샘플검증/2026-xx-xx_llm_sample_review.md
+docs/reviews/99_llm_sample_validation_review.md
 ```
 
-또는 세트별로 나누려면:
+legacy lab source:
 
 ```text
-lab/LLM샘플검증/F_G_H_sample_review.md
-lab/LLM샘플검증/B_C_E_sample_review.md
+../../lab/LLM샘플검증/2026-05-03_FGH_sample_review.md
+../../lab/LLM샘플검증/2026-05-04_BCE_sample_review.md
 ```
+
+위 lab 원문은 현재 판단 기준의 우선 진입점이 아니라 원본 lab artifact다. lab 원문 삭제/이동/archive 여부는 별도 PR에서만 검토한다.
 
 ---
 
