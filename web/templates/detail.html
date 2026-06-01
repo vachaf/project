@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}{{ report.filename }} | Security Intelligence Console{% endblock %}
+{% block title %}Legacy {{ report.filename }} | Security Intelligence Console{% endblock %}
 
 {% block content %}
 <section class="section card {% if not report.is_valid %}is-invalid{% endif %}">
-  <h2>Report Detail</h2>
+  <h2>Legacy Report Detail</h2>
+  <p class="is-muted">Legacy run-dir report viewer. For DB-backed analysis jobs, use Job Dashboard and /job/{id}/viewer.</p>
   <div class="meta-grid meta-grid-summary">
     <div><span class="meta-label">filename</span><br><strong>{{ report.filename }}</strong></div>
     <div><span class="meta-label">path</span><br><span class="is-muted">{{ report.repo_relative_path }}</span></div>

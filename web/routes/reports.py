@@ -173,6 +173,7 @@ def report_payload_detail(request: Request, report_id: str):
             "contexts_preview": contexts_preview,
             "contexts_preview_display": contexts_preview_display,
             "mask_src_ip": mask_src_ip,
+            "is_legacy_report": True,
             **nav_context,
         },
     )

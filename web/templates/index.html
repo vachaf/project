@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Stage2 Reports | Security Intelligence Console{% endblock %}
+{% block title %}Legacy Stage2 Reports | Security Intelligence Console{% endblock %}
 
 {% block content %}
 <section class="section card">
-  <h2>Stage2 Report Overview</h2>
+  <h2>Legacy Stage2 Report Overview</h2>
   <p class="is-muted">Reports: {{ summary.total_count }} | Groups: {{ unfiltered_count }}</p>
-  <p><a class="action-link" href="/">Analysis Job Dashboard</a></p>
+  <p class="is-muted">Run directory / manifest based legacy reports. DB-backed jobs are available from the Job Dashboard.</p>
+  <p><a class="action-link" href="/">Job Dashboard</a></p>
   <div class="meta-grid">
     <div><span class="badge badge-lint-pass">PASS</span> {{ summary.lint_aggregate.PASS }}</div>
     <div><span class="badge badge-lint-warn">WARN</span> {{ summary.lint_aggregate.WARN }}</div>

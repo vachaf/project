@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Compare | Security Intelligence Console{% endblock %}
+{% block title %}Legacy Compare | Security Intelligence Console{% endblock %}
 
 {% block content %}
 <section class="section card">
-  <h2>Provider Comparison</h2>
+  <h2>Legacy Provider Comparison</h2>
+  <p class="is-muted">Legacy run-dir report comparison. DB-backed jobs are available from the Job Dashboard.</p>
   <div class="group-head">
     <p class="group-title">
       <strong>{{ group.timeframe or 'unknown' }}</strong>

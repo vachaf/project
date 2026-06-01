@@ -89,6 +89,12 @@
     </div>
   </header>
 
+  {% if is_legacy_report|default(false) %}
+  <section class="section card payload-inline-warning">
+    <p class="is-muted">Legacy run-dir report viewer. For DB-backed analysis jobs, use Job Dashboard and /job/{id}/viewer.</p>
+  </section>
+  {% endif %}
+
   {% if payload_error %}
   <section class="section card payload-inline-warning">
     <p class="is-muted">Viewer payload load note: {{ payload_error }}</p>
