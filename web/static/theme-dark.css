@@ -1050,3 +1050,61 @@
 [data-theme="dark"] #pd-detail-content .payload-mini-badge {
   border-color: rgba(148, 163, 184, 0.35);
 }
+
+/* Legacy report navigation and payload badge readability. */
+[data-theme="dark"] .action-link,
+[data-theme="dark"] button.action-link,
+[data-theme="dark"] .navigation-controls .action-link {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.28);
+  color: #93c5fd;
+}
+
+[data-theme="dark"] .action-link:hover,
+[data-theme="dark"] button.action-link:hover,
+[data-theme="dark"] .navigation-controls .action-link:hover {
+  background: rgba(96, 165, 250, 0.2);
+  border-color: rgba(96, 165, 250, 0.45);
+  color: #bfdbfe;
+}
+
+[data-theme="dark"] .payload-dashboard-badges .action-link {
+  background: rgba(191, 219, 254, 0.14);
+  color: #dbeafe;
+}
+
+[data-theme="dark"] .payload-dashboard-badges .action-link:hover {
+  background: rgba(191, 219, 254, 0.22);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .provider-missing-chip,
+[data-theme="dark"] .nav-disabled {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.24);
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .nav a {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .filter-chip {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .payload-overall h3,
+[data-theme="dark"] .payload-contexts h3,
+[data-theme="dark"] .payload-event-panel h3,
+[data-theme="dark"] .payload-detail-panel h3,
+[data-theme="dark"] .viewer-payload-dashboard h3 {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .badge-context-only,
+[data-theme="dark"] .payload-badge-context-only,
+[data-theme="dark"] .viewer-payload-badge-context-only {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #bfdbfe;
+}

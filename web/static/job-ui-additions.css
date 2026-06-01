@@ -235,3 +235,38 @@
 .job-theme-toggle:active {
   transform: translateY(0);
 }
+
+html:not([data-theme="dark"]) .job-policy-strip,
+html:not([data-theme="dark"]) .job-info-box,
+html:not([data-theme="dark"]) .job-policy-box {
+  background: #f0f7ff;
+  border-color: #bfd7f5;
+  color: #245985;
+}
+
+html:not([data-theme="dark"]) .job-policy-strip strong,
+html:not([data-theme="dark"]) .job-info-box strong,
+html:not([data-theme="dark"]) .job-policy-box strong {
+  color: #14385f;
+}
+
+html:not([data-theme="dark"]) .job-artifact-panel,
+html:not([data-theme="dark"]) .job-report-item {
+  background: #ffffff;
+  border-color: #d5dde8;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+html:not([data-theme="dark"]) .job-report-item code {
+  color: #334155;
+}
+
+html:not([data-theme="dark"]) .job-back-link,
+html:not([data-theme="dark"]) .job-table-action {
+  color: #0f5f9f;
+}
+
+html:not([data-theme="dark"]) .job-stat-card:hover {
+  border-color: rgba(10, 124, 74, 0.35);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}

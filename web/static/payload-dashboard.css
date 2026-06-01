@@ -1342,3 +1342,54 @@
   letter-spacing: 0.08em;
   font-weight: 700;
 }
+
+/* Explicit viewer_payload relations rendered in the read-only detail panel. */
+.payload-related-context-card,
+.payload-supporting-event-card {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--pd-line);
+  border-radius: 8px;
+  background: var(--pd-surface-soft);
+  overflow-wrap: anywhere;
+}
+
+.payload-related-context-card + .payload-related-context-card,
+.payload-supporting-event-card + .payload-supporting-event-card {
+  margin-top: 12px;
+}
+
+.payload-related-context-head,
+.payload-supporting-event-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.payload-related-context-card p,
+.payload-supporting-event-card p {
+  margin: 6px 0 0;
+  color: var(--pd-text);
+}
+
+.payload-related-context-note,
+.payload-supporting-event-note {
+  padding: 10px 12px;
+  border: 1px solid var(--pd-line);
+  border-radius: 8px;
+  background: var(--pd-surface-soft);
+  color: var(--pd-muted);
+}
+
+.payload-supporting-uri,
+.payload-context-sample {
+  color: var(--pd-text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.payload-detail-panel.card {
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}

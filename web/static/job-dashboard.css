@@ -539,3 +539,114 @@ body.job-page a.job-btn-primary:hover,
   .job-form-row { grid-template-columns: 1fr; }
   .job-btn-row { flex-direction: column; align-items: stretch; }
 }
+
+/* Light mode job UI overrides. Default variables remain dark for compatibility. */
+html:not([data-theme="dark"]) {
+  --job-bg: #f2f4f8;
+  --job-surface: #ffffff;
+  --job-surface-2: #f8fafc;
+  --job-surface-3: #f0f4f8;
+  --job-border: #d5dde8;
+  --job-border-strong: #bcc7d6;
+  --job-text: #14243d;
+  --job-text-2: #334155;
+  --job-muted: #5e6e85;
+  --job-muted-2: #8494a7;
+  --job-accent: #0a7c4a;
+  --job-accent-2: #059669;
+  --job-warn: #b45309;
+  --job-fail: #dc2626;
+  --job-info: #2563eb;
+}
+
+html:not([data-theme="dark"]) body.job-page {
+  background: linear-gradient(180deg, #f9fafc, #eef2f7);
+}
+
+html:not([data-theme="dark"]) .job-topbar {
+  background: #0d2b52;
+  border-bottom-color: #1a3a6a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+html:not([data-theme="dark"]) .job-brand,
+html:not([data-theme="dark"]) .job-theme-toggle {
+  color: #ffffff;
+}
+
+html:not([data-theme="dark"]) .job-brand-mark,
+html:not([data-theme="dark"]) .job-topnav a,
+html:not([data-theme="dark"]) .job-operator-badge {
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #d8e8ff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+html:not([data-theme="dark"]) .job-topnav a:hover,
+html:not([data-theme="dark"]) .job-theme-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+html:not([data-theme="dark"]) .job-stat-card,
+html:not([data-theme="dark"]) .job-card,
+html:not([data-theme="dark"]) .job-form-card,
+html:not([data-theme="dark"]) .job-table {
+  background: #ffffff;
+  border-color: #d5dde8;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+html:not([data-theme="dark"]) .job-table thead,
+html:not([data-theme="dark"]) .job-empty-state,
+html:not([data-theme="dark"]) .job-fixed-badge {
+  background: #f8fafc;
+}
+
+html:not([data-theme="dark"]) .job-table th,
+html:not([data-theme="dark"]) .job-table td,
+html:not([data-theme="dark"]) .job-form-section-title {
+  border-color: #dce5ef;
+}
+
+html:not([data-theme="dark"]) .job-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+html:not([data-theme="dark"]) .job-status-pending {
+  color: #b45309;
+  background: rgba(180, 83, 9, 0.08);
+}
+
+html:not([data-theme="dark"]) .job-status-running,
+html:not([data-theme="dark"]) .job-status-succeeded {
+  color: #0a7c4a;
+  background: rgba(10, 124, 74, 0.08);
+}
+
+html:not([data-theme="dark"]) .job-status-failed,
+html:not([data-theme="dark"]) .job-status-not_found {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+html:not([data-theme="dark"]) .job-form-group input {
+  background: #ffffff;
+  border-color: #bcc7d6;
+  color: #14243d;
+  color-scheme: light;
+}
+
+html:not([data-theme="dark"]) .job-form-group input:focus {
+  border-color: #0a7c4a;
+  box-shadow: 0 0 0 2px rgba(10, 124, 74, 0.15);
+}
+
+body.job-page input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+html:not([data-theme="dark"]) body.job-page input[type="datetime-local"] {
+  color-scheme: light;
+}

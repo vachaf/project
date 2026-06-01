@@ -109,17 +109,17 @@
     </article>
     <article class="payload-summary-card">
       <p class="payload-summary-label">Findings</p>
-      <p class="payload-summary-value">{{ summary.get('finding_count') or findings|length }}</p>
+      <p class="payload-summary-value">{{ summary.get('finding_count') if summary.get('finding_count') is not none else findings|length }}</p>
       <p class="payload-summary-meta">incident candidates</p>
     </article>
     <article class="payload-summary-card">
       <p class="payload-summary-label">Contexts</p>
-      <p class="payload-summary-value">{{ summary.get('context_count') or contexts_preview|length }}</p>
+      <p class="payload-summary-value">{{ summary.get('context_count') if summary.get('context_count') is not none else contexts_preview|length }}</p>
       <p class="payload-summary-meta">context-only signals</p>
     </article>
     <article class="payload-summary-card">
       <p class="payload-summary-label">Supporting Events</p>
-      <p class="payload-summary-value">{{ summary.get('supporting_event_count') or 0 }}</p>
+      <p class="payload-summary-value">{{ summary.get('supporting_event_count') if summary.get('supporting_event_count') is not none else supporting_events|length }}</p>
       <p class="payload-summary-meta">drill-down follow-up</p>
     </article>
     <article class="payload-summary-card">
@@ -485,10 +485,6 @@
       return maskSrcIp ? maskSourceIp(text) : text;
     }
 
-    function safeWord(value) {
-      return asLowerText(value).replace(/\s+/g, " ").trim();
-    }
-
     function getEventTime(event) {
       if (!event || typeof event !== "object") return "unknown";
       return asText(event.log_time || event.timestamp || event.event_time, "unknown");
@@ -497,10 +493,6 @@
     function getEventRole(event) {
       if (!event || typeof event !== "object") return "unknown";
       return asText(event.supporting_role || event.context_role || event.supporting_reason, "unknown");
-    }
-
-    function keywordInRole(roleText, keywords) {
-      return keywords.some((keyword) => roleText.includes(keyword));
     }
 
     function pickContextType(ctx) {
@@ -514,23 +506,6 @@
       if (start) return start;
       if (end) return end;
       return "N/A";
-    }
-
-    function normalizeHintPrefix(item) {
-      const text = asLowerText(item);
-      if (!text) return "";
-      const idx = text.indexOf(":");
-      return idx > 0 ? text.slice(0, idx) : text;
-    }
-
-    function sameHintPrefix(findingHints, contextHints) {
-      const left = new Set(asList(findingHints).map(normalizeHintPrefix).filter(Boolean));
-      if (!left.size) return false;
-      return asList(contextHints).some((hint) => left.has(normalizeHintPrefix(hint)));
-    }
-
-    function includesAny(text, tokens) {
-      return tokens.some((token) => text.includes(token));
     }
 
     function hasHint(finding, hint) {
