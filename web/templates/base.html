@@ -6,15 +6,21 @@
   <title>{% block title %}Security Intelligence Console{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css">
   {% block extra_head %}{% endblock %}
+  <link rel="stylesheet" href="/static/theme-dark.css">
+  <script src="/static/theme-toggle.js"></script>
 </head>
 <body class="page {% block body_class %}{% endblock %}">
   {% block app_header %}
   <header class="header">
     <div class="container">
-      <h1>Security Intelligence Console</h1>
+      <div class="header-row">
+        <h1>Security Intelligence Console</h1>
+        <button type="button" class="theme-toggle" onclick="toggleTheme()" aria-label="테마 전환">☾</button>
+      </div>
       <p class="header-subtitle">Stage2 Report Viewer · Quality Lint · Model Comparison</p>
-      <nav class="nav">
-        <a href="/">Report Viewer</a>
+      <nav class="nav" aria-label="primary navigation">
+        <a href="/">Analysis Jobs</a>
+        <a href="/reports">Report Viewer</a>
       </nav>
     </div>
   </header>

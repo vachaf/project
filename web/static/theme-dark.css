@@ -1,0 +1,774 @@
+/* theme-dark.css
+   ──────────────────────────────────────────
+   data-theme="dark" 일 때만 적용됩니다.
+   기존 CSS 파일 4개를 수정하지 않습니다.
+   ────────────────────────────────────────── */
+
+/* ============================================
+   1. CSS 변수 오버라이드
+   ============================================ */
+[data-theme="dark"] {
+  /* style.css 공용 */
+  --bg: #0b1120;
+  --surface: #151d30;
+  --text: #e2e8f0;
+  --muted: #8899aa;
+  --border: #253048;
+  --brand: #0d2b52;
+  --pass: #34d399;
+  --warn: #fbbf24;
+  --fail: #f87171;
+  --error: #94a3b8;
+
+  /* job-dashboard.css */
+  --job-bg: #0b1120;
+  --job-surface: #151d30;
+  --job-surface-2: #111828;
+  --job-surface-3: #1a2540;
+  --job-border: #253048;
+  --job-border-strong: #334155;
+  --job-text: #e2e8f0;
+  --job-text-2: #cbd5e0;
+  --job-muted: #8899aa;
+  --job-muted-2: #64748b;
+  --job-accent: #34d399;
+  --job-accent-2: #10b981;
+  --job-warn: #fbbf24;
+  --job-fail: #f87171;
+  --job-info: #60a5fa;
+
+  /* payload-dashboard.css */
+  --pd-bg: #0b1120;
+  --pd-surface: #151d30;
+  --pd-surface-soft: #111828;
+  --pd-line: #253048;
+  --pd-line-soft: #1e2a42;
+  --pd-text: #e2e8f0;
+  --pd-muted: #8899aa;
+  --pd-blue: #60a5fa;
+  --pd-green: #34d399;
+  --pd-yellow: #fbbf24;
+  --pd-red: #f87171;
+  --pd-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   2. Body / 전역
+   ============================================ */
+[data-theme="dark"] body.page,
+[data-theme="dark"] body.job-page,
+[data-theme="dark"] .payload-page {
+  background: #0b1120;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] body.page {
+  background: linear-gradient(180deg, #0d1424, #0b1120);
+}
+
+[data-theme="dark"] body.job-page {
+  background: linear-gradient(180deg, #0d1424, #0b1120);
+}
+
+[data-theme="dark"] a {
+  color: #60a5fa;
+}
+
+/* ============================================
+   3. Header (이미 다크이므로 약간만 조정)
+   ============================================ */
+[data-theme="dark"] .header {
+  background: #0a1628;
+  border-bottom: 1px solid #253048;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .header-subtitle {
+  color: #8899aa;
+}
+
+[data-theme="dark"] .nav a {
+  color: #94a3b8;
+}
+
+/* ============================================
+   4. Job Topbar
+   ============================================ */
+[data-theme="dark"] .job-topbar {
+  background: #0f1829;
+  border-color: #253048;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .job-topnav a {
+  background: #151d30;
+  border-color: #253048;
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .job-topnav a:hover {
+  border-color: #34d399;
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.08);
+}
+
+[data-theme="dark"] .job-operator-badge {
+  background: #151d30;
+  border-color: #253048;
+  color: #8899aa;
+}
+
+/* ============================================
+   5. Card 계열 전체
+   ============================================ */
+[data-theme="dark"] .card,
+[data-theme="dark"] .job-card,
+[data-theme="dark"] .job-stat-card,
+[data-theme="dark"] .job-form-card {
+  background: #151d30;
+  border-color: #253048;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .card:hover,
+[data-theme="dark"] .job-card:hover {
+  border-color: #334155;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .job-stat-card:hover {
+  border-color: rgba(52, 211, 153, 0.4);
+  box-shadow: 0 4px 16px rgba(52, 211, 153, 0.08);
+}
+
+[data-theme="dark"] .provider-card-missing {
+  border-color: #334155;
+}
+
+[data-theme="dark"] .no-result-card {
+  border-color: #334155;
+  background: #111828;
+}
+
+/* ============================================
+   6. 테이블
+   ============================================ */
+[data-theme="dark"] .job-table {
+  background: #151d30;
+  border-color: #253048;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .job-table thead {
+  background: #1a2540;
+}
+
+[data-theme="dark"] .job-table th {
+  color: #8899aa;
+  border-color: #253048;
+}
+
+[data-theme="dark"] .job-table td {
+  color: #cbd5e0;
+  border-color: #1e2a42;
+}
+
+[data-theme="dark"] .job-table tbody tr:hover {
+  background: rgba(96, 165, 250, 0.06);
+}
+
+[data-theme="dark"] .job-id-link {
+  color: #60a5fa;
+}
+
+/* style.css 쪽 테이블 */
+[data-theme="dark"] .table {
+  background: #151d30;
+}
+
+[data-theme="dark"] .table th {
+  background: #1a2540;
+  color: #8899aa;
+  border-color: #253048;
+}
+
+[data-theme="dark"] .table td {
+  color: #cbd5e0;
+  border-color: #1e2a42;
+}
+
+[data-theme="dark"] .table tbody tr:hover {
+  background: rgba(96, 165, 250, 0.06);
+}
+
+/* ============================================
+   7. 배지
+   ============================================ */
+[data-theme="dark"] .job-status-succeeded,
+[data-theme="dark"] .job-status-running {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #34d399;
+}
+
+[data-theme="dark"] .job-status-pending {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .job-status-failed,
+[data-theme="dark"] .job-status-not_found {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+/* style.css 배지 */
+[data-theme="dark"] .badge-lint-pass {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+[data-theme="dark"] .badge-lint-warn {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+[data-theme="dark"] .badge-lint-fail {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+[data-theme="dark"] .badge-lint-error {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .badge-severity-high {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+[data-theme="dark"] .badge-severity-medium {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+[data-theme="dark"] .badge-severity-low {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+[data-theme="dark"] .badge-provider-openai {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+[data-theme="dark"] .badge-provider-anthropic {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+[data-theme="dark"] .badge-muted,
+[data-theme="dark"] .badge-missing-report {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .badge-readonly,
+[data-theme="dark"] .badge-context {
+  background: rgba(96, 165, 250, 0.08);
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+/* ============================================
+   8. 입력 필드 / 폼
+   ============================================ */
+[data-theme="dark"] .job-form-group input,
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="datetime-local"],
+[data-theme="dark"] select {
+  background: #111828;
+  border-color: #253048;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .job-form-group input:focus {
+  border-color: #34d399;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15);
+}
+
+[data-theme="dark"] .job-form-group label {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .job-fixed-badge {
+  background: #111828;
+  border-color: #253048;
+  color: #8899aa;
+}
+
+[data-theme="dark"] .job-form-section-title {
+  color: #e2e8f0;
+  border-color: #253048;
+}
+
+/* ============================================
+   9. 버튼
+   ============================================ */
+[data-theme="dark"] .job-btn,
+[data-theme="dark"] .job-page button.job-btn {
+  background: #1a2540;
+  border-color: #334155;
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .job-btn:hover,
+[data-theme="dark"] .job-page button.job-btn:hover {
+  background: #253048;
+  border-color: #60a5fa;
+  color: #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .job-btn-primary,
+[data-theme="dark"] .job-page button.job-btn-primary,
+[data-theme="dark"] body.job-page a.job-btn-primary {
+  background: #10b981;
+  border-color: #10b981;
+  color: #0b1120;
+}
+
+[data-theme="dark"] .job-btn-primary:hover,
+[data-theme="dark"] .job-page button.job-btn-primary:hover,
+[data-theme="dark"] body.job-page a.job-btn-primary:hover {
+  background: #34d399;
+  border-color: #34d399;
+  color: #0b1120;
+}
+
+/* style.css 버튼 (필터 등) */
+[data-theme="dark"] .filter-chip {
+  border-color: #334155;
+  background: rgba(96, 165, 250, 0.08);
+  color: #94a3b8;
+}
+
+/* ============================================
+   10. 타임라인
+   ============================================ */
+[data-theme="dark"] .job-timeline-item {
+  border-color: #1e2a42;
+}
+
+[data-theme="dark"] .job-timeline-dot {
+  background: #111828;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .job-timeline-dot.is-success {
+  border-color: #34d399;
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.1);
+}
+
+[data-theme="dark"] .job-timeline-dot.is-error {
+  border-color: #f87171;
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+[data-theme="dark"] .job-timeline-dot.is-info {
+  border-color: #60a5fa;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+[data-theme="dark"] .job-timeline-time {
+  background: #1a2540;
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .job-timeline-event {
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.25);
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .job-timeline-item:has(.job-timeline-dot.is-success) .job-timeline-event {
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.25);
+  color: #34d399;
+}
+
+[data-theme="dark"] .job-timeline-item:has(.job-timeline-dot.is-error) .job-timeline-event {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.25);
+  color: #f87171;
+}
+
+[data-theme="dark"] .job-timeline-message {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .job-timeline-detail {
+  background: #111828;
+  border-color: #253048;
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .job-timeline-detail::before {
+  color: #64748b;
+}
+
+/* ============================================
+   11. 정보/정책 박스
+   ============================================ */
+[data-theme="dark"] .job-policy-strip,
+[data-theme="dark"] .job-policy-box {
+  background: rgba(96, 165, 250, 0.06);
+  border-color: rgba(96, 165, 250, 0.2);
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .job-policy-strip strong,
+[data-theme="dark"] .job-policy-box strong,
+[data-theme="dark"] .job-info-box strong {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .job-info-box {
+  background: rgba(96, 165, 250, 0.06);
+  border-color: #60a5fa;
+  color: #94a3b8;
+}
+
+/* ============================================
+   12. 작업 아티팩트 / 리포트 아이템
+   ============================================ */
+[data-theme="dark"] .job-artifact-panel {
+  background: #111828;
+  border-color: #253048;
+}
+
+[data-theme="dark"] .job-report-item {
+  background: #151d30;
+  border-color: #253048;
+}
+
+[data-theme="dark"] .job-report-item:hover {
+  border-color: #334155;
+}
+
+[data-theme="dark"] .job-report-item code {
+  color: #94a3b8;
+}
+
+/* ============================================
+   13. Empty state
+   ============================================ */
+[data-theme="dark"] .job-empty-state {
+  background: #111828;
+  border-color: #253048;
+}
+
+[data-theme="dark"] .job-empty-title {
+  color: #cbd5e0;
+}
+
+/* ============================================
+   14. Error card
+   ============================================ */
+[data-theme="dark"] .job-error-card {
+  background: rgba(248, 113, 113, 0.08);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .job-detail-error {
+  background: rgba(248, 113, 113, 0.08);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #fca5a5;
+}
+
+/* ============================================
+   15. Payload Dashboard 다크
+   ============================================ */
+[data-theme="dark"] .payload-dashboard {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .payload-dashboard-header {
+  background: linear-gradient(135deg, #0a1628 0%, #111d35 62%, #162544 100%);
+}
+
+[data-theme="dark"] .payload-summary-card {
+  background: #151d30;
+  border-color: #253048;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .payload-summary-value {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .payload-card-marker {
+  background: #1a2540;
+}
+
+[data-theme="dark"] .payload-card-marker-warn {
+  background: rgba(251, 191, 36, 0.12);
+}
+
+[data-theme="dark"] .payload-card-marker-danger {
+  background: rgba(248, 113, 113, 0.12);
+}
+
+[data-theme="dark"] .payload-card-marker-pass {
+  background: rgba(52, 211, 153, 0.12);
+}
+
+[data-theme="dark"] .payload-card-marker-muted {
+  background: #1a2540;
+}
+
+[data-theme="dark"] .payload-overall.card,
+[data-theme="dark"] .payload-event-panel.card,
+[data-theme="dark"] .payload-detail-panel.card,
+[data-theme="dark"] .payload-contexts.card {
+  background: #151d30;
+  border-color: #253048;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .payload-overall p {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .payload-event-table th {
+  background: #1a2540;
+  border-color: #253048;
+  color: #8899aa;
+}
+
+[data-theme="dark"] .payload-event-table td {
+  color: #cbd5e0;
+  border-color: #1e2a42;
+}
+
+[data-theme="dark"] .payload-event-table tbody tr:hover td {
+  background: rgba(96, 165, 250, 0.06);
+}
+
+[data-theme="dark"] .payload-finding-row.is-selected td {
+  background: rgba(96, 165, 250, 0.1);
+  border-color: #60a5fa;
+}
+
+[data-theme="dark"] .payload-guardrail {
+  background: #151d30;
+  border-color: #253048;
+  box-shadow: -2px -2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .payload-guardrail-note {
+  background: rgba(96, 165, 250, 0.06);
+  border-color: #60a5fa;
+  color: #94a3b8;
+}
+
+/* --- 주변 컨텍스트 테이블 및 우측 상세 패널 다크 모드 보정 --- */
+[data-theme="dark"] .payload-contexts-table th {
+  background: #1a2540;
+  border-color: #253048;
+  color: #8899aa;
+}
+
+[data-theme="dark"] .payload-contexts-table td {
+  color: #cbd5e0;
+  border-color: #1e2a42;
+}
+
+[data-theme="dark"] .payload-contexts-table tbody tr:hover td {
+  background: rgba(96, 165, 250, 0.06);
+}
+
+[data-theme="dark"] .payload-detail-value,
+[data-theme="dark"] .payload-detail-list {
+  color: #cbd5e0;
+}
+
+/* 페이로드 배지 가독성 최적화 */
+[data-theme="dark"] .payload-badge-success {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #34d399;
+}
+
+[data-theme="dark"] .payload-badge-warning {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .payload-badge-error {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+[data-theme="dark"] .payload-badge-info {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #60a5fa;
+}
+
+/* ============================================
+   16. Reports list (style.css 대상)
+   ============================================ */
+[data-theme="dark"] .viewer-payload-dashboard {
+  background: linear-gradient(180deg, #111828 0%, #0f1729 100%);
+  border-color: #253048;
+}
+
+[data-theme="dark"] .viewer-payload-header {
+  background: linear-gradient(135deg, #0a1628 0%, #111d35 68%, #162544 100%);
+}
+
+[data-theme="dark"] .viewer-payload-card {
+  background: #151d30;
+  border-color: #253048;
+}
+
+[data-theme="dark"] .viewer-payload-card-value {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .viewer-payload-link-card {
+  border-left-color: #334155;
+}
+
+/* compare panel */
+[data-theme="dark"] .compare-panel {
+  background: #151d30;
+  border-color: #253048;
+}
+
+[data-theme="dark"] .compare-panel:hover {
+  border-color: #334155;
+}
+
+/* ============================================
+   17. 검색/필터 폼 (style.css 대상)
+   ============================================ */
+[data-theme="dark"] .filter-bar input,
+[data-theme="dark"] .filter-bar select {
+  background: #111828;
+  border-color: #253048;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .filter-bar label {
+  color: #8899aa;
+}
+
+/* ============================================
+   18. 토글 버튼 자체 스타일
+   ============================================ */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--job-border, var(--border, #c5d0dd));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--job-muted, var(--muted, #5e6e85));
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.theme-toggle:hover {
+  border-color: var(--job-accent, var(--pass, #0a5c35));
+  color: var(--job-accent, var(--pass, #0a5c35));
+  background: rgba(10, 92, 53, 0.06);
+}
+
+[data-theme="dark"] .theme-toggle {
+  border-color: #334155;
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .theme-toggle:hover {
+  border-color: #fbbf24;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+}
+
+/* ============================================
+   19. 모바일 적용
+   ============================================ */
+@media (max-width: 768px) {
+  [data-theme="dark"] .payload-event-table tr,
+  [data-theme="dark"] .payload-contexts-table tr {
+    background: #151d30;
+    border-color: #253048;
+  }
+
+  [data-theme="dark"] .payload-event-table tr:hover,
+  [data-theme="dark"] .payload-contexts-table tr:hover {
+    background: #1a2540;
+    border-color: #334155;
+  }
+
+  [data-theme="dark"] .payload-finding-row.is-selected {
+    border-color: #60a5fa;
+    background: rgba(96, 165, 250, 0.08);
+  }
+
+  [data-theme="dark"] .payload-event-table td[data-label="uri"] {
+    background: #111828;
+  }
+
+  /* 모바일 환경 주변 컨텍스트 테이블 URI 배경 처리 */
+  [data-theme="dark"] .payload-contexts-table td[data-label="uri"] {
+    background: #111828;
+  }
+}
+
+/* ============================================
+   20. 스크롤바 (다크 모드에서 하얀 스크롤바 방지)
+   ============================================ */
+[data-theme="dark"] .job-timeline-detail::-webkit-scrollbar,
+[data-theme="dark"] .job-table-wrap::-webkit-scrollbar,
+[data-theme="dark"] .payload-event-table-wrap::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+[data-theme="dark"] .job-timeline-detail::-webkit-scrollbar-track,
+[data-theme="dark"] .job-table-wrap::-webkit-scrollbar-track,
+[data-theme="dark"] .payload-event-table-wrap::-webkit-scrollbar-track {
+  background: #111828;
+}
+
+[data-theme="dark"] .job-timeline-detail::-webkit-scrollbar-thumb,
+[data-theme="dark"] .job-table-wrap::-webkit-scrollbar-thumb,
+[data-theme="dark"] .payload-event-table-wrap::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}

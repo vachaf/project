@@ -1,28 +1,7 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Intelligence Dashboard</title>
-    <link rel="stylesheet" href="/static/job-dashboard.css">
-    <link rel="stylesheet" href="/static/job-ui-additions.css">
-</head>
-<body class="job-page">
-<div class="job-shell">
-    <header class="job-topbar">
-        <div class="job-brand">
-            <span class="job-brand-mark">▣</span>
-            <span>Security Intelligence</span>
-        </div>
-        <nav class="job-topnav">
-            <span class="job-operator-badge">operator</span>
-            <a href="/reports">Stage2 Reports</a>
-            <a href="/new-job">New Job</a>
-        </nav>
-    </header>
-
-    <main class="job-container">
-        <div class="job-page-head">
+{% extends "job_base.html" %}
+{% block title %}Security Intelligence Dashboard{% endblock %}
+{% block content %}
+<div class="job-page-head">
             <div>
                 <div class="job-page-kicker">DB-backed analysis queue</div>
                 <h1 class="job-page-title">분석 작업 대시보드</h1>
@@ -118,7 +97,4 @@
             <strong>Apache logs-only 분석</strong>
             <span>이 화면은 Apache 로그 기반 작업 메타데이터와 분석 아티팩트 경로만 표시합니다. Raw request body, response body, DB 쿼리 결과, 브라우저 실행 결과, 서버 내부 상태는 포함하지 않습니다.</span>
         </section>
-    </main>
-</div>
-</body>
-</html>
+{% endblock %}

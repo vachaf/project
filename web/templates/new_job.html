@@ -1,27 +1,7 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Analysis Job</title>
-    <link rel="stylesheet" href="/static/job-dashboard.css">
-    <link rel="stylesheet" href="/static/job-ui-additions.css">
-</head>
-<body class="job-page">
-<div class="job-shell">
-    <header class="job-topbar">
-        <div class="job-brand">
-            <span class="job-brand-mark">▣</span>
-            <span>Security Intelligence</span>
-        </div>
-        <nav class="job-topnav">
-            <a href="/">Dashboard</a>
-            <a href="/reports">Stage2 Reports</a>
-        </nav>
-    </header>
-
-    <main class="job-container">
-        <div class="job-page-head">
+{% extends "job_base.html" %}
+{% block title %}New Analysis Job{% endblock %}
+{% block content %}
+<div class="job-page-head">
             <div>
                 <div class="job-page-kicker">Create analysis job</div>
                 <h1 class="job-page-title">새 분석 작업</h1>
@@ -92,7 +72,4 @@
                 </div>
             </form>
         </section>
-    </main>
-</div>
-</body>
-</html>
+{% endblock %}
