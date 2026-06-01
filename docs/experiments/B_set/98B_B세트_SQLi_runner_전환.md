@@ -2,6 +2,8 @@
 
 - 작성 기준일: 2026-05-03
 - 문서 역할: 기존 curl 기반 B세트 SQLi 비교 실험을 Python runner로 전환한 범위와 해석 원칙을 정리
+- docs-side experiment summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
+- runner path status: 현재 runner는 아직 `lab/b_set` 아래의 current/legacy lab runner path를 사용한다. 경로 변경이나 `scripts/tools` 이관은 후속 PR에서 검토한다.
 
 ## 목적
 

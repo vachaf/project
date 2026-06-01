@@ -5,8 +5,10 @@
 - 기준 데이터: Apache `security/access/error` 로그 표면 지표
 - 1차 대상 서비스: Juice Shop
 - 선행 조건: F세트 R1 완료 및 `auth_behavior_summaries` / `auth_behavior_support` 동작 확인
+- docs-side experiment summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
 
 > 핵심 전제: raw POST body가 없으므로 email/password 기반 단정, auth success inference, unauthorized account access confirmation, account existence inference, lockout confirmation은 허용하지 않는다.
+> 현재 runner는 아직 `lab/f_set` 아래의 current/legacy lab runner path를 사용한다. 실행 예시의 `lab/*_산출물` output 경로는 legacy lab artifact path이며, runner 경로 변경이나 `scripts/tools` 이관은 후속 PR에서 검토한다.
 
 ---
 

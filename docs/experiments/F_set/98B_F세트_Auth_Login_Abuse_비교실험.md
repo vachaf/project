@@ -7,8 +7,10 @@
 - 상세 문서:
   - `98B_F세트_Auth_Login_Abuse_R2.md`
 - 핵심 전제: **raw POST body는 Apache 기본 로그에 남지 않는다**
+- docs-side experiment summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
 
 > 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로는 계정·비밀번호·로그인 성공·계정 탈취·credential stuffing 성공·lockout 발동·세션 탈취를 확정하지 않는다.
+> 완료 평가와 lab 산출물 결론은 docs-side summary를 우선 참조한다. 아래 lab 산출물 경로는 legacy lab artifact로 남긴다.
 
 ---
 
@@ -165,7 +167,7 @@ Round 1은 다음 흐름을 포함한다.
 | F-08 | 실패 다수 후 200 다수 | 401/200 혼재 | credential-stuffing-like 가능성 |
 | F-09 | 정상 session-like | 200/API 접근 | 정상 흐름 가능성 |
 
-상세 실행 payload는 기존 R1 실험 산출물과 `lab/05-02_F세트R1_산출물/2026-05-02_F세트R1_비교.md`를 기준으로 관리한다.
+상세 실행 payload는 기존 R1 실험 산출물을 legacy lab artifact로 대조한다. 현재 판단 요약은 [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)를 우선 참조한다.
 
 ---
 
@@ -192,7 +194,8 @@ F세트 R1에서는 반복 401 login request가 개별 incident로 과다하게 
 
 상세 결과:
 
-- `lab/05-02_F세트R1_산출물/2026-05-02_F세트R1_비교.md`
+- docs-side summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
+- legacy lab artifact: `lab/05-02_F세트R1_산출물/2026-05-02_F세트R1_비교.md`
 
 ---
 

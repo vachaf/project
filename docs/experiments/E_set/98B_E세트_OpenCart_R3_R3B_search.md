@@ -6,8 +6,10 @@
 - 기준 데이터: Apache `security` 로그 표면 지표
 - 대상 서비스: OpenCart (`http://192.168.56.111`)
 - 상위 문서: `98B_E세트_OpenCart_비교실험.md`
+- docs-side experiment summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
 
 > Apache 로그만으로 SQLi 성공, DB 결과 변경, XSS 브라우저 실행, DOM 반영 여부는 확정하지 않는다. 이 문서의 목적은 OpenCart `product/search` 구조에서도 기존 SQLi/XSS 탐지 로직이 일반화되는지 확인하는 것이다.
+> 완료 평가와 lab 산출물 결론은 docs-side summary를 우선 참조한다. 아래 `lab/*_산출물` 경로는 재현/대조용 legacy lab artifact다.
 
 ---
 
@@ -182,6 +184,8 @@ python3 src/prepare_llm_input.py \
   --write-filtered-out
 ```
 
+위 output 경로는 현재 문서의 실행 재현 예시로 남긴 legacy lab artifact path다. 산출물 위치 개편은 후속 PR에서 검토한다.
+
 요약 확인:
 
 ```bash
@@ -231,7 +235,8 @@ filtered_out_breakdown={"benign_normal_search": 1}
 
 비교 문서:
 
-- `lab/04-26_E세트R3_산출물/2026-04-26_E세트R3_비교.md`
+- docs-side summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
+- legacy lab artifact: `lab/04-26_E세트R3_산출물/2026-04-26_E세트R3_비교.md`
 
 ### R3B
 
@@ -243,7 +248,8 @@ filtered_out_breakdown={"benign_normal_search": 1}
 
 비교 문서:
 
-- `lab/04-29_E세트R3B_산출물/2026-04-29_E세트R3B_비교.md`
+- docs-side summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
+- legacy lab artifact: `lab/04-29_E세트R3B_산출물/2026-04-29_E세트R3B_비교.md`
 
 ---
 

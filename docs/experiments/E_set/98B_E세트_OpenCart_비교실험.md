@@ -9,8 +9,10 @@
 - 대상 서비스: OpenCart
 - 기본 URL: `http://192.168.56.111`
 - 기본 UA prefix: `lab-e-set`
+- docs-side experiment summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
 
 > 주의: 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로는 PHP wrapper 실행 성공, config 파일 내용 노출, SQLi 성공, XSS 브라우저 실행, 로그인/권한 상승 성공, POST body 내부 처리 결과를 확정하지 않는다.
+> 완료 평가와 lab 산출물 결론은 docs-side summary를 우선 참조한다. 아래 lab 산출물 경로는 legacy lab artifact로 남긴다.
 
 ---
 
@@ -69,13 +71,13 @@ sudo tail -n 10 /var/log/apache2/app_security.log
 
 ## 4. Round 구성
 
-| Round | 주제 | 상태 | 상세 문서/산출물 |
+| Round | 주제 | 상태 | 우선 참조 / legacy artifact |
 |---|---|---|---|
-| R1 | route traversal / admin path | 수행 완료, 별도 문서화 선택 | `lab/04-26_E세트R1_산출물` |
-| R2 | PHP wrapper / config exposure | 수행 완료, 코드 개선 반영 | `docs/experiments/E_set/98B_E세트_OpenCart_R2_R2B_php_wrapper.md`, `lab/04-26_E세트R2_산출물/2026-04-26_E세트R2_비교.md` |
-| R2B | PHP wrapper variant 일반화 | 수행 완료 | `docs/experiments/E_set/98B_E세트_OpenCart_R2_R2B_php_wrapper.md`, `lab/04-30_E세트R2B_산출물/2026-04-30_E세트R2B_비교.md` |
-| R3 | product/search SQLi/XSS | 수행 완료 | `docs/experiments/E_set/98B_E세트_OpenCart_R3_R3B_search.md`, `lab/04-26_E세트R3_산출물/2026-04-26_E세트R3_비교.md` |
-| R3B | 정상 search baseline / 공격 search 분리 | 수행 완료 | `docs/experiments/E_set/98B_E세트_OpenCart_R3_R3B_search.md`, `lab/04-29_E세트R3B_산출물/2026-04-29_E세트R3B_비교.md` |
+| R1 | route traversal / admin path | 수행 완료, 별도 문서화 선택 | docs-side summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md); legacy lab artifact: `lab/04-26_E세트R1_산출물` |
+| R2 | PHP wrapper / config exposure | 수행 완료, 코드 개선 반영 | [98B_E세트_OpenCart_R2_R2B_php_wrapper.md](./98B_E세트_OpenCart_R2_R2B_php_wrapper.md); legacy lab artifact: `lab/04-26_E세트R2_산출물/2026-04-26_E세트R2_비교.md` |
+| R2B | PHP wrapper variant 일반화 | 수행 완료 | [98B_E세트_OpenCart_R2_R2B_php_wrapper.md](./98B_E세트_OpenCart_R2_R2B_php_wrapper.md); legacy lab artifact: `lab/04-30_E세트R2B_산출물/2026-04-30_E세트R2B_비교.md` |
+| R3 | product/search SQLi/XSS | 수행 완료 | [98B_E세트_OpenCart_R3_R3B_search.md](./98B_E세트_OpenCart_R3_R3B_search.md); legacy lab artifact: `lab/04-26_E세트R3_산출물/2026-04-26_E세트R3_비교.md` |
+| R3B | 정상 search baseline / 공격 search 분리 | 수행 완료 | [98B_E세트_OpenCart_R3_R3B_search.md](./98B_E세트_OpenCart_R3_R3B_search.md); legacy lab artifact: `lab/04-29_E세트R3B_산출물/2026-04-29_E세트R3B_비교.md` |
 | R4 | POST body visibility 재확인 | 후보 | 이 문서의 후속 후보로 유지 |
 | R5 | OpenCart probing sequence 일반성 | 후보 | D세트 R3 개선의 OpenCart 확장 후보 |
 
