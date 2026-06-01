@@ -43,10 +43,44 @@
                     <div class="job-detail-value">{{ job.worker_id }}</div>
                 </div>
                 <div>
+                    <div class="job-detail-label">Heartbeat</div>
+                    <div class="job-detail-value">{{ job.heartbeat_at|default('-') }}</div>
+                </div>
+                <div>
                     <div class="job-detail-label">Attempt</div>
                     <div class="job-detail-value">{{ job.attempt_count }}</div>
                 </div>
             </div>
+            {% if job.status == 'PENDING' %}
+            <div class="job-info-box">
+                <strong>대기 중</strong>
+                <span>대기 중입니다. Analysis Job Worker가 작업을 처리할 때까지 기다립니다. 오래 유지되면 worker service가 꺼져 있거나 다른 작업을 처리 중일 수 있습니다.</span>
+            </div>
+            {% elif job.status == 'RUNNING' %}
+            <div class="job-info-box">
+                <strong>분석 중</strong>
+                <span>
+                    Analysis Job Worker가 작업을 실행 중입니다.
+                    Worker: {{ job.worker_id }}.
+                    Started: {{ job.started_at }}.
+                    {% if job.heartbeat_at and job.heartbeat_at != '-' %}
+                    Last heartbeat: {{ job.heartbeat_at }}. 최근 worker heartbeat 기준으로 실행 중입니다.
+                    {% else %}
+                    Heartbeat not recorded yet.
+                    {% endif %}
+                </span>
+            </div>
+            {% elif job.status == 'SUCCEEDED' and is_no_data_job|default(false) %}
+            <div class="job-info-box">
+                <strong>No data</strong>
+                <span>No logs found in requested time range. 선택한 구간에 분석할 로그가 없습니다.</span>
+            </div>
+            {% elif job.status == 'FAILED' %}
+            <div class="job-detail-error">
+                <strong>Analysis failed.</strong>
+                <span>Artifacts may not have been generated. 아래 error message와 실행 타임라인을 확인하세요.</span>
+            </div>
+            {% endif %}
             {% if job.error_message %}<div class="job-detail-error">{{ job.error_message }}</div>{% endif %}
         </section>
 
@@ -112,10 +146,14 @@
                 </div>
             </div>
             {% if report %}
-            {% macro artifact_value(job_id, artifact_key, path_value) -%}
+            {% macro artifact_value(job_id, artifact_key, path_value, job_status, no_data_job) -%}
             <code>{{ path_value or 'not generated' }}</code>
             {% if path_value %}
             <a class="job-artifact-open-link" href="/job/{{ job_id }}/artifact/{{ artifact_key }}">Open</a>
+            {% elif no_data_job %}
+            <span class="job-muted">not generated for no-data job</span>
+            {% elif job_status == 'FAILED' %}
+            <span class="job-muted">not generated due to failure</span>
             {% endif %}
             {%- endmacro %}
             <div class="job-report-grid">
@@ -129,42 +167,42 @@
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Export</div>
-                    {{ artifact_value(job.id, 'export', report.export_path) }}
+                    {{ artifact_value(job.id, 'export', report.export_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">LLM Input</div>
-                    {{ artifact_value(job.id, 'llm_input', report.llm_input_path) }}
+                    {{ artifact_value(job.id, 'llm_input', report.llm_input_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Analysis Candidates</div>
-                    {{ artifact_value(job.id, 'analysis_candidates', report.analysis_candidates_path) }}
+                    {{ artifact_value(job.id, 'analysis_candidates', report.analysis_candidates_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Noise Summary</div>
-                    {{ artifact_value(job.id, 'noise_summary', report.noise_summary_path) }}
+                    {{ artifact_value(job.id, 'noise_summary', report.noise_summary_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Stage1 Result</div>
-                    {{ artifact_value(job.id, 'stage1_result', report.stage1_result_path) }}
+                    {{ artifact_value(job.id, 'stage1_result', report.stage1_result_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Stage2 Report JSON</div>
-                    {{ artifact_value(job.id, 'stage2_report', report.stage2_report_path) }}
+                    {{ artifact_value(job.id, 'stage2_report', report.stage2_report_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Stage2 Report Markdown</div>
-                    {{ artifact_value(job.id, 'stage2_report_md', report.stage2_report_md_path) }}
+                    {{ artifact_value(job.id, 'stage2_report_md', report.stage2_report_md_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Viewer Payload</div>
-                    {{ artifact_value(job.id, 'viewer_payload', report.viewer_payload_path) }}
+                    {{ artifact_value(job.id, 'viewer_payload', report.viewer_payload_path, job.status, is_no_data_job|default(false)) }}
                     {% if report.viewer_payload_path %}
                     <a class="job-artifact-open-link" href="/job/{{ job.id }}/viewer">Open Viewer</a>
                     {% endif %}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Lint Result</div>
-                    {{ artifact_value(job.id, 'lint_result', report.lint_result_path) }}
+                    {{ artifact_value(job.id, 'lint_result', report.lint_result_path, job.status, is_no_data_job|default(false)) }}
                 </div>
             </div>
             {% else %}

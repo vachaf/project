@@ -171,6 +171,16 @@ def _build_job_viewer_report_context(job_id: int, report: Dict[str, Any]) -> Dic
     }
 
 
+def _is_no_data_job(events: Any, report: Optional[Dict[str, Any]]) -> bool:
+    for event in events if isinstance(events, list) else []:
+        event_type = event.get("event_type") if isinstance(event, dict) else getattr(event, "event_type", "")
+        if str(event_type or "").upper() == "JOB_NO_DATA":
+            return True
+
+    summary = str((report or {}).get("summary") or "").strip().lower()
+    return summary.startswith("no logs found")
+
+
 @app.get("/")
 def job_dashboard(request: Request):
     error = ""
@@ -309,7 +319,7 @@ def job_detail(request: Request, job_id: int):
     return templates.TemplateResponse(
         request=request,
         name="job_detail.html",
-        context={"job": job, "events": events, "report": report},
+        context={"job": job, "events": events, "report": report, "is_no_data_job": _is_no_data_job(events, report)},
     )
 
 

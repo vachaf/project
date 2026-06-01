@@ -72,7 +72,17 @@
                         <tr>
                             <td><a href="/job/{{ job.id }}" class="job-id-link">#{{ job.id }}</a></td>
                             <td class="job-table-time-range">{{ job.time_from }}<br><span>~ {{ job.time_to }}</span></td>
-                            <td><span class="job-status-badge job-status-{{ job.status|lower }}">{{ job.status }}</span></td>
+                            <td>
+                                <span class="job-status-badge job-status-{{ job.status|lower }}">{{ job.status }}</span>
+                                <div class="job-muted">{{ job.status_hint or 'Status unknown' }}</div>
+                                {% if job.status == 'RUNNING' %}
+                                  {% if job.heartbeat_at and job.heartbeat_at != '-' %}
+                                  <div class="job-muted">Last heartbeat: {{ job.heartbeat_at }}</div>
+                                  {% else %}
+                                  <div class="job-muted">Heartbeat not recorded yet.</div>
+                                  {% endif %}
+                                {% endif %}
+                            </td>
                             <td class="job-mono">{{ job.created_at }}</td>
                             <td><code>{{ job.analysis_mode }}</code></td>
                             <td class="job-mono">{{ job.attempt_count }}</td>

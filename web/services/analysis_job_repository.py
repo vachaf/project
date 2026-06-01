@@ -636,9 +636,20 @@ def utc_naive_to_kst_text(value: Any, fmt: str = "%Y-%m-%d %H:%M") -> str:
 
 
 def serialize_job_for_dashboard(row: Dict[str, Any]) -> Dict[str, Any]:
+    status = str(row.get("status") or "unknown").upper()
+    worker_id = str(row.get("worker_id") or "-")
+    heartbeat_at = utc_naive_to_kst_text(row.get("heartbeat_at"), "%m-%d %H:%M")
+    status_hint = {
+        "PENDING": "Waiting for worker",
+        "RUNNING": f"Running by {worker_id}" if worker_id != "-" else "Running",
+        "SUCCEEDED": "Complete",
+        "FAILED": "Failed",
+    }.get(status, "Status unknown")
+
     return {
         "id": int(row.get("id")),
-        "status": str(row.get("status") or "unknown"),
+        "status": status,
+        "status_hint": status_hint,
         "time_from": utc_naive_to_kst_text(row.get("time_from")),
         "time_to": utc_naive_to_kst_text(row.get("time_to")),
         "requested_timezone": str(row.get("requested_timezone") or "Asia/Seoul"),
@@ -646,7 +657,8 @@ def serialize_job_for_dashboard(row: Dict[str, Any]) -> Dict[str, Any]:
         "created_at": utc_naive_to_kst_text(row.get("created_at"), "%m-%d %H:%M"),
         "started_at": utc_naive_to_kst_text(row.get("started_at"), "%m-%d %H:%M"),
         "finished_at": utc_naive_to_kst_text(row.get("finished_at"), "%m-%d %H:%M"),
-        "worker_id": str(row.get("worker_id") or "-"),
+        "heartbeat_at": heartbeat_at,
+        "worker_id": worker_id,
         "attempt_count": int(row.get("attempt_count") or 0),
         "error_message": redact_secret_text(row.get("error_message") or ""),
         "artifact_root": str(row.get("artifact_root") or ""),

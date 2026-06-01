@@ -15,6 +15,7 @@ def make_job() -> dict[str, Any]:
         "created_at": "05-30 09:00",
         "started_at": "05-30 09:01",
         "finished_at": "05-30 09:02",
+        "heartbeat_at": "05-30 09:02",
         "worker_id": "test-worker",
         "attempt_count": 1,
         "artifact_root": "runs/jobs/123",
