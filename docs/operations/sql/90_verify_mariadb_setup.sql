@@ -1,27 +1,27 @@
 -- 90_verify_mariadb_setup.sql
 --
--- Purpose:
---   Verify the MariaDB setup after applying source-log and DB-backed MVP SQL.
+-- 목적:
+--   소스 로그 SQL 및 DB 기반 MVP SQL을 적용한 뒤 MariaDB 설정 상태를 확인합니다.
 --
--- Expected setup files:
+-- 예상 적용 파일:
 --   00_database_and_log_accounts.sql
 --   01_apache_log_tables.sql
 --   01_analysis_job_tables.sql
 --   10_log_source_table_grants.sql
 --   11_analysis_app_grants.sql
 --
--- Replace example hosts in SHOW GRANTS statements if your environment differs.
+-- 환경이 다르면 SHOW GRANTS 문에 들어간 예시 호스트를 실제 값으로 바꿔서 확인하십시오.
 
 USE web_logs;
 
 -- -----------------------------------------------------------------------------
--- Table existence
+-- 테이블 존재 여부
 -- -----------------------------------------------------------------------------
 
 SHOW TABLES;
 
 -- -----------------------------------------------------------------------------
--- Source log table structure
+-- 소스 로그 테이블 구조
 -- -----------------------------------------------------------------------------
 
 DESCRIBE apache_access_logs;
@@ -32,7 +32,7 @@ SHOW INDEX FROM apache_access_logs;
 SHOW INDEX FROM apache_security_logs;
 SHOW INDEX FROM apache_error_logs;
 
--- v1/v2/remoteip_v2-compatible source fields.
+-- v1/v2/remoteip_v2 호환 소스 필드
 SELECT
   COLUMN_NAME,
   DATA_TYPE,
@@ -54,14 +54,14 @@ WHERE TABLE_SCHEMA = 'web_logs'
   )
 ORDER BY ORDINAL_POSITION;
 
--- Expected: no rows. Security log Host header is stored as req_host.
+-- 기대 결과: 행이 없어야 합니다. security 로그의 Host 헤더는 req_host에 저장합니다.
 SELECT COLUMN_NAME
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA = 'web_logs'
   AND TABLE_NAME = 'apache_security_logs'
   AND COLUMN_NAME = 'host';
 
--- Expected: no rows. These are prepare_llm_input.py output fields, not DB columns.
+-- 기대 결과: 행이 없어야 합니다. 아래 항목들은 DB 컬럼이 아니라 prepare_llm_input.py 출력 필드입니다.
 SELECT COLUMN_NAME
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA = 'web_logs'
@@ -73,7 +73,7 @@ WHERE TABLE_SCHEMA = 'web_logs'
   );
 
 -- -----------------------------------------------------------------------------
--- DB-backed MVP operation/control table structure
+-- DB 기반 MVP 운영/제어 테이블 구조
 -- -----------------------------------------------------------------------------
 
 DESCRIBE users;
@@ -87,7 +87,7 @@ SHOW INDEX FROM analysis_reports;
 SHOW INDEX FROM job_events;
 
 -- -----------------------------------------------------------------------------
--- Accounts / grants
+-- 계정 / 권한
 -- -----------------------------------------------------------------------------
 
 SELECT User, Host

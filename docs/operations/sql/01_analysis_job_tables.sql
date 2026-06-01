@@ -1,36 +1,36 @@
 -- 01_analysis_job_tables.sql
 --
--- Purpose:
---   Add DB-backed analysis job lifecycle tables for the web_log_analysis MVP.
+-- 목적:
+--   web_log_analysis MVP를 위한 데이터베이스 기반 분석 작업 라이프사이클 테이블을 추가합니다.
 --
--- Scope:
---   - users
---   - analysis_jobs
---   - analysis_reports
---   - job_events
+-- 범위:
+--   - users (사용자)
+--   - analysis_jobs (분석 작업)
+--   - analysis_reports (분석 보고서)
+--   - job_events (작업 이벤트)
 --
--- Out of scope for this first SQL file:
+-- 첫 번째 SQL 파일의 범위 제외 대상:
 --   - apache_access_logs / apache_security_logs / apache_error_logs
---     These source log tables are defined in docs/operations/02_MariaDB_환경_구축_및_설치.md.
+--     이 소스 로그 테이블들은 docs/operations/02_MariaDB_환경_구축_및_설치.md에 정의되어 있습니다.
 --   - log_collection_checkpoints
---     src/apache_log_shipper.py currently uses file-state offset tracking. A DB checkpoint
---     table remains a follow-up decision.
+--     src/apache_log_shipper.py는 현재 파일 상태 오프셋 추적 방식을 사용합니다. 
+--     DB 체크포인트 테이블 사용 여부는 후속 결정 과제로 남겨둡니다.
 --
--- Time policy:
---   MariaDB DATETIME(3) columns in this schema store UTC naive timestamps.
---   Web UI input/display remains Asia/Seoul for the MVP.
+-- 시간 정책:
+--   이 스키마의 MariaDB DATETIME(3) 컬럼은 변환되지 않은 UTC 타임스탬프(naive)를 저장합니다.
+--   MVP 버전의 웹 UI 입력 및 표시용 시간은 'Asia/Seoul'로 유지됩니다.
 --
--- Safety policy:
---   Do not store API keys, .env contents, provider secrets, raw provider error bodies,
---   raw request bodies, or response bodies in these tables.
+-- 보안 정책:
+--   이 테이블들에는 API 키, .env 내용, 공급자 비밀 정보(secrets), 공급자 원본 에러 본문,
+--   원본 요청 본문(raw request bodies) 또는 응답 본문을 저장하지 마십시오.
 
 USE web_logs;
 
 -- -----------------------------------------------------------------------------
--- users
+-- users (사용자 테이블)
 -- -----------------------------------------------------------------------------
--- Minimal Web UI user table.
--- v1 may start with a single operator/admin user or nullable requested_by jobs.
+-- 최소 기능의 웹 UI 사용자 테이블입니다.
+-- v1 버전은 단일 운영자/관리자 유저로 시작하거나, 작업 요청자(requested_by)에 NULL을 허용할 수 있습니다.
 
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -46,46 +46,46 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------------------------
--- analysis_jobs
+-- analysis_jobs (분석 작업 큐 테이블)
 -- -----------------------------------------------------------------------------
--- Execution queue for user-requested analysis jobs.
--- This is not the same as operator_queue:
---   - analysis_jobs: DB-backed execution lifecycle queue
---   - operator_queue: rollup review artifact queue_items.json / queue_summary.json
+-- 사용자가 요청한 분석 작업의 실행 큐입니다.
+-- 이는 operator_queue와 다릅니다:
+--   - analysis_jobs: DB 기반의 실행 라이프사이클 큐
+--   - operator_queue: 롤업 검토 산출물 큐 (queue_items.json / queue_summary.json)
 --
--- Application-level validation must enforce:
+-- 애플리케이션 레벨에서 다음 검증을 강제해야 합니다:
 --   - time_from < time_to
---   - requested_timezone = 'Asia/Seoul' for MVP
---   - analysis_mode = 'full_report' for MVP
---   - status in PENDING/RUNNING/SUCCEEDED/FAILED/CANCELLED
---   - max time range policy, initially 24 hours for normal Web UI jobs
---   - duplicate PENDING/RUNNING job handling for the same user/time/mode/timezone
+--   - MVP 버전에서는 requested_timezone = 'Asia/Seoul' 고정
+--   - MVP 버전에서는 analysis_mode = 'full_report' 고정
+--   - status 값은 PENDING / RUNNING / SUCCEEDED / FAILED / CANCELLED 중 하나여야 함
+--   - 최대 시간 범위 정책 적용 (일반 웹 UI 작업의 경우 초기 24시간 제한)
+--   - 동일 유저/시간/모드/타임존에 대한 중복 PENDING/RUNNING 작업 처리 로직 필요
 --
--- Atomic claim pattern:
+-- 원자적 할당 패턴 (Atomic claim pattern):
 --   UPDATE analysis_jobs
 --   SET status='RUNNING', started_at=CURRENT_TIMESTAMP(3), worker_id=?,
 --       heartbeat_at=CURRENT_TIMESTAMP(3), attempt_count=attempt_count+1
 --   WHERE id=? AND status='PENDING';
 --
--- The worker may execute the job only when affected_rows == 1.
+-- 워커(Worker)는 영향받은 행의 수(affected_rows)가 정확히 1일 때만 작업을 실행해야 합니다.
 
 CREATE TABLE IF NOT EXISTS analysis_jobs (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     requested_by BIGINT UNSIGNED DEFAULT NULL,
 
-    -- UTC naive DATETIME(3) range used for DB export queries.
+    -- DB 데이터 내보내기 쿼리에 사용되는 변환되지 않은 UTC DATETIME(3) 범위
     time_from DATETIME(3) NOT NULL,
     time_to DATETIME(3) NOT NULL,
 
-    -- MVP Web UI accepts Asia/Seoul input/display only.
+    -- MVP 웹 UI는 Asia/Seoul 입력 및 표시만 허용합니다.
     requested_timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Seoul',
 
-    -- MVP states: PENDING / RUNNING / SUCCEEDED / FAILED.
-    -- CANCELLED is reserved for a later version.
+    -- MVP 상태값: PENDING / RUNNING / SUCCEEDED / FAILED
+    -- (CANCELLED 상태는 차후 버전을 위해 예약됨)
     status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
 
-    -- MVP mode: full_report.
-    -- full_report means export + prepare + Stage1 + Stage2 + viewer_payload.
+    -- MVP 모드: full_report
+    -- (full_report는 export + prepare + Stage1 + Stage2 + viewer_payload 전체 과정을 의미함)
     analysis_mode VARCHAR(64) NOT NULL DEFAULT 'full_report',
 
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -97,11 +97,11 @@ CREATE TABLE IF NOT EXISTS analysis_jobs (
     attempt_count INT UNSIGNED NOT NULL DEFAULT 0,
     max_attempts INT UNSIGNED NOT NULL DEFAULT 1,
 
-    -- Store redacted, operator-safe error summaries only.
-    -- Do not store provider raw response bodies or secrets.
+    -- 마스킹 처리된(개인정보 등이 정제된) 운영자 안전 에러 요약본만 저장합니다.
+    -- 공급자의 원본 응답 본문이나 기밀 정보는 저장하지 마십시오.
     error_message TEXT,
 
-    -- Server-generated, job-scoped path only. Do not accept arbitrary user path input.
+    -- 서버에서 생성한 작업 스코프 경로만 저장합니다. 사용자가 입력한 임의의 경로는 허용하지 마십시오.
     artifact_root TEXT,
 
     PRIMARY KEY (id),
@@ -117,10 +117,10 @@ CREATE TABLE IF NOT EXISTS analysis_jobs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------------------------
--- analysis_reports
+-- analysis_reports (분석 보고서 메타데이터 테이블)
 -- -----------------------------------------------------------------------------
--- Metadata and artifact paths for completed or partially completed analysis jobs.
--- Large JSON artifacts stay on disk. DB stores paths and a compact summary only.
+-- 완료되었거나 일부 완료된 분석 작업의 메타데이터 및 산출물 경로를 저장합니다.
+-- 용량이 큰 JSON 산출물은 디스크에 유지하고, DB에는 경로와 요약된 컴팩트 데이터만 저장합니다.
 
 CREATE TABLE IF NOT EXISTS analysis_reports (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -158,10 +158,10 @@ CREATE TABLE IF NOT EXISTS analysis_reports (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------------------------
--- job_events
+-- job_events (작업 이벤트 타임라인 테이블)
 -- -----------------------------------------------------------------------------
--- Step timeline for analysis job execution.
--- detail_json is intended for redacted structured metadata only.
+-- 분석 작업 실행의 단계별 타임라인 기록 테이블입니다.
+-- detail_json 컬럼에는 민감 정보가 정제된 구조화된 메타데이터만 저장해야 합니다.
 
 CREATE TABLE IF NOT EXISTS job_events (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -180,23 +180,23 @@ CREATE TABLE IF NOT EXISTS job_events (
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Suggested MVP event_type values, enforced by application validation rather than CHECK:
---   JOB_CREATED
---   JOB_CLAIMED
---   EXPORT_STARTED
---   EXPORT_FINISHED
---   PREPARE_STARTED
---   PREPARE_FINISHED
---   WINDOW_STARTED
---   WINDOW_FINISHED
---   ROLLUP_STARTED
---   ROLLUP_FINISHED
---   OPERATOR_QUEUE_STARTED
---   OPERATOR_QUEUE_FINISHED
---   STAGE1_STARTED
---   STAGE1_FINISHED
---   STAGE2_STARTED
---   STAGE2_FINISHED
---   VIEWER_PAYLOAD_WRITTEN
---   JOB_SUCCEEDED
---   JOB_FAILED
+-- 권장하는 MVP용 event_type 값 목록 (CHECK 제약 조건 대신 애플리케이션 유효성 검사로 강제함):
+--   JOB_CREATED (작업 생성됨)
+--   JOB_CLAIMED (작업 할당됨)
+--   EXPORT_STARTED (내보내기 시작됨)
+--   EXPORT_FINISHED (내보내기 완료됨)
+--   PREPARE_STARTED (데이터 준비 시작됨)
+--   PREPARE_FINISHED (데이터 준비 완료됨)
+--   WINDOW_STARTED (슬라이딩 윈도우 분석 시작됨)
+--   WINDOW_FINISHED (슬라이딩 윈도우 분석 완료됨)
+--   ROLLUP_STARTED (롤업 시작됨)
+--   ROLLUP_FINISHED (롤업 완료됨)
+--   OPERATOR_QUEUE_STARTED (운영자 큐 생성 시작됨)
+--   OPERATOR_QUEUE_FINISHED (운영자 큐 생성 완료됨)
+--   STAGE1_STARTED (1단계 분석 시작됨)
+--   STAGE1_FINISHED (1단계 분석 완료됨)
+--   STAGE2_STARTED (2단계 보고서 생성 시작됨)
+--   STAGE2_FINISHED (2단계 보고서 생성 완료됨)
+--   VIEWER_PAYLOAD_WRITTEN (뷰어 페이로드 기록됨)
+--   JOB_SUCCEEDED (작업 성공함)
+--   JOB_FAILED (작업 실패함)
