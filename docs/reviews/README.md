@@ -10,6 +10,7 @@
 ## 문서 목록
 
 - [99_A-H세트_중간정리.md](./99_A-H세트_중간정리.md): A~H 실험 세트 중간 정리
+- [99_lab_experiment_set_summaries.md](./99_lab_experiment_set_summaries.md): lab A~H 실험 산출물 `.md`와 `ABCDE_비교실험_요약.md`의 docs-side summary
 - [99_A-F세트_대표샘플_6선.md](./99_A-F세트_대표샘플_6선.md): A~F 대표 샘플 6선과 분석 품질 대조 기준
 - [99_llm_sample_review_plan.md](./99_llm_sample_review_plan.md): 실제 LLM 샘플 검증 계획
 - [99_llm_sample_validation_review.md](./99_llm_sample_validation_review.md): lab LLM sample validation 원문을 docs에서 읽을 수 있게 요약한 수동 품질 검토
@@ -22,15 +23,18 @@
 ## 읽는 순서
 
 1. 전체 실험 상태는 [99_A-H세트_중간정리.md](./99_A-H세트_중간정리.md)
-2. 대표 케이스 대조는 [99_A-F세트_대표샘플_6선.md](./99_A-F세트_대표샘플_6선.md)
-3. 실제 LLM 샘플 검증은 docs-side summary인 [99_llm_sample_validation_review.md](./99_llm_sample_validation_review.md)를 우선 보고, 검증 계획은 [99_llm_sample_review_plan.md](./99_llm_sample_review_plan.md)를 본다.
-4. Apache observability topology 비교는 [99_observability_topology_comparison_review.md](./99_observability_topology_comparison_review.md)
-5. observability run별 결론은 [99_observability_run_summaries.md](./99_observability_run_summaries.md)
-6. post-refactor 회귀 확인은 [99_post_refactor_dry_run_spot_check.md](./99_post_refactor_dry_run_spot_check.md), [99_post_refactor_LLM_output_spot_check.md](./99_post_refactor_LLM_output_spot_check.md)
-7. Stage2 표현 품질은 [99_stage2_wording_quality_review.md](./99_stage2_wording_quality_review.md)
-8. 후속 작업은 [../planning/99_비교실험_후속개선_TODO.md](../planning/99_비교실험_후속개선_TODO.md)
+2. lab A~H 산출물 `.md`의 결론은 [99_lab_experiment_set_summaries.md](./99_lab_experiment_set_summaries.md)
+3. 대표 케이스 대조는 [99_A-F세트_대표샘플_6선.md](./99_A-F세트_대표샘플_6선.md)
+4. 실제 LLM 샘플 검증은 docs-side summary인 [99_llm_sample_validation_review.md](./99_llm_sample_validation_review.md)를 우선 보고, 검증 계획은 [99_llm_sample_review_plan.md](./99_llm_sample_review_plan.md)를 본다.
+5. Apache observability topology 비교는 [99_observability_topology_comparison_review.md](./99_observability_topology_comparison_review.md)
+6. observability run별 결론은 [99_observability_run_summaries.md](./99_observability_run_summaries.md)
+7. post-refactor 회귀 확인은 [99_post_refactor_dry_run_spot_check.md](./99_post_refactor_dry_run_spot_check.md), [99_post_refactor_LLM_output_spot_check.md](./99_post_refactor_LLM_output_spot_check.md)
+8. Stage2 표현 품질은 [99_stage2_wording_quality_review.md](./99_stage2_wording_quality_review.md)
+9. 후속 작업은 [../planning/99_비교실험_후속개선_TODO.md](../planning/99_비교실험_후속개선_TODO.md)
 
 Observability review 문서는 run별 결론과 topology 비교를 다루며, scenario catalog와 matrix template의 docs-side 설계 요약은 [../design/99_observability_run_summary_index.md](../design/99_observability_run_summary_index.md)에서 연결한다.
+
+`99_lab_experiment_set_summaries.md`와 `99_llm_sample_validation_review.md`의 역할은 다르다. experiment set summary는 A~H 실험 묶음의 목적, 결론, legacy lab artifact 관계를 정리하고, LLM sample validation은 대표 샘플에 대한 LLM 판단 품질과 wording guard를 검토한다.
 
 ## 관리 원칙
 

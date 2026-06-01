@@ -5,6 +5,7 @@
   - `../../lab/LLM샘플검증/2026-05-03_FGH_sample_review.md`
   - `../../lab/LLM샘플검증/2026-05-04_BCE_sample_review.md`
 - 관련 문서:
+  - [99_lab_experiment_set_summaries.md](./99_lab_experiment_set_summaries.md)
   - [99_llm_sample_review_plan.md](./99_llm_sample_review_plan.md)
   - [99_A-F세트_대표샘플_6선.md](./99_A-F세트_대표샘플_6선.md)
   - [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)
@@ -16,6 +17,8 @@
 이 문서는 `lab/LLM샘플검증/*.md`에 남아 있는 수동 LLM sample review 결과를 `docs/reviews` 쪽에서 읽을 수 있게 요약한다.
 
 검토 목적은 대표 샘플에 대한 LLM 판단 품질, scoring/분류 해석, false-positive/overclaim 위험을 정리하는 것이다. 특히 Apache logs-only evidence boundary가 Stage1/Stage2 판단과 report wording에서 유지되는지 확인한다.
+
+A~H 실험 묶음 자체의 목적, 결론, legacy lab artifact 관계는 [99_lab_experiment_set_summaries.md](./99_lab_experiment_set_summaries.md)를 우선 본다. 이 문서는 그중 대표 샘플에 대한 LLM 판단 품질 검토에 초점을 둔다.
 
 이 문서가 하는 일은 다음이다.
 
