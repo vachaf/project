@@ -13,6 +13,7 @@ Stage2 산출물을 Web UI read-only viewer 용 payload 로 정규화한다.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -201,6 +202,107 @@ def build_event_key(item: Dict[str, Any]) -> str:
     return f"supporting:{build_merge_key(item)}"
 
 
+def stable_short_id(prefix: str, value: Any) -> str:
+    digest = hashlib.sha256(stable_json_dumps(value).encode("utf-8")).hexdigest()[:16]
+    return f"{prefix}_{digest}"
+
+
+def get_context_id(context_type: str, item: Dict[str, Any]) -> str:
+    existing = normalize_str(first_non_empty(item.get("context_id"), item.get("id")))
+    if existing:
+        return existing
+    seed = {
+        "context_type": context_type,
+        "src_ip": first_non_empty(item.get("src_ip"), item.get("source_ip")),
+        "window_start": item.get("window_start"),
+        "window_end": item.get("window_end"),
+        "sample_request_ids": normalize_string_list(item.get("sample_request_ids")),
+        "sample_paths": normalize_string_list(item.get("sample_paths")),
+        "path_counts": ensure_dict(item.get("path_counts")),
+        "request_count": item.get("request_count"),
+    }
+    return stable_short_id("ctx", seed)
+
+
+def get_supporting_event_id(item: Dict[str, Any]) -> str:
+    existing = normalize_str(first_non_empty(item.get("event_id"), item.get("id")))
+    if existing:
+        return existing
+    seed = {
+        "request_id": item.get("request_id"),
+        "src_ip": first_non_empty(item.get("src_ip"), item.get("source_ip")),
+        "uri": first_non_empty(item.get("uri"), item.get("path")),
+        "log_time": first_non_empty(item.get("log_time"), item.get("timestamp"), item.get("event_time")),
+        "supporting_role": item.get("supporting_role"),
+        "supporting_reason": item.get("supporting_reason"),
+        "context_role": item.get("context_role"),
+    }
+    return stable_short_id("sev", seed)
+
+
+def item_source_ip(item: Dict[str, Any]) -> str:
+    return normalize_str(first_non_empty(item.get("src_ip"), item.get("source_ip")))
+
+
+def item_uri(item: Dict[str, Any]) -> str:
+    return normalize_str(first_non_empty(item.get("uri"), item.get("path")))
+
+
+def list_contains_text(value: Any, needle: str) -> bool:
+    if not needle:
+        return False
+    return needle in normalize_string_list(value)
+
+
+def context_path_values(context: Dict[str, Any]) -> List[str]:
+    values = normalize_string_list(context.get("sample_paths"))
+    for key in ensure_dict(context.get("path_counts")).keys():
+        text = normalize_str(key)
+        if text and text not in values:
+            values.append(text)
+    for key in ("sample_uri", "sample_path"):
+        text = normalize_str(context.get(key))
+        if text and text not in values:
+            values.append(text)
+    return values
+
+
+def related_context_ids_for_finding(finding: Dict[str, Any], contexts: List[Dict[str, Any]]) -> List[str]:
+    request_id = normalize_str(finding.get("request_id"))
+    src_ip = item_source_ip(finding)
+    uri = item_uri(finding)
+
+    related: List[str] = []
+    for context in contexts:
+        if not isinstance(context, dict):
+            continue
+        context_id = normalize_str(first_non_empty(context.get("context_id"), context.get("id")))
+        if not context_id:
+            continue
+
+        request_match = request_id and list_contains_text(context.get("sample_request_ids"), request_id)
+        path_match = bool(src_ip and uri and src_ip == item_source_ip(context) and uri in context_path_values(context))
+        if (request_match or path_match) and context_id not in related:
+            related.append(context_id)
+    return related
+
+
+def supporting_event_ids_for_finding(finding: Dict[str, Any], events: List[Dict[str, Any]]) -> List[str]:
+    request_id = normalize_str(finding.get("request_id"))
+    if not request_id:
+        return []
+
+    related: List[str] = []
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        event_id = normalize_str(first_non_empty(event.get("event_id"), event.get("id")))
+        event_request_id = normalize_str(event.get("request_id"))
+        if event_id and event_request_id and event_request_id == request_id and event_id not in related:
+            related.append(event_id)
+    return related
+
+
 def raw_export_rows(payload: Any) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     root = ensure_dict(payload)
@@ -361,6 +463,8 @@ def build_finding(
         "merged_row_count": item.get("merged_row_count"),
         "merged_source_tables": ensure_list(item.get("merged_source_tables")),
         "merged_log_ids": ensure_list(item.get("merged_log_ids")),
+        "related_context_ids": [],
+        "supporting_event_ids": [],
     }
     if raw_match:
         finding["raw_export_match"] = {
@@ -377,6 +481,7 @@ def build_finding(
 
 def build_context_item(context_type: str, item: Dict[str, Any]) -> Dict[str, Any]:
     context_item = dict(item)
+    context_item["context_id"] = get_context_id(context_type, context_item)
     context_item["context_type"] = context_type
     context_item["context_only"] = True
     context_item["should_promote_to_candidate"] = item.get("should_promote_to_candidate")
@@ -392,6 +497,7 @@ def build_supporting_event(
     include_raw_log: bool,
 ) -> Dict[str, Any]:
     event = dict(item)
+    event["event_id"] = get_supporting_event_id(event)
     event["context_only"] = True
     event["reason_hints"] = normalize_reason_hints(item.get("reason_hints"))
     event["guardrail_note"] = "Supporting events are context-only and must not be promoted into incidents by the viewer."
@@ -493,6 +599,10 @@ def main() -> int:
             seen_event_keys.add(key)
             raw_match = lookup_match(item, raw_lookup)
             supporting_events.append(build_supporting_event(item, raw_match=raw_match, include_raw_log=bool(args.include_raw_log)))
+
+    for finding in findings:
+        finding["related_context_ids"] = related_context_ids_for_finding(finding, contexts)
+        finding["supporting_event_ids"] = supporting_event_ids_for_finding(finding, supporting_events)
 
     report_fields = extract_report_fields(stage2_report_payload)
     pipeline_counts = ensure_dict(stage2_report_input.get("pipeline_counts"))

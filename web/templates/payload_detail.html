@@ -691,75 +691,31 @@
       }
     }
 
-    // Display-only association; do not promote contexts into findings.
+    function relationIds(value) {
+      return asList(value).map((item) => asText(item, "")).filter(Boolean);
+    }
+
+    function itemRelationId(item, primaryKey) {
+      if (!item || typeof item !== "object") return "";
+      return asText(item[primaryKey] || item.id, "");
+    }
+
+    // Explicit display-only association from viewer_payload; do not infer relations in Web UI.
     function getRelatedContexts(finding, contextItems) {
       if (!finding || typeof finding !== "object" || !Array.isArray(contextItems) || !contextItems.length) {
         return [];
       }
 
-      const findingRequestId = asLowerText(finding.request_id);
-      const findingSrcIp = asLowerText(finding.src_ip);
-      const findingUri = asLowerText(finding.uri);
-      const findingCategory = asLowerText(finding.category);
-      const findingHints = finding.reason_hints;
+      const idSet = new Set(relationIds(finding.related_context_ids));
+      if (!idSet.size) return [];
 
-      const byKey = new Map();
+      const matches = [];
       contextItems.forEach((ctx, idx) => {
         if (!ctx || typeof ctx !== "object") return;
-
-        const sampleRequestIds = asList(ctx.sample_request_ids).map((v) => asLowerText(v));
-        const samplePaths = asList(ctx.sample_paths).map((v) => asLowerText(v));
-        const pathCounts = ctx.path_counts && typeof ctx.path_counts === "object" ? Object.keys(ctx.path_counts).map((k) => asLowerText(k)) : [];
-        const ctxSrcIp = asLowerText(ctx.src_ip);
-        const ctxType = safeWord([ctx.context_type, ctx.category, ctx.context_role, ctx.aggregate_scope].filter(Boolean).join(" "));
-
-        let score = 0;
-        if (findingRequestId && sampleRequestIds.includes(findingRequestId)) {
-          score = Math.max(score, 100);
-        }
-
-        const uriPathMatch = findingUri && (samplePaths.includes(findingUri) || pathCounts.includes(findingUri));
-        if (findingSrcIp && ctxSrcIp && findingSrcIp === ctxSrcIp && uriPathMatch) {
-          score = Math.max(score, 90);
-        }
-
-        const authCategory = includesAny(findingCategory, ["auth"]);
-        const methodCategory = includesAny(findingCategory, ["method"]);
-        const sensitiveCategory = includesAny(findingCategory, ["sensitive_path", "file_disclosure", "path_traversal", "traversal", "sqli", "xss", "probe"]);
-        const fileDisclosureCategory = includesAny(findingCategory, ["file_disclosure_candidate"]);
-
-        if (findingSrcIp && ctxSrcIp && findingSrcIp === ctxSrcIp) {
-          if (authCategory && includesAny(ctxType, ["auth", "ip_behavior"])) {
-            score = Math.max(score, 70);
-          }
-          if (methodCategory && includesAny(ctxType, ["method", "ip_behavior"])) {
-            score = Math.max(score, 70);
-          }
-          if (sensitiveCategory && includesAny(ctxType, ["sensitive_path", "probing_sequence", "mixed_baseline_scanner", "ip_behavior"])) {
-            score = Math.max(score, 70);
-          }
-          if (fileDisclosureCategory && includesAny(ctxType, ["sensitive_path_probe", "probing_sequence", "ip_behavior", "mixed_baseline_scanner"])) {
-            score = Math.max(score, 70);
-          }
-          score = Math.max(score, 20);
-        }
-
-        if (sameHintPrefix(findingHints, ctx.reason_hints)) {
-          score = Math.max(score, 50);
-        }
-
-        if (score <= 0) return;
-        const key = asText(ctx.dedup_key || ctx.context_key || `${pickContextType(ctx)}|${ctxSrcIp}|${idx}`, `${idx}`);
-        const prev = byKey.get(key);
-        if (!prev || score > prev.score) {
-          byKey.set(key, { ctx, score, idx });
-        }
+        const contextId = itemRelationId(ctx, "context_id");
+        if (contextId && idSet.has(contextId)) matches.push({ ctx, idx });
       });
-
-      return Array.from(byKey.values()).sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return a.idx - b.idx;
-      });
+      return matches;
     }
 
     function appendContextMetaLine(container, label, value, className = "") {
@@ -797,6 +753,16 @@
         return;
       }
 
+      const explicitIds = relationIds(finding && finding.related_context_ids);
+      if (!explicitIds.length) {
+        summaryEl.textContent = "Related Contexts (0)";
+        badgeEl.textContent = "0 related";
+        emptyEl.textContent = "No explicit related contexts in this viewer payload.";
+        emptyEl.classList.remove("is-hidden");
+        listEl.classList.add("is-hidden");
+        return;
+      }
+
       const matched = getRelatedContexts(finding, contexts);
       const count = matched.length;
       const preview = matched.slice(0, 6);
@@ -806,7 +772,7 @@
       badgeEl.textContent = `${count} related`;
 
       if (!preview.length) {
-        emptyEl.textContent = "No related contexts for this finding.";
+        emptyEl.textContent = "No explicit related contexts found for this finding.";
         emptyEl.classList.remove("is-hidden");
         listEl.classList.add("is-hidden");
         return;
@@ -864,65 +830,20 @@
       }
     }
 
-    // Display-only association; do not promote supporting events into findings.
+    // Explicit display-only association from viewer_payload; do not infer supporting event relations in Web UI.
     function getRelatedSupportingEvents(finding, events) {
       if (!finding || typeof finding !== "object" || !Array.isArray(events) || !events.length) {
         return [];
       }
 
-      const findingRequestId = asLowerText(finding.request_id);
-      const findingGroupKey = asLowerText(finding.incident_group_key);
-      const findingSrcIp = asLowerText(finding.src_ip);
-      const findingUri = asLowerText(finding.uri);
-      const findingMethod = asLowerText(finding.method);
-      const findingCategory = asLowerText(finding.category);
+      const idSet = new Set(relationIds(finding.supporting_event_ids));
+      if (!idSet.size) return [];
 
       const matches = [];
       events.forEach((event, idx) => {
         if (!event || typeof event !== "object") return;
-
-        const eventRequestId = asLowerText(event.request_id);
-        const eventGroupKey = asLowerText(event.incident_group_key);
-        const eventSrcIp = asLowerText(event.src_ip);
-        const eventUri = asLowerText(event.uri);
-        const eventMethod = asLowerText(event.method);
-        const roleText = safeWord([event.supporting_role, event.context_role, event.supporting_reason].filter(Boolean).join(" "));
-
-        let score = 0;
-        if (findingRequestId && eventRequestId && findingRequestId === eventRequestId) {
-          score = Math.max(score, 100);
-        }
-        if (findingGroupKey && eventGroupKey && findingGroupKey === eventGroupKey) {
-          score = Math.max(score, 90);
-        }
-        if (findingSrcIp && findingUri && eventSrcIp && eventUri) {
-          if (findingSrcIp === eventSrcIp && findingUri === eventUri) {
-            score = Math.max(score, 70);
-            if (findingMethod && eventMethod && findingMethod === eventMethod) {
-              score = Math.max(score, 80);
-            }
-          }
-        }
-
-        const sensitiveCategory = findingCategory.includes("sensitive") || findingCategory.includes("file") || findingCategory.includes("probe");
-        if (sensitiveCategory && keywordInRole(roleText, ["sensitive", "probe", "probing"])) {
-          score = Math.max(score, 40);
-        }
-        if (findingCategory.includes("auth") && keywordInRole(roleText, ["auth", "login"])) {
-          score = Math.max(score, 40);
-        }
-        if (findingCategory.includes("method") && keywordInRole(roleText, ["method", "verb"])) {
-          score = Math.max(score, 40);
-        }
-
-        if (score > 0) {
-          matches.push({ event, score, idx });
-        }
-      });
-
-      matches.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return a.idx - b.idx;
+        const eventId = itemRelationId(event, "event_id");
+        if (eventId && idSet.has(eventId)) matches.push({ event, idx });
       });
       return matches;
     }
@@ -949,6 +870,16 @@
         return;
       }
 
+      const explicitIds = relationIds(finding && finding.supporting_event_ids);
+      if (!explicitIds.length) {
+        summaryEl.textContent = "Related Supporting Events (0)";
+        badgeEl.textContent = "0 related";
+        emptyEl.textContent = "No explicit related supporting events in this viewer payload.";
+        emptyEl.classList.remove("is-hidden");
+        tableWrapEl.classList.add("is-hidden");
+        return;
+      }
+
       const matched = getRelatedSupportingEvents(finding, supportingEvents);
       const matchedCount = matched.length;
       const preview = matched.slice(0, 10);
@@ -958,7 +889,7 @@
       badgeEl.textContent = `${matchedCount} related`;
 
       if (!preview.length) {
-        emptyEl.textContent = "No related supporting events for this finding.";
+        emptyEl.textContent = "No explicit related supporting events found for this finding.";
         emptyEl.classList.remove("is-hidden");
         tableWrapEl.classList.add("is-hidden");
         return;

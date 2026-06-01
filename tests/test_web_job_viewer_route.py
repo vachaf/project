@@ -286,3 +286,75 @@ def test_context_only_items_are_not_promoted_to_findings(monkeypatch: pytest.Mon
     assert "No findings in viewer payload." in body
     assert "context_should_remain_context" in body
     assert 'class="payload-finding-row' not in body
+
+
+def test_sanitize_payload_findings_preserves_relation_id_lists_only() -> None:
+    rows = [
+        {
+            "request_id": "rid-1",
+            "related_context_ids": ["ctx_1", 2, "", {"raw": "object"}],
+            "supporting_event_ids": ["sev_1", None, "sev_2"],
+        },
+        {
+            "request_id": "rid-2",
+            "related_context_ids": {"ctx": "not-list"},
+            "supporting_event_ids": "sev_not_list",
+        },
+    ]
+
+    findings = report_routes.sanitize_payload_findings(rows)
+
+    assert findings[0]["related_context_ids"] == ["ctx_1", "2"]
+    assert findings[0]["supporting_event_ids"] == ["sev_1", "sev_2"]
+    assert findings[1]["related_context_ids"] == []
+    assert findings[1]["supporting_event_ids"] == []
+
+
+def test_job_viewer_route_renders_explicit_relation_contract_without_heuristic_text(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    payload = make_viewer_payload(
+        findings=[
+            {
+                "log_time": "2026-05-30T00:00:01Z",
+                "severity": "low",
+                "verdict": "needs_review",
+                "category": "auth_behavior_candidate",
+                "src_ip": "203.0.113.10",
+                "method": "POST",
+                "uri": "/login",
+                "status_code": 401,
+                "request_id": "rid-1",
+                "related_context_ids": ["ctx_auth"],
+                "supporting_event_ids": ["sev_auth"],
+            }
+        ],
+        contexts=[
+            {
+                "context_id": "ctx_auth",
+                "context_type": "auth_behavior",
+                "src_ip": "203.0.113.10",
+                "request_count": 3,
+                "context_only": True,
+                "should_promote_to_candidate": False,
+            }
+        ],
+    )
+    payload["supporting_events"] = [
+        {
+            "event_id": "sev_auth",
+            "request_id": "rid-1",
+            "supporting_role": "auth_behavior_support",
+            "context_only": True,
+        }
+    ]
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+
+    assert "related_context_ids" in body
+    assert "supporting_event_ids" in body
+    assert "No explicit related contexts in this viewer payload." in body
+    assert "No explicit related supporting events in this viewer payload." in body

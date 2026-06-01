@@ -658,6 +658,8 @@ def sanitize_payload_findings(rows: Any, fallback_rows: Any = None) -> List[Dict
                 "evidence_fields": _normalize_text_list(row.get("evidence_fields")),
                 "reason_hints": _normalize_text_list(row.get("reason_hints")),
                 "recommended_actions": _normalize_text_list(row.get("recommended_actions")),
+                "related_context_ids": _normalize_relation_id_list(row.get("related_context_ids")),
+                "supporting_event_ids": _normalize_relation_id_list(row.get("supporting_event_ids")),
                 "raw_export_match": {
                     "source_table": str(raw_match_obj.get("source_table") or "N/A"),
                     "log_id": str(raw_match_obj.get("log_id") or "N/A"),
@@ -666,6 +668,21 @@ def sanitize_payload_findings(rows: Any, fallback_rows: Any = None) -> List[Dict
             }
         )
     return findings
+
+
+def _normalize_relation_id_list(value: Any, limit: int = 50) -> List[str]:
+    if not isinstance(value, list):
+        return []
+    normalized: List[str] = []
+    for item in value:
+        if isinstance(item, (dict, list, tuple, set)):
+            continue
+        text = str(item or "").strip()
+        if text:
+            normalized.append(text)
+        if len(normalized) >= limit:
+            break
+    return normalized
 
 
 def sanitize_payload_contexts(rows: Any, fallback_rows: Any = None) -> List[Dict[str, Any]]:

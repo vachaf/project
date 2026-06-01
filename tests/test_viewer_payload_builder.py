@@ -295,6 +295,117 @@ def test_supporting_events_stay_top_level_and_context_only(tmp_path: Path) -> No
     assert all("supporting_role" not in f for f in payload["findings"])
 
 
+def test_viewer_payload_adds_display_relation_ids_without_changing_verdict(tmp_path: Path) -> None:
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [auth_finding(["error_status:401(+2)"])]
+    stage2_report_input["auth_behavior_summaries"] = [
+        {
+            "src_ip": "192.0.2.10",
+            "should_promote_to_candidate": False,
+            "request_count": 5,
+            "sample_request_ids": ["rid-1"],
+            "sample_paths": ["/rest/user/login"],
+        }
+    ]
+    stage2_report_input["supporting_events"] = [
+        {
+            "request_id": "rid-1",
+            "src_ip": "192.0.2.10",
+            "uri": "/rest/user/login",
+            "context_role": "auth_behavior_context",
+            "supporting_role": "auth_behavior_support",
+        }
+    ]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    finding = payload["findings"][0]
+    context = payload["contexts"][0]
+    event = payload["supporting_events"][0]
+    assert context["context_id"].startswith("ctx_")
+    assert event["event_id"].startswith("sev_")
+    assert finding["related_context_ids"] == [context["context_id"]]
+    assert finding["supporting_event_ids"] == [event["event_id"]]
+    assert finding["verdict"] == "suspicious_auth_abuse"
+    assert finding["severity"] == "low"
+    assert context["context_only"] is True
+    assert event["context_only"] is True
+
+    rebuilt = run_builder(tmp_path / "rebuilt", stage2_report_input=stage2_report_input)
+    assert rebuilt["contexts"][0]["context_id"] == context["context_id"]
+    assert rebuilt["supporting_events"][0]["event_id"] == event["event_id"]
+
+
+def test_viewer_payload_preserves_existing_relation_item_ids(tmp_path: Path) -> None:
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [auth_finding(["error_status:401(+2)"])]
+    stage2_report_input["auth_behavior_summaries"] = [
+        {
+            "id": "existing-context-id",
+            "context_id": "existing-context-id",
+            "src_ip": "192.0.2.10",
+            "sample_request_ids": ["rid-1"],
+            "should_promote_to_candidate": False,
+            "request_count": 5,
+        }
+    ]
+    stage2_report_input["supporting_events"] = [
+        {
+            "id": "existing-event-id",
+            "event_id": "existing-event-id",
+            "request_id": "rid-1",
+            "supporting_role": "auth_behavior_support",
+        }
+    ]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    assert payload["contexts"][0]["id"] == "existing-context-id"
+    assert payload["contexts"][0]["context_id"] == "existing-context-id"
+    assert payload["supporting_events"][0]["id"] == "existing-event-id"
+    assert payload["supporting_events"][0]["event_id"] == "existing-event-id"
+    assert payload["findings"][0]["related_context_ids"] == ["existing-context-id"]
+    assert payload["findings"][0]["supporting_event_ids"] == ["existing-event-id"]
+
+
+def test_viewer_payload_relation_ids_are_empty_without_exact_match(tmp_path: Path) -> None:
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [auth_finding(["error_status:401(+2)"])]
+    stage2_report_input["auth_behavior_summaries"] = [
+        {
+            "src_ip": "198.51.100.44",
+            "sample_request_ids": ["other-rid"],
+            "sample_paths": ["/other"],
+            "should_promote_to_candidate": False,
+            "request_count": 5,
+        }
+    ]
+    stage2_report_input["supporting_events"] = [
+        {
+            "request_id": "other-rid",
+            "src_ip": "198.51.100.44",
+            "uri": "/other",
+            "supporting_role": "auth_behavior_support",
+        }
+    ]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    assert payload["findings"][0]["related_context_ids"] == []
+    assert payload["findings"][0]["supporting_event_ids"] == []
+
+
+def test_viewer_payload_relation_ids_empty_when_supporting_events_are_empty(tmp_path: Path) -> None:
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [auth_finding(["error_status:401(+2)"])]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    assert payload["findings"][0]["related_context_ids"] == []
+    assert payload["findings"][0]["supporting_event_ids"] == []
+    assert payload["supporting_events"] == []
+
+
 def test_findings_priority_top_incidents_then_stage1_then_llm_input(tmp_path: Path) -> None:
     stage2_report_input_a = base_stage2_report_input()
     stage2_report_input_a["top_incidents"] = [auth_finding(["error_status:401(+2)"])]
