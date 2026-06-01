@@ -275,15 +275,23 @@ WHERE job_id = <job_id>;
 - no-data는 실패가 아니다.
 - real LLM 실행은 API key와 비용이 필요하다.
 - `heartbeat_at`은 `RUNNING` job이 살아 있는지 보는 힌트다.
-- stale `RUNNING` recovery는 후속 운영 TODO다.
+- `heartbeat_at`은 기록되지만 stale `RUNNING` recovery는 자동으로 수행되지 않는다.
+- retry/requeue는 자동으로 수행되지 않는다.
+- cancel/cancelled handling은 아직 구현되지 않았다.
+- stage-level `job_events`는 아직 emitted 되지 않는다. 현재 worker는 lifecycle 중심 event를 기록한다.
+- `lint_result_path`는 schema/UI key가 있으나 현재 full_report runner가 채우지 않는다.
 - systemd 예시는 1 worker 기준이다.
-- 다중 worker는 atomic claim 덕분에 가능하지만, 현재 운영 권장은 1 worker다.
+- 다중 worker는 atomic claim 덕분에 가능하지만, 실제 multi-worker 운영 검증 전까지 현재 운영 권장은 보수적으로 1 worker다.
 
 ## 남은 TODO
 
 - stale `RUNNING` job recovery
+- retry/requeue CLI/API/UI
+- cancel/cancelled semantics
 - failed/partial artifact policy 고도화
 - worker health endpoint 또는 Web UI worker status 표시
+- stage-level job event logging
+- lint_result_path / manifest / stage2_report_input artifact mapping 결정
 - legacy `/report/*` 정리
 - Markdown report HTML rendering
 - `windowed_triage` 후속 mode

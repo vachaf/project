@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-05-31
+- 기준 시점: 2026-06-01
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 완료 이력: [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md)
 - 관련 대시보드: [../진행상황.md](../진행상황.md)
@@ -80,14 +80,33 @@
   - viewer payload 기준 `schema_version=viewer_payload.v1`, `finding_count=5`, `context_count=2`, `supporting_event_count=0`을 확인했다.
   - `/job/5`, `/job/5/viewer`, `/job/5/artifact/viewer_payload`, `/job/5/artifact/stage2_report_md` 브라우저 표시를 확인했다.
   - no-data smoke는 `JOB_NO_DATA`, `SUCCEEDED`, `analysis_reports.summary`, `export_path`만 저장, stage/viewer paths `NULL` 기준으로 확인했다.
+- [x] DB-backed full_report worker/agent 연결 구현 상태 조사
+  - 조사 문서: [../design/99_analysis_job_worker_status_investigation.md](../design/99_analysis_job_worker_status_investigation.md)
+  - 구현 확인: job 생성/조회, full_report worker claim/run/close, one-shot/loop CLI, heartbeat update, systemd example, job detail/viewer 연결.
+  - 2026-05-31 당시 `worker loop/daemon 운영화` TODO 중 loop CLI와 systemd example은 이후 구현된 것으로 정리했다.
 
 ### 다음 우선순위
 
-- [ ] worker loop/daemon 운영화
-  - 현재 smoke는 `--once --run-pipeline` 기준이다.
-  - 반복 실행, supervisor/systemd/cron 운용, graceful shutdown은 후속이다.
-- [ ] timeout/heartbeat 운영 정책 강화
-  - 장시간 Stage1/Stage2 실행 중 heartbeat 갱신 주기와 timeout 기준을 정리한다.
+- [ ] live DB long-running worker smoke
+  - `--run-pipeline` loop mode를 실제 DB/LLM 환경에서 장시간 실행한다.
+  - systemd `enable/start/status/journalctl` 운영 검증을 남긴다.
+  - 운영 권장은 여전히 보수적으로 1 worker 기준이며, multi-worker는 명시적으로 검증한 뒤 확대한다.
+- [ ] stale RUNNING recovery
+  - `heartbeat_at`은 기록되지만 stale 판단/복구는 자동화되어 있지 않다.
+  - stale job을 FAILED 또는 PENDING으로 전환할 기준과 event 기록 방식을 정한다.
+- [ ] retry/requeue workflow
+  - `attempt_count/max_attempts` 기반 claim skip은 있으나 FAILED job retry/requeue CLI/API/UI는 없다.
+  - retry 가능한 오류와 artifact overwrite/fail-fast 정책을 함께 정한다.
+- [ ] cancel/cancelled handling
+  - `CANCELLED` 상태와 cancel API/UI/worker semantics는 아직 구현하지 않는다.
+- [ ] worker health/status UI
+  - worker process 생존 여부, last heartbeat, last claim 같은 운영 visibility를 Web UI/API에 노출할지 정한다.
+- [ ] stage-level job_events
+  - 현재 event는 `JOB_CREATED`, `JOB_CLAIMED`, `JOB_STARTED`, `JOB_NO_DATA`, `JOB_SUCCEEDED`, `JOB_FAILED` 중심이다.
+  - `EXPORT_*`, `STAGE1_*`, `STAGE2_*`, `VIEWER_PAYLOAD_WRITTEN` 같은 세부 event emission은 후속이다.
+- [ ] optional artifact mapping 결정
+  - `lint_result_path`는 schema/UI key가 있으나 현재 runner가 채우지 않는다.
+  - `manifest_path`, `stage2_report_input_path`를 DB에 저장할지 결정한다.
 - [ ] failed/partial artifact 정책 고도화
   - runner 실패 후 partial artifact scan/save 여부를 정한다.
   - secret redaction 기준은 유지한다.

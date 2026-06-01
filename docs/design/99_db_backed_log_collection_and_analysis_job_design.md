@@ -960,10 +960,24 @@ analysis_jobs
 오류 처리:
 
 ```text
-- 단계별 시작/완료 event를 job_events에 기록한다.
+- 목표: 단계별 시작/완료 event를 job_events에 기록한다.
 - 예외 발생 시 error_message를 analysis_jobs에 기록한다.
 - 가능한 경우 실패 직전까지 생성된 artifact_root를 보존한다.
 - job status를 FAILED로 변경한다.
+```
+
+2026-06-01 구현 상태:
+
+```text
+- 현재 구현은 lifecycle 핵심 event를 기록한다.
+  - JOB_CREATED
+  - JOB_CLAIMED
+  - JOB_STARTED
+  - JOB_NO_DATA
+  - JOB_SUCCEEDED
+  - JOB_FAILED
+- EXPORT_STARTED/FINISHED, STAGE1_STARTED/FINISHED, STAGE2_STARTED/FINISHED,
+  VIEWER_PAYLOAD_WRITTEN 같은 stage-level event emission은 아직 구현되지 않았다.
 ```
 
 ## 9. 기존 Sliding Window / Rollup / Operator Queue와의 연결
@@ -1321,41 +1335,61 @@ windowed_triage는 full_report worker 구현 후 별도 단계에서 다룬다.
 
 ### 15.2 교수님 피드백 반영 운영 시스템 MVP
 
+2026-06-01 implementation note:
+
 ```text
-1. DB schema/migration 정리
+The full_report DB-backed MVP path has been implemented.
+This includes job creation, claim, RUNNING/SUCCEEDED/FAILED lifecycle,
+full_report runner invocation, job-scoped artifact root, analysis_reports
+upsert, job detail/viewer links, heartbeat update, loop CLI, and systemd
+example.
+
+Remaining gaps:
+- retry/requeue
+- stale RUNNING recovery
+- cancel semantics
+- worker health/status UI
+- stage-level job event emission
+- optional artifact mapping such as lint_result_path/manifest/stage2_report_input
+```
+
+아래 목록은 설계 당시 구현 후보였으며, 현재는 일부 완료/일부 잔여 항목으로 읽어야 한다.
+
+```text
+1. DB schema/migration 정리 [implemented for analysis job tables]
    - MariaDB 기준 DDL 사용
    - 기존 apache_access_logs / apache_security_logs / apache_error_logs 유지
    - analysis_jobs / analysis_reports / job_events 추가
    - log_time / time_from / time_to UTC DATETIME(3) 기준 정리
 
-2. analysis_jobs 등록/조회 API
+2. analysis_jobs 등록/조회 API [implemented]
    - POST job 등록
    - GET job list/detail
    - PENDING/RUNNING/SUCCEEDED/FAILED 표시
 
-3. Analysis Job Worker
+3. Analysis Job Worker [implemented for full_report]
    - PENDING job 조회
    - atomic claim
    - RUNNING/SUCCEEDED/FAILED 상태 갱신
 
-4. repository lifecycle methods 보강
+4. repository lifecycle methods 보강 [implemented for MVP lifecycle]
    - claim / heartbeat / append event
    - mark succeeded/failed
    - analysis_reports upsert
 
-5. src/export_db_logs_cli.py와 direct pipeline 연결
+5. src/export_db_logs_cli.py와 direct pipeline 연결 [implemented]
    - time_from/time_to 기반 export.json 생성
    - apache_security_logs primary source
    - apache_error_logs 보조 상관 후보
    - run_analysis_pipeline.py direct path 호출
 
-6. artifact_root / analysis_reports 연결
+6. artifact_root / analysis_reports 연결 [implemented for core full_report paths]
    - Stage1 결과 경로 저장
    - Stage2 report 경로 저장
    - viewer_payload.json 경로 저장
    - viewer_payload 생성 완료 후 SUCCEEDED 처리
 
-7. Log Collector Agent MVP
+7. Log Collector Agent MVP [separate track]
    - Apache log file tail/read
    - 기존 3개 log source table insert
    - access/security/error log_time UTC 저장
