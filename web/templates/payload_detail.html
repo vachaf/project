@@ -84,6 +84,7 @@
       {% else %}
         <a href="{{ request.url.path }}?mask_src_ip=1" class="action-link">Mask source IP</a>
       {% endif %}
+      <button type="button" class="theme-toggle payload-theme-toggle" onclick="toggleTheme()" aria-label="테마 전환">☾</button>
       <a href="{{ back_url|default('/report/' ~ report.report_id) }}" class="action-link">{{ back_label|default('Back To Stage2 Detail') }}</a>
     </div>
   </header>

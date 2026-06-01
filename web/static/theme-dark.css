@@ -772,3 +772,281 @@
   background: #334155;
   border-radius: 3px;
 }
+
+/* Viewer payload detail panel dark-mode completion */
+[data-theme="dark"] .viewer-payload-detail-panel {
+  background: #151d30;
+  border-color: #253048;
+  color: #cbd5e0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .viewer-payload-detail-empty,
+[data-theme="dark"] .viewer-payload-detail-more {
+  color: #8899aa;
+}
+
+[data-theme="dark"] .viewer-payload-detail-head h5 {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .viewer-payload-detail-section {
+  border-top-color: #253048;
+}
+
+[data-theme="dark"] .viewer-payload-detail-section h6 {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .viewer-payload-detail-section p,
+[data-theme="dark"] .viewer-payload-detail-list {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .viewer-payload-detail-list li::marker {
+  color: #64748b;
+}
+
+[data-theme="dark"] .viewer-payload-technical-details {
+  background: #111828;
+  border-color: #253048;
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .viewer-payload-technical-details summary {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .viewer-payload-technical-body {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .viewer-payload-finding-row.is-selected td {
+  background: rgba(96, 165, 250, 0.12);
+  border-top-color: rgba(96, 165, 250, 0.35);
+  border-bottom-color: rgba(96, 165, 250, 0.35);
+}
+
+[data-theme="dark"] .viewer-payload-finding-row.is-selected td:first-child {
+  border-left-color: rgba(96, 165, 250, 0.55);
+}
+
+[data-theme="dark"] .viewer-payload-finding-row.is-selected td:last-child {
+  border-right-color: rgba(96, 165, 250, 0.55);
+}
+
+[data-theme="dark"] .viewer-payload-event-table th,
+[data-theme="dark"] .viewer-payload-event-table td {
+  border-color: #1e2a42;
+}
+
+[data-theme="dark"] .viewer-payload-event-table th {
+  background: #1a2540;
+  color: #8899aa;
+}
+
+[data-theme="dark"] .viewer-payload-event-table td {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .viewer-payload-detail-panel::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="dark"] .viewer-payload-detail-panel::-webkit-scrollbar-track {
+  background: #111828;
+}
+
+[data-theme="dark"] .viewer-payload-detail-panel::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+}
+
+[data-theme="dark"] .viewer-payload-dashboard .viewer-payload-guardrail,
+[data-theme="dark"] .viewer-payload-guardrail {
+  background: linear-gradient(180deg, #111828 0%, #0f1729 100%);
+  border-color: #253048;
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .viewer-payload-guardrail p,
+[data-theme="dark"] .viewer-payload-guardrail ul {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .payload-dashboard-badges .payload-theme-toggle {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.38);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .payload-dashboard-badges .payload-theme-toggle:hover {
+  border-color: rgba(251, 191, 36, 0.7);
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+}
+
+/* Current payload_detail.html detail panel dark-mode completion */
+[data-theme="dark"] .payload-detail-panel.card {
+  background: #151d30;
+  border-color: #253048;
+  color: #cbd5e0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .payload-detail-empty,
+[data-theme="dark"] .payload-detail-more {
+  color: #8899aa;
+}
+
+[data-theme="dark"] .payload-detail-header h3 {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .payload-detail-section {
+  border-top-color: #253048;
+}
+
+[data-theme="dark"] .payload-detail-section h4 {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .payload-detail-section p,
+[data-theme="dark"] .payload-detail-list {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .payload-detail-list li::marker {
+  color: #64748b;
+}
+
+[data-theme="dark"] .payload-technical-details {
+  background: #111828;
+  border-color: #253048;
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .payload-technical-details summary {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .payload-technical-body {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .payload-dashboard .payload-guardrail {
+  background: linear-gradient(180deg, #111828 0%, #0f1729 100%);
+  border-color: #253048;
+  color: #cbd5e0;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .payload-guardrail p,
+[data-theme="dark"] .payload-guardrail ul {
+  color: #94a3b8;
+}
+
+/* Append to web/static/theme-dark.css
+   Fix residual light panels inside /report/<id>/payload right-side detail drawer.
+   Scope: display-only CSS. No backend, pipeline, schema, or verdict logic changes. */
+
+[data-theme="dark"] #pd-detail-content,
+[data-theme="dark"] .payload-detail-panel,
+[data-theme="dark"] .payload-detail-content {
+  background: var(--pd-surface, #151d30);
+  color: var(--pd-text, #e2e8f0);
+}
+
+/* details/summary blocks that remained white in related contexts/supporting events/technical details */
+[data-theme="dark"] #pd-detail-content details,
+[data-theme="dark"] .payload-detail-section details,
+[data-theme="dark"] .payload-related-contexts details,
+[data-theme="dark"] .payload-supporting-events details,
+[data-theme="dark"] .payload-technical-details details,
+[data-theme="dark"] .viewer-payload-detail-panel details,
+[data-theme="dark"] .viewer-payload-technical-details details {
+  background: #111828;
+  border: 1px solid var(--pd-line, #253048);
+  color: var(--pd-text, #e2e8f0);
+  box-shadow: none;
+}
+
+[data-theme="dark"] #pd-detail-content summary,
+[data-theme="dark"] .payload-detail-section summary,
+[data-theme="dark"] .payload-related-contexts summary,
+[data-theme="dark"] .payload-supporting-events summary,
+[data-theme="dark"] .payload-technical-details summary,
+[data-theme="dark"] .viewer-payload-detail-panel summary,
+[data-theme="dark"] .viewer-payload-technical-details summary {
+  background: #151d30;
+  border-color: var(--pd-line, #253048);
+  color: var(--pd-text, #e2e8f0);
+}
+
+/* Notes/callouts inside details */
+[data-theme="dark"] #pd-detail-content .payload-match-note,
+[data-theme="dark"] #pd-detail-content .payload-related-context-note,
+[data-theme="dark"] #pd-detail-content .payload-supporting-event-note,
+[data-theme="dark"] .payload-detail-section .payload-match-note,
+[data-theme="dark"] .payload-detail-section .payload-related-context-note,
+[data-theme="dark"] .payload-detail-section .payload-supporting-event-note {
+  background: #0f1829;
+  border-color: var(--pd-line, #253048);
+  color: var(--pd-muted, #8899aa);
+}
+
+/* Individual related-context/supporting-event cards and key-value rows */
+[data-theme="dark"] #pd-detail-content .payload-related-context-card,
+[data-theme="dark"] #pd-detail-content .payload-supporting-event-card,
+[data-theme="dark"] #pd-detail-content .payload-detail-kv,
+[data-theme="dark"] #pd-detail-content .payload-detail-list,
+[data-theme="dark"] .payload-related-contexts .payload-related-context-card,
+[data-theme="dark"] .payload-supporting-events .payload-supporting-event-card {
+  background: #151d30;
+  border-color: var(--pd-line, #253048);
+  color: var(--pd-text, #e2e8f0);
+}
+
+/* Generic descendants: prevent inherited white text panels from old payload CSS */
+[data-theme="dark"] #pd-detail-content details > *,
+[data-theme="dark"] .payload-detail-section details > * {
+  border-color: var(--pd-line-soft, #1e2a42);
+}
+
+[data-theme="dark"] #pd-detail-content details p,
+[data-theme="dark"] #pd-detail-content details li,
+[data-theme="dark"] #pd-detail-content details div,
+[data-theme="dark"] #pd-detail-content details span {
+  color: inherit;
+}
+
+[data-theme="dark"] #pd-detail-content .payload-detail-label,
+[data-theme="dark"] #pd-detail-content .payload-field-label,
+[data-theme="dark"] #pd-detail-content dt {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] #pd-detail-content .payload-detail-value,
+[data-theme="dark"] #pd-detail-content .payload-field-value,
+[data-theme="dark"] #pd-detail-content dd,
+[data-theme="dark"] #pd-detail-content code {
+  color: #e2e8f0;
+}
+
+/* Collapsed/empty states that were visible as white strips */
+[data-theme="dark"] #pd-detail-content .payload-empty,
+[data-theme="dark"] #pd-detail-content .payload-empty-state,
+[data-theme="dark"] #pd-detail-content .payload-no-supporting-events,
+[data-theme="dark"] #pd-detail-content .payload-no-related-contexts {
+  background: #0f1829;
+  border-color: var(--pd-line, #253048);
+  color: var(--pd-muted, #8899aa);
+}
+
+/* Keep small chips readable inside dark detail sections */
+[data-theme="dark"] #pd-detail-content .badge,
+[data-theme="dark"] #pd-detail-content .payload-chip,
+[data-theme="dark"] #pd-detail-content .payload-mini-badge {
+  border-color: rgba(148, 163, 184, 0.35);
+}

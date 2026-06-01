@@ -818,6 +818,14 @@
   box-shadow: var(--pd-shadow);
 }
 
+.payload-dashboard .payload-guardrail {
+  position: static;
+  max-width: none;
+  margin: 14px 0 1rem;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
 /* Tablet */
 @media (max-width: 1180px) {
   .payload-summary-cards {

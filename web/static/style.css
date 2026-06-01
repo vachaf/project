@@ -2160,3 +2160,28 @@ summary:focus-visible {
 .theme-toggle:active {
   transform: translateY(0);
 }
+
+/* Payload viewer header controls */
+.payload-dashboard-badges .payload-theme-toggle {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(216, 232, 255, 0.55);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8f0ff;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.payload-dashboard-badges .payload-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(216, 232, 255, 0.85);
+  color: #ffffff;
+}
+
+body.payload-page > .theme-toggle,
+body.payload-page > .payload-theme-toggle {
+  display: none;
+}
