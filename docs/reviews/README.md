@@ -12,6 +12,7 @@
 - [99_A-H세트_중간정리.md](./99_A-H세트_중간정리.md): A~H 실험 세트 중간 정리
 - [99_A-F세트_대표샘플_6선.md](./99_A-F세트_대표샘플_6선.md): A~F 대표 샘플 6선과 분석 품질 대조 기준
 - [99_llm_sample_review_plan.md](./99_llm_sample_review_plan.md): 실제 LLM 샘플 검증 계획
+- [99_llm_sample_validation_review.md](./99_llm_sample_validation_review.md): lab LLM sample validation 원문을 docs에서 읽을 수 있게 요약한 수동 품질 검토
 - [99_observability_topology_comparison_review.md](./99_observability_topology_comparison_review.md): lab observability comparison의 PHP sample/OpenCart/Juice Shop topology 비교 요약
 - [99_observability_run_summaries.md](./99_observability_run_summaries.md): lab observability run summary 8개를 docs에서 읽을 수 있게 모은 관찰 요약
 - [99_post_refactor_dry_run_spot_check.md](./99_post_refactor_dry_run_spot_check.md): post-refactor dry-run spot check
@@ -22,7 +23,7 @@
 
 1. 전체 실험 상태는 [99_A-H세트_중간정리.md](./99_A-H세트_중간정리.md)
 2. 대표 케이스 대조는 [99_A-F세트_대표샘플_6선.md](./99_A-F세트_대표샘플_6선.md)
-3. 실제 LLM 샘플 검증은 [99_llm_sample_review_plan.md](./99_llm_sample_review_plan.md)
+3. 실제 LLM 샘플 검증은 docs-side summary인 [99_llm_sample_validation_review.md](./99_llm_sample_validation_review.md)를 우선 보고, 검증 계획은 [99_llm_sample_review_plan.md](./99_llm_sample_review_plan.md)를 본다.
 4. Apache observability topology 비교는 [99_observability_topology_comparison_review.md](./99_observability_topology_comparison_review.md)
 5. observability run별 결론은 [99_observability_run_summaries.md](./99_observability_run_summaries.md)
 6. post-refactor 회귀 확인은 [99_post_refactor_dry_run_spot_check.md](./99_post_refactor_dry_run_spot_check.md), [99_post_refactor_LLM_output_spot_check.md](./99_post_refactor_LLM_output_spot_check.md)
