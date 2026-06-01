@@ -28,17 +28,20 @@ Apache logs
 - `full_report`의 완료 조건은 Stage1, Stage2, `viewer_payload`, report/artifact 저장 완료다.
 - 2026-05-31 실제 smoke 기준으로 job claim, direct pipeline 호출, `analysis_reports` 저장, SUCCEEDED/FAILED 전이, `/job/{id}/viewer` 표시까지 확인했다.
 
-## 문서 목록
+## 현재 기준 / Canonical
 
-- 현재 기준
-  - [../00_current_architecture.md](../00_current_architecture.md): 현재 canonical architecture overview와 DB-backed MVP 운영 흐름
+- [../00_current_architecture.md](../00_current_architecture.md): 현재 canonical architecture overview와 DB-backed MVP 운영 흐름
+- [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md): Apache logs-only evidence boundary의 single source of truth
+- [01_프로젝트_방향과_실험대상.md](./01_프로젝트_방향과_실험대상.md): v1.1 상위 방향 문서. PHP sample, OpenCart, Juice Shop의 baseline/주 실험 대상 역할을 분리한다.
+- [analysis_job_worker.md](./analysis_job_worker.md): DB-backed MVP Analysis Job Worker 운영 모델, 실행 모드, env/systemd 운영 기준
+- [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md): DB-backed MVP용 `users`, `analysis_jobs`, `analysis_reports`, `job_events` 적용 절차
+
+## 운영 문서 목록
+
 - 전체 흐름/실행
-  - [analysis_job_worker.md](./analysis_job_worker.md): DB-backed MVP Analysis Job Worker 운영 모델, 실행 모드, env/systemd 운영 기준
   - [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md): 전체 파이프라인 흐름 요약
   - [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md): 운영 기준과 실행 절차(`export --table`, pipeline auto prepare source table 해석, Web UI run_dir default scan 기준 포함)
   - [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md): 통합 스크립트 설명(`run_analysis_pipeline.py`, `--run-dir`, run_dir manifest/Web UI 연결 기준 포함)
-- 프로젝트/실험 대상
-  - [01_프로젝트_방향과_실험대상.md](./01_프로젝트_방향과_실험대상.md): 프로젝트 방향과 실험 대상 정리
 - 환경 구축
   - [02_LLM_환경_구축_및_설치.md](./02_LLM_환경_구축_및_설치.md): LLM 환경 구축과 설치
   - [02_Juice_shop_환경_구축_및_설치.md](./02_Juice_shop_환경_구축_및_설치.md): Juice Shop 환경 구축과 설치
@@ -48,7 +51,6 @@ Apache logs
   - [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md): 로그 표준과 DB 구조
   - [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md): `apache_log_shipper.py` 기반 로그 적재와 운영
   - [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md): `export_db_logs_cli.py`와 LLM 분석 전략(`table_option/counts/data` 기반 auto resolution, run_dir 표준 산출물/manifest 중심 흐름 포함)
-  - [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md): DB-backed MVP용 `users`, `analysis_jobs`, `analysis_reports`, `job_events` 적용 절차
   - [99_output_retention_policy.md](./99_output_retention_policy.md): 산출물 보존/정리 기준
 - SQL
   - [sql/00_database_and_log_accounts.sql](./sql/00_database_and_log_accounts.sql): `web_logs`, `log_writer`, `log_reader` 생성
@@ -61,14 +63,16 @@ Apache logs
 ## 읽는 순서
 
 1. [../00_current_architecture.md](../00_current_architecture.md)
-2. [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)
-3. [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md)
-4. [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md)
-5. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
-6. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
-7. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
-8. [analysis_job_worker.md](./analysis_job_worker.md)
-9. [99_output_retention_policy.md](./99_output_retention_policy.md)
+2. [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)
+3. [01_프로젝트_방향과_실험대상.md](./01_프로젝트_방향과_실험대상.md)
+4. [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)
+5. [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md)
+6. [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md)
+7. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
+8. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
+9. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
+10. [analysis_job_worker.md](./analysis_job_worker.md)
+11. [99_output_retention_policy.md](./99_output_retention_policy.md)
 
 환경을 처음 구축할 때는 다음 순서로 필요한 문서만 이어서 본다.
 

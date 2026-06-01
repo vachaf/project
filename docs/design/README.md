@@ -6,7 +6,36 @@
 - 해석 한계, 기능 보류, 분류 기준 검토 같은 설계 판단 문서도 함께 관리한다.
 - 현재 상위 구조와 문서 해석 기준은 [../00_current_architecture.md](../00_current_architecture.md)를 따른다.
 
-## 문서 목록
+## 빠른 읽기 원칙
+
+- 전체 현재 구조는 [../00_current_architecture.md](../00_current_architecture.md)를 먼저 본다.
+- Apache logs-only evidence boundary는 [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)를 single source of truth로 둔다.
+- `full_report`는 DB-backed MVP의 direct pipeline mode다.
+- Sliding Window, Rollup, Operator Queue는 `full_report`에 자동 포함되는 단계가 아니라 후속 `windowed_triage` 흐름이다.
+- `analysis_jobs` queue는 DB-backed 분석 실행 queue이고, `operator_queue`는 rollup 결과를 사람이 검토하기 위한 queue다.
+
+## 현재 기준 / Canonical
+
+- [../00_current_architecture.md](../00_current_architecture.md): 현재 architecture, DB-backed MVP, mode/queue 경계
+- [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md): Apache logs-only 판정 경계와 금지/권장 표현 기준
+- [99_db_backed_log_collection_and_analysis_job_design.md](./99_db_backed_log_collection_and_analysis_job_design.md): DB-backed log collection과 analysis job 설계
+- [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md): Web UI/API safety와 read-only 해석 기준
+- [99_analysis_job_modes_and_sliding_window_integration.md](./99_analysis_job_modes_and_sliding_window_integration.md): `full_report`와 후속 `windowed_triage` mode 경계
+- [99_observability_run_summary_index.md](./99_observability_run_summary_index.md): observability run summary canonical index
+- [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md): 현재 prepare candidate policy 기준
+
+## 분류 개요
+
+| 분류 | 우선 문서 | 읽는 목적 |
+| --- | --- | --- |
+| DB-backed MVP / Web UI / Analysis Agent | `99_db_backed_*`, `99_analysis_job_modes_*` | 현재 job 등록, worker 실행, report/viewer 저장 흐름 |
+| Apache logs-only / observability / candidate policy | `99_observability_run_summary_index.md`, `99_prepare_candidate_policy.md`, `99_prepare_candidate_policy_distribution_history.md` | 로그 관찰 한계, 후보 추출 정책, run summary 색인 |
+| prepare split / constants / hints | `99_prepare_module_split_summary.md`, `99_prepare_constants_ownership_map.md`, `99_prepare_hints_split_summary.md` | prepare 내부 구조와 보수적 분리 기준 |
+| Sliding Window / rollup / operator queue | `99_analysis_job_modes_and_sliding_window_integration.md`, `99_sliding_window_*` | 후속 `windowed_triage`와 operator review queue |
+| Stage2 / report quality | `99_stage2_*` | Stage2 prompt, report lint, wording quality |
+| Historical review / 후보 검토 | `*_review.md`, phase plan, adoption review | 완료 검토, 보류 근거, archive/delete 전 판단 자료 |
+
+## 세부 문서 목록
 
 - 현재 DB-backed MVP / Web UI / Analysis Agent
   - [99_db_backed_log_collection_and_analysis_job_design.md](./99_db_backed_log_collection_and_analysis_job_design.md): Apache 로그 수집, MariaDB, Web UI `analysis_jobs` 등록, Analysis Agent 실행, 결과 표시까지의 DB-backed MVP 설계
@@ -59,8 +88,9 @@
   - [99_proxy_error_check_scenario_extension_review.md](./99_proxy_error_check_scenario_extension_review.md): proxy error check를 정규 scenario가 아닌 availability extension 후보로 유지할지 검토
 - prepare candidate policy / distribution
   - [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md): 현재 실제 prepare 로직에 반영된 candidate policy 기준
-  - [99_prepare_candidate_policy_distribution_history.md](./99_prepare_candidate_policy_distribution_history.md): run 분포/history 정리
-  - 세부 review 원문은 `docs/archive/design/` 아래 historical 문서로 이동
+  - [99_prepare_candidate_policy_distribution_history.md](./99_prepare_candidate_policy_distribution_history.md): run 분포/history 정리. 새 policy가 아니라 관찰 기록이다.
+  - [99_prepare_apache_observability_context_feature_review.md](./99_prepare_apache_observability_context_feature_review.md): Apache observability context feature review. 현재는 삭제/통합 대상이 아니라 design review/historical 참고 문서로 둔다.
+  - 세부 review 원문 중 이미 이동된 문서는 `docs/archive/design/` 아래 historical 문서로 관리한다.
 - Stage2 prompt / report quality
   - [99_stage2_prompt_compaction_plan.md](./99_stage2_prompt_compaction_plan.md): Stage2 report prompt 압축·섹션화 계획/완료 기록
   - [99_stage2_report_quality_lint_candidate_review.md](./99_stage2_report_quality_lint_candidate_review.md): Stage2 report quality lint 후보 검토와 warning-only 도입 기준
@@ -85,6 +115,7 @@
   - [99_observability_run_summary_index.md](./99_observability_run_summary_index.md): run summary 상위 색인
   - [99_external_client_error_heavy_run_plan.md](./99_external_client_error_heavy_run_plan.md): external client 기반 error-heavy distribution 비교와 identity/header guardrail 계획
 - 운영 자동화 / Sliding Window
+  - [99_analysis_job_modes_and_sliding_window_integration.md](./99_analysis_job_modes_and_sliding_window_integration.md): `full_report` direct pipeline과 후속 `windowed_triage` mode 경계
   - [99_sliding_window_adoption_review.md](./99_sliding_window_adoption_review.md): 팀원 작성 Sliding Window 문서 세트의 repo 수용 범위, CLI 호환성, dry-run 검증 순서 검토
   - [99_sliding_window_operator_queue_design.md](./99_sliding_window_operator_queue_design.md): rollup 결과를 사람이 검토하기 위한 operator queue 설계
   - [99_sliding_window_operator_queue_item_detail.md](./99_sliding_window_operator_queue_item_detail.md): operator queue item detail CLI/schema/표시 기준
@@ -94,16 +125,19 @@
 ## 읽는 순서
 
 1. 현재 상위 구조는 [../00_current_architecture.md](../00_current_architecture.md)
-2. DB-backed MVP는 [99_db_backed_log_collection_and_analysis_job_design.md](./99_db_backed_log_collection_and_analysis_job_design.md), [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md), [99_run_analysis_pipeline_user_runner_ux_review.md](./99_run_analysis_pipeline_user_runner_ux_review.md)
-3. operator queue와 장시간 분석 routing은 [99_sliding_window_operator_queue_design.md](./99_sliding_window_operator_queue_design.md), [99_sliding_window_operator_queue_item_detail.md](./99_sliding_window_operator_queue_item_detail.md), [99_sliding_window_single_rollup_observation_brief.md](./99_sliding_window_single_rollup_observation_brief.md)
-4. module split 현재 상태는 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)
-5. candidate policy 현재 기준은 [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md)
-6. constants 이동 또는 ownership 판단이면 prepare constants ownership / mini-move 문서
-7. SQLi/XSS/file disclosure 등 hint 계열 분리나 evidence boundary 판단이면 prepare hints split / evidence boundary 문서
-8. Stage2 prompt 정리나 report quality lint 검토면 Stage2 prompt / report quality 문서
-9. 로그 가시성, 해석 한계, 보류 기능 판단이면 설계 결정/해석 한계 문서
-10. 관련 평가는 [../reviews/README.md](../reviews/README.md)
-11. 후속 작업은 [../planning/README.md](../planning/README.md)
+2. Apache logs-only 경계는 [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)
+3. DB-backed MVP는 [99_db_backed_log_collection_and_analysis_job_design.md](./99_db_backed_log_collection_and_analysis_job_design.md), [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md)
+4. runner UX bridge/historical review는 [99_run_analysis_pipeline_user_runner_ux_review.md](./99_run_analysis_pipeline_user_runner_ux_review.md)
+5. observability는 [99_observability_run_summary_index.md](./99_observability_run_summary_index.md)
+6. candidate policy 현재 기준은 [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md), 분포 이력은 [99_prepare_candidate_policy_distribution_history.md](./99_prepare_candidate_policy_distribution_history.md)
+7. module split 현재 상태는 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)
+8. constants 이동 또는 ownership 판단이면 prepare constants ownership / mini-move 문서
+9. SQLi/XSS/file disclosure 등 hint 계열 분리나 evidence boundary 판단이면 prepare hints split / evidence boundary 문서
+10. operator queue와 장시간 분석 routing은 [99_analysis_job_modes_and_sliding_window_integration.md](./99_analysis_job_modes_and_sliding_window_integration.md), [99_sliding_window_operator_queue_design.md](./99_sliding_window_operator_queue_design.md), [99_sliding_window_operator_queue_item_detail.md](./99_sliding_window_operator_queue_item_detail.md), [99_sliding_window_single_rollup_observation_brief.md](./99_sliding_window_single_rollup_observation_brief.md)
+11. Stage2 prompt 정리나 report quality lint 검토면 Stage2 prompt / report quality 문서
+12. 로그 가시성, 해석 한계, 보류 기능 판단이면 설계 결정/해석 한계 문서
+13. 관련 평가는 [../reviews/README.md](../reviews/README.md)
+14. 후속 작업은 [../planning/README.md](../planning/README.md)
 
 ## 관리 원칙
 
