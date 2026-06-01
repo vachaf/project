@@ -6,6 +6,8 @@ import os
 import re
 import socket
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, TextIO
 
@@ -42,6 +44,7 @@ def run_once(
     worker_id: str,
     run_pipeline: bool = False,
     runner: Optional[Any] = None,
+    heartbeat_interval: float = 30.0,
     stdout: TextIO = sys.stdout,
     stderr: TextIO = sys.stderr,
 ) -> int:
@@ -61,6 +64,80 @@ def run_once(
     if not run_pipeline:
         return 0
 
+    return _run_claimed_pipeline(
+        repository,
+        claimed,
+        worker_id=worker_id,
+        runner=runner,
+        heartbeat_interval=heartbeat_interval,
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+
+def run_loop(
+    repository: Any,
+    *,
+    worker_id: str,
+    runner: Any,
+    max_jobs: Optional[int] = None,
+    sleep_seconds: float = 5.0,
+    heartbeat_interval: float = 30.0,
+    sleep_fn: Callable[[float], None] = time.sleep,
+    stdout: TextIO = sys.stdout,
+    stderr: TextIO = sys.stderr,
+) -> int:
+    processed_jobs = 0
+    print(f"[analysis-job-worker] loop started worker_id={worker_id}", file=stdout)
+
+    while max_jobs is None or processed_jobs < max_jobs:
+        claimed = repository.claim_next_pending_full_report_job(worker_id=worker_id)
+        if not claimed:
+            print("[analysis-job-worker] no pending full_report job", file=stdout)
+            try:
+                sleep_fn(sleep_seconds)
+            except KeyboardInterrupt:
+                print(f"[analysis-job-worker] loop stopped worker_id={worker_id}", file=stdout)
+                return 130
+            continue
+
+        job_id = claimed.get("id")
+        status = claimed.get("status")
+        claimed_worker_id = claimed.get("worker_id") or worker_id
+        print(
+            "[analysis-job-worker] "
+            f"claimed job_id={job_id} status={status} worker_id={claimed_worker_id}",
+            file=stdout,
+        )
+        _run_claimed_pipeline(
+            repository,
+            claimed,
+            worker_id=worker_id,
+            runner=runner,
+            heartbeat_interval=heartbeat_interval,
+            stdout=stdout,
+            stderr=stderr,
+        )
+        processed_jobs += 1
+
+    print(
+        f"[analysis-job-worker] loop stopped worker_id={worker_id} processed_jobs={processed_jobs}",
+        file=stdout,
+    )
+    return 0
+
+
+def _run_claimed_pipeline(
+    repository: Any,
+    claimed: Mapping[str, Any],
+    *,
+    worker_id: str,
+    runner: Optional[Any],
+    heartbeat_interval: float,
+    stdout: TextIO,
+    stderr: TextIO,
+) -> int:
+    job_id = claimed.get("id")
     try:
         repository.append_job_event(
             job_id=job_id,
@@ -70,7 +147,14 @@ def run_once(
         )
         if runner is None:
             runner = FullReportJobRunner()
-        result = runner.run(claimed)
+        with HeartbeatLoop(
+            repository=repository,
+            job_id=job_id,
+            worker_id=worker_id,
+            interval_seconds=heartbeat_interval,
+            stderr=stderr,
+        ):
+            result = runner.run(claimed)
         upsert_kwargs = _result_to_upsert_kwargs(job_id=job_id, result=result)
         repository.upsert_analysis_report(**upsert_kwargs)
         if _result_no_data(result):
@@ -114,6 +198,47 @@ def run_once(
             )
         print(f"[analysis-job-worker] error: {safe_message}", file=stderr)
         return 1
+
+
+class HeartbeatLoop:
+    def __init__(
+        self,
+        *,
+        repository: Any,
+        job_id: Any,
+        worker_id: str,
+        interval_seconds: float,
+        stderr: TextIO,
+    ) -> None:
+        self.repository = repository
+        self.job_id = job_id
+        self.worker_id = worker_id
+        self.interval_seconds = max(float(interval_seconds), 0.001)
+        self.stderr = stderr
+        self._stop = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    def __enter__(self) -> "HeartbeatLoop":
+        self._thread = threading.Thread(target=self._run, name="analysis-job-heartbeat", daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=self.interval_seconds + 1.0)
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            try:
+                self.repository.update_job_heartbeat(job_id=self.job_id, worker_id=self.worker_id)
+            except Exception as exc:
+                print(
+                    "[analysis-job-worker] warning: "
+                    f"heartbeat failed job_id={self.job_id}: {redact_worker_error(exc)}",
+                    file=self.stderr,
+                )
+            self._stop.wait(self.interval_seconds)
 
 
 def _result_to_upsert_kwargs(*, job_id: Any, result: Any) -> dict[str, Any]:
@@ -169,7 +294,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--sleep-seconds",
         type=float,
         default=5.0,
-        help="reserved for future loop mode when no PENDING job exists",
+        help="seconds to sleep between empty loop-mode polls",
+    )
+    parser.add_argument(
+        "--max-jobs",
+        type=int,
+        default=None,
+        help="loop mode only: process at most N claimed jobs and exit",
+    )
+    parser.add_argument(
+        "--heartbeat-interval",
+        type=float,
+        default=30.0,
+        help="seconds between heartbeat updates while a pipeline is running",
     )
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument(
@@ -206,6 +343,7 @@ def main(
     *,
     repository_factory: Callable[[], Any] = AnalysisJobRepository,
     runner_factory: Callable[..., Any] = FullReportJobRunner,
+    sleep_fn: Callable[[float], None] = time.sleep,
     stdout: TextIO = sys.stdout,
     stderr: TextIO = sys.stderr,
 ) -> int:
@@ -213,14 +351,15 @@ def main(
     args = parser.parse_args(argv)
     if args.pipeline_dry_run and not args.run_pipeline:
         parser.error("--pipeline-dry-run requires --run-pipeline")
+    if args.max_jobs is not None and args.max_jobs < 1:
+        parser.error("--max-jobs must be greater than or equal to 1")
+    if args.once and args.max_jobs is not None:
+        parser.error("--max-jobs cannot be used with --once")
+    if not args.once and args.claim_only:
+        parser.error("loop mode does not support --claim-only")
+    if not args.once and not args.run_pipeline:
+        parser.error("loop mode requires --run-pipeline")
     worker_id = args.worker_id or build_default_worker_id()
-
-    if not args.once:
-        print(
-            "[analysis-job-worker] loop mode is not enabled for this claim-only worker; use --once",
-            file=stderr,
-        )
-        return 1
 
     try:
         repository = repository_factory()
@@ -231,11 +370,24 @@ def main(
                 timeout_seconds=args.timeout_seconds,
                 pipeline_dry_run=bool(args.pipeline_dry_run),
             )
+        if not args.once:
+            return run_loop(
+                repository,
+                worker_id=worker_id,
+                runner=runner,
+                max_jobs=args.max_jobs,
+                sleep_seconds=args.sleep_seconds,
+                heartbeat_interval=args.heartbeat_interval,
+                sleep_fn=sleep_fn,
+                stdout=stdout,
+                stderr=stderr,
+            )
         return run_once(
             repository,
             worker_id=worker_id,
             run_pipeline=bool(args.run_pipeline),
             runner=runner,
+            heartbeat_interval=args.heartbeat_interval,
             stdout=stdout,
             stderr=stderr,
         )

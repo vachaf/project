@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import inspect
+import threading
+import time
 from io import StringIO
 from typing import Any, Dict, Optional
 
@@ -13,14 +15,19 @@ class FakeRepository:
     def __init__(
         self,
         claim_result: Optional[Dict[str, Any]] = None,
+        claim_results: Optional[list[Optional[Dict[str, Any]]]] = None,
         error: Optional[Exception] = None,
         upsert_error: Optional[Exception] = None,
+        heartbeat_error: Optional[Exception] = None,
     ) -> None:
         self.claim_result = claim_result
+        self.claim_results = list(claim_results) if claim_results is not None else None
         self.error = error
         self.upsert_error = upsert_error
+        self.heartbeat_error = heartbeat_error
         self.claim_worker_id: Optional[str] = None
         self.claim_calls = 0
+        self.heartbeat_calls: list[Dict[str, Any]] = []
         self.events: list[Dict[str, Any]] = []
         self.upsert_calls: list[Dict[str, Any]] = []
         self.succeeded_kwargs: list[Dict[str, Any]] = []
@@ -33,10 +40,20 @@ class FakeRepository:
         self.claim_worker_id = worker_id
         if self.error:
             raise self.error
+        if self.claim_results is not None:
+            if self.claim_results:
+                return self.claim_results.pop(0)
+            return None
         return self.claim_result
 
     def append_job_event(self, **kwargs: Any) -> None:
         self.events.append(kwargs)
+
+    def update_job_heartbeat(self, **kwargs: Any) -> bool:
+        self.heartbeat_calls.append(kwargs)
+        if self.heartbeat_error:
+            raise self.heartbeat_error
+        return True
 
     def upsert_analysis_report(self, **kwargs: Any) -> None:
         if self.upsert_error:
@@ -67,6 +84,32 @@ class FakeRunner:
         return self.result
 
 
+class BlockingRunner(FakeRunner):
+    def __init__(self) -> None:
+        super().__init__()
+        self.started = threading.Event()
+        self.release = threading.Event()
+
+    def run(self, job: Dict[str, Any]) -> Dict[str, Any]:
+        self.calls.append(job)
+        self.started.set()
+        assert self.release.wait(timeout=2.0)
+        return self.result
+
+
+class SequencedRunner:
+    def __init__(self, outcomes: list[Any]) -> None:
+        self.outcomes = list(outcomes)
+        self.calls: list[Dict[str, Any]] = []
+
+    def run(self, job: Dict[str, Any]) -> Dict[str, Any]:
+        self.calls.append(job)
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
 class RecordingRunnerFactory:
     def __init__(self, runner: FakeRunner) -> None:
         self.runner = runner
@@ -85,6 +128,17 @@ def claimed_job() -> Dict[str, Any]:
         "analysis_mode": "full_report",
         "artifact_root": "runs/jobs/123",
     }
+
+
+def claimed_job_with_id(job_id: int) -> Dict[str, Any]:
+    job = claimed_job()
+    job.update(
+        {
+            "id": job_id,
+            "artifact_root": f"runs/jobs/{job_id}",
+        }
+    )
+    return job
 
 
 def full_report_result() -> Dict[str, Any]:
@@ -127,6 +181,15 @@ def no_data_result() -> Dict[str, Any]:
         }
     )
     return result
+
+
+def _eventually(predicate: Any, *, timeout: float = 2.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(0.01)
+    return predicate()
 
 
 def test_run_once_claims_pending_job_and_does_not_finish_it() -> None:
@@ -211,20 +274,19 @@ def test_main_returns_one_and_redacts_repository_exception() -> None:
     assert "[REDACTED]" in output
 
 
-def test_main_loop_mode_is_not_enabled_in_claim_only_worker() -> None:
+def test_main_loop_mode_without_run_pipeline_is_argparse_error() -> None:
     repo = FakeRepository({"id": 1, "status": "RUNNING", "worker_id": "worker-x", "analysis_mode": "full_report"})
-    stderr = StringIO()
 
-    exit_code = analysis_job_worker.main(
-        ["--worker-id", "worker-x"],
-        repository_factory=lambda: repo,
-        stdout=StringIO(),
-        stderr=stderr,
-    )
+    with pytest.raises(SystemExit) as exc:
+        analysis_job_worker.main(
+            ["--worker-id", "worker-x"],
+            repository_factory=lambda: repo,
+            stdout=StringIO(),
+            stderr=StringIO(),
+        )
 
-    assert exit_code == 1
+    assert exc.value.code == 2
     assert repo.claim_calls == 0
-    assert "loop mode is not enabled" in stderr.getvalue()
 
 
 def test_main_claim_only_flag_does_not_call_runner() -> None:
@@ -298,6 +360,100 @@ def test_run_pipeline_with_pipeline_dry_run_passes_true_to_runner_factory() -> N
 
     assert exit_code == 0
     assert factory.calls == [{"project_root": None, "timeout_seconds": None, "pipeline_dry_run": True}]
+
+
+def test_main_without_once_and_run_pipeline_enters_loop_mode() -> None:
+    repo = FakeRepository(claim_results=[claimed_job_with_id(1)])
+    runner = FakeRunner()
+    factory = RecordingRunnerFactory(runner)
+    stdout = StringIO()
+
+    exit_code = analysis_job_worker.main(
+        ["--run-pipeline", "--max-jobs", "1", "--worker-id", "local-dev"],
+        repository_factory=lambda: repo,
+        runner_factory=factory,
+        stdout=stdout,
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert repo.claim_calls == 1
+    assert runner.calls == [claimed_job_with_id(1)]
+    assert repo.succeeded_calls == 1
+    assert "loop started worker_id=local-dev" in stdout.getvalue()
+
+
+def test_loop_mode_processes_two_pending_jobs_sequentially() -> None:
+    repo = FakeRepository(claim_results=[claimed_job_with_id(1), claimed_job_with_id(2)])
+    runner = FakeRunner()
+
+    exit_code = analysis_job_worker.run_loop(
+        repo,
+        worker_id="local-dev",
+        runner=runner,
+        max_jobs=2,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert [call["id"] for call in runner.calls] == [1, 2]
+    assert [call["job_id"] for call in repo.upsert_calls] == [1, 2]
+    assert repo.succeeded_calls == 2
+
+
+def test_loop_mode_max_jobs_one_processes_one_job_and_exits() -> None:
+    repo = FakeRepository(claim_results=[claimed_job_with_id(1), claimed_job_with_id(2)])
+    runner = FakeRunner()
+
+    exit_code = analysis_job_worker.run_loop(
+        repo,
+        worker_id="local-dev",
+        runner=runner,
+        max_jobs=1,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert repo.claim_calls == 1
+    assert [call["id"] for call in runner.calls] == [1]
+
+
+def test_loop_mode_sleeps_when_no_pending_job_then_polls_again() -> None:
+    repo = FakeRepository(claim_results=[None, claimed_job_with_id(1)])
+    runner = FakeRunner()
+    sleep_calls: list[float] = []
+
+    exit_code = analysis_job_worker.run_loop(
+        repo,
+        worker_id="local-dev",
+        runner=runner,
+        max_jobs=1,
+        sleep_seconds=0.25,
+        sleep_fn=sleep_calls.append,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert repo.claim_calls == 2
+    assert sleep_calls == [0.25]
+    assert [call["id"] for call in runner.calls] == [1]
+
+
+def test_loop_mode_claim_only_is_argparse_error() -> None:
+    with pytest.raises(SystemExit) as exc:
+        analysis_job_worker.main(["--claim-only"])
+
+    assert exc.value.code == 2
+
+
+def test_max_jobs_with_once_is_argparse_error() -> None:
+    with pytest.raises(SystemExit) as exc:
+        analysis_job_worker.main(["--once", "--max-jobs", "1"])
+
+    assert exc.value.code == 2
 
 
 def test_pipeline_dry_run_without_run_pipeline_is_argparse_error() -> None:
@@ -407,6 +563,101 @@ def test_run_pipeline_runner_failure_marks_failed_with_redacted_error() -> None:
     assert "abc123" not in repo.failed_kwargs[0]["error_message"]
     assert "[REDACTED]" in repo.failed_kwargs[0]["error_message"]
     assert "abc123" not in stderr.getvalue()
+
+
+def test_loop_mode_runner_failure_marks_failed_then_continues() -> None:
+    repo = FakeRepository(claim_results=[claimed_job_with_id(1), claimed_job_with_id(2)])
+    runner = SequencedRunner([RuntimeError("pipeline failed token=abc123"), full_report_result()])
+    stderr = StringIO()
+
+    exit_code = analysis_job_worker.run_loop(
+        repo,
+        worker_id="local-dev",
+        runner=runner,
+        max_jobs=2,
+        stdout=StringIO(),
+        stderr=stderr,
+    )
+
+    assert exit_code == 0
+    assert [call["id"] for call in runner.calls] == [1, 2]
+    assert repo.failed_calls == 1
+    assert repo.failed_kwargs[0]["job_id"] == 1
+    assert "abc123" not in repo.failed_kwargs[0]["error_message"]
+    assert repo.succeeded_calls == 1
+    assert repo.succeeded_kwargs[0]["job_id"] == 2
+
+
+def test_heartbeat_updater_is_called_while_runner_executes() -> None:
+    repo = FakeRepository(claimed_job())
+    runner = BlockingRunner()
+    stdout = StringIO()
+    stderr = StringIO()
+    result_holder: Dict[str, Any] = {}
+
+    thread = threading.Thread(
+        target=lambda: result_holder.update(
+            {
+                "exit_code": analysis_job_worker.run_once(
+                    repo,
+                    worker_id="local-dev",
+                    run_pipeline=True,
+                    runner=runner,
+                    heartbeat_interval=0.01,
+                    stdout=stdout,
+                    stderr=stderr,
+                )
+            }
+        )
+    )
+    thread.start()
+    assert runner.started.wait(timeout=2.0)
+    assert _eventually(lambda: len(repo.heartbeat_calls) >= 1)
+    runner.release.set()
+    thread.join(timeout=2.0)
+
+    assert result_holder["exit_code"] == 0
+    assert repo.heartbeat_calls[0] == {"job_id": 123, "worker_id": "local-dev"}
+
+
+def test_heartbeat_failure_does_not_block_runner_success() -> None:
+    repo = FakeRepository(claimed_job(), heartbeat_error=RuntimeError("db failed token=abc123"))
+    runner = FakeRunner()
+    stderr = StringIO()
+
+    exit_code = analysis_job_worker.run_once(
+        repo,
+        worker_id="local-dev",
+        run_pipeline=True,
+        runner=runner,
+        heartbeat_interval=0.01,
+        stdout=StringIO(),
+        stderr=stderr,
+    )
+
+    assert exit_code == 0
+    assert repo.succeeded_calls == 1
+    assert "heartbeat failed job_id=123" in stderr.getvalue()
+    assert "abc123" not in stderr.getvalue()
+
+
+def test_loop_mode_keyboard_interrupt_during_idle_sleep_returns_130() -> None:
+    repo = FakeRepository(claim_results=[None])
+
+    def interrupting_sleep(seconds: float) -> None:
+        raise KeyboardInterrupt
+
+    exit_code = analysis_job_worker.run_loop(
+        repo,
+        worker_id="local-dev",
+        runner=FakeRunner(),
+        sleep_fn=interrupting_sleep,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 130
+    assert repo.claim_calls == 1
 
 
 def test_run_pipeline_upsert_failure_marks_failed() -> None:
