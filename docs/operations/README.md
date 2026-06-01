@@ -33,6 +33,7 @@ Apache logs
 - 현재 기준
   - [../00_current_architecture.md](../00_current_architecture.md): 현재 canonical architecture overview와 DB-backed MVP 운영 흐름
 - 전체 흐름/실행
+  - [analysis_job_worker.md](./analysis_job_worker.md): DB-backed MVP Analysis Job Worker 운영 모델, 실행 모드, env/systemd 운영 기준
   - [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md): 전체 파이프라인 흐름 요약
   - [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md): 운영 기준과 실행 절차(`export --table`, pipeline auto prepare source table 해석, Web UI run_dir default scan 기준 포함)
   - [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md): 통합 스크립트 설명(`run_analysis_pipeline.py`, `--run-dir`, run_dir manifest/Web UI 연결 기준 포함)
@@ -66,7 +67,8 @@ Apache logs
 5. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
 6. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
 7. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
-8. [99_output_retention_policy.md](./99_output_retention_policy.md)
+8. [analysis_job_worker.md](./analysis_job_worker.md)
+9. [99_output_retention_policy.md](./99_output_retention_policy.md)
 
 환경을 처음 구축할 때는 다음 순서로 필요한 문서만 이어서 본다.
 
