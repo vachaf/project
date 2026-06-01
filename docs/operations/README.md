@@ -35,6 +35,7 @@ Apache logs
 - [01_프로젝트_방향과_실험대상.md](./01_프로젝트_방향과_실험대상.md): v1.1 상위 방향 문서. PHP sample, OpenCart, Juice Shop의 baseline/주 실험 대상 역할을 분리한다.
 - [analysis_job_worker.md](./analysis_job_worker.md): DB-backed MVP Analysis Job Worker 운영 모델, 실행 모드, env/systemd 운영 기준
 - [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md): DB-backed MVP용 `users`, `analysis_jobs`, `analysis_reports`, `job_events` 적용 절차
+- systemd worker 예시: [../../ops/systemd/web-log-analysis-worker.service.example](../../ops/systemd/web-log-analysis-worker.service.example)
 
 ## 운영 문서 목록
 

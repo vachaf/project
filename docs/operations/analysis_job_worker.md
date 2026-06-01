@@ -173,6 +173,8 @@ systemd에서는 `source`를 직접 쓰지 않고 `EnvironmentFile`을 사용한
 
 ## systemd 예시
 
+실제 unit 예시 파일은 `ops/systemd/web-log-analysis-worker.service.example`에 둔다.
+
 `/opt/web_log_analysis`는 예시 경로다. `User`, `Group`, `EnvironmentFile`, `WorkingDirectory`는 운영 환경에 맞게 바꾼다.
 
 ```ini

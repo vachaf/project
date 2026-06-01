@@ -1,0 +1,23 @@
+# This worker is a background process separated from the Web app.
+# /opt/web_log_analysis is an example path; change it to the actual deployment path.
+# User/Group must be changed to the actual operating account.
+# EnvironmentFile is not shell source; config/.env must use simple KEY=VALUE lines.
+# Do not put secrets such as API keys or DB passwords directly in this unit file.
+# Put secrets in config/.env and restrict that file's permissions.
+
+[Unit]
+Description=Web Log Analysis Job Worker
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/web_log_analysis
+EnvironmentFile=/opt/web_log_analysis/config/.env
+ExecStart=/opt/web_log_analysis/.venv/bin/python3 src/analysis_job_worker.py --run-pipeline --worker-id worker-01 --sleep-seconds 5 --heartbeat-interval 30
+Restart=on-failure
+RestartSec=5
+User=webanalysis
+Group=webanalysis
+
+[Install]
+WantedBy=multi-user.target
