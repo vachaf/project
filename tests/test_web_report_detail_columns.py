@@ -1,4 +1,4 @@
-from web.app import NOTABLE_INCIDENT_COLUMNS, visible_columns_for_rows
+from web.routes.reports import NOTABLE_INCIDENT_COLUMNS, visible_columns_for_rows
 
 
 def _column_keys(rows):
