@@ -116,6 +116,19 @@ python ./src/export_db_logs_cli.py \
   --test-connection
 ```
 
+## 9. 서버에 애이전트 등록
+
+```bash
+sudo cp /opt/web_log_analysis/ops/systemd/web-log-analysis-worker.service.example /etc/systemd/system/web-log-analysis-worker.service
+sudo systemctl daemon-reload
+sudo systemctl enable web-log-analysis-worker.service
+sudo systemctl start web-log-analysis-worker.service
+```
+
+상태 확인: `sudo systemctl status web-log-analysis-worker.service`
+
+일시 종료: `sudo systemctl stop web-log-analysis-worker.service`
+
 ## 9. 운영 전 확인 사항
 
 - `src/`에 주요 스크립트가 있다.
