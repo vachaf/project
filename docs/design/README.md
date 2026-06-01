@@ -29,7 +29,7 @@
 | 분류 | 우선 문서 | 읽는 목적 |
 | --- | --- | --- |
 | DB-backed MVP / Web UI / Analysis Agent | `99_db_backed_*`, `99_analysis_job_modes_*` | 현재 job 등록, worker 실행, report/viewer 저장 흐름 |
-| Apache logs-only / observability / candidate policy | `99_observability_run_summary_index.md`, `99_prepare_candidate_policy.md`, `99_prepare_candidate_policy_distribution_history.md` | 로그 관찰 한계, 후보 추출 정책, run summary 색인 |
+| Apache logs-only / observability / candidate policy | `99_observability_run_summary_index.md`, `../reviews/99_observability_run_summaries.md`, `99_prepare_candidate_policy.md`, `99_prepare_candidate_policy_distribution_history.md` | 로그 관찰 한계, 후보 추출 정책, run summary 색인과 docs-side 관찰 요약 |
 | prepare split / constants / hints | `99_prepare_module_split_summary.md`, `99_prepare_constants_ownership_map.md`, `99_prepare_hints_split_summary.md` | prepare 내부 구조와 보수적 분리 기준 |
 | Sliding Window / rollup / operator queue | `99_analysis_job_modes_and_sliding_window_integration.md`, `99_sliding_window_*` | 후속 `windowed_triage`와 operator review queue |
 | Stage2 / report quality | `99_stage2_*` | Stage2 prompt, report lint, wording quality |
@@ -112,7 +112,8 @@
   - [99_pipeline_run_dir_output_layout_plan.md](./99_pipeline_run_dir_output_layout_plan.md): run dir 검토 문서
   - [99_proxy_error_check_scenario_extension_review.md](./99_proxy_error_check_scenario_extension_review.md): proxy/backend unavailable 신호를 attack scenario로 승격하지 않기 위한 availability extension 검토
 - observability / external client run
-  - [99_observability_run_summary_index.md](./99_observability_run_summary_index.md): run summary 상위 색인
+  - [99_observability_run_summary_index.md](./99_observability_run_summary_index.md): run summary 상위 색인. run별 docs-side 요약은 [../reviews/99_observability_run_summaries.md](../reviews/99_observability_run_summaries.md)를 우선 본다.
+  - [../reviews/99_observability_topology_comparison_review.md](../reviews/99_observability_topology_comparison_review.md): PHP sample/OpenCart/Juice Shop topology 비교 review
   - [99_external_client_error_heavy_run_plan.md](./99_external_client_error_heavy_run_plan.md): external client 기반 error-heavy distribution 비교와 identity/header guardrail 계획
 - 운영 자동화 / Sliding Window
   - [99_analysis_job_modes_and_sliding_window_integration.md](./99_analysis_job_modes_and_sliding_window_integration.md): `full_report` direct pipeline과 후속 `windowed_triage` mode 경계
@@ -128,7 +129,7 @@
 2. Apache logs-only 경계는 [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)
 3. DB-backed MVP는 [99_db_backed_log_collection_and_analysis_job_design.md](./99_db_backed_log_collection_and_analysis_job_design.md), [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md)
 4. runner UX bridge/historical review는 [99_run_analysis_pipeline_user_runner_ux_review.md](./99_run_analysis_pipeline_user_runner_ux_review.md)
-5. observability는 [99_observability_run_summary_index.md](./99_observability_run_summary_index.md)
+5. observability는 [99_observability_run_summary_index.md](./99_observability_run_summary_index.md), run별 docs-side 요약은 [../reviews/99_observability_run_summaries.md](../reviews/99_observability_run_summaries.md), topology 비교는 [../reviews/99_observability_topology_comparison_review.md](../reviews/99_observability_topology_comparison_review.md)
 6. candidate policy 현재 기준은 [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md), 분포 이력은 [99_prepare_candidate_policy_distribution_history.md](./99_prepare_candidate_policy_distribution_history.md)
 7. module split 현재 상태는 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)
 8. constants 이동 또는 ownership 판단이면 prepare constants ownership / mini-move 문서

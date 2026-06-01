@@ -4,6 +4,9 @@
 - 문서 역할: prepare candidate policy distribution 관찰/history 문서
 - 현재 기준 문서: [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md)
 - 관련 run index: [99_observability_run_summary_index.md](./99_observability_run_summary_index.md)
+- 관련 docs-side run summary: [../reviews/99_observability_run_summaries.md](../reviews/99_observability_run_summaries.md)
+- 관련 topology comparison review: [../reviews/99_observability_topology_comparison_review.md](../reviews/99_observability_topology_comparison_review.md)
+- 원본 run artifact는 아직 `../../lab/observability/runs/*`에 남아 있지만, 이 문서의 해석은 docs-side summary를 우선 참조한다.
 - 관련 historical review:
   - [99_prepare_candidate_policy_distribution_review.md](../archive/design/99_prepare_candidate_policy_distribution_review.md)
   - [99_prepare_php_sample_candidate_policy_review.md](../archive/design/99_prepare_php_sample_candidate_policy_review.md)
@@ -23,16 +26,16 @@
 
 ## 2. 관찰 축
 
-| run_id | 대상 환경 | logformat | topology | 목적 | 주요 결론 | summary | candidate policy 판단에 사용 |
-|---|---|---|---|---|---|---|---|
-| `obs_php_sample_002` | php sample | v1 | direct | baseline 분포 확인 | payload/auth/upload/probe/status-error bucket 분리의 v1 표본 | [summary](../../lab/observability/runs/obs_php_sample_002/summary.md) | yes |
-| `obs_php_sample_v2_001` | php sample | v2 | direct | v2에서도 v1과 같은 policy shape인지 확인 | v1과 같은 분포가 재현되어 v2 field effect가 아니라 prepare policy effect임을 확인 | [summary](../../lab/observability/runs/obs_php_sample_v2_001/summary.md) | yes |
-| `obs_php_sample_v2_error_heavy_001` | php sample | v2 | direct / error-heavy | error/status-linked bucket 관찰 | payload 후보와 status-error-only 후보를 분리해서 볼 수 있는 표본이지만 broad demotion 근거로 확정되지는 않음 | [summary](../../lab/observability/runs/obs_php_sample_v2_error_heavy_001/summary.md) | yes |
-| `obs_php_sample_v2_error_heavy_external_001` | php sample | v2 | direct / controlled external client / error-heavy | external client에서도 error-heavy distribution이 유지되는지 확인 | local/internal baseline과 같은 `payload 3 / probe 4 / status-error 3 / auth 1 / upload 1` shape 유지, stale explanation artifact 재생성 후 EH01~EH12 label 정상 표시 | [summary](../../lab/observability/runs/obs_php_sample_v2_error_heavy_external_001/summary.md) | yes |
-| `obs_opencart_002` | OpenCart | v1 | front-controller / routed response | topology-dependent 200 응답 baseline 확인 | payload-only 3건 유지, `status_code=200`은 성공 근거가 아님을 재확인 | [summary](../../lab/observability/runs/obs_opencart_002/summary.md) | yes |
-| `obs_opencart_v2_001` | OpenCart | v2 | front-controller / routed response | v2 front-controller 표본 확인 | payload 3 + static 404 status-error 2 분포 관찰, broad demotion은 계속 보류 | [summary](../../lab/observability/runs/obs_opencart_v2_001/summary.md) | yes |
-| `obs_juiceshop_proxy_v2_001` | Juice Shop | v2 | reverse proxy / backend response | proxy topology의 normal run 표본 | payload 3건 유지, fallback/proxy context는 interpretation context일 뿐 | [summary](../../lab/observability/runs/obs_juiceshop_proxy_v2_001/summary.md) | yes |
-| `obs_juiceshop_proxy_v2_error_check_001` | Juice Shop | v2 | reverse proxy / backend unavailable | proxy error 표본 확인 | payload 1 / status-error 1 분리가 관찰되지만 prepare/scoring/filtering 변경은 없음 | [summary](../../lab/observability/runs/obs_juiceshop_proxy_v2_error_check_001/summary.md) | yes |
+| run_id | 대상 환경 | logformat | topology | 목적 | 주요 결론 | docs summary | legacy lab artifact | candidate policy 판단에 사용 |
+|---|---|---|---|---|---|---|---|---|
+| `obs_php_sample_002` | php sample | v1 | direct | baseline 분포 확인 | payload/auth/upload/probe/status-error bucket 분리의 v1 표본 | [docs summary](../reviews/99_observability_run_summaries.md) | [artifact](../../lab/observability/runs/obs_php_sample_002/summary.md) | yes |
+| `obs_php_sample_v2_001` | php sample | v2 | direct | v2에서도 v1과 같은 policy shape인지 확인 | v1과 같은 분포가 재현되어 v2 field effect가 아니라 prepare policy effect임을 확인 | [docs summary](../reviews/99_observability_run_summaries.md) | [artifact](../../lab/observability/runs/obs_php_sample_v2_001/summary.md) | yes |
+| `obs_php_sample_v2_error_heavy_001` | php sample | v2 | direct / error-heavy | error/status-linked bucket 관찰 | payload 후보와 status-error-only 후보를 분리해서 볼 수 있는 표본이지만 broad demotion 근거로 확정되지는 않음 | [docs summary](../reviews/99_observability_run_summaries.md) | [artifact](../../lab/observability/runs/obs_php_sample_v2_error_heavy_001/summary.md) | yes |
+| `obs_php_sample_v2_error_heavy_external_001` | php sample | v2 | direct / controlled external client / error-heavy | external client에서도 error-heavy distribution이 유지되는지 확인 | local/internal baseline과 같은 `payload 3 / probe 4 / status-error 3 / auth 1 / upload 1` shape 유지, stale explanation artifact 재생성 후 EH01~EH12 label 정상 표시 | [docs summary](../reviews/99_observability_run_summaries.md) | [artifact](../../lab/observability/runs/obs_php_sample_v2_error_heavy_external_001/summary.md) | yes |
+| `obs_opencart_002` | OpenCart | v1 | front-controller / routed response | topology-dependent 200 응답 baseline 확인 | payload-only 3건 유지, `status_code=200`은 성공 근거가 아님을 재확인 | [docs summary](../reviews/99_observability_run_summaries.md) | [artifact](../../lab/observability/runs/obs_opencart_002/summary.md) | yes |
+| `obs_opencart_v2_001` | OpenCart | v2 | front-controller / routed response | v2 front-controller 표본 확인 | payload 3 + static 404 status-error 2 분포 관찰, broad demotion은 계속 보류 | [docs summary](../reviews/99_observability_run_summaries.md) | [artifact](../../lab/observability/runs/obs_opencart_v2_001/summary.md) | yes |
+| `obs_juiceshop_proxy_v2_001` | Juice Shop | v2 | reverse proxy / backend response | proxy topology의 normal run 표본 | payload 3건 유지, fallback/proxy context는 interpretation context일 뿐 | [docs summary](../reviews/99_observability_run_summaries.md) | [artifact](../../lab/observability/runs/obs_juiceshop_proxy_v2_001/summary.md) | yes |
+| `obs_juiceshop_proxy_v2_error_check_001` | Juice Shop | v2 | reverse proxy / backend unavailable | proxy error 표본 확인 | payload 1 / status-error 1 분리가 관찰되지만 prepare/scoring/filtering 변경은 없음 | [docs summary](../reviews/99_observability_run_summaries.md) | [artifact](../../lab/observability/runs/obs_juiceshop_proxy_v2_error_check_001/summary.md) | yes |
 
 ## 3. 현재까지의 관찰 요약
 
