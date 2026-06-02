@@ -50,6 +50,15 @@ def make_report(**overrides: Any) -> dict[str, Any]:
     return report
 
 
+def make_event(event_type: str, *, message: str = "ok", detail_json: str = "{}") -> dict[str, Any]:
+    return {
+        "event_time": "2026-05-30 00:02:00.000",
+        "event_type": event_type,
+        "message": message,
+        "detail_json": detail_json,
+    }
+
+
 def render_job_detail(
     *,
     job: dict[str, Any],
@@ -193,6 +202,90 @@ def test_succeeded_job_with_no_data_event_shows_neutral_no_data_guidance(
     assert "선택한 구간에 분석할 로그가 없습니다." in body
     assert "Analysis failed." not in body
     assert "not generated for no-data job" in body
+
+
+def test_job_detail_renders_phase1_stage_event_timeline_read_only() -> None:
+    event_types = [
+        "JOB_CREATED",
+        "JOB_CLAIMED",
+        "JOB_STARTED",
+        "EXPORT_STARTED",
+        "EXPORT_COMPLETED",
+        "PIPELINE_STARTED",
+        "PIPELINE_COMPLETED",
+        "REPORT_SAVE_STARTED",
+        "REPORT_SAVE_COMPLETED",
+        "JOB_SUCCEEDED",
+    ]
+    body = render_job_detail(
+        job=make_job(status="SUCCEEDED", worker_id="worker-01"),
+        events=[make_event(event_type, detail_json='{"worker_id":"worker-01"}') for event_type in event_types],
+        report=make_report(),
+    )
+
+    positions = [body.index(event_type) for event_type in event_types]
+    assert positions == sorted(positions)
+    assert "job_events 테이블에 저장된 실제 이벤트만 표시합니다." in body
+    assert 'class="job-timeline-dot is-success"' in body
+    assert 'class="job-timeline-dot is-error"' not in body
+    assert "worker-01" in body
+    assert "run_analysis_pipeline" not in body
+    assert "mark_job_succeeded" not in body
+
+
+def test_job_detail_renders_no_data_phase1_timeline_read_only() -> None:
+    event_types = [
+        "EXPORT_STARTED",
+        "EXPORT_COMPLETED",
+        "EXPORT_NO_DATA",
+        "JOB_NO_DATA",
+        "REPORT_SAVE_STARTED",
+        "REPORT_SAVE_COMPLETED",
+        "JOB_SUCCEEDED",
+    ]
+    body = render_job_detail(
+        job=make_job(status="SUCCEEDED", worker_id="worker-01"),
+        events=[make_event(event_type) for event_type in event_types],
+        report=make_report(
+            summary="No logs found in requested time range.",
+            llm_input_path=None,
+            analysis_candidates_path=None,
+            noise_summary_path=None,
+            stage1_result_path=None,
+            stage2_report_path=None,
+            stage2_report_md_path=None,
+            viewer_payload_path=None,
+        ),
+        is_no_data_job=True,
+    )
+
+    positions = [body.index(event_type) for event_type in event_types]
+    assert positions == sorted(positions)
+    assert "EXPORT_NO_DATA" in body
+    assert "JOB_NO_DATA" in body
+    assert "Analysis failed." not in body
+
+
+def test_job_detail_renders_failed_phase1_timeline_read_only() -> None:
+    event_types = [
+        "EXPORT_STARTED",
+        "EXPORT_COMPLETED",
+        "PIPELINE_STARTED",
+        "PIPELINE_FAILED",
+        "JOB_FAILED",
+    ]
+    body = render_job_detail(
+        job=make_job(status="FAILED", error_message="pipeline failed", worker_id="worker-01"),
+        events=[make_event(event_type, detail_json='{"failed_at_stage":"pipeline"}') for event_type in event_types],
+        report=make_report(viewer_payload_path=None),
+    )
+
+    positions = [body.index(event_type) for event_type in event_types]
+    assert positions == sorted(positions)
+    assert 'class="job-timeline-dot is-error"' in body
+    assert "failed_at_stage" in body
+    assert "pipeline" in body
+    assert 'href="/job/123/viewer"' not in body
 
 
 def test_failed_job_detail_shows_failure_guidance_error_and_missing_viewer() -> None:
