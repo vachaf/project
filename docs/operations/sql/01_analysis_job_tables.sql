@@ -183,20 +183,23 @@ CREATE TABLE IF NOT EXISTS job_events (
 -- 권장하는 MVP용 event_type 값 목록 (CHECK 제약 조건 대신 애플리케이션 유효성 검사로 강제함):
 --   JOB_CREATED (작업 생성됨)
 --   JOB_CLAIMED (작업 할당됨)
+--   JOB_STARTED (작업 실행 시작됨)
 --   EXPORT_STARTED (내보내기 시작됨)
---   EXPORT_FINISHED (내보내기 완료됨)
---   PREPARE_STARTED (데이터 준비 시작됨)
---   PREPARE_FINISHED (데이터 준비 완료됨)
---   WINDOW_STARTED (슬라이딩 윈도우 분석 시작됨)
---   WINDOW_FINISHED (슬라이딩 윈도우 분석 완료됨)
---   ROLLUP_STARTED (롤업 시작됨)
---   ROLLUP_FINISHED (롤업 완료됨)
---   OPERATOR_QUEUE_STARTED (운영자 큐 생성 시작됨)
---   OPERATOR_QUEUE_FINISHED (운영자 큐 생성 완료됨)
---   STAGE1_STARTED (1단계 분석 시작됨)
---   STAGE1_FINISHED (1단계 분석 완료됨)
---   STAGE2_STARTED (2단계 보고서 생성 시작됨)
---   STAGE2_FINISHED (2단계 보고서 생성 완료됨)
---   VIEWER_PAYLOAD_WRITTEN (뷰어 페이로드 기록됨)
+--   EXPORT_COMPLETED (내보내기 완료됨)
+--   EXPORT_FAILED (내보내기 실패함)
+--   EXPORT_NO_DATA (내보내기 결과 분석 대상 로그가 없음)
+--   PIPELINE_STARTED (분석 파이프라인 시작됨)
+--   PIPELINE_COMPLETED (분석 파이프라인 완료됨)
+--   PIPELINE_FAILED (분석 파이프라인 실패함)
+--   REPORT_SAVE_STARTED (분석 보고서 메타데이터 저장 시작됨)
+--   REPORT_SAVE_COMPLETED (분석 보고서 메타데이터 저장 완료됨)
+--   REPORT_SAVE_FAILED (분석 보고서 메타데이터 저장 실패함)
+--   JOB_NO_DATA (no-data 작업 호환 이벤트)
 --   JOB_SUCCEEDED (작업 성공함)
 --   JOB_FAILED (작업 실패함)
+--
+-- Phase 2 이후에만 검토할 fine-grained event_type 후보:
+--   PREPARE_STARTED / PREPARE_COMPLETED / PREPARE_FAILED
+--   STAGE1_STARTED / STAGE1_COMPLETED / STAGE1_FAILED
+--   STAGE2_STARTED / STAGE2_COMPLETED / STAGE2_FAILED
+--   VIEWER_PAYLOAD_STARTED / VIEWER_PAYLOAD_COMPLETED / VIEWER_PAYLOAD_FAILED
