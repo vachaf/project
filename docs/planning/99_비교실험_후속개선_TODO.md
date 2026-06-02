@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-06-01
+- 기준 시점: 2026-06-02
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 완료 이력: [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md)
 - 관련 대시보드: [../진행상황.md](../진행상황.md)
@@ -23,6 +23,7 @@
 - Current architecture: [../00_current_architecture.md](../00_current_architecture.md)
 - DB-backed log collection + analysis job design: [../design/99_db_backed_log_collection_and_analysis_job_design.md](../design/99_db_backed_log_collection_and_analysis_job_design.md)
 - DB-backed Web UI/API safety addendum: [../design/99_db_backed_web_ui_api_safety_addendum.md](../design/99_db_backed_web_ui_api_safety_addendum.md)
+- Analysis job stage events design: [../design/99_analysis_job_stage_events_design.md](../design/99_analysis_job_stage_events_design.md)
 - DB-backed analysis job table setup: [../operations/07_DB_backed_analysis_job_tables.md](../operations/07_DB_backed_analysis_job_tables.md)
 - Analysis job table SQL: [../operations/sql/01_analysis_job_tables.sql](../operations/sql/01_analysis_job_tables.sql)
 - Sliding Window adoption review: [../design/99_sliding_window_adoption_review.md](../design/99_sliding_window_adoption_review.md)
@@ -84,6 +85,17 @@
   - 조사 문서: [../design/99_analysis_job_worker_status_investigation.md](../design/99_analysis_job_worker_status_investigation.md)
   - 구현 확인: job 생성/조회, full_report worker claim/run/close, one-shot/loop CLI, heartbeat update, systemd example, job detail/viewer 연결.
   - 2026-05-31 당시 `worker loop/daemon 운영화` TODO 중 loop CLI와 systemd example은 이후 구현된 것으로 정리했다.
+- [x] Phase 1 analysis job stage-level `job_events` 구현 및 smoke
+  - 설계 문서: [../design/99_analysis_job_stage_events_design.md](../design/99_analysis_job_stage_events_design.md)
+  - 구현 범위는 현재 worker/runner가 정확히 관찰 가능한 coarse boundary로 제한했다.
+  - 기록 이벤트: `EXPORT_STARTED`, `EXPORT_COMPLETED`, `EXPORT_FAILED`, `EXPORT_NO_DATA`, `PIPELINE_STARTED`, `PIPELINE_COMPLETED`, `PIPELINE_FAILED`, `REPORT_SAVE_STARTED`, `REPORT_SAVE_COMPLETED`, `REPORT_SAVE_FAILED`.
+  - 기존 lifecycle event인 `JOB_CREATED`, `JOB_CLAIMED`, `JOB_STARTED`, `JOB_NO_DATA`, `JOB_SUCCEEDED`, `JOB_FAILED`는 유지했다.
+  - `JOB_FAILED.detail_json.failed_at_stage`는 Phase 1에서 `export`, `pipeline`, `report_save`까지만 기록한다.
+  - `job_events.detail_json`에는 recursive redaction을 적용했다.
+  - DB-backed smoke 결과 정상 job, no-data job, pipeline failure job의 event 순서와 `failed_at_stage=pipeline` 전파를 확인했다.
+  - `REPORT_SAVE_*`에는 `duration_seconds`, `JOB_SUCCEEDED.detail_json`에는 `worker_id`를 보강했다.
+  - Web UI `/job/{id}` 실행 타임라인은 저장된 `job_events`를 read-only로 표시하며, Phase 1 이벤트 렌더링 회귀 테스트를 추가했다.
+  - 검증: `PYTHONPATH=. pytest -q` → `319 passed`.
 
 ### 다음 우선순위
 
@@ -101,9 +113,8 @@
   - `CANCELLED` 상태와 cancel API/UI/worker semantics는 아직 구현하지 않는다.
 - [ ] worker health/status UI
   - worker process 생존 여부, last heartbeat, last claim 같은 운영 visibility를 Web UI/API에 노출할지 정한다.
-- [ ] stage-level job_events
-  - 현재 event는 `JOB_CREATED`, `JOB_CLAIMED`, `JOB_STARTED`, `JOB_NO_DATA`, `JOB_SUCCEEDED`, `JOB_FAILED` 중심이다.
-  - `EXPORT_*`, `STAGE1_*`, `STAGE2_*`, `VIEWER_PAYLOAD_WRITTEN` 같은 세부 event emission은 후속이다.
+- [ ] failed event detail hardening
+  - `EXPORT_FAILED` / `PIPELINE_FAILED` detail에서 stdout/stderr tail 저장을 더 줄이고, return code와 redacted summary 중심으로 정리할지 검토한다.
 - [ ] optional artifact mapping 결정
   - `lint_result_path`는 schema/UI key가 있으나 현재 runner가 채우지 않는다.
   - `manifest_path`, `stage2_report_input_path`를 DB에 저장할지 결정한다.
