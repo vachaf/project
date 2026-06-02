@@ -18,6 +18,27 @@ from web.services.analysis_job_policy import (
 
 DEFAULT_STATUS_COUNTS = {"PENDING": 0, "RUNNING": 0, "SUCCEEDED": 0, "FAILED": 0}
 ACTIVE_JOB_STATUSES = ("PENDING", "RUNNING")
+SENSITIVE_EVENT_DETAIL_KEYWORDS = (
+    "authorization",
+    "cookie",
+    "password",
+    "passwd",
+    "pwd",
+    "token",
+    "secret",
+    "api_key",
+    "apikey",
+    "x-api-key",
+    "env",
+    "raw_env",
+    "headers",
+    "raw_request_body",
+    "raw_response_body",
+    "request_body",
+    "response_body",
+    "raw_provider_error_body",
+    "provider_response",
+)
 ANALYSIS_REPORT_UPSERT_COLUMNS = (
     "job_id",
     "summary",
@@ -650,8 +671,32 @@ def _event_detail_json(value: Optional[Any]) -> Optional[str]:
     if value is None:
         return None
     if isinstance(value, str):
-        return value
-    return json.dumps(value, ensure_ascii=False, sort_keys=True)
+        return redact_secret_text(value)
+    return json.dumps(_redact_event_detail(value), ensure_ascii=False, sort_keys=True)
+
+
+def _redact_event_detail(value: Any) -> Any:
+    if isinstance(value, dict):
+        redacted = {}
+        for key, item in value.items():
+            safe_key = str(key)
+            if _is_sensitive_event_detail_key(safe_key):
+                redacted[safe_key] = "[REDACTED]"
+            else:
+                redacted[safe_key] = _redact_event_detail(item)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_event_detail(item) for item in value]
+    if isinstance(value, tuple):
+        return [_redact_event_detail(item) for item in value]
+    if isinstance(value, str):
+        return redact_secret_text(value)
+    return value
+
+
+def _is_sensitive_event_detail_key(key: str) -> bool:
+    normalized = key.strip().lower().replace("-", "_")
+    return any(keyword.replace("-", "_") in normalized for keyword in SENSITIVE_EVENT_DETAIL_KEYWORDS)
 
 
 def utc_naive_to_kst_text(value: Any, fmt: str = "%Y-%m-%d %H:%M") -> str:

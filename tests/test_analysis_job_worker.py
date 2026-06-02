@@ -84,7 +84,7 @@ class FakeRunner:
         self.error = error
         self.calls: list[Dict[str, Any]] = []
 
-    def run(self, job: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, job: Dict[str, Any], event_sink: Optional[Any] = None) -> Dict[str, Any]:
         self.calls.append(job)
         if self.error:
             raise self.error
@@ -97,7 +97,7 @@ class BlockingRunner(FakeRunner):
         self.started = threading.Event()
         self.release = threading.Event()
 
-    def run(self, job: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, job: Dict[str, Any], event_sink: Optional[Any] = None) -> Dict[str, Any]:
         self.calls.append(job)
         self.started.set()
         assert self.release.wait(timeout=2.0)
@@ -109,7 +109,7 @@ class SequencedRunner:
         self.outcomes = list(outcomes)
         self.calls: list[Dict[str, Any]] = []
 
-    def run(self, job: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, job: Dict[str, Any], event_sink: Optional[Any] = None) -> Dict[str, Any]:
         self.calls.append(job)
         outcome = self.outcomes.pop(0)
         if isinstance(outcome, Exception):
@@ -207,6 +207,12 @@ def no_data_result() -> Dict[str, Any]:
         }
     )
     return result
+
+
+class StageError(RuntimeError):
+    def __init__(self, message: str, failed_at_stage: str) -> None:
+        super().__init__(message)
+        self.failed_at_stage = failed_at_stage
 
 
 def _eventually(predicate: Any, *, timeout: float = 2.0) -> bool:
@@ -603,14 +609,17 @@ def test_run_pipeline_success_runs_runner_upserts_report_and_marks_succeeded() -
 
     assert exit_code == 0
     assert runner.calls == [claimed_job()]
-    assert repo.events == [
-        {
-            "job_id": 123,
-            "event_type": "JOB_STARTED",
-            "message": "Full report direct pipeline started",
-            "detail_json": {"worker_id": "local-dev", "analysis_mode": "full_report"},
-        }
+    assert [event["event_type"] for event in repo.events] == [
+        "JOB_STARTED",
+        "REPORT_SAVE_STARTED",
+        "REPORT_SAVE_COMPLETED",
     ]
+    assert repo.events[0] == {
+        "job_id": 123,
+        "event_type": "JOB_STARTED",
+        "message": "Full report direct pipeline started",
+        "detail_json": {"worker_id": "local-dev", "analysis_mode": "full_report"},
+    }
     assert repo.upsert_calls[0]["job_id"] == 123
     assert repo.upsert_calls[0]["summary"] is None
     assert repo.upsert_calls[0]["artifact_root"] == "runs/jobs/123"
@@ -643,7 +652,12 @@ def test_run_pipeline_no_data_upserts_summary_appends_event_and_marks_succeeded(
     assert repo.upsert_calls[0]["summary"] == "No logs found in requested time range."
     assert repo.upsert_calls[0]["export_path"] == "runs/jobs/123/export.json"
     assert repo.upsert_calls[0]["stage2_report_path"] is None
-    assert repo.events[0]["event_type"] == "JOB_STARTED"
+    assert [event["event_type"] for event in repo.events] == [
+        "JOB_STARTED",
+        "JOB_NO_DATA",
+        "REPORT_SAVE_STARTED",
+        "REPORT_SAVE_COMPLETED",
+    ]
     assert repo.events[1] == {
         "job_id": 123,
         "event_type": "JOB_NO_DATA",
@@ -656,6 +670,44 @@ def test_run_pipeline_no_data_upserts_summary_appends_event_and_marks_succeeded(
     }
     assert repo.succeeded_calls == 1
     assert repo.failed_calls == 0
+
+
+def test_run_pipeline_passes_event_sink_to_runner() -> None:
+    repo = FakeRepository(claimed_job())
+
+    class EmittingRunner(FakeRunner):
+        def run(self, job: Dict[str, Any], event_sink: Optional[Any] = None) -> Dict[str, Any]:
+            self.calls.append(job)
+            assert event_sink is not None
+            event_sink(
+                event_type="EXPORT_STARTED",
+                message="Export started",
+                detail_json={"artifact_root": "runs/jobs/123"},
+            )
+            return self.result
+
+    runner = EmittingRunner()
+
+    exit_code = analysis_job_worker.run_once(
+        repo,
+        worker_id="local-dev",
+        run_pipeline=True,
+        runner=runner,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert repo.events[1] == {
+        "job_id": 123,
+        "event_type": "EXPORT_STARTED",
+        "message": "Export started",
+        "detail_json": {
+            "worker_id": "local-dev",
+            "analysis_mode": "full_report",
+            "artifact_root": "runs/jobs/123",
+        },
+    }
 
 
 def test_run_pipeline_runner_failure_marks_failed_with_redacted_error() -> None:
@@ -680,6 +732,25 @@ def test_run_pipeline_runner_failure_marks_failed_with_redacted_error() -> None:
     assert "abc123" not in repo.failed_kwargs[0]["error_message"]
     assert "[REDACTED]" in repo.failed_kwargs[0]["error_message"]
     assert "abc123" not in stderr.getvalue()
+
+
+def test_run_pipeline_runner_stage_failure_marks_failed_at_stage() -> None:
+    repo = FakeRepository(claimed_job())
+    runner = FakeRunner(error=StageError("pipeline failed token=abc123", "pipeline"))
+
+    exit_code = analysis_job_worker.run_once(
+        repo,
+        worker_id="local-dev",
+        run_pipeline=True,
+        runner=runner,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 1
+    assert repo.failed_calls == 1
+    assert repo.failed_kwargs[0]["detail_json"]["failed_at_stage"] == "pipeline"
+    assert "abc123" not in repo.failed_kwargs[0]["error_message"]
 
 
 def test_loop_mode_runner_failure_marks_failed_then_continues() -> None:
@@ -796,6 +867,13 @@ def test_run_pipeline_upsert_failure_marks_failed() -> None:
     assert repo.failed_calls == 1
     assert "plain" not in repo.failed_kwargs[0]["error_message"]
     assert "[REDACTED]" in repo.failed_kwargs[0]["error_message"]
+    assert [event["event_type"] for event in repo.events] == [
+        "JOB_STARTED",
+        "REPORT_SAVE_STARTED",
+        "REPORT_SAVE_FAILED",
+    ]
+    assert repo.events[-1]["detail_json"]["failed_at_stage"] == "report_save"
+    assert repo.failed_kwargs[0]["detail_json"]["failed_at_stage"] == "report_save"
 
 
 def test_claim_exception_before_job_does_not_mark_failed() -> None:

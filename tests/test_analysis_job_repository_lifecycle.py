@@ -338,6 +338,38 @@ def test_append_job_event_uses_detail_json_column_and_serializes_structured_valu
     ]
 
 
+def test_append_job_event_recursively_redacts_detail_json() -> None:
+    db = FakeDb()
+    repo = make_repo(db)
+
+    repo.append_job_event(
+        job_id=42,
+        event_type="CUSTOM",
+        message="custom event",
+        detail_json={
+            "safe": "ok",
+            "nested": {
+                "Authorization": "Bearer sk-secret-value",
+                "items": [
+                    {"api_key": "plain-key"},
+                    "token=abc123",
+                ],
+            },
+            "raw_response_body": "secret body",
+        },
+    )
+
+    detail = json.loads(db.events[0]["detail_json"])
+    assert detail["safe"] == "ok"
+    assert detail["nested"]["Authorization"] == "[REDACTED]"
+    assert detail["nested"]["items"][0]["api_key"] == "[REDACTED]"
+    assert detail["nested"]["items"][1] == "token=[REDACTED]"
+    assert detail["raw_response_body"] == "[REDACTED]"
+    assert "sk-secret-value" not in db.events[0]["detail_json"]
+    assert "plain-key" not in db.events[0]["detail_json"]
+    assert "abc123" not in db.events[0]["detail_json"]
+
+
 def test_mark_job_failed_sets_failed_state_and_appends_event() -> None:
     db = FakeDb([make_job(status="RUNNING", worker_id="worker-1", error_message=None)])
     repo = make_repo(db)

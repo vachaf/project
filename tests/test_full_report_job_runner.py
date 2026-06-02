@@ -27,6 +27,10 @@ def option_value(cmd: list[str], option: str) -> str:
     return cmd[cmd.index(option) + 1]
 
 
+def event_types(events: list[dict[str, Any]]) -> list[str]:
+    return [event["event_type"] for event in events]
+
+
 class FakeSubprocess:
     def __init__(
         self,
@@ -167,6 +171,7 @@ def test_export_failure_raises_runner_error(tmp_path: Path) -> None:
         runner.run(make_job())
 
     assert "export command failed rc=7" in str(exc.value)
+    assert exc.value.failed_at_stage == "export"
     assert len(fake.calls) == 1
 
 
@@ -178,6 +183,7 @@ def test_pipeline_failure_raises_runner_error(tmp_path: Path) -> None:
         runner.run(make_job())
 
     assert "pipeline command failed rc=8" in str(exc.value)
+    assert exc.value.failed_at_stage == "pipeline"
     assert len(fake.calls) == 2
 
 
@@ -304,3 +310,68 @@ def test_env_and_timeout_are_passed_to_subprocess(tmp_path: Path) -> None:
         assert kwargs["text"] is True
         assert kwargs["check"] is False
         assert kwargs["env"]["RUNNER_TEST_VALUE"] == "yes"
+
+
+def test_success_emits_export_and_pipeline_stage_events(tmp_path: Path) -> None:
+    fake = FakeSubprocess()
+    events: list[dict[str, Any]] = []
+    runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
+
+    runner.run(make_job(), event_sink=lambda **kwargs: events.append(kwargs))
+
+    assert event_types(events) == [
+        "EXPORT_STARTED",
+        "EXPORT_COMPLETED",
+        "PIPELINE_STARTED",
+        "PIPELINE_COMPLETED",
+    ]
+    assert events[-1]["detail_json"]["stage2_report_path"] == "runs/jobs/123/stage2_report.json"
+    assert events[-1]["detail_json"]["viewer_payload_path"] == "runs/jobs/123/viewer_payload.json"
+    assert "duration_seconds" in events[-1]["detail_json"]
+
+
+def test_no_data_emits_export_no_data_without_pipeline_events(tmp_path: Path) -> None:
+    fake = FakeSubprocess(total_count=0)
+    events: list[dict[str, Any]] = []
+    runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
+
+    result = runner.run(make_job(), event_sink=lambda **kwargs: events.append(kwargs))
+
+    assert result.no_data is True
+    assert event_types(events) == [
+        "EXPORT_STARTED",
+        "EXPORT_COMPLETED",
+        "EXPORT_NO_DATA",
+    ]
+    assert len(fake.calls) == 1
+
+
+def test_export_failure_emits_failed_stage_event(tmp_path: Path) -> None:
+    fake = FakeSubprocess(fail_step="export")
+    events: list[dict[str, Any]] = []
+    runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
+
+    with pytest.raises(FullReportRunnerError) as exc:
+        runner.run(make_job(), event_sink=lambda **kwargs: events.append(kwargs))
+
+    assert exc.value.failed_at_stage == "export"
+    assert event_types(events) == ["EXPORT_STARTED", "EXPORT_FAILED"]
+    assert events[-1]["detail_json"]["failed_at_stage"] == "export"
+
+
+def test_pipeline_failure_emits_failed_stage_event(tmp_path: Path) -> None:
+    fake = FakeSubprocess(fail_step="pipeline")
+    events: list[dict[str, Any]] = []
+    runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
+
+    with pytest.raises(FullReportRunnerError) as exc:
+        runner.run(make_job(), event_sink=lambda **kwargs: events.append(kwargs))
+
+    assert exc.value.failed_at_stage == "pipeline"
+    assert event_types(events) == [
+        "EXPORT_STARTED",
+        "EXPORT_COMPLETED",
+        "PIPELINE_STARTED",
+        "PIPELINE_FAILED",
+    ]
+    assert events[-1]["detail_json"]["failed_at_stage"] == "pipeline"

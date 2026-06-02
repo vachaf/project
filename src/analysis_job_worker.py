@@ -183,12 +183,19 @@ def _run_claimed_pipeline(
     stderr: TextIO,
 ) -> int:
     job_id = claimed.get("id")
+    failed_at_stage: Optional[str] = None
     try:
         repository.append_job_event(
             job_id=job_id,
             event_type="JOB_STARTED",
             message="Full report direct pipeline started",
             detail_json={"worker_id": worker_id, "analysis_mode": claimed.get("analysis_mode")},
+        )
+        event_sink = _build_job_event_sink(
+            repository=repository,
+            job_id=job_id,
+            worker_id=worker_id,
+            claimed=claimed,
         )
         if runner is None:
             runner = FullReportJobRunner()
@@ -199,9 +206,8 @@ def _run_claimed_pipeline(
             interval_seconds=heartbeat_interval,
             stderr=stderr,
         ):
-            result = runner.run(claimed)
+            result = runner.run(claimed, event_sink=event_sink)
         upsert_kwargs = _result_to_upsert_kwargs(job_id=job_id, result=result)
-        repository.upsert_analysis_report(**upsert_kwargs)
         if _result_no_data(result):
             repository.append_job_event(
                 job_id=job_id,
@@ -213,6 +219,47 @@ def _run_claimed_pipeline(
                     "export_path": upsert_kwargs.get("export_path"),
                 },
             )
+        failed_at_stage = "report_save"
+        repository.append_job_event(
+            job_id=job_id,
+            event_type="REPORT_SAVE_STARTED",
+            message="Report metadata save started",
+            detail_json={
+                "worker_id": worker_id,
+                "artifact_root": upsert_kwargs.get("artifact_root"),
+                "stage2_report_path": upsert_kwargs.get("stage2_report_path"),
+                "viewer_payload_path": upsert_kwargs.get("viewer_payload_path"),
+            },
+        )
+        try:
+            repository.upsert_analysis_report(**upsert_kwargs)
+        except Exception as exc:
+            safe_report_message = redact_worker_error(exc)
+            repository.append_job_event(
+                job_id=job_id,
+                event_type="REPORT_SAVE_FAILED",
+                message="Report metadata save failed",
+                detail_json={
+                    "worker_id": worker_id,
+                    "artifact_root": upsert_kwargs.get("artifact_root"),
+                    "failed_at_stage": "report_save",
+                    "error_type": exc.__class__.__name__,
+                    "error_message": safe_report_message,
+                },
+            )
+            raise
+        repository.append_job_event(
+            job_id=job_id,
+            event_type="REPORT_SAVE_COMPLETED",
+            message="Report metadata save completed",
+            detail_json={
+                "worker_id": worker_id,
+                "artifact_root": upsert_kwargs.get("artifact_root"),
+                "stage2_report_path": upsert_kwargs.get("stage2_report_path"),
+                "viewer_payload_path": upsert_kwargs.get("viewer_payload_path"),
+            },
+        )
+        failed_at_stage = None
         marked_succeeded = repository.mark_job_succeeded(
             job_id=job_id,
             worker_id=worker_id,
@@ -228,12 +275,16 @@ def _run_claimed_pipeline(
         return 0
     except Exception as exc:
         safe_message = redact_worker_error(exc)
+        failed_stage_detail = getattr(exc, "failed_at_stage", None) or failed_at_stage
+        failure_detail = {"error_type": exc.__class__.__name__, "safe_message": safe_message}
+        if failed_stage_detail in {"export", "pipeline", "report_save"}:
+            failure_detail["failed_at_stage"] = failed_stage_detail
         try:
             repository.mark_job_failed(
                 job_id=job_id,
                 worker_id=worker_id,
                 error_message=safe_message,
-                detail_json={"error_type": exc.__class__.__name__, "safe_message": safe_message},
+                detail_json=failure_detail,
             )
         except Exception as mark_exc:
             safe_mark_message = redact_worker_error(mark_exc)
@@ -243,6 +294,27 @@ def _run_claimed_pipeline(
             )
         print(f"[analysis-job-worker] error: {safe_message}", file=stderr)
         return 1
+
+
+def _build_job_event_sink(
+    *,
+    repository: Any,
+    job_id: Any,
+    worker_id: str,
+    claimed: Mapping[str, Any],
+) -> Callable[..., None]:
+    def emit_event(*, event_type: str, message: str, detail_json: Optional[Any] = None) -> None:
+        detail = dict(detail_json) if isinstance(detail_json, Mapping) else {}
+        detail.setdefault("worker_id", worker_id)
+        detail.setdefault("analysis_mode", claimed.get("analysis_mode"))
+        repository.append_job_event(
+            job_id=job_id,
+            event_type=event_type,
+            message=message,
+            detail_json=detail,
+        )
+
+    return emit_event
 
 
 class HeartbeatLoop:

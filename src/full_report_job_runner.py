@@ -6,6 +6,7 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -20,7 +21,9 @@ DEFAULT_ANALYSIS_MODE = "full_report"
 
 
 class FullReportRunnerError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, failed_at_stage: Optional[str] = None) -> None:
+        super().__init__(message)
+        self.failed_at_stage = failed_at_stage
 
 
 @dataclass(frozen=True)
@@ -69,6 +72,7 @@ class FullReportRunResult:
 
 
 SubprocessRun = Callable[..., subprocess.CompletedProcess[str]]
+EventSink = Callable[..., None]
 
 
 class FullReportJobRunner:
@@ -93,7 +97,7 @@ class FullReportJobRunner:
         self.env = dict(env) if env is not None else None
         self.subprocess_run = subprocess_run
 
-    def run(self, job_row: Mapping[str, Any]) -> FullReportRunResult:
+    def run(self, job_row: Mapping[str, Any], event_sink: Optional[EventSink] = None) -> FullReportRunResult:
         job = FullReportJob.from_mapping(job_row)
         self._validate_job(job)
 
@@ -108,12 +112,64 @@ class FullReportJobRunner:
         scratch_work_dir.mkdir(parents=True, exist_ok=True)
 
         export_cmd = self.build_export_command(job, scratch_export_path)
-        self._run_subprocess(export_cmd, "export")
-        if self._is_no_data_export(scratch_export_path):
-            return self._materialize_no_data_result(
+        export_started_at = time.monotonic()
+        self._emit_event(
+            event_sink,
+            "EXPORT_STARTED",
+            "Export started",
+            self._stage_detail(job, artifact_root_path=artifact_root_path, export_path=artifact_root_path / "export.json"),
+        )
+        try:
+            self._run_subprocess(export_cmd, "export")
+            is_no_data = self._is_no_data_export(scratch_export_path)
+        except Exception as exc:
+            duration_seconds = time.monotonic() - export_started_at
+            self._emit_event(
+                event_sink,
+                "EXPORT_FAILED",
+                "Export failed",
+                self._stage_detail(
+                    job,
+                    artifact_root_path=artifact_root_path,
+                    export_path=artifact_root_path / "export.json",
+                    duration_seconds=duration_seconds,
+                    failed_at_stage="export",
+                    error_type=exc.__class__.__name__,
+                    error_message=str(exc),
+                ),
+            )
+            if isinstance(exc, FullReportRunnerError) and exc.failed_at_stage:
+                raise
+            raise FullReportRunnerError(str(exc), failed_at_stage="export") from exc
+        export_duration_seconds = time.monotonic() - export_started_at
+        self._emit_event(
+            event_sink,
+            "EXPORT_COMPLETED",
+            "Export completed",
+            self._stage_detail(
+                job,
+                artifact_root_path=artifact_root_path,
+                export_path=artifact_root_path / "export.json",
+                duration_seconds=export_duration_seconds,
+            ),
+        )
+        if is_no_data:
+            result = self._materialize_no_data_result(
                 artifact_root_path=artifact_root_path,
                 scratch_export_path=scratch_export_path,
             )
+            self._emit_event(
+                event_sink,
+                "EXPORT_NO_DATA",
+                "No logs found in requested time range",
+                self._stage_detail(
+                    job,
+                    artifact_root_path=artifact_root_path,
+                    export_path=artifact_root_path / "export.json",
+                    duration_seconds=export_duration_seconds,
+                ),
+            )
+            return result
 
         pipeline_cmd = self.build_pipeline_command(
             job=job,
@@ -121,9 +177,48 @@ class FullReportJobRunner:
             scratch_work_dir=scratch_work_dir,
             artifact_root_path=artifact_root_path,
         )
-        self._run_subprocess(pipeline_cmd, "pipeline")
+        pipeline_started_at = time.monotonic()
+        self._emit_event(
+            event_sink,
+            "PIPELINE_STARTED",
+            "Pipeline started",
+            self._stage_detail(job, artifact_root_path=artifact_root_path),
+        )
+        try:
+            self._run_subprocess(pipeline_cmd, "pipeline")
+            result = self.build_artifact_mapping(job.artifact_root, scratch_work_dir=scratch_work_dir)
+        except Exception as exc:
+            self._emit_event(
+                event_sink,
+                "PIPELINE_FAILED",
+                "Pipeline failed",
+                self._stage_detail(
+                    job,
+                    artifact_root_path=artifact_root_path,
+                    duration_seconds=time.monotonic() - pipeline_started_at,
+                    failed_at_stage="pipeline",
+                    error_type=exc.__class__.__name__,
+                    error_message=str(exc),
+                ),
+            )
+            if isinstance(exc, FullReportRunnerError) and exc.failed_at_stage:
+                raise
+            raise FullReportRunnerError(str(exc), failed_at_stage="pipeline") from exc
 
-        return self.build_artifact_mapping(job.artifact_root, scratch_work_dir=scratch_work_dir)
+        self._emit_event(
+            event_sink,
+            "PIPELINE_COMPLETED",
+            "Pipeline completed",
+            self._stage_detail(
+                job,
+                artifact_root_path=artifact_root_path,
+                export_path=result.export_path,
+                stage2_report_path=result.stage2_report_path,
+                viewer_payload_path=result.viewer_payload_path,
+                duration_seconds=time.monotonic() - pipeline_started_at,
+            ),
+        )
+        return result
 
     def build_export_command(self, job: FullReportJob, scratch_export_path: Path) -> list[str]:
         return [
@@ -180,7 +275,10 @@ class FullReportJobRunner:
         }
         missing = [str(path) for path in required_files.values() if not path.exists()]
         if missing:
-            raise FullReportRunnerError("required full_report artifacts missing: " + ", ".join(missing))
+            raise FullReportRunnerError(
+                "required full_report artifacts missing: " + ", ".join(missing),
+                failed_at_stage="pipeline",
+            )
 
         analysis_candidates_path = artifact_root_path / "analysis_candidates.json"
 
@@ -204,16 +302,19 @@ class FullReportJobRunner:
             with open(export_path, "r", encoding="utf-8") as f:
                 payload = json.load(f)
         except Exception as exc:
-            raise FullReportRunnerError(f"failed to read export JSON: {exc}") from exc
+            raise FullReportRunnerError(f"failed to read export JSON: {exc}", failed_at_stage="export") from exc
         if not isinstance(payload, dict):
-            raise FullReportRunnerError("export JSON must be an object")
+            raise FullReportRunnerError("export JSON must be an object", failed_at_stage="export")
         meta = payload.get("meta")
         if not isinstance(meta, dict) or "total_count" not in meta:
             return False
         try:
             return int(meta.get("total_count") or 0) == 0
         except (TypeError, ValueError) as exc:
-            raise FullReportRunnerError(f"invalid export total_count: {meta.get('total_count')}") from exc
+            raise FullReportRunnerError(
+                f"invalid export total_count: {meta.get('total_count')}",
+                failed_at_stage="export",
+            ) from exc
 
     def _materialize_no_data_result(
         self,
@@ -275,9 +376,11 @@ class FullReportJobRunner:
             timeout=self.timeout_seconds,
         )
         if int(completed.returncode) != 0:
+            failed_at_stage = step_name if step_name in {"export", "pipeline"} else None
             raise FullReportRunnerError(
                 f"{step_name} command failed rc={completed.returncode} "
-                f"stdout={_tail(completed.stdout)} stderr={_tail(completed.stderr)}"
+                f"stdout={_tail(completed.stdout)} stderr={_tail(completed.stderr)}",
+                failed_at_stage=failed_at_stage,
             )
 
     def _subprocess_env(self) -> Optional[dict[str, str]]:
@@ -286,6 +389,49 @@ class FullReportJobRunner:
         merged = dict(os.environ)
         merged.update(self.env)
         return merged
+
+    def _stage_detail(
+        self,
+        job: FullReportJob,
+        *,
+        artifact_root_path: Path,
+        export_path: Optional[Path | str] = None,
+        stage2_report_path: Optional[str] = None,
+        viewer_payload_path: Optional[str] = None,
+        duration_seconds: Optional[float] = None,
+        failed_at_stage: Optional[str] = None,
+        error_type: Optional[str] = None,
+        error_message: Optional[str] = None,
+    ) -> dict[str, Any]:
+        detail: dict[str, Any] = {
+            "artifact_root": self.normalize_relative_path(artifact_root_path),
+        }
+        if export_path:
+            detail["export_path"] = self.normalize_relative_path(export_path)
+        if stage2_report_path:
+            detail["stage2_report_path"] = stage2_report_path
+        if viewer_payload_path:
+            detail["viewer_payload_path"] = viewer_payload_path
+        if duration_seconds is not None:
+            detail["duration_seconds"] = round(float(duration_seconds), 3)
+        if failed_at_stage:
+            detail["failed_at_stage"] = failed_at_stage
+        if error_type:
+            detail["error_type"] = error_type
+        if error_message:
+            detail["error_message"] = error_message
+        return detail
+
+    def _emit_event(
+        self,
+        event_sink: Optional[EventSink],
+        event_type: str,
+        message: str,
+        detail_json: Mapping[str, Any],
+    ) -> None:
+        if event_sink is None:
+            return
+        event_sink(event_type=event_type, message=message, detail_json=dict(detail_json))
 
 
 def _coerce_datetime(value: Any, field_name: str) -> datetime:
