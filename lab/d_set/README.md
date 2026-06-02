@@ -2,11 +2,11 @@
 
 이 디렉터리는 D세트 Path Traversal / HPP / Directory Probing 실험용 Python runner를 둔다.
 
-Migration note:
-
-- Runner code has moved to `scripts/lab_runners/d_set/`.
-- This `lab/d_set/README.md` is retained as a legacy set note.
-- Generated lab outputs remain under `lab/`.
+> Migration note:
+> Runner code moved from this legacy `lab/d_set` directory to
+> `scripts/lab_runners/d_set/`.
+> This README is kept as a legacy set note. Generated lab outputs remain under
+> `lab/`.
 
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 공격 성공 검증 도구가 아니라 Apache 로그에 남을 request target/query 구조를 재현하는 실험 harness다.

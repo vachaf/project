@@ -2,11 +2,11 @@
 
 이 디렉터리는 H세트 Static / Crawler / Scanner-like Noise 실험 runner를 둔다.
 
-Migration note:
-
-- Runner code has moved to `scripts/lab_runners/h_set/`.
-- This `lab/h_set/README.md` is retained as a legacy set note.
-- Generated lab outputs remain under `lab/`.
+> Migration note:
+> Runner code moved from this legacy `lab/h_set` directory to
+> `scripts/lab_runners/h_set/`.
+> This README is kept as a legacy set note. Generated lab outputs remain under
+> `lab/`.
 
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 HTTP 요청과 실행 메타를 기록하는 실험 harness다.

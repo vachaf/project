@@ -2,11 +2,11 @@
 
 이 디렉터리는 B세트 SQL Injection 실험용 Python runner를 둔다.
 
-Migration note:
-
-- Runner code has moved to `scripts/lab_runners/b_set/`.
-- This `lab/b_set/README.md` is retained as a legacy set note.
-- Generated lab outputs remain under `lab/`.
+> Migration note:
+> Runner code moved from this legacy `lab/b_set` directory to
+> `scripts/lab_runners/b_set/`.
+> This README is kept as a legacy set note. Generated lab outputs remain under
+> `lab/`.
 
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 SQLi 성공 검증 도구가 아니라 Apache 로그에 남을 request target/query 구조와 실행 메타데이터를 재현하는 실험 harness다.

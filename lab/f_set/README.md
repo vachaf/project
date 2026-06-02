@@ -2,11 +2,11 @@
 
 This directory contains Python runners that generate F-set Auth/Login Abuse experiment traffic.
 
-Migration note:
-
-- Runner code has moved to `scripts/lab_runners/f_set/`.
-- This `lab/f_set/README.md` is retained as a legacy set note.
-- Generated lab outputs remain under `lab/`.
+> Migration note:
+> Runner code moved from this legacy `lab/f_set` directory to
+> `scripts/lab_runners/f_set/`.
+> This README is kept as a legacy set note. Generated lab outputs remain under
+> `lab/`.
 
 - Use these runners only in approved local lab environments.
 - Do not execute them against public external targets.

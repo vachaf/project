@@ -2,11 +2,11 @@
 
 이 디렉터리는 G세트 HTTP Method / Protocol Anomaly 실험 runner를 둔다.
 
-Migration note:
-
-- Runner code has moved to `scripts/lab_runners/g_set/`.
-- This `lab/g_set/README.md` is retained as a legacy set note.
-- Generated lab outputs remain under `lab/`.
+> Migration note:
+> Runner code moved from this legacy `lab/g_set` directory to
+> `scripts/lab_runners/g_set/`.
+> This README is kept as a legacy set note. Generated lab outputs remain under
+> `lab/`.
 
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 HTTP 요청과 실행 메타를 기록하는 실험 harness다.

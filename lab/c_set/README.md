@@ -2,11 +2,11 @@
 
 이 디렉터리는 C세트 XSS 실험용 Python runner를 둔다.
 
-Migration note:
-
-- Runner code has moved to `scripts/lab_runners/c_set/`.
-- This `lab/c_set/README.md` is retained as a legacy set note.
-- Generated lab outputs remain under `lab/`.
+> Migration note:
+> Runner code moved from this legacy `lab/c_set` directory to
+> `scripts/lab_runners/c_set/`.
+> This README is kept as a legacy set note. Generated lab outputs remain under
+> `lab/`.
 
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 XSS 공격 성공 검증 도구가 아니라 Apache 로그에 남을 request target/query 구조를 재현하는 실험 harness다.
