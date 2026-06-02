@@ -115,7 +115,7 @@
                 {% set dot_class = 'is-info' %}
                 {% if 'FAILED' in event_type or 'ERROR' in event_type %}
                     {% set dot_class = 'is-error' %}
-                {% elif 'FINISHED' in event_type or 'SUCCEEDED' in event_type or 'CREATED' in event_type or 'CLAIMED' in event_type %}
+                {% elif 'COMPLETED' in event_type or 'FINISHED' in event_type or 'SUCCEEDED' in event_type or 'CREATED' in event_type or 'CLAIMED' in event_type or event_type == 'EXPORT_NO_DATA' or event_type == 'JOB_NO_DATA' %}
                     {% set dot_class = 'is-success' %}
                 {% endif %}
                 <div class="job-timeline-item">
