@@ -2,6 +2,12 @@
 
 이 디렉터리는 D세트 Path Traversal / HPP / Directory Probing 실험용 Python runner를 둔다.
 
+Migration note:
+
+- Runner code has moved to `scripts/lab_runners/d_set/`.
+- This `lab/d_set/README.md` is retained as a legacy set note.
+- Generated lab outputs remain under `lab/`.
+
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 공격 성공 검증 도구가 아니라 Apache 로그에 남을 request target/query 구조를 재현하는 실험 harness다.
 - public target 실제 실행은 기본적으로 금지한다. 계획 검토는 `--dry-run` 또는 `--print-plan`으로만 수행한다.
@@ -32,19 +38,19 @@ urllib 한계:
 dry-run 예시:
 
 ```bash
-python3 lab/d_set/run_d_set_scenarios.py \
+python3 scripts/lab_runners/d_set/run_d_set_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario r1 \
   --out lab/05-xx_D세트R1_산출물/runner_logs \
   --dry-run
 
-python3 lab/d_set/run_d_set_scenarios.py \
+python3 scripts/lab_runners/d_set/run_d_set_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario D-R2-02,D-R2-03 \
   --out lab/05-xx_D세트R2_산출물/runner_logs \
   --dry-run
 
-python3 lab/d_set/run_d_set_scenarios.py \
+python3 scripts/lab_runners/d_set/run_d_set_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_D세트_산출물/runner_logs \
@@ -54,17 +60,17 @@ python3 lab/d_set/run_d_set_scenarios.py \
 실제 실행 예시:
 
 ```bash
-python3 lab/d_set/run_d_set_scenarios.py \
+python3 scripts/lab_runners/d_set/run_d_set_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario r1 \
   --out lab/05-xx_D세트R1_산출물/runner_logs
 
-python3 lab/d_set/run_d_set_scenarios.py \
+python3 scripts/lab_runners/d_set/run_d_set_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario r2 \
   --out lab/05-xx_D세트R2_산출물/runner_logs
 
-python3 lab/d_set/run_d_set_scenarios.py \
+python3 scripts/lab_runners/d_set/run_d_set_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario r3 \
   --out lab/05-xx_D세트R3_산출물/runner_logs

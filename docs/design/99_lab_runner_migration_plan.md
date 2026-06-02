@@ -3,7 +3,7 @@
 - 문서 상태: design plan / lab runner migration
 - 적용 범위: `lab/a_set` ~ `lab/h_set` runner code
 - 비범위: lab 산출물 삭제, `.gitignore` 수정, observability script 경로 변경
-- 4C-2 적용 상태: runner `.py` 파일은 `scripts/lab_runners/{set}/` 아래로 이동 완료. set별 `lab/*_set/README.md`는 legacy lab-side runner note로 유지.
+- 4C-2 적용 상태: runner `.py` 파일은 `scripts/lab_runners/{set}/` 아래로 이동 완료. set별 `lab/*_set/README.md`는 legacy set note로 유지하고 실행 예시는 migrated path를 가리킨다.
 
 ## 1. 배경
 
@@ -22,7 +22,7 @@ runner를 `scripts/lab_runners/`로 옮기면 다음 경계를 명확히 할 수
 
 ## 2. 대상 Runner Inventory
 
-권장 proposed path는 set별 하위 디렉터리를 유지하는 구조다.
+4C-2 migration 이후 runner code의 current path는 set별 하위 디렉터리를 유지하는 구조다.
 
 ```text
 scripts/lab_runners/{a_set,b_set,c_set,d_set,e_set,f_set,g_set,h_set}/...
@@ -31,30 +31,30 @@ scripts/lab_runners/{a_set,b_set,c_set,d_set,e_set,f_set,g_set,h_set}/...
 이 구조를 권장하는 이유는 다음이다.
 
 - 기존 set 구분을 유지한다.
-- `docs/experiments` 문서와 current/proposed path mapping이 쉽다.
+- `docs/experiments` 문서와 legacy/current path mapping이 쉽다.
 - 산출물인 `lab/`과 실행 code인 `scripts/`가 분리된다.
 - 후속 `.gitignore`에서 lab artifact 정리가 쉬워진다.
 
-4C-2 이후 current path와 proposed path는 동일하다.
+4C-2 이후 inventory는 이동 전 legacy path와 이동 후 current path를 함께 기록한다.
 
-| set | current path | proposed path | purpose | safety guardrail | output behavior | migration risk |
+| set | legacy path | current path | purpose | safety guardrail | output behavior | migration risk |
 | --- | --- | --- | --- | --- | --- | --- |
-| A | `scripts/lab_runners/a_set/run_a_baseline_auth_scenarios.py` | `scripts/lab_runners/a_set/run_a_baseline_auth_scenarios.py` | baseline browsing/search, auth failure, POST body visibility, protected resource baseline | public/general target은 기본 거부, dry-run/print-plan 지원, local/private/test 중심 | `--out` 아래 plan/metadata, 실행 시 results/summary 생성. response body 원문 저장 없음 | low |
-| B | `scripts/lab_runners/b_set/run_b_r1_sqli_scenarios.py` | `scripts/lab_runners/b_set/run_b_r1_sqli_scenarios.py` | SQLi R1 auth/union/error/path probe | public/general target 기본 거부, optional/destructive scenario는 `--include-optional` 필요 | `--out` 아래 plan/metadata/results/summary. body length만 기록 | low |
-| B | `scripts/lab_runners/b_set/run_b_r2_sqli_scenarios.py` | `scripts/lab_runners/b_set/run_b_r2_sqli_scenarios.py` | SQLi R2 boolean/time/evasion/chain/FP bait | public/general target 기본 거부, optional/high-load scenario는 `--include-optional` 필요 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
-| C | `scripts/lab_runners/c_set/run_c_xss_scenarios.py` | `scripts/lab_runners/c_set/run_c_xss_scenarios.py` | XSS request target/query 재현과 FP bait | public/general target 기본 거부, dry-run/print-plan 지원 | `--out` 아래 plan/metadata/results/summary. body length만 기록 | low |
-| D | `scripts/lab_runners/d_set/run_d_set_scenarios.py` | `scripts/lab_runners/d_set/run_d_set_scenarios.py` | traversal, HPP, directory probing | public/general target 기본 거부, raw malformed/protocol은 G-set 범위로 분리 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
-| E | `scripts/lab_runners/e_set/run_e_r2_php_wrapper_scenarios.py` | `scripts/lab_runners/e_set/run_e_r2_php_wrapper_scenarios.py` | PHP wrapper, config path, file disclosure intent | public/general target 기본 거부, OpenCart/PHP lab 전제 | `--out` 아래 plan/metadata/results/summary. body length만 기록 | low |
-| E | `scripts/lab_runners/e_set/run_e_r3_search_scenarios.py` | `scripts/lab_runners/e_set/run_e_r3_search_scenarios.py` | search baseline, SQLi, XSS, HTML entity XSS | public/general target 기본 거부, dry-run/print-plan 지원 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
-| F | `scripts/lab_runners/f_set/run_f_r2a_auth_scenarios.py` | `scripts/lab_runners/f_set/run_f_r2a_auth_scenarios.py` | low-and-slow auth failures, interleaved browse/auth, 200 baseline | public IP 차단. hostname target은 경고 후 operator 책임으로 제한 | `--out` 아래 plan/metadata/results/summary. response body length만 기록 | medium |
-| F | `scripts/lab_runners/f_set/run_f_r2b_response_delta.py` | `scripts/lab_runners/f_set/run_f_r2b_response_delta.py` | auth response delta, existing/nonexistent/lockout-like failures | public/general target 기본 거부, auth success/account/lockout inference 금지 | `--out` 아래 plan/metadata/results/summary. response body length만 기록 | low |
-| G | `scripts/lab_runners/g_set/run_g_r1_method_probe.py` | `scripts/lab_runners/g_set/run_g_r1_method_probe.py` | OPTIONS/TRACE/PUT/DELETE/HEAD/GET method probing | public/general target 기본 거부, method success 단정 금지 | `--out` 아래 plan/metadata/results/summary. raw body 저장 없음 | low |
-| G | `scripts/lab_runners/g_set/run_g_r2_protocol_anomaly.py` | `scripts/lab_runners/g_set/run_g_r2_protocol_anomaly.py` | protocol/malformed request-like behavior, raw socket HTTP | public/general target 기본 거부, `http://` target만 지원, raw socket 주의 필요 | `--out` 아래 plan/metadata/results/summary. raw request/response body 원문 저장 없음 | medium |
-| G | `scripts/lab_runners/g_set/run_g_r3_baseline.py` | `scripts/lab_runners/g_set/run_g_r3_baseline.py` | method/protocol baseline and FP bait | public/general target 기본 거부, CORS/method vulnerability 단정 금지 | `--out` 아래 plan/metadata/results/summary. raw body 저장 없음 | low |
-| H | `scripts/lab_runners/h_set/run_h_r1_static_baseline.py` | `scripts/lab_runners/h_set/run_h_r1_static_baseline.py` | static/health/normal browse baseline | public/general target 기본 거부, static existence 단정 금지 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
-| H | `scripts/lab_runners/h_set/run_h_r2_crawler_baseline.py` | `scripts/lab_runners/h_set/run_h_r2_crawler_baseline.py` | crawler-like UA, robots/sitemap/product/category baseline | public/general target 기본 거부, crawler authenticity 단정 금지 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
-| H | `scripts/lab_runners/h_set/run_h_r3_scanner_low_signal.py` | `scripts/lab_runners/h_set/run_h_r3_scanner_low_signal.py` | scanner-like sensitive path low-signal runner | public/general target 기본 거부, app/file exposure success 단정 금지 | `--out` 아래 plan/metadata/results/summary. body bytes discarded only | low |
-| H | `scripts/lab_runners/h_set/run_h_r4_mixed_baseline_scanner.py` | `scripts/lab_runners/h_set/run_h_r4_mixed_baseline_scanner.py` | mixed benign/static/crawler/scanner context | public/general target 기본 거부, mixed chain success 단정 금지 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
+| A | `lab/a_set/run_a_baseline_auth_scenarios.py` | `scripts/lab_runners/a_set/run_a_baseline_auth_scenarios.py` | baseline browsing/search, auth failure, POST body visibility, protected resource baseline | public/general target은 기본 거부, dry-run/print-plan 지원, local/private/test 중심 | `--out` 아래 plan/metadata, 실행 시 results/summary 생성. response body 원문 저장 없음 | low |
+| B | `lab/b_set/run_b_r1_sqli_scenarios.py` | `scripts/lab_runners/b_set/run_b_r1_sqli_scenarios.py` | SQLi R1 auth/union/error/path probe | public/general target 기본 거부, optional/destructive scenario는 `--include-optional` 필요 | `--out` 아래 plan/metadata/results/summary. body length만 기록 | low |
+| B | `lab/b_set/run_b_r2_sqli_scenarios.py` | `scripts/lab_runners/b_set/run_b_r2_sqli_scenarios.py` | SQLi R2 boolean/time/evasion/chain/FP bait | public/general target 기본 거부, optional/high-load scenario는 `--include-optional` 필요 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
+| C | `lab/c_set/run_c_xss_scenarios.py` | `scripts/lab_runners/c_set/run_c_xss_scenarios.py` | XSS request target/query 재현과 FP bait | public/general target 기본 거부, dry-run/print-plan 지원 | `--out` 아래 plan/metadata/results/summary. body length만 기록 | low |
+| D | `lab/d_set/run_d_set_scenarios.py` | `scripts/lab_runners/d_set/run_d_set_scenarios.py` | traversal, HPP, directory probing | public/general target 기본 거부, raw malformed/protocol은 G-set 범위로 분리 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
+| E | `lab/e_set/run_e_r2_php_wrapper_scenarios.py` | `scripts/lab_runners/e_set/run_e_r2_php_wrapper_scenarios.py` | PHP wrapper, config path, file disclosure intent | public/general target 기본 거부, OpenCart/PHP lab 전제 | `--out` 아래 plan/metadata/results/summary. body length만 기록 | low |
+| E | `lab/e_set/run_e_r3_search_scenarios.py` | `scripts/lab_runners/e_set/run_e_r3_search_scenarios.py` | search baseline, SQLi, XSS, HTML entity XSS | public/general target 기본 거부, dry-run/print-plan 지원 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
+| F | `lab/f_set/run_f_r2a_auth_scenarios.py` | `scripts/lab_runners/f_set/run_f_r2a_auth_scenarios.py` | low-and-slow auth failures, interleaved browse/auth, 200 baseline | public IP 차단. hostname target은 경고 후 operator 책임으로 제한 | `--out` 아래 plan/metadata/results/summary. response body length만 기록 | medium |
+| F | `lab/f_set/run_f_r2b_response_delta.py` | `scripts/lab_runners/f_set/run_f_r2b_response_delta.py` | auth response delta, existing/nonexistent/lockout-like failures | public/general target 기본 거부, auth success/account/lockout inference 금지 | `--out` 아래 plan/metadata/results/summary. response body length만 기록 | low |
+| G | `lab/g_set/run_g_r1_method_probe.py` | `scripts/lab_runners/g_set/run_g_r1_method_probe.py` | OPTIONS/TRACE/PUT/DELETE/HEAD/GET method probing | public/general target 기본 거부, method success 단정 금지 | `--out` 아래 plan/metadata/results/summary. raw body 저장 없음 | low |
+| G | `lab/g_set/run_g_r2_protocol_anomaly.py` | `scripts/lab_runners/g_set/run_g_r2_protocol_anomaly.py` | protocol/malformed request-like behavior, raw socket HTTP | public/general target 기본 거부, `http://` target만 지원, raw socket 주의 필요 | `--out` 아래 plan/metadata/results/summary. raw request/response body 원문 저장 없음 | medium |
+| G | `lab/g_set/run_g_r3_baseline.py` | `scripts/lab_runners/g_set/run_g_r3_baseline.py` | method/protocol baseline and FP bait | public/general target 기본 거부, CORS/method vulnerability 단정 금지 | `--out` 아래 plan/metadata/results/summary. raw body 저장 없음 | low |
+| H | `lab/h_set/run_h_r1_static_baseline.py` | `scripts/lab_runners/h_set/run_h_r1_static_baseline.py` | static/health/normal browse baseline | public/general target 기본 거부, static existence 단정 금지 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
+| H | `lab/h_set/run_h_r2_crawler_baseline.py` | `scripts/lab_runners/h_set/run_h_r2_crawler_baseline.py` | crawler-like UA, robots/sitemap/product/category baseline | public/general target 기본 거부, crawler authenticity 단정 금지 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
+| H | `lab/h_set/run_h_r3_scanner_low_signal.py` | `scripts/lab_runners/h_set/run_h_r3_scanner_low_signal.py` | scanner-like sensitive path low-signal runner | public/general target 기본 거부, app/file exposure success 단정 금지 | `--out` 아래 plan/metadata/results/summary. body bytes discarded only | low |
+| H | `lab/h_set/run_h_r4_mixed_baseline_scanner.py` | `scripts/lab_runners/h_set/run_h_r4_mixed_baseline_scanner.py` | mixed benign/static/crawler/scanner context | public/general target 기본 거부, mixed chain success 단정 금지 | `--out` 아래 plan/metadata/results/summary. response body 원문 저장 없음 | low |
 
 ## 3. Safety Guardrail 유지 기준
 

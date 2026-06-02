@@ -2,6 +2,12 @@
 
 이 디렉터리는 G세트 HTTP Method / Protocol Anomaly 실험 runner를 둔다.
 
+Migration note:
+
+- Runner code has moved to `scripts/lab_runners/g_set/`.
+- This `lab/g_set/README.md` is retained as a legacy set note.
+- Generated lab outputs remain under `lab/`.
+
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 HTTP 요청과 실행 메타를 기록하는 실험 harness다.
 - runner는 method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점 성공을 검증하지 않는다.
@@ -21,19 +27,19 @@ future:
 권장 예시:
 
 ```bash
-python3 lab/g_set/run_g_r1_method_probe.py \
+python3 scripts/lab_runners/g_set/run_g_r1_method_probe.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_G세트R1_산출물/runner_logs \
   --dry-run
 
-python3 lab/g_set/run_g_r2_protocol_anomaly.py \
+python3 scripts/lab_runners/g_set/run_g_r2_protocol_anomaly.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_G세트R2_산출물/runner_logs \
   --dry-run
 
-python3 lab/g_set/run_g_r3_baseline.py \
+python3 scripts/lab_runners/g_set/run_g_r3_baseline.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_G세트R3_산출물/runner_logs \

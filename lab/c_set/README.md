@@ -2,6 +2,12 @@
 
 이 디렉터리는 C세트 XSS 실험용 Python runner를 둔다.
 
+Migration note:
+
+- Runner code has moved to `scripts/lab_runners/c_set/`.
+- This `lab/c_set/README.md` is retained as a legacy set note.
+- Generated lab outputs remain under `lab/`.
+
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 XSS 공격 성공 검증 도구가 아니라 Apache 로그에 남을 request target/query 구조를 재현하는 실험 harness다.
 - public target 실제 실행은 기본적으로 거부한다. 계획 확인은 `--dry-run` 또는 `--print-plan`으로만 수행한다.
@@ -23,13 +29,13 @@
 dry-run 예시:
 
 ```bash
-python3 lab/c_set/run_c_xss_scenarios.py \
+python3 scripts/lab_runners/c_set/run_c_xss_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_C세트_runner_산출물/runner_logs \
   --dry-run
 
-python3 lab/c_set/run_c_xss_scenarios.py \
+python3 scripts/lab_runners/c_set/run_c_xss_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario fp_bait \
   --out lab/05-xx_C세트_runner_산출물/runner_logs \
@@ -39,12 +45,12 @@ python3 lab/c_set/run_c_xss_scenarios.py \
 실제 실행 예시:
 
 ```bash
-python3 lab/c_set/run_c_xss_scenarios.py \
+python3 scripts/lab_runners/c_set/run_c_xss_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_C세트_runner_산출물/runner_logs
 
-python3 lab/c_set/run_c_xss_scenarios.py \
+python3 scripts/lab_runners/c_set/run_c_xss_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario attribute_event \
   --out lab/05-xx_C세트_runner_산출물/runner_logs

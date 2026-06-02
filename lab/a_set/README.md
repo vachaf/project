@@ -2,6 +2,12 @@
 
 이 디렉터리는 A세트 baseline/auth 실험용 Python runner를 둔다.
 
+Migration note:
+
+- Runner code has moved to `scripts/lab_runners/a_set/`.
+- This `lab/a_set/README.md` is retained as a legacy set note.
+- Generated lab outputs remain under `lab/`.
+
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 로그인 성공 검증 도구가 아니라 Apache 로그에 남을 request target/method/status/bytes/time/user-agent 구조와 실행 메타데이터를 재현하는 실험 harness다.
 - public target 실제 실행은 기본적으로 금지한다. 계획 검토는 `--dry-run` 또는 `--print-plan`으로만 수행한다.
@@ -29,19 +35,19 @@ Public target guard:
 dry-run 예시:
 
 ```bash
-python3 lab/a_set/run_a_baseline_auth_scenarios.py \
+python3 scripts/lab_runners/a_set/run_a_baseline_auth_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_A세트_산출물/runner_logs \
   --dry-run
 
-python3 lab/a_set/run_a_baseline_auth_scenarios.py \
+python3 scripts/lab_runners/a_set/run_a_baseline_auth_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario baseline \
   --out lab/05-xx_A세트_산출물/runner_logs \
   --dry-run
 
-python3 lab/a_set/run_a_baseline_auth_scenarios.py \
+python3 scripts/lab_runners/a_set/run_a_baseline_auth_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario A-R1-10,A-R1-11 \
   --out lab/05-xx_A세트_산출물/runner_logs \
@@ -51,12 +57,12 @@ python3 lab/a_set/run_a_baseline_auth_scenarios.py \
 실제 실행 예시:
 
 ```bash
-python3 lab/a_set/run_a_baseline_auth_scenarios.py \
+python3 scripts/lab_runners/a_set/run_a_baseline_auth_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_A세트_산출물/runner_logs
 
-python3 lab/a_set/run_a_baseline_auth_scenarios.py \
+python3 scripts/lab_runners/a_set/run_a_baseline_auth_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario auth \
   --out lab/05-xx_A세트_산출물/runner_logs

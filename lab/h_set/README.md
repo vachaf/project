@@ -2,6 +2,12 @@
 
 이 디렉터리는 H세트 Static / Crawler / Scanner-like Noise 실험 runner를 둔다.
 
+Migration note:
+
+- Runner code has moved to `scripts/lab_runners/h_set/`.
+- This `lab/h_set/README.md` is retained as a legacy set note.
+- Generated lab outputs remain under `lab/`.
+
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 HTTP 요청과 실행 메타를 기록하는 실험 harness다.
 - runner는 static file 존재, robots/sitemap 내용, JS/CSS/image 내용, health endpoint 정상 여부, 공격 성공을 검증하지 않는다.
@@ -18,25 +24,25 @@
 권장 예시:
 
 ```bash
-python3 lab/h_set/run_h_r1_static_baseline.py \
+python3 scripts/lab_runners/h_set/run_h_r1_static_baseline.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_H세트R1_산출물/runner_logs \
   --dry-run
 
-python3 lab/h_set/run_h_r2_crawler_baseline.py \
+python3 scripts/lab_runners/h_set/run_h_r2_crawler_baseline.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_H세트R2_산출물/runner_logs \
   --dry-run
 
-python3 lab/h_set/run_h_r3_scanner_low_signal.py \
+python3 scripts/lab_runners/h_set/run_h_r3_scanner_low_signal.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_H세트R3_산출물/runner_logs \
   --dry-run
 
-python3 lab/h_set/run_h_r4_mixed_baseline_scanner.py \
+python3 scripts/lab_runners/h_set/run_h_r4_mixed_baseline_scanner.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_H세트R4_산출물/runner_logs \

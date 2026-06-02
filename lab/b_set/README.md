@@ -2,6 +2,12 @@
 
 이 디렉터리는 B세트 SQL Injection 실험용 Python runner를 둔다.
 
+Migration note:
+
+- Runner code has moved to `scripts/lab_runners/b_set/`.
+- This `lab/b_set/README.md` is retained as a legacy set note.
+- Generated lab outputs remain under `lab/`.
+
 - runner는 승인된 로컬 실험 환경에서만 실행한다.
 - runner는 SQLi 성공 검증 도구가 아니라 Apache 로그에 남을 request target/query 구조와 실행 메타데이터를 재현하는 실험 harness다.
 - public target 실제 실행은 기본적으로 금지한다. 계획 검토는 `--dry-run` 또는 `--print-plan`으로만 수행한다.
@@ -38,13 +44,13 @@ Optional 시나리오:
 R1 dry-run 예시:
 
 ```bash
-python3 lab/b_set/run_b_r1_sqli_scenarios.py \
+python3 scripts/lab_runners/b_set/run_b_r1_sqli_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario core \
   --out lab/05-xx_B세트R1_산출물/runner_logs \
   --dry-run
 
-python3 lab/b_set/run_b_r1_sqli_scenarios.py \
+python3 scripts/lab_runners/b_set/run_b_r1_sqli_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario B-R1-06,B-R1-07 \
   --out lab/05-xx_B세트R1_산출물/runner_logs \
@@ -54,12 +60,12 @@ python3 lab/b_set/run_b_r1_sqli_scenarios.py \
 R1 실제 실행 예시:
 
 ```bash
-python3 lab/b_set/run_b_r1_sqli_scenarios.py \
+python3 scripts/lab_runners/b_set/run_b_r1_sqli_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario core \
   --out lab/05-xx_B세트R1_산출물/runner_logs
 
-python3 lab/b_set/run_b_r1_sqli_scenarios.py \
+python3 scripts/lab_runners/b_set/run_b_r1_sqli_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario auth \
   --out lab/05-xx_B세트R1_산출물/runner_logs
@@ -68,19 +74,19 @@ python3 lab/b_set/run_b_r1_sqli_scenarios.py \
 R2 dry-run 예시:
 
 ```bash
-python3 lab/b_set/run_b_r2_sqli_scenarios.py \
+python3 scripts/lab_runners/b_set/run_b_r2_sqli_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario core \
   --out lab/05-xx_B세트R2_산출물/runner_logs \
   --dry-run
 
-python3 lab/b_set/run_b_r2_sqli_scenarios.py \
+python3 scripts/lab_runners/b_set/run_b_r2_sqli_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario r2b \
   --out lab/05-xx_B세트R2B_산출물/runner_logs \
   --dry-run
 
-python3 lab/b_set/run_b_r2_sqli_scenarios.py \
+python3 scripts/lab_runners/b_set/run_b_r2_sqli_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario B-R2B-E04,B-R2B-F01 \
   --out lab/05-xx_B세트R2_산출물/runner_logs \
@@ -90,12 +96,12 @@ python3 lab/b_set/run_b_r2_sqli_scenarios.py \
 R2 실제 실행 예시:
 
 ```bash
-python3 lab/b_set/run_b_r2_sqli_scenarios.py \
+python3 scripts/lab_runners/b_set/run_b_r2_sqli_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario r2a \
   --out lab/05-xx_B세트R2A_산출물/runner_logs
 
-python3 lab/b_set/run_b_r2_sqli_scenarios.py \
+python3 scripts/lab_runners/b_set/run_b_r2_sqli_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario r2b \
   --out lab/05-xx_B세트R2B_산출물/runner_logs
