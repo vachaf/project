@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import re
 from copy import deepcopy
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from web.services.analysis_job_repository import ANALYSIS_REPORT_UPSERT_COLUMNS, AnalysisJobRepository
@@ -16,6 +18,7 @@ class FakeDb:
         self.commits = 0
         self.rollbacks = 0
         self._tick = 0
+        self.current_time = datetime(2026, 6, 1, 12, 0, 0)
 
     def now(self) -> str:
         self._tick += 1
@@ -73,6 +76,54 @@ class FakeCursor:
             ]
             candidates.sort(key=lambda row: (row["created_at"], row["id"]))
             self._rows = [deepcopy(candidates[0])] if candidates else []
+            return
+
+        if (
+            "select id, status, analysis_mode" in normalized
+            and "from analysis_jobs" in normalized
+            and "heartbeat_at is not null" in normalized
+            and "heartbeat_at is null" in normalized
+        ):
+            stale_after_minutes, startup_grace_minutes = params
+            stale_cutoff = self.db.current_time - timedelta(minutes=int(stale_after_minutes))
+            startup_cutoff = self.db.current_time - timedelta(minutes=int(startup_grace_minutes))
+            candidates = []
+            for row in self.db.jobs:
+                if row["status"] != "RUNNING" or row["analysis_mode"] != "full_report":
+                    continue
+                heartbeat_at = _parse_fake_datetime(row.get("heartbeat_at"))
+                started_at = _parse_fake_datetime(row.get("started_at"))
+                stale_heartbeat = heartbeat_at is not None and heartbeat_at < stale_cutoff
+                missing_heartbeat = (
+                    heartbeat_at is None and started_at is not None and started_at < startup_cutoff
+                )
+                if stale_heartbeat or missing_heartbeat:
+                    candidates.append(row)
+
+            candidates.sort(
+                key=lambda row: (
+                    _parse_fake_datetime(row.get("heartbeat_at"))
+                    or _parse_fake_datetime(row.get("started_at"))
+                    or datetime.min,
+                    _parse_fake_datetime(row.get("started_at")) or datetime.min,
+                    row["id"],
+                )
+            )
+            limit_match = re.search(r"limit (\d+)$", normalized)
+            limit = int(limit_match.group(1)) if limit_match else len(candidates)
+            fields = [
+                "id",
+                "status",
+                "analysis_mode",
+                "worker_id",
+                "started_at",
+                "heartbeat_at",
+                "attempt_count",
+                "max_attempts",
+                "artifact_root",
+                "error_message",
+            ]
+            self._rows = [{field: deepcopy(row.get(field)) for field in fields} for row in candidates[:limit]]
             return
 
         if "select id, requested_by" in normalized and "from analysis_jobs" in normalized:
@@ -205,6 +256,14 @@ def make_job(**overrides: Any) -> Dict[str, Any]:
 
 def make_repo(db: FakeDb) -> AnalysisJobRepository:
     return AnalysisJobRepository(connection_factory=lambda: FakeConnection(db))
+
+
+def _parse_fake_datetime(value: Any) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value).replace(" ", "T"))
 
 
 def test_claim_next_pending_full_report_job_moves_job_to_running_and_returns_row() -> None:
@@ -454,3 +513,109 @@ def test_upsert_analysis_report_can_store_windowed_followup_paths_when_explicit(
     assert report["rollup_summary_path"] == "runs/jobs/2/rollup_summary.json"
     assert report["operator_queue_items_path"] == "runs/jobs/2/queue_items.json"
     assert report["operator_queue_summary_path"] == "runs/jobs/2/queue_summary.json"
+
+
+def test_find_stale_running_jobs_returns_only_full_report_running_candidates() -> None:
+    db = FakeDb(
+        [
+            make_job(
+                id=1,
+                status="RUNNING",
+                worker_id="worker-old",
+                started_at="2026-06-01 10:50:00.000",
+                heartbeat_at="2026-06-01 11:00:00.000",
+            ),
+            make_job(
+                id=2,
+                status="RUNNING",
+                worker_id="worker-fresh",
+                started_at="2026-06-01 11:40:00.000",
+                heartbeat_at="2026-06-01 11:45:00.000",
+            ),
+            make_job(
+                id=3,
+                status="RUNNING",
+                worker_id="worker-missing-old",
+                started_at="2026-06-01 11:00:00.000",
+                heartbeat_at=None,
+            ),
+            make_job(
+                id=4,
+                status="RUNNING",
+                worker_id="worker-missing-recent",
+                started_at="2026-06-01 11:59:00.000",
+                heartbeat_at=None,
+            ),
+            make_job(
+                id=5,
+                status="PENDING",
+                started_at="2026-06-01 10:00:00.000",
+                heartbeat_at="2026-06-01 10:00:00.000",
+            ),
+            make_job(
+                id=6,
+                status="SUCCEEDED",
+                started_at="2026-06-01 10:00:00.000",
+                heartbeat_at="2026-06-01 10:00:00.000",
+            ),
+            make_job(
+                id=7,
+                status="FAILED",
+                started_at="2026-06-01 10:00:00.000",
+                heartbeat_at="2026-06-01 10:00:00.000",
+            ),
+            make_job(
+                id=8,
+                status="RUNNING",
+                analysis_mode="windowed_triage",
+                started_at="2026-06-01 10:00:00.000",
+                heartbeat_at="2026-06-01 10:00:00.000",
+            ),
+        ]
+    )
+    repo = make_repo(db)
+
+    candidates = repo.find_stale_running_jobs(
+        stale_after_minutes=30,
+        startup_grace_minutes=5,
+        limit=20,
+    )
+
+    assert [candidate["id"] for candidate in candidates] == [1, 3]
+    assert all(candidate["status"] == "RUNNING" for candidate in candidates)
+    assert all(candidate["analysis_mode"] == "full_report" for candidate in candidates)
+    assert set(candidates[0]) == {
+        "id",
+        "status",
+        "analysis_mode",
+        "worker_id",
+        "started_at",
+        "heartbeat_at",
+        "attempt_count",
+        "max_attempts",
+        "artifact_root",
+        "error_message",
+    }
+    assert db.events == []
+    assert db.commits == 0
+    assert db.rollbacks == 0
+
+
+def test_find_stale_running_jobs_clamps_limit_to_100() -> None:
+    db = FakeDb(
+        [
+            make_job(
+                id=job_id,
+                status="RUNNING",
+                started_at="2026-06-01 10:00:00.000",
+                heartbeat_at="2026-06-01 10:00:00.000",
+            )
+            for job_id in range(1, 106)
+        ]
+    )
+    repo = make_repo(db)
+
+    candidates = repo.find_stale_running_jobs(limit=1000)
+
+    assert len(candidates) == 100
+    assert "limit 100" in db.sql_statements[-1]

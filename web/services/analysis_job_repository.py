@@ -142,6 +142,42 @@ class AnalysisJobRepository:
                 )
                 return list(cur.fetchall())
 
+    def find_stale_running_jobs(
+        self,
+        *,
+        stale_after_minutes: int = 30,
+        startup_grace_minutes: int = 5,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        safe_stale_after_minutes = max(1, int(stale_after_minutes))
+        safe_startup_grace_minutes = max(1, int(startup_grace_minutes))
+        safe_limit = max(1, min(int(limit), 100))
+        with self.connection_factory() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT id, status, analysis_mode, worker_id, started_at, heartbeat_at,
+                           attempt_count, max_attempts, artifact_root, error_message
+                    FROM analysis_jobs
+                    WHERE status = 'RUNNING'
+                      AND analysis_mode = 'full_report'
+                      AND (
+                        (
+                          heartbeat_at IS NOT NULL
+                          AND heartbeat_at < UTC_TIMESTAMP(3) - INTERVAL %s MINUTE
+                        )
+                        OR (
+                          heartbeat_at IS NULL
+                          AND started_at < UTC_TIMESTAMP(3) - INTERVAL %s MINUTE
+                        )
+                      )
+                    ORDER BY COALESCE(heartbeat_at, started_at) ASC, started_at ASC, id ASC
+                    LIMIT {safe_limit}
+                    """,
+                    (safe_stale_after_minutes, safe_startup_grace_minutes),
+                )
+                return list(cur.fetchall())
+
     def get_job(self, job_id: int) -> Optional[Dict[str, Any]]:
         with self.connection_factory() as conn:
             with conn.cursor() as cur:

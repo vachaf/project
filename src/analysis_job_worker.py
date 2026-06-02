@@ -127,6 +127,51 @@ def run_loop(
     return 0
 
 
+def run_recover_stale_dry_run(
+    repository: Any,
+    *,
+    stale_after_minutes: int = 30,
+    startup_grace_minutes: int = 5,
+    limit: int = 20,
+    stdout: TextIO = sys.stdout,
+) -> int:
+    candidates = repository.find_stale_running_jobs(
+        stale_after_minutes=stale_after_minutes,
+        startup_grace_minutes=startup_grace_minutes,
+        limit=limit,
+    )
+    print(
+        "[analysis-job-worker] stale RUNNING recovery dry-run "
+        f"candidate_count={len(candidates)} "
+        f"stale_after_minutes={stale_after_minutes} "
+        f"startup_grace_minutes={startup_grace_minutes} "
+        f"limit={limit}",
+        file=stdout,
+    )
+    if not candidates:
+        print("[analysis-job-worker] no stale RUNNING candidates", file=stdout)
+        return 0
+
+    for candidate in candidates:
+        reason = (
+            "missing_heartbeat_startup_grace"
+            if candidate.get("heartbeat_at") is None
+            else "stale_heartbeat"
+        )
+        print(
+            "[analysis-job-worker] stale candidate "
+            f"job_id={candidate.get('id')} "
+            f"worker_id={_format_cli_value(candidate.get('worker_id'))} "
+            f"started_at={_format_cli_value(candidate.get('started_at'))} "
+            f"heartbeat_at={_format_cli_value(candidate.get('heartbeat_at'))} "
+            f"attempts={candidate.get('attempt_count')}/{candidate.get('max_attempts')} "
+            f"artifact_root={_format_cli_value(candidate.get('artifact_root'))} "
+            f"reason={reason}",
+            file=stdout,
+        )
+    return 0
+
+
 def _run_claimed_pipeline(
     repository: Any,
     claimed: Mapping[str, Any],
@@ -276,6 +321,12 @@ def _result_no_data(result: Any) -> bool:
     return bool(getattr(result, "no_data", False))
 
 
+def _format_cli_value(value: Any) -> str:
+    if value is None:
+        return "-"
+    return str(value)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Analysis Job Worker for DB-backed full_report jobs"
@@ -335,6 +386,34 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="ask the full_report runner to execute the pipeline in dry-run mode",
     )
+    parser.add_argument(
+        "--recover-stale",
+        action="store_true",
+        help="list stale RUNNING full_report recovery candidates",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="required with --recover-stale; do not modify jobs",
+    )
+    parser.add_argument(
+        "--stale-after-minutes",
+        type=int,
+        default=30,
+        help="stale RUNNING heartbeat age threshold for --recover-stale",
+    )
+    parser.add_argument(
+        "--startup-grace-minutes",
+        type=int,
+        default=5,
+        help="missing-heartbeat startup grace threshold for --recover-stale",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="maximum stale RUNNING candidates to list for --recover-stale",
+    )
     return parser
 
 
@@ -349,6 +428,31 @@ def main(
 ) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.stale_after_minutes < 1:
+        parser.error("--stale-after-minutes must be greater than or equal to 1")
+    if args.startup_grace_minutes < 1:
+        parser.error("--startup-grace-minutes must be greater than or equal to 1")
+    if args.limit < 1 or args.limit > 100:
+        parser.error("--limit must be between 1 and 100")
+    if args.recover_stale:
+        if not args.dry_run:
+            parser.error("--recover-stale currently supports only --dry-run")
+        if args.once or args.claim_only or args.run_pipeline or args.pipeline_dry_run:
+            parser.error("--recover-stale cannot be combined with worker claim/run options")
+        try:
+            repository = repository_factory()
+            return run_recover_stale_dry_run(
+                repository,
+                stale_after_minutes=args.stale_after_minutes,
+                startup_grace_minutes=args.startup_grace_minutes,
+                limit=args.limit,
+                stdout=stdout,
+            )
+        except Exception as exc:
+            print(f"[analysis-job-worker] error: {redact_worker_error(exc)}", file=stderr)
+            return 1
+    if args.dry_run:
+        parser.error("--dry-run requires --recover-stale")
     if args.pipeline_dry_run and not args.run_pipeline:
         parser.error("--pipeline-dry-run requires --run-pipeline")
     if args.max_jobs is not None and args.max_jobs < 1:

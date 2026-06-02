@@ -19,14 +19,17 @@ class FakeRepository:
         error: Optional[Exception] = None,
         upsert_error: Optional[Exception] = None,
         heartbeat_error: Optional[Exception] = None,
+        stale_jobs: Optional[list[Dict[str, Any]]] = None,
     ) -> None:
         self.claim_result = claim_result
         self.claim_results = list(claim_results) if claim_results is not None else None
         self.error = error
         self.upsert_error = upsert_error
         self.heartbeat_error = heartbeat_error
+        self.stale_jobs = stale_jobs or []
         self.claim_worker_id: Optional[str] = None
         self.claim_calls = 0
+        self.stale_calls: list[Dict[str, Any]] = []
         self.heartbeat_calls: list[Dict[str, Any]] = []
         self.events: list[Dict[str, Any]] = []
         self.upsert_calls: list[Dict[str, Any]] = []
@@ -45,6 +48,10 @@ class FakeRepository:
                 return self.claim_results.pop(0)
             return None
         return self.claim_result
+
+    def find_stale_running_jobs(self, **kwargs: Any) -> list[Dict[str, Any]]:
+        self.stale_calls.append(kwargs)
+        return self.stale_jobs
 
     def append_job_event(self, **kwargs: Any) -> None:
         self.events.append(kwargs)
@@ -139,6 +146,25 @@ def claimed_job_with_id(job_id: int) -> Dict[str, Any]:
         }
     )
     return job
+
+
+def stale_running_job(
+    *,
+    job_id: int = 123,
+    heartbeat_at: Optional[str] = "2026-06-01 10:00:00.000",
+) -> Dict[str, Any]:
+    return {
+        "id": job_id,
+        "status": "RUNNING",
+        "analysis_mode": "full_report",
+        "worker_id": "worker-stale",
+        "started_at": "2026-06-01 09:55:00.000",
+        "heartbeat_at": heartbeat_at,
+        "attempt_count": 1,
+        "max_attempts": 1,
+        "artifact_root": f"runs/jobs/{job_id}",
+        "error_message": None,
+    }
 
 
 def full_report_result() -> Dict[str, Any]:
@@ -246,6 +272,97 @@ def test_main_once_generates_default_worker_id_when_not_provided() -> None:
 
     assert exit_code == 0
     assert repo.claim_worker_id
+
+
+def test_recover_stale_dry_run_lists_candidates_without_mutation() -> None:
+    stale_with_heartbeat = stale_running_job(job_id=123)
+    stale_missing_heartbeat = stale_running_job(job_id=124, heartbeat_at=None)
+    repo = FakeRepository(stale_jobs=[stale_with_heartbeat, stale_missing_heartbeat])
+    stdout = StringIO()
+
+    exit_code = analysis_job_worker.main(
+        [
+            "--recover-stale",
+            "--dry-run",
+            "--stale-after-minutes",
+            "30",
+            "--startup-grace-minutes",
+            "5",
+            "--limit",
+            "20",
+        ],
+        repository_factory=lambda: repo,
+        stdout=stdout,
+        stderr=StringIO(),
+    )
+
+    output = stdout.getvalue()
+    assert exit_code == 0
+    assert repo.stale_calls == [
+        {"stale_after_minutes": 30, "startup_grace_minutes": 5, "limit": 20}
+    ]
+    assert repo.claim_calls == 0
+    assert repo.events == []
+    assert repo.succeeded_calls == 0
+    assert repo.failed_calls == 0
+    assert stale_with_heartbeat["status"] == "RUNNING"
+    assert stale_with_heartbeat["artifact_root"] == "runs/jobs/123"
+    assert stale_missing_heartbeat["status"] == "RUNNING"
+    assert stale_missing_heartbeat["artifact_root"] == "runs/jobs/124"
+    assert "candidate_count=2" in output
+    assert "job_id=123" in output
+    assert "worker_id=worker-stale" in output
+    assert "attempts=1/1" in output
+    assert "artifact_root=runs/jobs/123" in output
+    assert "reason=stale_heartbeat" in output
+    assert "job_id=124" in output
+    assert "heartbeat_at=-" in output
+    assert "reason=missing_heartbeat_startup_grace" in output
+
+
+def test_recover_stale_dry_run_returns_zero_when_no_candidates() -> None:
+    repo = FakeRepository(stale_jobs=[])
+    stdout = StringIO()
+
+    exit_code = analysis_job_worker.main(
+        ["--recover-stale", "--dry-run"],
+        repository_factory=lambda: repo,
+        stdout=stdout,
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert repo.stale_calls == [
+        {"stale_after_minutes": 30, "startup_grace_minutes": 5, "limit": 20}
+    ]
+    assert repo.claim_calls == 0
+    assert repo.events == []
+    assert repo.succeeded_calls == 0
+    assert repo.failed_calls == 0
+    assert "candidate_count=0" in stdout.getvalue()
+    assert "no stale RUNNING candidates" in stdout.getvalue()
+
+
+def test_recover_stale_without_dry_run_is_unsupported_and_does_not_mutate() -> None:
+    stale_job = stale_running_job()
+    repo = FakeRepository(stale_jobs=[stale_job])
+
+    with pytest.raises(SystemExit) as exc:
+        analysis_job_worker.main(
+            ["--recover-stale"],
+            repository_factory=lambda: repo,
+            stdout=StringIO(),
+            stderr=StringIO(),
+        )
+
+    assert exc.value.code == 2
+    assert repo.stale_calls == []
+    assert repo.claim_calls == 0
+    assert repo.events == []
+    assert repo.succeeded_calls == 0
+    assert repo.failed_calls == 0
+    assert stale_job["status"] == "RUNNING"
+    assert stale_job["artifact_root"] == "runs/jobs/123"
 
 
 def test_build_default_worker_id_uses_hostname_and_pid(monkeypatch: Any) -> None:
