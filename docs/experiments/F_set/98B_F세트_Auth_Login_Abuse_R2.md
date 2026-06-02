@@ -8,7 +8,7 @@
 - docs-side experiment summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
 
 > 핵심 전제: raw POST body가 없으므로 email/password 기반 단정, auth success inference, unauthorized account access confirmation, account existence inference, lockout confirmation은 허용하지 않는다.
-> 현재 runner는 아직 `lab/f_set` 아래의 current/legacy lab runner path를 사용한다. 실행 예시의 `lab/*_산출물` output 경로는 legacy lab artifact path이며, runner 경로 변경이나 `scripts/tools` 이관은 후속 PR에서 검토한다.
+> runner code는 `scripts/lab_runners/f_set` 아래의 current path를 사용한다. 실행 예시의 `lab/*_산출물` output 경로는 legacy lab artifact path로 남긴다.
 
 ---
 
@@ -70,7 +70,7 @@ R2A는 긴 `curl` 나열보다 Python runner 사용을 권장한다.
 권장 실행:
 
 ```bash
-python3 lab/f_set/run_f_r2a_auth_scenarios.py \
+python3 scripts/lab_runners/f_set/run_f_r2a_auth_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_F세트R2A_산출물/runner_logs
@@ -79,7 +79,7 @@ python3 lab/f_set/run_f_r2a_auth_scenarios.py \
 dry-run 또는 plan 확인:
 
 ```bash
-python3 lab/f_set/run_f_r2a_auth_scenarios.py \
+python3 scripts/lab_runners/f_set/run_f_r2a_auth_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_F세트R2A_산출물/runner_logs \
@@ -87,7 +87,7 @@ python3 lab/f_set/run_f_r2a_auth_scenarios.py \
 ```
 
 ```bash
-python3 lab/f_set/run_f_r2a_auth_scenarios.py \
+python3 scripts/lab_runners/f_set/run_f_r2a_auth_scenarios.py \
   --base-url http://192.168.56.105 \
   --scenario slow_brute \
   --out lab/05-xx_F세트R2A_산출물/runner_logs \
@@ -195,7 +195,7 @@ R2B도 긴 `curl` 나열보다 Python runner 사용을 권장한다.
 권장 실행:
 
 ```bash
-python3 lab/f_set/run_f_r2b_response_delta.py \
+python3 scripts/lab_runners/f_set/run_f_r2b_response_delta.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_F세트R2B_산출물/runner_logs
@@ -204,7 +204,7 @@ python3 lab/f_set/run_f_r2b_response_delta.py \
 dry-run 또는 plan 확인:
 
 ```bash
-python3 lab/f_set/run_f_r2b_response_delta.py \
+python3 scripts/lab_runners/f_set/run_f_r2b_response_delta.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_F세트R2B_산출물/runner_logs \
@@ -212,7 +212,7 @@ python3 lab/f_set/run_f_r2b_response_delta.py \
 ```
 
 ```bash
-python3 lab/f_set/run_f_r2b_response_delta.py \
+python3 scripts/lab_runners/f_set/run_f_r2b_response_delta.py \
   --base-url http://192.168.56.105 \
   --scenario existing_accounts \
   --out lab/05-xx_F세트R2B_산출물/runner_logs \

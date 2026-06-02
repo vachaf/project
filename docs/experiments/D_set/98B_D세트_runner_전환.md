@@ -3,11 +3,11 @@
 - 작성 기준일: 2026-05-03
 - 문서 역할: 기존 curl 기반 D세트 비교 실험을 Python runner로 전환한 범위와 해석 원칙을 정리
 - docs-side experiment summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
-- runner path status: 현재 runner는 아직 `lab/d_set` 아래의 current/legacy lab runner path를 사용한다. 경로 변경이나 `scripts/tools` 이관은 후속 PR에서 검토한다.
+- runner path status: runner code는 `scripts/lab_runners/d_set` 아래의 current path로 이관됐다. `lab/d_set/README.md`는 legacy lab-side runner note로 남아 있다.
 
 ## 목적
 
-`lab/d_set/run_d_set_scenarios.py`를 추가해 기존 curl 기반 D세트 Path Traversal / HPP / Directory Probing 실험을 Python runner로 전환했다.
+`scripts/lab_runners/d_set/run_d_set_scenarios.py`를 추가해 기존 curl 기반 D세트 Path Traversal / HPP / Directory Probing 실험을 Python runner로 전환했다.
 
 이 runner는 공격 성공 검증 도구가 아니다. 승인된 로컬 실험 환경에서 Traversal / HPP / Directory Probing 관련 HTTP 요청을 표준화된 형식으로 생성하고, 실행 계획과 결과 메타데이터를 남기는 Apache-log-oriented 실험 harness다.
 

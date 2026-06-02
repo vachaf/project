@@ -8,7 +8,7 @@
 - docs-side experiment summary: [../../reviews/99_lab_experiment_set_summaries.md](../../reviews/99_lab_experiment_set_summaries.md)
 
 > H세트는 새 공격 성공을 검증하는 세트가 아니다. 실제 운영 로그에서 많이 섞이는 static asset, crawler-like, health check, scanner-like 저신호 요청을 공격 candidate로 과승격하지 않고 baseline/context/noise로 분리할 수 있는지 확인한다.
-> 완료 평가와 lab 산출물 결론은 docs-side summary를 우선 참조한다. 현재 runner는 아직 `lab/h_set` 아래의 current/legacy lab runner path를 사용하며, 실행 예시의 `lab/*_산출물` output 경로와 아래 상세 문서 경로는 legacy lab artifact로 남긴다.
+> 완료 평가와 lab 산출물 결론은 docs-side summary를 우선 참조한다. runner code는 `scripts/lab_runners/h_set` 아래의 current path를 사용하며, 실행 예시의 `lab/*_산출물` output 경로와 아래 상세 문서 경로는 legacy lab artifact로 남긴다.
 
 ---
 
@@ -105,12 +105,12 @@ H R1/R2/R3는 2026-05-03 기준으로 실행과 비교 문서 작성이 완료�
 
 정적 자산, favicon, robots, sitemap, health check, 일반 browse 요청이 공격 candidate로 과승격되지 않는지 확인한다.
 
-H R1은 `lab/h_set/run_h_r1_static_baseline.py` Python runner로 실행한다. 이 runner는 current/legacy lab runner path에 있으며 static/health/normal browse 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 baseline harness이고, 공격 성공을 검증하지 않는다.
+H R1은 `scripts/lab_runners/h_set/run_h_r1_static_baseline.py` Python runner로 실행한다. 이 runner는 current scripts/lab_runners path에 있으며 static/health/normal browse 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 baseline harness이고, 공격 성공을 검증하지 않는다.
 
 실행 예시:
 
 ```bash
-python3 lab/h_set/run_h_r1_static_baseline.py \
+python3 scripts/lab_runners/h_set/run_h_r1_static_baseline.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_H세트R1_산출물/runner_logs
@@ -151,12 +151,12 @@ legacy lab artifact: lab/05-03_H세트R1_산출물/2026-05-03_H세트R1_비교.m
 
 crawler-like User-Agent와 robots/sitemap/category/product browse 요청이 공격 candidate로 과승격되지 않는지 확인한다.
 
-H R2는 `lab/h_set/run_h_r2_crawler_baseline.py` Python runner로 실행한다. 이 runner는 current/legacy lab runner path에 있으며 crawler-like UA와 robots/sitemap/browse 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 baseline harness이고, 실제 Googlebot/Bingbot 검증이나 공격 성공 검증을 하지 않는다.
+H R2는 `scripts/lab_runners/h_set/run_h_r2_crawler_baseline.py` Python runner로 실행한다. 이 runner는 current scripts/lab_runners path에 있으며 crawler-like UA와 robots/sitemap/browse 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 baseline harness이고, 실제 Googlebot/Bingbot 검증이나 공격 성공 검증을 하지 않는다.
 
 실행 예시:
 
 ```bash
-python3 lab/h_set/run_h_r2_crawler_baseline.py \
+python3 scripts/lab_runners/h_set/run_h_r2_crawler_baseline.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_H세트R2_산출물/runner_logs
@@ -195,12 +195,12 @@ legacy lab artifact: lab/05-03_H세트R2_산출물/2026-05-03_H세트R2_비교.m
 
 운영 로그에서 자주 보이는 scanner-like path가 단발 또는 짧은 burst로 들어왔을 때 과승격되지 않고, context-only로 보존되는지 확인한다.
 
-H R3는 `lab/h_set/run_h_r3_scanner_low_signal.py` Python runner로 실행한다. 이 runner는 current/legacy lab runner path에 있으며 `/wp-login.php`, `/wp-admin/`, `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip` 같은 scanner-like/sensitive-looking path 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 실험 harness이고, 실제 파일 노출, WordPress 존재, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 검증하지 않는다.
+H R3는 `scripts/lab_runners/h_set/run_h_r3_scanner_low_signal.py` Python runner로 실행한다. 이 runner는 current scripts/lab_runners path에 있으며 `/wp-login.php`, `/wp-admin/`, `/.env`, `/phpinfo.php`, `/server-status`, `/backup.zip` 같은 scanner-like/sensitive-looking path 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 실험 harness이고, 실제 파일 노출, WordPress 존재, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 검증하지 않는다.
 
 실행 예시:
 
 ```bash
-python3 lab/h_set/run_h_r3_scanner_low_signal.py \
+python3 scripts/lab_runners/h_set/run_h_r3_scanner_low_signal.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_H세트R3_산출물/runner_logs
@@ -241,12 +241,12 @@ legacy lab artifact: lab/05-03_H세트R3_산출물/2026-05-03_H세트R3_비교.m
 
 정상 browse/static 요청과 scanner-like path가 같은 시간대에 섞일 때, pipeline이 이를 하나의 공격으로 과도하게 묶지 않고 baseline context, crawler-like context, scanner-like context를 분리할 수 있는지 확인한다.
 
-H R4는 `lab/h_set/run_h_r4_mixed_baseline_scanner.py` Python runner로 선택 실행할 수 있다. 이 runner는 current/legacy lab runner path에 있으며 mixed benign/static/crawler/scanner 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 실험 harness이고, 공격 성공을 검증하지 않는다.
+H R4는 `scripts/lab_runners/h_set/run_h_r4_mixed_baseline_scanner.py` Python runner로 선택 실행할 수 있다. 이 runner는 current scripts/lab_runners path에 있으며 mixed benign/static/crawler/scanner 요청이 Apache 로그 표면에 어떻게 남는지 재현 가능하게 생성하는 실험 harness이고, 공격 성공을 검증하지 않는다.
 
 실행 예시:
 
 ```bash
-python3 lab/h_set/run_h_r4_mixed_baseline_scanner.py \
+python3 scripts/lab_runners/h_set/run_h_r4_mixed_baseline_scanner.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_H세트R4_산출물/runner_logs
@@ -255,13 +255,13 @@ python3 lab/h_set/run_h_r4_mixed_baseline_scanner.py \
 계획만 확인하는 예시:
 
 ```bash
-python3 lab/h_set/run_h_r4_mixed_baseline_scanner.py \
+python3 scripts/lab_runners/h_set/run_h_r4_mixed_baseline_scanner.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_H세트R4_산출물/runner_logs \
   --dry-run
 
-python3 lab/h_set/run_h_r4_mixed_baseline_scanner.py \
+python3 scripts/lab_runners/h_set/run_h_r4_mixed_baseline_scanner.py \
   --base-url http://192.168.56.105 \
   --scenario mixed_with_crawler \
   --out lab/05-xx_H세트R4_산출물/runner_logs \
@@ -313,11 +313,11 @@ H세트 실행 후 prepare 단계에서 확인할 사항:
 H세트는 Python runner 기반으로 관리한다.
 
 ```text
-current/legacy lab runner path: lab/h_set/README.md
-current/legacy lab runner path: lab/h_set/run_h_r1_static_baseline.py
-current/legacy lab runner path: lab/h_set/run_h_r2_crawler_baseline.py
-current/legacy lab runner path: lab/h_set/run_h_r3_scanner_low_signal.py
-current/legacy lab runner path: lab/h_set/run_h_r4_mixed_baseline_scanner.py  # optional mixed benign + scanner-like runner
+legacy lab README path: lab/h_set/README.md
+current runner path: scripts/lab_runners/h_set/run_h_r1_static_baseline.py
+current runner path: scripts/lab_runners/h_set/run_h_r2_crawler_baseline.py
+current runner path: scripts/lab_runners/h_set/run_h_r3_scanner_low_signal.py
+current runner path: scripts/lab_runners/h_set/run_h_r4_mixed_baseline_scanner.py  # optional mixed benign + scanner-like runner
 ```
 
 현재 H R1/H R2/H R3 후속 prepare 보강으로 `static_baseline_summaries`, `crawler_baseline_summaries`, `sensitive_path_probe_summaries`가 반영되었다. H R4 실제 prepare에서는 row-level hint 분리는 비교적 잘 되었지만 mixed top-level 문맥이 비어 있었고, 후속으로 `mixed_baseline_scanner_summaries`를 추가해 baseline/static/crawler-like 와 sensitive path probe 를 같은 성공 공격으로 합치지 않는 제한을 별도 보존했다.

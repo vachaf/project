@@ -10,7 +10,7 @@
   단, 이 값은 실험 실행 추적용 label일 뿐이며 탐지/판정 근거로 사용하지 않는다.
 
 > 이 문서는 승인된 로컬 실험 환경에서만 사용한다. Apache 로그만으로 method 허용, 업로드/삭제 성공, TRACE echo, CORS 취약점, 서버 설정 취약 여부를 확정하지 않는다.
-> 현재 runner는 아직 `lab/g_set` 아래의 current/legacy lab runner path를 사용한다. 실행 예시의 `lab/*_산출물` output 경로는 legacy lab artifact path이며, runner 경로 변경이나 `scripts/tools` 이관은 후속 PR에서 검토한다.
+> runner code는 `scripts/lab_runners/g_set` 아래의 current path를 사용한다. 실행 예시의 `lab/*_산출물` output 경로는 legacy lab artifact path로 남긴다.
 
 ---
 
@@ -109,14 +109,14 @@ G세트는 아래를 목표로 하지 않는다.
 실행 방식:
 
 - G R1은 긴 `curl` 나열보다 Python runner 사용을 권장한다.
-- runner 위치: `lab/g_set/run_g_r1_method_probe.py` (current/legacy lab runner path)
+- runner 위치: `scripts/lab_runners/g_set/run_g_r1_method_probe.py` (current scripts/lab_runners path)
 - runner는 request body 원문과 response body 원문을 저장하지 않는다.
 - runner는 method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점 성공을 검증하지 않는다.
 
 권장 예시:
 
 ```bash
-python3 lab/g_set/run_g_r1_method_probe.py \
+python3 scripts/lab_runners/g_set/run_g_r1_method_probe.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_G세트R1_산출물/runner_logs
@@ -125,13 +125,13 @@ python3 lab/g_set/run_g_r1_method_probe.py \
 dry-run / print-plan 예시:
 
 ```bash
-python3 lab/g_set/run_g_r1_method_probe.py \
+python3 scripts/lab_runners/g_set/run_g_r1_method_probe.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_G세트R1_산출물/runner_logs \
   --dry-run
 
-python3 lab/g_set/run_g_r1_method_probe.py \
+python3 scripts/lab_runners/g_set/run_g_r1_method_probe.py \
   --base-url http://192.168.56.105 \
   --scenario trace \
   --out lab/05-xx_G세트R1_산출물/runner_logs_trace \
@@ -168,7 +168,7 @@ python3 lab/g_set/run_g_r1_method_probe.py \
 실행 방식:
 
 - G R2는 Python raw socket runner 사용을 권장한다.
-- runner 위치: `lab/g_set/run_g_r2_protocol_anomaly.py` (current/legacy lab runner path)
+- runner 위치: `scripts/lab_runners/g_set/run_g_r2_protocol_anomaly.py` (current scripts/lab_runners path)
 - runner는 `http://` base URL만 지원하며 `https://`는 명확히 거부한다.
 - runner는 raw request 원문, request body 원문, response body 원문을 저장하지 않는다.
 - runner는 침해 성공, 우회 성공, malformed request 성공을 검증하지 않는다.
@@ -176,7 +176,7 @@ python3 lab/g_set/run_g_r1_method_probe.py \
 권장 예시:
 
 ```bash
-python3 lab/g_set/run_g_r2_protocol_anomaly.py \
+python3 scripts/lab_runners/g_set/run_g_r2_protocol_anomaly.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_G세트R2_산출물/runner_logs
@@ -185,13 +185,13 @@ python3 lab/g_set/run_g_r2_protocol_anomaly.py \
 dry-run / print-plan 예시:
 
 ```bash
-python3 lab/g_set/run_g_r2_protocol_anomaly.py \
+python3 scripts/lab_runners/g_set/run_g_r2_protocol_anomaly.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_G세트R2_산출물/runner_logs \
   --dry-run
 
-python3 lab/g_set/run_g_r2_protocol_anomaly.py \
+python3 scripts/lab_runners/g_set/run_g_r2_protocol_anomaly.py \
   --base-url http://192.168.56.105 \
   --scenario bad_protocol \
   --out lab/05-xx_G세트R2_산출물/runner_logs_bad_protocol \
@@ -227,7 +227,7 @@ python3 lab/g_set/run_g_r2_protocol_anomaly.py \
 실행 방식:
 
 - G R3는 Python runner 사용을 권장한다.
-- runner 위치: `lab/g_set/run_g_r3_baseline.py` (current/legacy lab runner path)
+- runner 위치: `scripts/lab_runners/g_set/run_g_r3_baseline.py` (current scripts/lab_runners path)
 - runner는 `http://`, `https://` base URL을 지원한다.
 - runner는 request body 원문과 response body 원문을 저장하지 않는다.
 - runner는 CORS 취약점, method 허용, 서버 설정 취약 여부, 공격 성공을 검증하지 않는다.
@@ -235,7 +235,7 @@ python3 lab/g_set/run_g_r2_protocol_anomaly.py \
 권장 예시:
 
 ```bash
-python3 lab/g_set/run_g_r3_baseline.py \
+python3 scripts/lab_runners/g_set/run_g_r3_baseline.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_G세트R3_산출물/runner_logs
@@ -244,13 +244,13 @@ python3 lab/g_set/run_g_r3_baseline.py \
 dry-run / print-plan 예시:
 
 ```bash
-python3 lab/g_set/run_g_r3_baseline.py \
+python3 scripts/lab_runners/g_set/run_g_r3_baseline.py \
   --base-url http://192.168.56.105 \
   --scenario all \
   --out lab/05-xx_G세트R3_산출물/runner_logs \
   --dry-run
 
-python3 lab/g_set/run_g_r3_baseline.py \
+python3 scripts/lab_runners/g_set/run_g_r3_baseline.py \
   --base-url http://192.168.56.105 \
   --scenario options_preflight \
   --out lab/05-xx_G세트R3_산출물/runner_logs_options \
@@ -338,10 +338,10 @@ G세트는 긴 `curl` 나열보다 Python runner 기반으로 관리한다. 현�
 
 파일:
 
-- current/legacy lab runner path: `lab/g_set/README.md`
-- current/legacy lab runner path: `lab/g_set/run_g_r1_method_probe.py`
-- current/legacy lab runner path: `lab/g_set/run_g_r2_protocol_anomaly.py`
-- current/legacy lab runner path: `lab/g_set/run_g_r3_baseline.py`
+- legacy lab README path: `lab/g_set/README.md`
+- current runner path: `scripts/lab_runners/g_set/run_g_r1_method_probe.py`
+- current runner path: `scripts/lab_runners/g_set/run_g_r2_protocol_anomaly.py`
+- current runner path: `scripts/lab_runners/g_set/run_g_r3_baseline.py`
 
 역할:
 
