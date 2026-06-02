@@ -50,5 +50,6 @@
 - 완료 평가와 샘플 결론은 `reviews/`의 summary 문서를 우선한다.
 - 공통 절차, 작성 표준, 템플릿은 `standards/`에 둔다.
 - 기존 실행 재현 예시의 `lab/a_set`~`lab/h_set` runner 경로와 `lab/*_산출물` output 경로는 legacy path로 유지한다.
-- lab runner 코드 이동과 산출물 위치 개편은 후속 PR에서 검토한다.
+- `lab/a_set`~`lab/h_set`의 runner code는 산출물이 아니며, `scripts/lab_runners/{set}/` 이관 계획은 [../design/99_lab_runner_migration_plan.md](../design/99_lab_runner_migration_plan.md)를 따른다.
+- 이번 단계에서는 실제 실행 예시를 바꾸지 않는다. lab runner 코드 이동과 산출물 위치 개편은 후속 PR에서 분리해 검토한다.
 - `lab/` 원본은 이번 단계에서 삭제, 이동, archive하지 않는다.

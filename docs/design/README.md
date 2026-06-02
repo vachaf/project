@@ -45,6 +45,7 @@
   - [99_run_analysis_pipeline_user_runner_ux_review.md](./99_run_analysis_pipeline_user_runner_ux_review.md): `run_analysis_pipeline.py` 사용자 실행 UX와 DB-backed job lifecycle 연결 기준
 - 설계/회귀 검증
   - [99_document_cleanup_plan.md](./99_document_cleanup_plan.md): 문서 정리 계획과 유지/archive/delete 근거
+  - [99_lab_runner_migration_plan.md](./99_lab_runner_migration_plan.md): `lab/*_set` runner code를 `scripts/lab_runners/{set}/`로 분리하기 위한 설계와 영향 범위
   - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md): prepare 모듈 분리 계획
   - [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md): prepare module split 현재 기준 요약
   - [99_prepare_llm_input_inventory.md](./99_prepare_llm_input_inventory.md): prepare_llm_input.py 책임 영역 inventory와 다음 분리 후보 검토
