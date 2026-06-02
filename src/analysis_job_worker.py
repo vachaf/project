@@ -232,6 +232,7 @@ def _run_claimed_pipeline(
             },
         )
         try:
+            report_save_started_at = time.monotonic()
             repository.upsert_analysis_report(**upsert_kwargs)
         except Exception as exc:
             safe_report_message = redact_worker_error(exc)
@@ -242,6 +243,7 @@ def _run_claimed_pipeline(
                 detail_json={
                     "worker_id": worker_id,
                     "artifact_root": upsert_kwargs.get("artifact_root"),
+                    "duration_seconds": round(time.monotonic() - report_save_started_at, 3),
                     "failed_at_stage": "report_save",
                     "error_type": exc.__class__.__name__,
                     "error_message": safe_report_message,
@@ -257,6 +259,7 @@ def _run_claimed_pipeline(
                 "artifact_root": upsert_kwargs.get("artifact_root"),
                 "stage2_report_path": upsert_kwargs.get("stage2_report_path"),
                 "viewer_payload_path": upsert_kwargs.get("viewer_payload_path"),
+                "duration_seconds": round(time.monotonic() - report_save_started_at, 3),
             },
         )
         failed_at_stage = None
@@ -264,6 +267,7 @@ def _run_claimed_pipeline(
             job_id=job_id,
             worker_id=worker_id,
             detail_json={
+                "worker_id": worker_id,
                 "artifact_root": upsert_kwargs.get("artifact_root"),
                 "stage2_report_path": upsert_kwargs.get("stage2_report_path"),
                 "viewer_payload_path": upsert_kwargs.get("viewer_payload_path"),

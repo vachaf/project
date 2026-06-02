@@ -631,6 +631,9 @@ def test_run_pipeline_success_runs_runner_upserts_report_and_marks_succeeded() -
     assert repo.succeeded_calls == 1
     assert repo.succeeded_kwargs[0]["job_id"] == 123
     assert repo.succeeded_kwargs[0]["worker_id"] == "local-dev"
+    assert repo.succeeded_kwargs[0]["detail_json"]["worker_id"] == "local-dev"
+    assert "duration_seconds" in repo.events[2]["detail_json"]
+    assert repo.events[2]["detail_json"]["duration_seconds"] >= 0
     assert repo.failed_calls == 0
     assert "succeeded job_id=123 worker_id=local-dev" in stdout.getvalue()
 
@@ -669,6 +672,9 @@ def test_run_pipeline_no_data_upserts_summary_appends_event_and_marks_succeeded(
         },
     }
     assert repo.succeeded_calls == 1
+    assert repo.succeeded_kwargs[0]["detail_json"]["worker_id"] == "local-dev"
+    assert "duration_seconds" in repo.events[3]["detail_json"]
+    assert repo.events[3]["detail_json"]["duration_seconds"] >= 0
     assert repo.failed_calls == 0
 
 
@@ -873,6 +879,8 @@ def test_run_pipeline_upsert_failure_marks_failed() -> None:
         "REPORT_SAVE_FAILED",
     ]
     assert repo.events[-1]["detail_json"]["failed_at_stage"] == "report_save"
+    assert "duration_seconds" in repo.events[-1]["detail_json"]
+    assert repo.events[-1]["detail_json"]["duration_seconds"] >= 0
     assert repo.failed_kwargs[0]["detail_json"]["failed_at_stage"] == "report_save"
 
 
