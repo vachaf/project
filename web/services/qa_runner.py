@@ -139,6 +139,7 @@ class QARunner:
                     "rule": str(row.get("rule") or "-"),
                     "path": str(row.get("path") or "-"),
                     "excerpt": str(row.get("excerpt") or "-"),
+                    "source_text": str(row.get("source_text") or ""),
                     "suggestion": str(row.get("suggestion") or "-"),
                 }
             )

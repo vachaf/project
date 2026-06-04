@@ -1547,6 +1547,33 @@ summary:focus-visible {
   margin: 0.2rem 0;
 }
 
+.issue-label {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #5d7088;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.issue-source-details {
+  margin: 0.35rem 0 0;
+}
+
+.issue-source-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #284766;
+}
+
+.issue-source-text {
+  margin-top: 0.45rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  color: #213246;
+}
+
 .issue-suggestion {
   color: #43556d;
   margin: 0.2rem 0 0;

@@ -104,6 +104,13 @@ def test_weak_possibility_stays_warning() -> None:
     assert result["summary"]["warning_count"] >= 1
 
 
+def test_limited_language_downgrades_target_warning_rules_to_info() -> None:
+    report = make_minimal_report("반복된 401 실패가 보여도 인증 오용이라고 확정할 수 없습니다.")
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["warning_count"] == 0
+    assert any(issue["rule"] == "auth_success_assertion" for issue in result["info"])
+
+
 def test_negated_intrusion_success_in_noise_interpretation_is_not_warning() -> None:
     report = make_minimal_report(
         "필터링된 18건 중 17건은 low_signal_fuzzing으로 집계되었습니다. 이는 현재 구간의 대부분이 명시적 침해 성공이 아니라 탐색성 요청, 저신호 퍼징, 정상 비교군 성격의 트래픽으로 구성되었음을 의미합니다.",
@@ -167,6 +174,14 @@ def test_key_findings_detail_is_checked() -> None:
     report = make_minimal_report("SQL injection 성공으로 DB 결과가 반환됐다.", field="key_findings.detail")
     result = lint.analyze_stage2_report_data(wrap_report(report))
     assert any(issue["path"].startswith("report.key_findings[1].detail") for issue in result["blockers"])
+
+
+def test_issue_source_text_is_included_in_lint_output() -> None:
+    text = "브라우저에서 스크립트가 실행되어 쿠키가 탈취됐다."
+    report = make_minimal_report(text, field="key_findings.detail")
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    issue = next(issue for issue in result["blockers"] if issue["rule"] == "xss_execution_assertion")
+    assert issue["source_text"] == text
 
 
 def test_cli_fail_on_blocker_changes_exit_code(tmp_path: Path) -> None:

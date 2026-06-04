@@ -363,6 +363,7 @@ class Issue:
     rule: str
     path: str
     excerpt: str
+    source_text: str
     suggestion: str
 
 
@@ -440,6 +441,46 @@ def has_recommended_action_strong_assertion(text: str) -> bool:
     return any(pattern.search(text) for pattern in RECOMMENDED_ACTION_STRONG_ASSERTION_PATTERNS)
 
 
+def adjust_issue_severity(
+    *,
+    rule_name: str,
+    original_severity: str,
+    context_class: str,
+    path: str,
+    text: str,
+) -> str:
+    effective_severity = original_severity
+    if original_severity == "blocker" and context_class == "strong_negation":
+        effective_severity = "info"
+    elif original_severity == "blocker" and context_class == "weak_conservative":
+        effective_severity = "warning"
+    elif original_severity == "warning" and context_class in ("strong_negation", "weak_conservative"):
+        effective_severity = "info"
+
+    if (
+        original_severity == "warning"
+        and rule_name in {
+            "auth_success_assertion",
+            "xss_execution_assertion",
+            "sql_success_assertion",
+            "file_disclosure_success_assertion",
+        }
+        and context_class == "strong_negation"
+    ):
+        effective_severity = "info"
+
+    if (
+        is_recommended_action_path(path)
+        and original_severity == "blocker"
+        and (context_class == "strong_negation" or has_safe_action_context(text))
+    ):
+        if has_recommended_action_strong_assertion(text):
+            return "warning"
+        return "info"
+
+    return effective_severity
+
+
 def iter_report_fields(report: Dict[str, Any]) -> Iterable[Tuple[str, str]]:
     mappings = (
         ("report_title", None),
@@ -490,7 +531,6 @@ def detect_rule_issue(
     debug_rows: List[str],
 ) -> List[Tuple[str, Issue]]:
     issues: List[Tuple[str, Issue]] = []
-    recommended_action_path = is_recommended_action_path(path)
     for severity_name, patterns in (("blocker", spec.blocker_patterns), ("warning", spec.warning_patterns)):
         for pattern in patterns:
             match = pattern.search(text)
@@ -498,22 +538,13 @@ def detect_rule_issue(
                 continue
             excerpt = clip_excerpt(text, match.start(), match.end())
             context_class = classify_assertion_context(text, match.start(), match.end())
-            effective_severity = severity_name
-            if severity_name == "blocker" and context_class == "strong_negation":
-                effective_severity = "info"
-            elif severity_name == "blocker" and context_class == "weak_conservative":
-                effective_severity = "warning"
-            elif severity_name == "warning" and context_class in ("strong_negation", "weak_conservative"):
-                effective_severity = "info"
-            if (
-                recommended_action_path
-                and severity_name == "blocker"
-                and (context_class == "strong_negation" or has_safe_action_context(text))
-            ):
-                if has_recommended_action_strong_assertion(text):
-                    effective_severity = "warning"
-                else:
-                    effective_severity = "info"
+            effective_severity = adjust_issue_severity(
+                rule_name=spec.name,
+                original_severity=severity_name,
+                context_class=context_class,
+                path=path,
+                text=text,
+            )
             if debug_rows is not None:
                 debug_rows.append(
                     f"{path}: rule={spec.name} severity={effective_severity} matched={match.group(0)!r} context={context_class}"
@@ -525,6 +556,7 @@ def detect_rule_issue(
                         rule=spec.name,
                         path=path,
                         excerpt=excerpt,
+                        source_text=text,
                         suggestion=spec.suggestion,
                     ),
                 )
@@ -553,6 +585,7 @@ def detect_context_only_escalation(path: str, text: str, *, debug_rows: List[str
                     rule="context_only_escalation",
                     path=path,
                     excerpt=clip_excerpt(text, match.start(), match.end()),
+                    source_text=text,
                     suggestion=(
                         "Context-only, baseline, crawler, and probing summaries should stay at observed context level. "
                         "Avoid escalating them to confirmed attack or compromise wording."
@@ -590,6 +623,7 @@ def maybe_add_known_asset_caution(
                         rule="known_asset_caution_missing",
                         path="report",
                         excerpt=clip_excerpt(text, index, index + len(pattern_text)),
+                        source_text=text,
                         suggestion=(
                             "When attributing source IPs or tool-like User-Agents, also mention known asset, internal test, "
                             "self-call, or operational check possibilities when evidence is Apache logs only."
@@ -659,6 +693,7 @@ def analyze_stage2_report_data(data: Dict[str, Any], *, debug: bool = False) -> 
                 rule="context_only_escalation",
                 path=path,
                 excerpt=clip_excerpt(text, index, index + len(token)),
+                source_text=text,
                 suggestion=(
                     "This lint is a wording-risk review tool, not an attack verdict. Prefer observed request pattern, attempt, "
                     "or blocked activity wording over direct attack-success phrasing."

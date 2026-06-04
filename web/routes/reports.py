@@ -23,6 +23,7 @@ LINT_OPTIONS = ("pass", "warn", "fail", "error")
 PAIR_OPTIONS = ("both", "partial")
 PROVIDER_OPTIONS = ("openai", "anthropic", "unknown")
 SORT_OPTIONS = ("time_desc", "time_asc", "severity_desc")
+ISSUE_PATH_SEGMENT_PATTERN = re.compile(r"([A-Za-z0-9_]+)(?:\[(\d+)\])?")
 NOTABLE_INCIDENT_COLUMNS: List[Dict[str, Any]] = [
     {"key": "severity", "label": "severity", "always_visible": True},
     {"key": "verdict", "label": "verdict", "always_visible": True},
@@ -312,7 +313,65 @@ def lint_for_report(report: Optional[Report]) -> Optional[Dict[str, Any]]:
             "error": report.error or "Invalid report JSON",
         }
 
-    return qa_runner.run_quality_lint(report.report_id, report.file_path)
+    lint_result = qa_runner.run_quality_lint(report.report_id, report.file_path)
+    report_payload = report.report if isinstance(report.report, dict) else {}
+    return enrich_lint_result_with_source_text(lint_result, report_payload)
+
+
+def enrich_lint_result_with_source_text(lint_result: Optional[Dict[str, Any]], report_payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not isinstance(lint_result, dict):
+        return lint_result
+
+    enriched = dict(lint_result)
+    for bucket_name in ("blockers", "warnings", "info"):
+        enriched[bucket_name] = enrich_issue_list_with_source_text(lint_result.get(bucket_name), report_payload)
+    return enriched
+
+
+def enrich_issue_list_with_source_text(rows: Any, report_payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not isinstance(rows, list):
+        return []
+
+    enriched_rows: List[Dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        item = dict(row)
+        if not str(item.get("source_text") or "").strip():
+            item["source_text"] = resolve_issue_source_text(report_payload, str(item.get("path") or ""))
+        enriched_rows.append(item)
+    return enriched_rows
+
+
+def resolve_issue_source_text(report_payload: Dict[str, Any], issue_path: str) -> str:
+    if not isinstance(report_payload, dict):
+        return ""
+    if not issue_path.startswith("report."):
+        return ""
+
+    current: Any = report_payload
+    for segment in issue_path[len("report."):].split("."):
+        match = ISSUE_PATH_SEGMENT_PATTERN.fullmatch(segment)
+        if not match:
+            return ""
+        key = match.group(1)
+        index_text = match.group(2)
+        if not isinstance(current, dict) or key not in current:
+            return ""
+        current = current[key]
+        if index_text is not None:
+            if not isinstance(current, list):
+                return ""
+            index = int(index_text)
+            if index < 0 or index >= len(current):
+                return ""
+            current = current[index]
+
+    if current is None:
+        return ""
+    if isinstance(current, str):
+        return current
+    return str(current)
 
 
 def resolve_group_report(summary: Any) -> Optional[Report]:
