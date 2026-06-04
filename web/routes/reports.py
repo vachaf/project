@@ -315,7 +315,8 @@ def lint_for_report(report: Optional[Report]) -> Optional[Dict[str, Any]]:
 
     lint_result = qa_runner.run_quality_lint(report.report_id, report.file_path)
     report_payload = report.report if isinstance(report.report, dict) else {}
-    return enrich_lint_result_with_source_text(lint_result, report_payload)
+    enriched = enrich_lint_result_with_source_text(lint_result, report_payload)
+    return normalize_lint_result_summary(enriched)
 
 
 def enrich_lint_result_with_source_text(lint_result: Optional[Dict[str, Any]], report_payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -326,6 +327,23 @@ def enrich_lint_result_with_source_text(lint_result: Optional[Dict[str, Any]], r
     for bucket_name in ("blockers", "warnings", "info"):
         enriched[bucket_name] = enrich_issue_list_with_source_text(lint_result.get(bucket_name), report_payload)
     return enriched
+
+
+def normalize_lint_result_summary(lint_result: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not isinstance(lint_result, dict):
+        return lint_result
+    if bool(lint_result.get("is_error", False)):
+        return lint_result
+
+    normalized = dict(lint_result)
+    blocker_count = len(normalized.get("blockers") or [])
+    warning_count = len(normalized.get("warnings") or [])
+    info_count = len(normalized.get("info") or [])
+    normalized["blocker_count"] = blocker_count
+    normalized["warning_count"] = warning_count
+    normalized["info_count"] = info_count
+    normalized["verdict"] = "FAIL" if blocker_count > 0 else "WARN" if warning_count > 0 else "PASS"
+    return normalized
 
 
 def enrich_issue_list_with_source_text(rows: Any, report_payload: Dict[str, Any]) -> List[Dict[str, Any]]:

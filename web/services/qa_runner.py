@@ -91,10 +91,11 @@ class QARunner:
         try:
             output_mtime = output_path.stat().st_mtime
             report_mtime = report_path.stat().st_mtime
+            script_mtime = self.script_path.stat().st_mtime
         except OSError:
             return None
 
-        if output_mtime < report_mtime:
+        if output_mtime < report_mtime or output_mtime < script_mtime:
             return None
 
         try:

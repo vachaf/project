@@ -29,11 +29,14 @@ STRONG_NEGATION_PATTERNS = tuple(
         r"확정하지\s*않",
         r"확정할\s*수\s*없",
         r"근거가\s*부족",
+        r"말할\s*수(?:는)?\s*없",
         r"증거가\s*없",
         r"증거[는가]?\s*제공되지\s*않",
         r"해석하지\s*않",
         r"해석할\s*수\s*없",
         r"주장하지\s*않",
+        r"입증되지\s*않",
+        r"입증할\s*수\s*없",
         r"입증할\s*근거",
         r"볼\s*근거는\s*부족",
         r"본\s*보고서에서\s*주장하지\s*않",
@@ -418,13 +421,30 @@ def clip_excerpt(text: str, start: int, end: int) -> str:
     return excerpt
 
 
+def extract_sentence_context(text: str, start: int, end: int) -> str:
+    boundary_chars = ".!?\n"
+    left = start
+    while left > 0 and text[left - 1] not in boundary_chars:
+        left -= 1
+    right = end
+    while right < len(text) and text[right] not in boundary_chars:
+        right += 1
+    return text[left:right].strip()
+
+
 def classify_assertion_context(text: str, start: int, end: int) -> str:
+    sentence_context = extract_sentence_context(text, start, end)
+    if sentence_context and any(pattern.search(sentence_context) for pattern in STRONG_NEGATION_PATTERNS):
+        return "strong_negation"
+    if sentence_context and any(pattern.search(sentence_context) for pattern in WEAK_CONSERVATIVE_PATTERNS):
+        return "weak_conservative"
+
     left = max(0, start - CONTEXT_WINDOW)
     right = min(len(text), end + CONTEXT_WINDOW)
-    context = text[left:right]
-    if any(pattern.search(context) for pattern in STRONG_NEGATION_PATTERNS):
+    context_window = text[left:right]
+    if any(pattern.search(context_window) for pattern in STRONG_NEGATION_PATTERNS):
         return "strong_negation"
-    if any(pattern.search(context) for pattern in WEAK_CONSERVATIVE_PATTERNS):
+    if any(pattern.search(context_window) for pattern in WEAK_CONSERVATIVE_PATTERNS):
         return "weak_conservative"
     return "none"
 

@@ -111,6 +111,26 @@ def test_limited_language_downgrades_target_warning_rules_to_info() -> None:
     assert any(issue["rule"] == "auth_success_assertion" for issue in result["info"])
 
 
+def test_auth_phrase_malhal_su_neun_eopseumnida_downgrades_to_info() -> None:
+    report = make_minimal_report(
+        "일반적인 로그인 제출 흐름에 가까워 보이지만 현재 로그만으로 로그인 성공이나 계정 탈취를 말할 수는 없습니다.",
+        field="key_findings.detail",
+    )
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["warning_count"] == 0
+    assert any(issue["rule"] == "auth_success_assertion" for issue in result["info"])
+
+
+def test_xss_phrase_ipjeungdoeji_anhasseumnida_downgrades_to_info() -> None:
+    report = make_minimal_report(
+        "오류 연계 힌트가 있으나 XSS 실행이나 악성 동작은 입증되지 않았습니다.",
+        field="key_findings.detail",
+    )
+    result = lint.analyze_stage2_report_data(wrap_report(report))
+    assert result["summary"]["warning_count"] == 0
+    assert any(issue["rule"] == "xss_execution_assertion" for issue in result["info"])
+
+
 def test_negated_intrusion_success_in_noise_interpretation_is_not_warning() -> None:
     report = make_minimal_report(
         "필터링된 18건 중 17건은 low_signal_fuzzing으로 집계되었습니다. 이는 현재 구간의 대부분이 명시적 침해 성공이 아니라 탐색성 요청, 저신호 퍼징, 정상 비교군 성격의 트래픽으로 구성되었음을 의미합니다.",
