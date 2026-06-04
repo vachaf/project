@@ -93,7 +93,31 @@ class FakeQARunner:
         }
 
 
-def test_report_detail_quality_lint_shows_full_source_text_when_excerpt_is_clipped(
+class FakeQARunnerWithoutSourceText:
+    def run_quality_lint(self, report_id: str, report_path: Path) -> dict[str, object]:
+        return {
+            "verdict": "WARN",
+            "checked_fields": 1,
+            "blocker_count": 0,
+            "warning_count": 1,
+            "info_count": 0,
+            "blockers": [],
+            "warnings": [
+                {
+                    "rule": "xss_execution_assertion",
+                    "path": "report.legacy_field",
+                    "excerpt": "...브라우저에서 스크립트가 실행되어 쿠키가 탈취됐다고 단정하는 문장입니다.",
+                    "source_text": "",
+                    "suggestion": "Replace confirmed wording.",
+                }
+            ],
+            "info": [],
+            "is_error": False,
+            "error": None,
+        }
+
+
+def test_report_detail_quality_lint_shows_full_source_text_and_hides_excerpt_from_default_area(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -107,5 +131,24 @@ def test_report_detail_quality_lint_shows_full_source_text_when_excerpt_is_clipp
     assert response.status_code == 200
     assert "matched excerpt" in body
     assert "...브라우저에서 스크립트가 실행되어 쿠키가 탈취됐다고 단정하는 문장입니다." in body
-    assert "원문 전체" in body
+    assert "<p class=\"issue-label\">원문</p>" in body
     assert "앞부분 맥락이 길고, 최종적으로 브라우저에서 스크립트가 실행되어 쿠키가 탈취됐다고 단정하는 문장입니다." in body
+    assert '<div class="issue-source-text">앞부분 맥락이 길고, 최종적으로 브라우저에서 스크립트가 실행되어 쿠키가 탈취됐다고 단정하는 문장입니다.</div>' in body
+    assert '<p class="issue-excerpt">앞부분 맥락이 길고, 최종적으로 브라우저에서 스크립트가 실행되어 쿠키가 탈취됐다고 단정하는 문장입니다.</p>' not in body
+
+
+def test_report_detail_quality_lint_falls_back_to_excerpt_when_source_text_missing(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    report = make_report(tmp_path)
+    monkeypatch.setattr(report_routes, "loader", FakeReportLoader(report))
+    monkeypatch.setattr(report_routes, "qa_runner", FakeQARunnerWithoutSourceText())
+
+    response = report_routes.report_detail(make_request("/report/lint-report"), "lint-report")
+    body = response.body.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "<p class=\"issue-label\">원문</p>" in body
+    assert '<p class="issue-excerpt">...브라우저에서 스크립트가 실행되어 쿠키가 탈취됐다고 단정하는 문장입니다.</p>' in body
+    assert '<div class="issue-source-text">' not in body

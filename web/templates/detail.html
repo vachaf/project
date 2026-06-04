@@ -87,13 +87,16 @@
         <article class="card issue-blocker">
           <p class="issue-rule">[{{ issue.rule }}]</p>
           <p class="issue-path">{{ issue.path }}</p>
-          <p class="issue-label">matched excerpt</p>
-          <p class="issue-excerpt">{{ issue.excerpt }}</p>
           {% if issue.source_text %}
-          <details class="issue-source-details" open>
-            <summary>원문 전체</summary>
-            <div class="issue-source-text">{{ issue.source_text }}</div>
+          <p class="issue-label">원문</p>
+          <div class="issue-source-text">{{ issue.source_text }}</div>
+          <details class="issue-source-details">
+            <summary>matched excerpt</summary>
+            <p class="issue-excerpt">{{ issue.excerpt }}</p>
           </details>
+          {% else %}
+          <p class="issue-label">원문</p>
+          <p class="issue-excerpt">{{ issue.excerpt }}</p>
           {% endif %}
           <p class="issue-suggestion">{{ issue.suggestion }}</p>
         </article>
@@ -105,13 +108,16 @@
         <article class="card issue-warning">
           <p class="issue-rule">[{{ issue.rule }}]</p>
           <p class="issue-path">{{ issue.path }}</p>
-          <p class="issue-label">matched excerpt</p>
-          <p class="issue-excerpt">{{ issue.excerpt }}</p>
           {% if issue.source_text %}
-          <details class="issue-source-details" open>
-            <summary>원문 전체</summary>
-            <div class="issue-source-text">{{ issue.source_text }}</div>
+          <p class="issue-label">원문</p>
+          <div class="issue-source-text">{{ issue.source_text }}</div>
+          <details class="issue-source-details">
+            <summary>matched excerpt</summary>
+            <p class="issue-excerpt">{{ issue.excerpt }}</p>
           </details>
+          {% else %}
+          <p class="issue-label">원문</p>
+          <p class="issue-excerpt">{{ issue.excerpt }}</p>
           {% endif %}
           <p class="issue-suggestion">{{ issue.suggestion }}</p>
         </article>
@@ -123,13 +129,16 @@
         <article class="card issue-info">
           <p class="issue-rule">[{{ issue.rule }}]</p>
           <p class="issue-path">{{ issue.path }}</p>
-          <p class="issue-label">matched excerpt</p>
-          <p class="issue-excerpt">{{ issue.excerpt }}</p>
           {% if issue.source_text %}
-          <details class="issue-source-details" open>
-            <summary>원문 전체</summary>
-            <div class="issue-source-text">{{ issue.source_text }}</div>
+          <p class="issue-label">원문</p>
+          <div class="issue-source-text">{{ issue.source_text }}</div>
+          <details class="issue-source-details">
+            <summary>matched excerpt</summary>
+            <p class="issue-excerpt">{{ issue.excerpt }}</p>
           </details>
+          {% else %}
+          <p class="issue-label">원문</p>
+          <p class="issue-excerpt">{{ issue.excerpt }}</p>
           {% endif %}
           <p class="issue-suggestion">{{ issue.suggestion }}</p>
         </article>
