@@ -511,9 +511,52 @@ Provider-specific field는 `provider_usage`와 `breakdown` 아래에 둔다.
 - 기존 Stage2 enrichment / quality tests 유지
 - 관련 stage/provider tests 유지
 
+### 6.1 실제 provider run artifact smoke
+
+2026-06-06 기준 `runs/jobs/12` 실제 provider run artifact에서 token count 기록을 확인했다.
+
+Run:
+
+- run artifact: `runs/jobs/12`
+- provider: `openai`
+- model: `gpt-5.4-mini`
+
+Stage1 `stage1_results.json`:
+
+- `meta.llm_usage_totals.available`: `true`
+- `call_count`: 5
+- `input_tokens`: 13463
+- `output_tokens`: 956
+- `total_tokens`: 14419
+- `unavailable_count`: 0
+
+Stage2 `stage2_report.json`:
+
+- `meta.llm_usage.available`: `true`
+- `calls` length: 1
+- `totals.call_count`: 1
+- `input_tokens`: 15674
+- `output_tokens`: 2172
+- `total_tokens`: 17846
+- `unavailable_count`: 0
+
+Negative checks:
+
+- `raw_response` is not present in `stage1_results.json` or `stage2_report.json`.
+- `cost_estimate` is not present.
+- `provider_usage` exists and contains only the provider usage object, not the full provider response.
+- `job_events` for `job_id=12` do not contain `llm_usage` aggregate.
+- The implementation remains artifact-only: no DB schema, `analysis_reports` column, `job_events` aggregate, or Web UI display was added.
+
+Interpretation:
+
+- This is a token count smoke for artifact recording only.
+- It is not a cost estimate and does not record provider raw responses in normal success artifacts.
+- Web display, DB mapping, and `job_events` aggregate usage remain follow-up design decisions.
+
 ## 7. 남은 TODO
 
-- 실제 OpenAI/Anthropic provider run artifact smoke를 남긴다.
+- Anthropic 실제 provider run 또는 통제된 repair fixture에서 initial/repair usage 분리를 운영 artifact 기준으로 확인한다.
 - Web UI에 token usage를 표시할지 결정한다.
 - `job_events.detail_json`에 aggregate usage를 남길지 결정한다.
 - `analysis_reports` mapping 또는 별도 usage table이 필요한지 결정한다.

@@ -134,8 +134,13 @@
 - [ ] filtered reason taxonomy 품질 개선
   - `static_asset_like`, `known_baseline_like`, `crawler_or_bot_like`, `low_signal_request`, `duplicate_or_repeated_low_signal`, `outside_candidate_policy`, `context_only_represented_elsewhere`, `unknown_excluded_reason` 분류 품질을 운영 샘플로 점검한다.
   - `normal`/`benign` 확정 표현으로 되돌리지 않는다.
-- [ ] LLM token usage 실제 provider run artifact smoke
-  - OpenAI 실제 run에서 Stage1 `results[*].llm_usage`, Stage1 `meta.llm_usage_totals`, Stage2 `meta.llm_usage.calls/totals`가 채워지는지 확인한다.
+- [x] LLM token usage OpenAI 실제 provider run artifact smoke
+  - `runs/jobs/12` 실제 OpenAI run에서 Stage1 `results[*].llm_usage`, Stage1 `meta.llm_usage_totals`, Stage2 `meta.llm_usage.calls/totals`가 채워지는지 확인했다.
+  - Stage1 totals: `call_count=5`, `input_tokens=13463`, `output_tokens=956`, `total_tokens=14419`, `unavailable_count=0`.
+  - Stage2 totals: `call_count=1`, `input_tokens=15674`, `output_tokens=2172`, `total_tokens=17846`, `unavailable_count=0`.
+  - 정상 artifact에 `raw_response`와 `cost_estimate`가 없고, `job_events`에는 `llm_usage` aggregate가 없음을 확인했다.
+  - 구현 범위는 artifact-only로 유지한다.
+- [ ] LLM token usage Anthropic repair artifact smoke
   - Anthropic 실제 run 또는 통제된 repair fixture에서 initial/repair usage 분리가 운영 artifact에서도 확인되는지 점검한다.
   - dry-run은 계속 `available=false`, `dry_run_no_provider_call`로 유지한다.
 - [ ] LLM token usage Web 표시 여부 결정
