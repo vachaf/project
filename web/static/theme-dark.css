@@ -802,31 +802,53 @@
 /* ============================================
    19. 모바일 적용
    ============================================ */
-@media (max-width: 768px) {
-  [data-theme="dark"] .payload-event-table tr,
-  [data-theme="dark"] .payload-contexts-table tr {
+@media (max-width: 960px) {
+  [data-theme="dark"] .payload-page .payload-event-table tr,
+  [data-theme="dark"] .payload-page .payload-contexts-table tr {
     background: #151d30;
     border-color: #253048;
   }
 
-  [data-theme="dark"] .payload-event-table tr:hover,
-  [data-theme="dark"] .payload-contexts-table tr:hover {
+  [data-theme="dark"] .payload-page .payload-event-table tr:hover,
+  [data-theme="dark"] .payload-page .payload-contexts-table tr:hover {
     background: #1a2540;
     border-color: #334155;
   }
 
-  [data-theme="dark"] .payload-finding-row.is-selected {
+  [data-theme="dark"] .payload-page .payload-finding-row.is-selected {
     border-color: #60a5fa;
     background: rgba(96, 165, 250, 0.08);
   }
 
-  [data-theme="dark"] .payload-event-table td[data-label="uri"] {
+  [data-theme="dark"] .payload-page .payload-event-table td,
+  [data-theme="dark"] .payload-page .payload-contexts-table td {
+    color: #dbe4f0;
+    border-color: #1e2a42;
+    background: transparent;
+  }
+
+  [data-theme="dark"] .payload-page .payload-event-table td::before,
+  [data-theme="dark"] .payload-page .payload-contexts-table td::before {
+    color: #a8b3c7;
+  }
+
+  [data-theme="dark"] .payload-page .payload-event-table td[data-label="uri"] {
     background: #111828;
   }
 
-  /* 모바일 환경 주변 컨텍스트 테이블 URI 배경 처리 */
-  [data-theme="dark"] .payload-contexts-table td[data-label="uri"] {
+  [data-theme="dark"] .payload-page .payload-event-table .payload-finding-row.is-selected td,
+  [data-theme="dark"] .payload-page .payload-event-table tbody tr:hover td {
+    background: transparent;
+    border-color: #1e2a42;
+  }
+
+  [data-theme="dark"] .payload-page .payload-contexts-table td[data-label="source_ip"],
+  [data-theme="dark"] .payload-page .payload-contexts-table td[data-label="request_count"] {
     background: #111828;
+  }
+
+  [data-theme="dark"] .payload-page .payload-contexts-table td:last-child {
+    border-bottom-color: transparent;
   }
 }
 
