@@ -29,6 +29,7 @@
   - `manifest.json`
   - `export.json`
   - `llm_input.json`
+  - `filtered_reasons.json`
   - `stage1_results.json`
   - `stage2_report_input.json`
   - `stage2_report.json`
@@ -392,6 +393,7 @@ Analysis Agent:
     processed/
       <base>_llm_input.json
       <base>_analysis_candidates.json
+      <base>_filtered_reasons.json
       <base>_noise_summary.json
       <base>_stage1_results.json
       <base>_stage1_errors.json
@@ -420,6 +422,7 @@ Analysis Agent:
       manifest.json
       export.json
       llm_input.json
+      filtered_reasons.json
       noise_summary.json
       stage1_results.json
       stage2_report_input.json
@@ -429,6 +432,8 @@ Analysis Agent:
 ```
 
 DB-backed MVP에서는 job 단위 artifact root를 둔다.
+
+`filtered_reasons.json`은 prepare 단계에서 생성되는 run artifact다. 후보 분석 대상 제외 사유를 설명하지만, 제외 row를 `normal`/`benign`으로 확정하지 않는다. 현재 DB-backed `analysis_reports` mapping과 Web UI 표시는 없다.
 
 후보:
 

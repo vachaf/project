@@ -16,6 +16,7 @@
   - `manifest.json`
   - `export.json`
   - `llm_input.json`
+  - `filtered_reasons.json`
   - `stage1_results.json`
   - `stage2_report_input.json`
   - `stage2_report.json`
@@ -86,6 +87,7 @@ runs/
     manifest.json
     export.json
     llm_input.json
+    filtered_reasons.json
     stage1_results.json
     stage2_report_input.json
     stage2_report.json
@@ -172,6 +174,7 @@ manifest는 run 산출물의 단일 인덱스이자 source-of-truth로 사용한
   "files": {
     "export": "export.json",
     "llm_input": "llm_input.json",
+    "filtered_reasons": "filtered_reasons.json",
     "stage1_results": "stage1_results.json",
     "stage2_report_input": "stage2_report_input.json",
     "stage2_report_json": "stage2_report.json",
@@ -195,6 +198,7 @@ runs/<run_id>/
   manifest.json
   export.json
   llm_input.json
+  filtered_reasons.json
   stage1_results.json
   stage2_report_input.json
   stage2_report.json

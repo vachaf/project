@@ -126,6 +126,17 @@
 - [ ] optional artifact mapping 결정
   - `lint_result_path`는 schema/UI key가 있으나 현재 runner가 채우지 않는다.
   - `manifest_path`, `stage2_report_input_path`를 DB에 저장할지 결정한다.
+  - `filtered_reasons.json`은 prepare/run artifact로 생성되지만 `analysis_reports` DB mapping은 아직 없다.
+  - `filtered_reasons.json`을 DB에 mapping할지, run artifact로만 둘지 결정한다.
+- [ ] filtered reason Web display 연결 여부 결정
+  - Web dashboard/detail에서 후보 제외 사유를 표시할지 검토한다.
+  - 표시하더라도 “후보 제외 != 정상 판정”과 Apache logs-only guardrail을 함께 유지한다.
+- [ ] filtered reason taxonomy 품질 개선
+  - `static_asset_like`, `known_baseline_like`, `crawler_or_bot_like`, `low_signal_request`, `duplicate_or_repeated_low_signal`, `outside_candidate_policy`, `context_only_represented_elsewhere`, `unknown_excluded_reason` 분류 품질을 운영 샘플로 점검한다.
+  - `normal`/`benign` 확정 표현으로 되돌리지 않는다.
+- [ ] Q&A/발표 자료 wording 반영
+  - “후보 제외 != 정상 판정” 표현을 Q&A와 발표 자료에 반영한다.
+  - `status_code`, response size, route, User-Agent만으로 성공/정상/무해를 단정하지 않는다는 설명을 유지한다.
 - [ ] failed/partial artifact 정책 고도화
   - runner 실패 후 partial artifact scan/save 여부를 정한다.
   - secret redaction 기준은 유지한다.
