@@ -1,0 +1,161 @@
+{
+  "schema_version": "prepare_candidate_selection_eval.v1",
+  "description": "Request-id aligned labels for runs/jobs/12 prepare candidate selection smoke. Labels measure candidate inclusion expectation only.",
+  "label_policy": {
+    "candidate_expected": "Human expects prepare to include this request as a candidate.",
+    "candidate_not_expected": "Human does not expect this request to be included as a candidate.",
+    "unsure": "Insufficient or ambiguous Apache log evidence for evaluation."
+  },
+  "source_artifacts": {
+    "analysis_candidates": "runs/jobs/12/analysis_candidates.json",
+    "filtered_reasons": "runs/jobs/12/filtered_reasons.json"
+  },
+  "guardrails": [
+    "candidate_expected_does_not_mean_attack_success",
+    "candidate_not_expected_does_not_mean_benign",
+    "apache_logs_only_no_success_inference",
+    "status_code_response_size_route_or_user_agent_do_not_prove_success_or_benign"
+  ],
+  "items": [
+    {
+      "request_id": "ahHdrAnjIi69un7cHKfB-AAAAAI",
+      "source": "runs/jobs/12/analysis_candidates.json",
+      "method": "POST",
+      "uri": "/login.php",
+      "status_code": 401,
+      "human_label": "candidate_expected",
+      "reason": "auth_behavior_signal",
+      "notes": "Auth endpoint with error-linked signal; candidate expectation only and does not imply success or compromise."
+    },
+    {
+      "request_id": "ahHdyM7YFVDaJnBoRkExtAAAAAQ",
+      "source": "runs/jobs/12/analysis_candidates.json",
+      "method": "GET",
+      "uri": "/private/secret.txt",
+      "status_code": 403,
+      "human_label": "candidate_expected",
+      "reason": "sensitive_path_probe",
+      "notes": "Sensitive path request with denial metadata; does not imply exposure or benignness."
+    },
+    {
+      "request_id": "ahHdwc7YFVDaJnBoRkExsgAAAAQ",
+      "source": "runs/jobs/12/analysis_candidates.json",
+      "method": "GET",
+      "uri": "/error.php?mode=403",
+      "status_code": 403,
+      "human_label": "candidate_expected",
+      "reason": "protocol_anomaly_signal",
+      "notes": "Error-generating request selected for candidate review; does not imply exploit success."
+    },
+    {
+      "request_id": "ahHdvB5LF9NaBEDjFml1pwAAAAM",
+      "source": "runs/jobs/12/analysis_candidates.json",
+      "method": "GET",
+      "uri": "/error.php?mode=500",
+      "status_code": 500,
+      "human_label": "candidate_expected",
+      "reason": "protocol_anomaly_signal",
+      "notes": "Server-error-linked request selected for review; status code alone is not success evidence."
+    },
+    {
+      "request_id": "ahHduAnjIi69un7cHKfB-wAAAAI",
+      "source": "runs/jobs/12/analysis_candidates.json",
+      "method": "POST",
+      "uri": "/upload.php",
+      "status_code": 400,
+      "human_label": "candidate_expected",
+      "reason": "sqli_probe",
+      "notes": "Upload request has weak SQL/comment and upload context signals; candidate expectation does not imply upload or SQLi success."
+    },
+    {
+      "request_id": "ahHdnOn_IYKI7bMYR_TtAwAAAAY",
+      "source": "runs/jobs/12/filtered_reasons.json",
+      "method": "GET",
+      "uri": "/index.php",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "crawler_or_baseline_like",
+      "notes": "Baseline-like page request in this artifact; candidate_not_expected does not imply benign or normal."
+    },
+    {
+      "request_id": "ahHdn-n_IYKI7bMYR_TtBAAAAAY",
+      "source": "runs/jobs/12/filtered_reasons.json",
+      "method": "GET",
+      "uri": "/search.php",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "crawler_or_baseline_like",
+      "notes": "Baseline-like search page request; candidate exclusion expectation is not a benign verdict."
+    },
+    {
+      "request_id": "ahHdoen_IYKI7bMYR_TtBQAAAAY",
+      "source": "runs/jobs/12/filtered_reasons.json",
+      "method": "GET",
+      "uri": "/search.php",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "crawler_or_baseline_like",
+      "notes": "Repeated baseline-like search request; does not imply success or benignness."
+    },
+    {
+      "request_id": "ahHdqAnjIi69un7cHKfB9wAAAAI",
+      "source": "runs/jobs/12/filtered_reasons.json",
+      "method": "GET",
+      "uri": "/login.php",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "crawler_or_baseline_like",
+      "notes": "Baseline-like login page GET in this artifact; not a normal/benign label."
+    },
+    {
+      "request_id": "ahHdsAnjIi69un7cHKfB-QAAAAI",
+      "source": "runs/jobs/12/filtered_reasons.json",
+      "method": "GET",
+      "uri": "/upload.php",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "crawler_or_baseline_like",
+      "notes": "Baseline-like upload page GET; candidate_not_expected does not imply benign."
+    },
+    {
+      "request_id": "ahHdtAnjIi69un7cHKfB-gAAAAI",
+      "source": "runs/jobs/12/filtered_reasons.json",
+      "method": "POST",
+      "uri": "/upload.php",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "crawler_or_baseline_like",
+      "notes": "Baseline-like upload POST in this artifact; status code is not used as success or benign evidence."
+    },
+    {
+      "request_id": "ahHduh5LF9NaBEDjFml1pgAAAAM",
+      "source": "runs/jobs/12/filtered_reasons.json",
+      "method": "GET",
+      "uri": "/upload.php",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "crawler_or_baseline_like",
+      "notes": "Baseline-like upload page request; candidate exclusion expectation is not a safety verdict."
+    },
+    {
+      "request_id": "ahHdxM7YFVDaJnBoRkExswAAAAQ",
+      "source": "runs/jobs/12/filtered_reasons.json",
+      "method": "GET",
+      "uri": "/error.php",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "crawler_or_baseline_like",
+      "notes": "Baseline-like error route GET without error status in this artifact; does not imply benign."
+    },
+    {
+      "request_id": "ahHdy87YFVDaJnBoRkExtQAAAAQ",
+      "source": "runs/jobs/12/filtered_reasons.json",
+      "method": "GET",
+      "uri": "/missing-file",
+      "status_code": 404,
+      "human_label": "unsure",
+      "reason": "insufficient_log_evidence",
+      "notes": "Ambiguous missing-file 404; excluded from metric and does not imply success or benignness."
+    }
+  ]
+}

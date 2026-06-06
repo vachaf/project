@@ -170,7 +170,7 @@ Validation:
 
 이 평가는 regression guard로 사용한다. 작은 데이터셋 점수만으로 policy 품질을 일반화하지 않는다.
 
-## Smoke result: actual run artifact
+## Smoke result: minimal manual labels against actual run artifact
 
 2026-06-06에 실제 run artifact를 대상으로 스크립트 smoke를 수행했다.
 
@@ -228,11 +228,70 @@ False negatives:
 
 Interpretation:
 
-- This is a prepare candidate selection smoke result, not an intrusion detection success metric.
+- This is a script smoke only prepare candidate selection result, not an intrusion detection success metric.
 - The minimal label dataset currently uses `minimal_manual_fixture` request IDs, while `runs/jobs/12` contains actual run request IDs. Therefore the score mainly confirms script execution, artifact parsing, and guardrail reporting against a real run artifact.
 - `candidate_expected` does not mean attack success.
 - `candidate_not_expected` does not mean benign/normal.
 - This smoke does not evaluate Stage1/Stage2 accuracy.
+
+## Metric result: jobs/12 request-id aligned labelset
+
+2026-06-06에 `runs/jobs/12` 실제 request_id를 사용하는 small labelset을 추가하고, 같은 run artifact를 대상으로 candidate selection metric을 산출했다.
+
+Input:
+
+- labels: `data/eval/prepare_candidate_selection_jobs12.json`
+- analysis candidates: `runs/jobs/12/analysis_candidates.json`
+- filtered reasons: `runs/jobs/12/filtered_reasons.json`
+
+Labelset:
+
+- `total_labeled`: 14
+- `candidate_expected`: 5
+- `candidate_not_expected`: 8
+- `unsure`: 1
+- `unsure` row: `/missing-file` 404, `insufficient_log_evidence`
+
+Command:
+
+```bash
+python3 scripts/eval_prepare_candidate_selection.py \
+  --labels data/eval/prepare_candidate_selection_jobs12.json \
+  --analysis-candidates runs/jobs/12/analysis_candidates.json \
+  --filtered-reasons runs/jobs/12/filtered_reasons.json \
+  --json
+```
+
+Result:
+
+- `candidate_count`: 5
+- `total_labeled`: 14
+- `evaluated_count`: 13
+- `unsure_count`: 1
+- `tp`: 5
+- `fp`: 0
+- `fn`: 0
+- `tn`: 8
+- `precision`: 1.0
+- `recall`: 1.0
+- `f1`: 1.0
+- `warnings`: none
+
+False positives:
+
+- none
+
+False negatives:
+
+- none
+
+Interpretation:
+
+- This is a prepare candidate selection metric for one small project-local run artifact, not an intrusion detection success metric.
+- The labels evaluate request inclusion in `analysis_candidates.json`; they do not evaluate Stage1/Stage2 accuracy.
+- `candidate_expected` does not mean attack success, browser execution, data disclosure, or compromise.
+- `candidate_not_expected` does not mean benign/normal.
+- `filtered_reasons.json` rows are used only to explain candidate exclusion, not to assert harmlessness.
 
 ## 후속 TODO
 

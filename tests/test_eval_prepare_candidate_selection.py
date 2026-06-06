@@ -170,3 +170,36 @@ def test_filtered_reasons_loader_supports_excluded_wrapper(tmp_path: Path) -> No
             "reason_detail": "static extension",
         }
     }
+
+
+def test_jobs12_labelset_matches_actual_artifact_request_ids() -> None:
+    module = load_module()
+    labels_path = PROJECT_ROOT / "data" / "eval" / "prepare_candidate_selection_jobs12.json"
+    candidates_path = PROJECT_ROOT / "runs" / "jobs" / "12" / "analysis_candidates.json"
+    filtered_path = PROJECT_ROOT / "runs" / "jobs" / "12" / "filtered_reasons.json"
+
+    label_items = module.load_label_items(labels_path)
+    candidate_ids, warnings = module.load_candidate_request_ids(candidates_path)
+    filtered_reason_map = module.load_filtered_reason_map(filtered_path)
+    label_ids = {item["request_id"] for item in label_items}
+
+    assert len(label_items) == 14
+    assert warnings == []
+    assert label_ids == candidate_ids | set(filtered_reason_map)
+    assert not {item["human_label"] for item in label_items} & module.FORBIDDEN_LABELS
+
+    result = module.evaluate_candidate_selection(
+        label_items,
+        candidate_ids,
+        filtered_reason_map=filtered_reason_map,
+        warnings=warnings,
+    )
+
+    assert result["tp"] == 5
+    assert result["fp"] == 0
+    assert result["fn"] == 0
+    assert result["tn"] == 8
+    assert result["unsure_count"] == 1
+    assert result["precision"] == pytest.approx(1.0)
+    assert result["recall"] == pytest.approx(1.0)
+    assert result["f1"] == pytest.approx(1.0)
