@@ -232,9 +232,9 @@
 
 .job-filter-form {
   display: grid;
-  grid-template-columns: minmax(9rem, 1fr) minmax(9rem, 1fr) minmax(9rem, 1fr) auto auto;
+  grid-template-columns: 0.8fr 1.2fr 1.2fr auto auto;
   gap: 0.85rem;
-  align-items: end;
+  align-items: center;
   margin-top: 1rem;
 }
 
@@ -248,8 +248,8 @@
 
 .job-filter-select,
 .job-filter-input {
-  width: 100%;
   min-height: 2.35rem;
+  min-width: 0;
   border: 1px solid var(--job-border);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.035);
