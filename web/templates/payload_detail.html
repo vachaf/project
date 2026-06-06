@@ -70,24 +70,28 @@
   {% set filtered_out_breakdown = payload_noise.get('filtered_out_breakdown') if payload_noise.get('filtered_out_breakdown') is mapping else {} %}
   {% macro safe_report_text(value) -%}
     {{- (value|string)
+      |replace('benign_normal_search', 'Baseline-like candidate-excluded context')
+      |replace('normal_search_baseline', 'Baseline-like candidate-excluded context')
       |replace('known_baseline_like_legacy_alias', 'Baseline-like legacy context')
       |replace('known_baseline_like', 'Baseline-like context')
       |replace('candidate_excluded', 'Candidate-excluded rows')
       |replace('low_signal_request', 'Low-signal request pattern')
       |replace('crawler_or_bot_like', 'Crawler/bot-like context')
       |replace('static_asset_like', 'Static asset-like request')
-      |replace('benign_normal_search', 'Baseline-like legacy context')
-      |replace('normal_search_baseline', 'Baseline-like legacy context')
       |replace('benign', 'baseline-like')
       |replace(' normal ', ' baseline-like ')
       |replace('Normal', 'Baseline-like')
-      |replace('정상', '기준선 유사')
-      |replace('무해', '안전 확정 불가')
+      |replace('정상', 'baseline-like')
+      |replace('무해', 'not a safety verdict')
     -}}
   {%- endmacro %}
   {% macro display_taxonomy_label(value) -%}
     {% set text = value|string %}
-    {% if text == 'known_baseline_like_legacy_alias' %}
+    {% if text == 'benign_normal_search' %}
+      Baseline-like candidate-excluded context
+    {% elif text == 'normal_search_baseline' %}
+      Baseline-like candidate-excluded context
+    {% elif text == 'known_baseline_like_legacy_alias' %}
       Baseline-like legacy context
     {% elif text == 'known_baseline_like' %}
       Baseline-like context
@@ -100,7 +104,7 @@
     {% elif text == 'static_asset_like' %}
       Static asset-like request
     {% else %}
-      {{- text|replace('_', ' ')|capitalize -}}
+      Additional candidate-excluded context
     {% endif %}
   {%- endmacro %}
 

@@ -157,6 +157,7 @@ def make_human_viewer_payload() -> dict[str, Any]:
     }
     payload["noise"] = {
         "filtered_out_breakdown": {
+            "benign_normal_search": 3,
             "known_baseline_like_legacy_alias": 2,
             "low_signal_request": 1,
         }
@@ -236,8 +237,11 @@ def test_job_viewer_route_renders_report_level_human_sections(
     assert "203.0.113.88" in body
     assert "Candidate-Excluded / Context Notes" in body
     assert "Candidate-excluded rows are context for review, not safety verdicts." in body
+    assert "Baseline-like candidate-excluded context" in body
     assert "Baseline-like legacy context" in body
     assert "Low-signal request pattern" in body
+    assert "Benign normal search" not in body
+    assert "benign_normal_search" not in body
     assert "known_baseline_like_legacy_alias" not in body
     assert "Report-Level Recommended Actions" in body
     assert "Review matching application logs." in body
