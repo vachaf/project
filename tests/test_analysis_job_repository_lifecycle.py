@@ -145,6 +145,27 @@ class FakeCursor:
                 self.rowcount = 1
             return
 
+        if (
+            "update analysis_jobs set status = 'failed'" in normalized
+            and "analysis_mode = 'full_report'" in normalized
+            and "heartbeat_at is not null" in normalized
+            and "heartbeat_at is null" in normalized
+        ):
+            error_message, job_id, stale_after_minutes, startup_grace_minutes = params
+            job = self._job(int(job_id))
+            if job and _is_fake_stale_job(
+                job,
+                current_time=self.db.current_time,
+                stale_after_minutes=int(stale_after_minutes),
+                startup_grace_minutes=int(startup_grace_minutes),
+            ):
+                job["status"] = "FAILED"
+                job["finished_at"] = self.db.now()
+                job["heartbeat_at"] = self.db.now()
+                job["error_message"] = error_message
+                self.rowcount = 1
+            return
+
         if "update analysis_jobs set status = 'failed'" in normalized:
             error_message, job_id, worker_id = params
             job = self._job(int(job_id))
@@ -264,6 +285,24 @@ def _parse_fake_datetime(value: Any) -> Optional[datetime]:
     if isinstance(value, datetime):
         return value
     return datetime.fromisoformat(str(value).replace(" ", "T"))
+
+
+def _is_fake_stale_job(
+    row: Dict[str, Any],
+    *,
+    current_time: datetime,
+    stale_after_minutes: int,
+    startup_grace_minutes: int,
+) -> bool:
+    if row["status"] != "RUNNING" or row["analysis_mode"] != "full_report":
+        return False
+    heartbeat_at = _parse_fake_datetime(row.get("heartbeat_at"))
+    started_at = _parse_fake_datetime(row.get("started_at"))
+    stale_cutoff = current_time - timedelta(minutes=stale_after_minutes)
+    startup_cutoff = current_time - timedelta(minutes=startup_grace_minutes)
+    return (heartbeat_at is not None and heartbeat_at < stale_cutoff) or (
+        heartbeat_at is None and started_at is not None and started_at < startup_cutoff
+    )
 
 
 def test_claim_next_pending_full_report_job_moves_job_to_running_and_returns_row() -> None:
@@ -651,3 +690,143 @@ def test_find_stale_running_jobs_clamps_limit_to_100() -> None:
 
     assert len(candidates) == 100
     assert "limit 100" in db.sql_statements[-1]
+
+
+def test_mark_stale_job_failed_updates_only_stale_running_full_report_job_and_appends_event() -> None:
+    db = FakeDb(
+        [
+            make_job(
+                id=1,
+                status="RUNNING",
+                worker_id="worker-old",
+                started_at="2026-06-01 10:50:00.000",
+                heartbeat_at="2026-06-01 11:00:00.000",
+                attempt_count=1,
+                max_attempts=3,
+                artifact_root="runs/jobs/1",
+                error_message=None,
+            ),
+            make_job(
+                id=2,
+                status="RUNNING",
+                worker_id="worker-fresh",
+                started_at="2026-06-01 11:40:00.000",
+                heartbeat_at="2026-06-01 11:45:00.000",
+                attempt_count=1,
+                max_attempts=3,
+                artifact_root="runs/jobs/2",
+                error_message=None,
+            ),
+        ]
+    )
+    repo = make_repo(db)
+
+    changed = repo.mark_stale_job_failed(
+        job_id=1,
+        reason="manual smoke confirmed worker stopped",
+        stale_after_minutes=30,
+        startup_grace_minutes=5,
+        detail_json={"operator_reason": "manual smoke confirmed worker stopped"},
+    )
+
+    assert changed is True
+    assert db.jobs[0]["status"] == "FAILED"
+    assert db.jobs[0]["finished_at"] is not None
+    assert db.jobs[0]["heartbeat_at"] is not None
+    assert db.jobs[0]["error_message"] == "Marked FAILED by operator: manual smoke confirmed worker stopped"
+    assert db.jobs[0]["artifact_root"] == "runs/jobs/1"
+    assert db.jobs[0]["attempt_count"] == 1
+    assert db.jobs[0]["max_attempts"] == 3
+    assert db.jobs[1]["status"] == "RUNNING"
+    assert db.events[0]["event_type"] == "JOB_MARKED_FAILED_STALE"
+    assert db.events[0]["message"] == "Marked FAILED by operator: manual smoke confirmed worker stopped"
+    assert json.loads(db.events[0]["detail_json"]) == {
+        "operator_reason": "manual smoke confirmed worker stopped"
+    }
+    assert db.commits == 1
+
+
+def test_mark_stale_job_failed_can_update_missing_heartbeat_after_startup_grace() -> None:
+    db = FakeDb(
+        [
+            make_job(
+                id=1,
+                status="RUNNING",
+                started_at="2026-06-01 11:00:00.000",
+                heartbeat_at=None,
+                error_message=None,
+            )
+        ]
+    )
+    repo = make_repo(db)
+
+    assert repo.mark_stale_job_failed(job_id=1, reason="startup heartbeat missing") is True
+
+    assert db.jobs[0]["status"] == "FAILED"
+    assert db.events[0]["event_type"] == "JOB_MARKED_FAILED_STALE"
+
+
+def test_mark_stale_job_failed_protects_fresh_wrong_status_and_wrong_mode_jobs() -> None:
+    db = FakeDb(
+        [
+            make_job(
+                id=1,
+                status="RUNNING",
+                started_at="2026-06-01 11:40:00.000",
+                heartbeat_at="2026-06-01 11:45:00.000",
+                error_message=None,
+            ),
+            make_job(
+                id=2,
+                status="PENDING",
+                started_at="2026-06-01 10:00:00.000",
+                heartbeat_at="2026-06-01 10:00:00.000",
+            ),
+            make_job(
+                id=3,
+                status="SUCCEEDED",
+                started_at="2026-06-01 10:00:00.000",
+                heartbeat_at="2026-06-01 10:00:00.000",
+            ),
+            make_job(
+                id=4,
+                status="FAILED",
+                started_at="2026-06-01 10:00:00.000",
+                heartbeat_at="2026-06-01 10:00:00.000",
+            ),
+            make_job(
+                id=5,
+                status="RUNNING",
+                analysis_mode="windowed_triage",
+                started_at="2026-06-01 10:00:00.000",
+                heartbeat_at="2026-06-01 10:00:00.000",
+            ),
+        ]
+    )
+    repo = make_repo(db)
+
+    for job_id in range(1, 6):
+        assert repo.mark_stale_job_failed(job_id=job_id, reason="should not apply") is False
+
+    assert [job["status"] for job in db.jobs] == [
+        "RUNNING",
+        "PENDING",
+        "SUCCEEDED",
+        "FAILED",
+        "RUNNING",
+    ]
+    assert db.events == []
+    assert db.commits == 0
+    assert db.rollbacks == 5
+
+
+def test_mark_stale_job_failed_requires_reason() -> None:
+    db = FakeDb([make_job(status="RUNNING")])
+    repo = make_repo(db)
+
+    try:
+        repo.mark_stale_job_failed(job_id=1, reason=" ")
+    except Exception as exc:
+        assert "reason is required" in str(exc)
+    else:
+        raise AssertionError("mark_stale_job_failed should require reason")

@@ -484,6 +484,77 @@ class AnalysisJobRepository:
                 conn.rollback()
                 raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
 
+    def mark_stale_job_failed(
+        self,
+        *,
+        job_id: int,
+        reason: str,
+        stale_after_minutes: int = 30,
+        startup_grace_minutes: int = 5,
+        detail_json: Optional[Any] = None,
+    ) -> bool:
+        safe_reason = redact_secret_text(str(reason or "").strip())
+        if not safe_reason:
+            raise AnalysisJobRepositoryError("reason is required")
+        safe_error = f"Marked FAILED by operator: {safe_reason}"
+        safe_stale_after_minutes = max(1, int(stale_after_minutes))
+        safe_startup_grace_minutes = max(1, int(startup_grace_minutes))
+        with self.connection_factory() as conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("START TRANSACTION")
+                    cur.execute(
+                        """
+                        UPDATE analysis_jobs
+                        SET status = 'FAILED',
+                            finished_at = UTC_TIMESTAMP(3),
+                            heartbeat_at = UTC_TIMESTAMP(3),
+                            error_message = %s
+                        WHERE id = %s
+                          AND status = 'RUNNING'
+                          AND analysis_mode = 'full_report'
+                          AND (
+                            (
+                              heartbeat_at IS NOT NULL
+                              AND heartbeat_at < UTC_TIMESTAMP(3) - INTERVAL %s MINUTE
+                            )
+                            OR (
+                              heartbeat_at IS NULL
+                              AND started_at < UTC_TIMESTAMP(3) - INTERVAL %s MINUTE
+                            )
+                          )
+                        """,
+                        (
+                            safe_error,
+                            int(job_id),
+                            safe_stale_after_minutes,
+                            safe_startup_grace_minutes,
+                        ),
+                    )
+                    if cur.rowcount != 1:
+                        conn.rollback()
+                        return False
+                    cur.execute(
+                        """
+                        INSERT INTO job_events (
+                            job_id, event_time, event_type, message, detail_json
+                        ) VALUES (
+                            %s, UTC_TIMESTAMP(3), %s, %s, %s
+                        )
+                        """,
+                        (
+                            int(job_id),
+                            "JOB_MARKED_FAILED_STALE",
+                            safe_error,
+                            _event_detail_json(detail_json),
+                        ),
+                    )
+                conn.commit()
+                return True
+            except Exception as exc:
+                conn.rollback()
+                raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
+
     def mark_job_succeeded(
         self,
         *,

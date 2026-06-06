@@ -172,6 +172,77 @@ def run_recover_stale_dry_run(
     return 0
 
 
+def run_recover_stale_mark_failed(
+    repository: Any,
+    *,
+    reason: str,
+    stale_after_minutes: int = 30,
+    startup_grace_minutes: int = 5,
+    limit: int = 20,
+    stdout: TextIO = sys.stdout,
+) -> int:
+    candidates = repository.find_stale_running_jobs(
+        stale_after_minutes=stale_after_minutes,
+        startup_grace_minutes=startup_grace_minutes,
+        limit=limit,
+    )
+    print(
+        "[analysis-job-worker] stale RUNNING recovery mark-failed "
+        f"candidate_count={len(candidates)} "
+        f"stale_after_minutes={stale_after_minutes} "
+        f"startup_grace_minutes={startup_grace_minutes} "
+        f"limit={limit}",
+        file=stdout,
+    )
+    if not candidates:
+        print("[analysis-job-worker] no stale RUNNING candidates", file=stdout)
+        return 0
+
+    marked_count = 0
+    skipped_count = 0
+    for candidate in candidates:
+        stale_reason = _stale_candidate_reason(candidate)
+        detail_json = {
+            "operator_reason": reason,
+            "stale_reason": stale_reason,
+            "worker_id": candidate.get("worker_id"),
+            "started_at": _format_cli_value(candidate.get("started_at")),
+            "heartbeat_at": _format_cli_value(candidate.get("heartbeat_at")),
+            "artifact_root": candidate.get("artifact_root"),
+        }
+        changed = repository.mark_stale_job_failed(
+            job_id=int(candidate.get("id")),
+            reason=reason,
+            stale_after_minutes=stale_after_minutes,
+            startup_grace_minutes=startup_grace_minutes,
+            detail_json=detail_json,
+        )
+        if changed:
+            marked_count += 1
+            action = "marked_failed"
+        else:
+            skipped_count += 1
+            action = "skipped_not_stale"
+        print(
+            "[analysis-job-worker] stale candidate "
+            f"job_id={candidate.get('id')} "
+            f"worker_id={_format_cli_value(candidate.get('worker_id'))} "
+            f"started_at={_format_cli_value(candidate.get('started_at'))} "
+            f"heartbeat_at={_format_cli_value(candidate.get('heartbeat_at'))} "
+            f"attempts={candidate.get('attempt_count')}/{candidate.get('max_attempts')} "
+            f"artifact_root={_format_cli_value(candidate.get('artifact_root'))} "
+            f"reason={stale_reason} "
+            f"action={action}",
+            file=stdout,
+        )
+    print(
+        "[analysis-job-worker] stale RUNNING recovery mark-failed complete "
+        f"marked_count={marked_count} skipped_count={skipped_count}",
+        file=stdout,
+    )
+    return 0
+
+
 def _run_claimed_pipeline(
     repository: Any,
     claimed: Mapping[str, Any],
@@ -403,6 +474,12 @@ def _format_cli_value(value: Any) -> str:
     return str(value)
 
 
+def _stale_candidate_reason(candidate: Mapping[str, Any]) -> str:
+    if candidate.get("heartbeat_at") is None:
+        return "missing_heartbeat_startup_grace"
+    return "stale_heartbeat"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Analysis Job Worker for DB-backed full_report jobs"
@@ -470,7 +547,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="required with --recover-stale; do not modify jobs",
+        help="with --recover-stale, list candidates without modifying jobs",
+    )
+    parser.add_argument(
+        "--mark-failed",
+        action="store_true",
+        help="with --recover-stale, mark stale RUNNING candidates FAILED",
+    )
+    parser.add_argument(
+        "--reason",
+        default=None,
+        help="operator reason required with --recover-stale --mark-failed",
     )
     parser.add_argument(
         "--stale-after-minutes",
@@ -510,13 +597,30 @@ def main(
         parser.error("--startup-grace-minutes must be greater than or equal to 1")
     if args.limit < 1 or args.limit > 100:
         parser.error("--limit must be between 1 and 100")
+    if not args.recover_stale and args.mark_failed:
+        parser.error("--mark-failed requires --recover-stale")
+    if not args.recover_stale and args.reason is not None:
+        parser.error("--reason requires --recover-stale --mark-failed")
     if args.recover_stale:
-        if not args.dry_run:
-            parser.error("--recover-stale currently supports only --dry-run")
+        if args.dry_run and args.mark_failed:
+            parser.error("--dry-run cannot be used with --mark-failed")
+        if not args.dry_run and not args.mark_failed:
+            parser.error("--recover-stale requires either --dry-run or --mark-failed")
+        if args.mark_failed and not str(args.reason or "").strip():
+            parser.error("--reason is required with --recover-stale --mark-failed")
         if args.once or args.claim_only or args.run_pipeline or args.pipeline_dry_run:
             parser.error("--recover-stale cannot be combined with worker claim/run options")
         try:
             repository = repository_factory()
+            if args.mark_failed:
+                return run_recover_stale_mark_failed(
+                    repository,
+                    reason=str(args.reason or "").strip(),
+                    stale_after_minutes=args.stale_after_minutes,
+                    startup_grace_minutes=args.startup_grace_minutes,
+                    limit=args.limit,
+                    stdout=stdout,
+                )
             return run_recover_stale_dry_run(
                 repository,
                 stale_after_minutes=args.stale_after_minutes,

@@ -30,6 +30,7 @@ class FakeRepository:
         self.claim_worker_id: Optional[str] = None
         self.claim_calls = 0
         self.stale_calls: list[Dict[str, Any]] = []
+        self.stale_failed_calls: list[Dict[str, Any]] = []
         self.heartbeat_calls: list[Dict[str, Any]] = []
         self.events: list[Dict[str, Any]] = []
         self.upsert_calls: list[Dict[str, Any]] = []
@@ -52,6 +53,24 @@ class FakeRepository:
     def find_stale_running_jobs(self, **kwargs: Any) -> list[Dict[str, Any]]:
         self.stale_calls.append(kwargs)
         return self.stale_jobs
+
+    def mark_stale_job_failed(self, **kwargs: Any) -> bool:
+        self.stale_failed_calls.append(kwargs)
+        job_id = int(kwargs["job_id"])
+        for job in self.stale_jobs:
+            if int(job["id"]) == job_id and job["status"] == "RUNNING":
+                job["status"] = "FAILED"
+                job["error_message"] = f"Marked FAILED by operator: {kwargs['reason']}"
+                self.events.append(
+                    {
+                        "job_id": job_id,
+                        "event_type": "JOB_MARKED_FAILED_STALE",
+                        "message": job["error_message"],
+                        "detail_json": kwargs.get("detail_json"),
+                    }
+                )
+                return True
+        return False
 
     def append_job_event(self, **kwargs: Any) -> None:
         self.events.append(kwargs)
@@ -369,6 +388,128 @@ def test_recover_stale_without_dry_run_is_unsupported_and_does_not_mutate() -> N
     assert repo.failed_calls == 0
     assert stale_job["status"] == "RUNNING"
     assert stale_job["artifact_root"] == "runs/jobs/123"
+
+
+def test_recover_stale_mark_failed_marks_candidates_and_records_events() -> None:
+    stale_with_heartbeat = stale_running_job(job_id=123)
+    stale_missing_heartbeat = stale_running_job(job_id=124, heartbeat_at=None)
+    repo = FakeRepository(stale_jobs=[stale_with_heartbeat, stale_missing_heartbeat])
+    stdout = StringIO()
+
+    exit_code = analysis_job_worker.main(
+        [
+            "--recover-stale",
+            "--mark-failed",
+            "--reason",
+            "manual smoke confirmed worker stopped",
+            "--stale-after-minutes",
+            "30",
+            "--startup-grace-minutes",
+            "5",
+            "--limit",
+            "20",
+        ],
+        repository_factory=lambda: repo,
+        stdout=stdout,
+        stderr=StringIO(),
+    )
+
+    output = stdout.getvalue()
+    assert exit_code == 0
+    assert repo.stale_calls == [
+        {"stale_after_minutes": 30, "startup_grace_minutes": 5, "limit": 20}
+    ]
+    assert [call["job_id"] for call in repo.stale_failed_calls] == [123, 124]
+    assert all(call["reason"] == "manual smoke confirmed worker stopped" for call in repo.stale_failed_calls)
+    assert repo.stale_failed_calls[0]["detail_json"]["stale_reason"] == "stale_heartbeat"
+    assert repo.stale_failed_calls[1]["detail_json"]["stale_reason"] == "missing_heartbeat_startup_grace"
+    assert stale_with_heartbeat["status"] == "FAILED"
+    assert stale_missing_heartbeat["status"] == "FAILED"
+    assert stale_with_heartbeat["artifact_root"] == "runs/jobs/123"
+    assert stale_with_heartbeat["attempt_count"] == 1
+    assert len(repo.events) == 2
+    assert repo.events[0]["event_type"] == "JOB_MARKED_FAILED_STALE"
+    assert "candidate_count=2" in output
+    assert "job_id=123" in output
+    assert "reason=stale_heartbeat action=marked_failed" in output
+    assert "job_id=124" in output
+    assert "reason=missing_heartbeat_startup_grace action=marked_failed" in output
+    assert "marked_count=2 skipped_count=0" in output
+    assert repo.claim_calls == 0
+    assert repo.succeeded_calls == 0
+    assert repo.failed_calls == 0
+
+
+def test_recover_stale_mark_failed_returns_zero_when_no_candidates() -> None:
+    repo = FakeRepository(stale_jobs=[])
+    stdout = StringIO()
+
+    exit_code = analysis_job_worker.main(
+        ["--recover-stale", "--mark-failed", "--reason", "manual check"],
+        repository_factory=lambda: repo,
+        stdout=stdout,
+        stderr=StringIO(),
+    )
+
+    assert exit_code == 0
+    assert repo.stale_calls == [
+        {"stale_after_minutes": 30, "startup_grace_minutes": 5, "limit": 20}
+    ]
+    assert repo.stale_failed_calls == []
+    assert repo.events == []
+    assert "candidate_count=0" in stdout.getvalue()
+    assert "no stale RUNNING candidates" in stdout.getvalue()
+
+
+def test_recover_stale_dry_run_and_mark_failed_are_mutually_exclusive() -> None:
+    repo = FakeRepository(stale_jobs=[stale_running_job()])
+
+    with pytest.raises(SystemExit) as exc:
+        analysis_job_worker.main(
+            ["--recover-stale", "--dry-run", "--mark-failed", "--reason", "manual check"],
+            repository_factory=lambda: repo,
+            stdout=StringIO(),
+            stderr=StringIO(),
+        )
+
+    assert exc.value.code == 2
+    assert repo.stale_calls == []
+    assert repo.stale_failed_calls == []
+    assert repo.events == []
+
+
+def test_recover_stale_mark_failed_requires_reason() -> None:
+    repo = FakeRepository(stale_jobs=[stale_running_job()])
+
+    with pytest.raises(SystemExit) as exc:
+        analysis_job_worker.main(
+            ["--recover-stale", "--mark-failed"],
+            repository_factory=lambda: repo,
+            stdout=StringIO(),
+            stderr=StringIO(),
+        )
+
+    assert exc.value.code == 2
+    assert repo.stale_calls == []
+    assert repo.stale_failed_calls == []
+    assert repo.events == []
+
+
+def test_mark_failed_without_recover_stale_is_argparse_error() -> None:
+    repo = FakeRepository(stale_jobs=[stale_running_job()])
+
+    with pytest.raises(SystemExit) as exc:
+        analysis_job_worker.main(
+            ["--mark-failed", "--reason", "manual check"],
+            repository_factory=lambda: repo,
+            stdout=StringIO(),
+            stderr=StringIO(),
+        )
+
+    assert exc.value.code == 2
+    assert repo.stale_calls == []
+    assert repo.stale_failed_calls == []
+    assert repo.events == []
 
 
 def test_build_default_worker_id_uses_hostname_and_pid(monkeypatch: Any) -> None:
