@@ -1233,3 +1233,7 @@
   border-color: rgba(96, 165, 250, 0.3);
   color: #bfdbfe;
 }
+
+input[type="date"] {
+    color-scheme: dark !important;
+}

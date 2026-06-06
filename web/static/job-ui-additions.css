@@ -772,3 +772,7 @@ html:not([data-theme="dark"]) .job-stat-card:hover {
   border-color: rgba(10, 124, 74, 0.35);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
+
+input[type="date"] {
+    color-scheme: light !important;
+}
