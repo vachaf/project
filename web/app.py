@@ -678,6 +678,16 @@ def job_viewer_payload(request: Request, job_id: int):
     contexts_preview = sanitize_payload_contexts(payload_obj.get("contexts"), payload_summary.get("contexts_preview"))
     findings_display = _apply_src_ip_display_mode(findings, mask_src_ip)
     contexts_preview_display = _apply_src_ip_display_mode(contexts_preview, mask_src_ip)
+    payload_report = payload_obj.get("report") if isinstance(payload_obj.get("report"), dict) else {}
+    report_source_ips = [
+        {
+            "src_ip": str(row.get("src_ip") or row.get("source_ip") or "-"),
+            "reason": str(row.get("reason") or "-"),
+        }
+        for row in payload_report.get("notable_source_ips", [])
+        if isinstance(row, dict)
+    ]
+    report_source_ips_display = _apply_src_ip_display_mode(report_source_ips, mask_src_ip)
 
     return templates.TemplateResponse(
         request=request,
@@ -692,6 +702,7 @@ def job_viewer_payload(request: Request, job_id: int):
             "findings_display": findings_display,
             "contexts_preview": contexts_preview,
             "contexts_preview_display": contexts_preview_display,
+            "report_source_ips_display": report_source_ips_display,
             "mask_src_ip": mask_src_ip,
             "back_url": f"/job/{job_id}",
             "back_label": "Back To Job Detail",

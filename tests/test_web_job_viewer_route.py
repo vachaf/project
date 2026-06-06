@@ -115,6 +115,59 @@ def make_viewer_payload(*, findings: Optional[list[dict[str, Any]]] = None, cont
     }
 
 
+def make_human_viewer_payload() -> dict[str, Any]:
+    payload = make_viewer_payload()
+    payload["summary"].update(
+        {
+            "report_title": "Canonical payload report",
+            "overall_assessment": "Assessment from summary fallback.",
+            "executive_summary": ["Summary fallback item"],
+        }
+    )
+    payload["report"] = {
+        "report_title": "Canonical payload report",
+        "overall_assessment": "Report-level assessment text.",
+        "executive_summary": ["Executive item one", "Executive item two"],
+        "key_findings": [
+            {
+                "title": "Report key finding",
+                "detail": "Key finding detail is displayed from artifact text.",
+                "severity": "low",
+            }
+        ],
+        "notable_source_ips": [
+            {
+                "src_ip": "203.0.113.88",
+                "reason": "Same source appeared across candidate requests; this is not attribution.",
+            }
+        ],
+        "noise_interpretation": "Candidate-excluded rows are baseline-like context for review.",
+        "recommended_actions": [
+            {
+                "priority": "P2",
+                "action": "Review matching application logs.",
+                "why": "Apache logs alone do not prove exploit success.",
+            }
+        ],
+        "confidence_and_limitations": [
+            "Apache logs-only boundary applies.",
+            "No browser execution result is available.",
+        ],
+        "presentation_takeaway": "Use the payload viewer as the primary human view.",
+    }
+    payload["noise"] = {
+        "filtered_out_breakdown": {
+            "known_baseline_like_legacy_alias": 2,
+            "low_signal_request": 1,
+        }
+    }
+    payload["raw_output_text"] = "must not render raw output"
+    payload["raw_response"] = {"secret": "must not render raw provider response"}
+    payload["prompt_text"] = "must not render prompt"
+    payload["cost_estimate"] = {"usd": 1}
+    return payload
+
+
 def write_payload(project_root: Path, relative_path: str = "runs/jobs/123/viewer_payload.json", payload: Optional[dict[str, Any]] = None) -> Path:
     path = project_root / relative_path
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -162,6 +215,64 @@ def test_job_viewer_route_renders_payload_dashboard(monkeypatch: pytest.MonkeyPa
     assert "scanner_baseline" in body
     assert "critical" in body
     assert "needs_review" in body
+
+
+def test_job_viewer_route_renders_report_level_human_sections(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    write_payload(tmp_path, payload=make_human_viewer_payload())
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+
+    assert "Report Summary" in body
+    assert "Canonical payload report" in body
+    assert "Report-level assessment text." in body
+    assert "Executive item one" in body
+    assert "Report key finding" in body
+    assert "Key finding detail is displayed from artifact text." in body
+    assert "Notable Source IPs" in body
+    assert "203.0.113.88" in body
+    assert "Candidate-Excluded / Context Notes" in body
+    assert "Candidate-excluded rows are context for review, not safety verdicts." in body
+    assert "Baseline-like legacy context" in body
+    assert "Low-signal request pattern" in body
+    assert "known_baseline_like_legacy_alias" not in body
+    assert "Report-Level Recommended Actions" in body
+    assert "Review matching application logs." in body
+    assert "Confidence and Limitations" in body
+    assert "Apache logs-only boundary applies." in body
+    assert "Presentation Takeaway" in body
+    assert "Use the payload viewer as the primary human view." in body
+    assert "Open Stage2 Report Viewer" not in body
+    assert "stage2_report.md" not in body
+    assert "raw_output_text" not in body
+    assert "must not render raw output" not in body
+    assert "raw_response" not in body
+    assert "must not render raw provider response" not in body
+    assert "prompt_text" not in body
+    assert "must not render prompt" not in body
+    assert "cost_estimate" not in body
+    assert "benign" not in body.lower()
+    assert " normal " not in body.lower()
+    assert "정상" not in body
+    assert "무해" not in body
+
+
+def test_job_viewer_route_masks_report_level_source_ips(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    write_payload(tmp_path, payload=make_human_viewer_payload())
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(
+        web_app_module.job_viewer_payload(make_request(query_string=b"mask_src_ip=1"), 123)
+    )
+
+    assert "203.0.113.***" in body
+    assert "203.0.113.88" not in body
 
 
 def test_raw_viewer_payload_artifact_route_still_returns_json(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

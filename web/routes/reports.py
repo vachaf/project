@@ -157,6 +157,16 @@ def report_payload_detail(request: Request, report_id: str):
     )
     findings_display = _apply_src_ip_display_mode(findings, mask_src_ip)
     contexts_preview_display = _apply_src_ip_display_mode(contexts_preview, mask_src_ip)
+    payload_report = payload_obj.get("report") if isinstance(payload_obj.get("report"), dict) else {}
+    report_source_ips = [
+        {
+            "src_ip": str(row.get("src_ip") or row.get("source_ip") or "-"),
+            "reason": str(row.get("reason") or "-"),
+        }
+        for row in payload_report.get("notable_source_ips", [])
+        if isinstance(row, dict)
+    ]
+    report_source_ips_display = _apply_src_ip_display_mode(report_source_ips, mask_src_ip)
 
     nav_context = _calculate_navigation(all_reports, report_id)
 
@@ -173,6 +183,7 @@ def report_payload_detail(request: Request, report_id: str):
             "findings_display": findings_display,
             "contexts_preview": contexts_preview,
             "contexts_preview_display": contexts_preview_display,
+            "report_source_ips_display": report_source_ips_display,
             "mask_src_ip": mask_src_ip,
             "is_legacy_report": True,
             **nav_context,

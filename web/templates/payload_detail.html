@@ -16,6 +16,8 @@
 <section class="section payload-dashboard">
   {% set summary = payload_summary if payload_summary else {} %}
   {% set payload_obj = payload if payload is mapping else {} %}
+  {% set payload_report = payload_obj.get('report') if payload_obj.get('report') is mapping else {} %}
+  {% set payload_noise = payload_obj.get('noise') if payload_obj.get('noise') is mapping else {} %}
   {% set payload_summary_obj = payload_obj.get('summary') if payload_obj.get('summary') is mapping else {} %}
   {% set summary_source_of_truth = summary.get('source_of_truth') if summary.get('source_of_truth') is mapping else {} %}
   {% set payload_summary_source_of_truth = payload_summary_obj.get('source_of_truth') if payload_summary_obj.get('source_of_truth') is mapping else {} %}
@@ -56,6 +58,51 @@
   {% set supporting_events = payload_obj.get('supporting_events') if payload_obj.get('supporting_events') is sequence and payload_obj.get('supporting_events') is not string else [] %}
   {% set contexts_data = payload_obj.get('contexts') if payload_obj.get('contexts') is sequence and payload_obj.get('contexts') is not string else [] %}
   {% set src_ip_mask_enabled = mask_src_ip|default(false) %}
+  {% set report_title = payload_report.get('report_title') or summary.get('report_title') or payload_summary_obj.get('report_title') %}
+  {% set overall_assessment = payload_report.get('overall_assessment') or summary.get('overall_assessment') or payload_summary_obj.get('overall_assessment') %}
+  {% set executive_summary = payload_report.get('executive_summary') if payload_report.get('executive_summary') is sequence and payload_report.get('executive_summary') is not string else summary.get('executive_summary') if summary.get('executive_summary') is sequence and summary.get('executive_summary') is not string else [] %}
+  {% set key_findings = payload_report.get('key_findings') if payload_report.get('key_findings') is sequence and payload_report.get('key_findings') is not string else [] %}
+  {% set report_actions = payload_report.get('recommended_actions') if payload_report.get('recommended_actions') is sequence and payload_report.get('recommended_actions') is not string else [] %}
+  {% set confidence_limitations = payload_report.get('confidence_and_limitations') %}
+  {% set confidence_limitations_list = confidence_limitations if confidence_limitations is sequence and confidence_limitations is not string else [confidence_limitations] if confidence_limitations else [] %}
+  {% set presentation_takeaway = payload_report.get('presentation_takeaway') %}
+  {% set noise_interpretation = payload_report.get('noise_interpretation') %}
+  {% set filtered_out_breakdown = payload_noise.get('filtered_out_breakdown') if payload_noise.get('filtered_out_breakdown') is mapping else {} %}
+  {% macro safe_report_text(value) -%}
+    {{- (value|string)
+      |replace('known_baseline_like_legacy_alias', 'Baseline-like legacy context')
+      |replace('known_baseline_like', 'Baseline-like context')
+      |replace('candidate_excluded', 'Candidate-excluded rows')
+      |replace('low_signal_request', 'Low-signal request pattern')
+      |replace('crawler_or_bot_like', 'Crawler/bot-like context')
+      |replace('static_asset_like', 'Static asset-like request')
+      |replace('benign_normal_search', 'Baseline-like legacy context')
+      |replace('normal_search_baseline', 'Baseline-like legacy context')
+      |replace('benign', 'baseline-like')
+      |replace(' normal ', ' baseline-like ')
+      |replace('Normal', 'Baseline-like')
+      |replace('정상', '기준선 유사')
+      |replace('무해', '안전 확정 불가')
+    -}}
+  {%- endmacro %}
+  {% macro display_taxonomy_label(value) -%}
+    {% set text = value|string %}
+    {% if text == 'known_baseline_like_legacy_alias' %}
+      Baseline-like legacy context
+    {% elif text == 'known_baseline_like' %}
+      Baseline-like context
+    {% elif text == 'candidate_excluded' %}
+      Candidate-excluded rows
+    {% elif text == 'low_signal_request' %}
+      Low-signal request pattern
+    {% elif text == 'crawler_or_bot_like' %}
+      Crawler/bot-like context
+    {% elif text == 'static_asset_like' %}
+      Static asset-like request
+    {% else %}
+      {{- text|replace('_', ' ')|capitalize -}}
+    {% endif %}
+  {%- endmacro %}
 
   <header class="payload-dashboard-header card">
     <div class="payload-dashboard-title-block">
@@ -129,10 +176,146 @@
     </article>
   </section>
 
-  {% if summary.get('overall_assessment') and summary.get('overall_assessment') != 'N/A' %}
-  <section class="section card payload-overall">
-    <h3>Overall Assessment</h3>
-    <p>{{ summary.get('overall_assessment') }}</p>
+  {% if report_title or overall_assessment or executive_summary or presentation_takeaway or key_findings or report_source_ips_display or noise_interpretation or filtered_out_breakdown or report_actions or confidence_limitations_list %}
+  <section class="section card payload-report-overview">
+    <div class="payload-report-overview-head">
+      <div>
+        <p class="payload-section-kicker">Report Summary</p>
+        <h3>{{ safe_report_text(report_title or 'Stage2 report summary') }}</h3>
+      </div>
+      <span class="badge payload-badge payload-badge-readonly">artifact text</span>
+    </div>
+
+    {% if overall_assessment and overall_assessment != 'N/A' %}
+    <div class="payload-report-overall">
+      <h4>Overall Assessment</h4>
+      <p>{{ safe_report_text(overall_assessment) }}</p>
+    </div>
+    {% endif %}
+
+    {% if executive_summary %}
+    <div class="payload-report-block">
+      <h4>Executive Summary</h4>
+      <ul class="payload-report-list">
+        {% for item in executive_summary %}
+        <li>{{ safe_report_text(item) }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if presentation_takeaway %}
+    <div class="payload-report-takeaway">
+      <h4>Presentation Takeaway</h4>
+      <p>{{ safe_report_text(presentation_takeaway) }}</p>
+    </div>
+    {% endif %}
+
+    {% if key_findings %}
+    <details class="payload-report-details pd-details-group" open>
+      <summary class="pd-summary-header">Key Findings ({{ key_findings|length }})</summary>
+      <div class="pd-details-content payload-report-card-list">
+        {% for item in key_findings %}
+        {% if item is mapping %}
+        <article class="payload-report-mini-card">
+          <div class="payload-report-mini-card-head">
+            <strong>{{ safe_report_text(item.get('title') or 'Untitled finding') }}</strong>
+            {% if item.get('severity') %}
+            <span class="badge payload-badge payload-badge-severity payload-badge-severity-{{ (item.get('severity') or 'unknown')|lower }}">{{ item.get('severity') }}</span>
+            {% endif %}
+          </div>
+          {% if item.get('detail') %}
+          <p>{{ safe_report_text(item.get('detail')) }}</p>
+          {% endif %}
+        </article>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
+
+    <div class="payload-report-details-grid">
+      {% if report_source_ips_display %}
+      <details class="payload-report-details pd-details-group">
+        <summary class="pd-summary-header">Notable Source IPs ({{ report_source_ips_display|length }})</summary>
+        <div class="pd-details-content payload-report-table-wrap">
+          <table class="table table-compact payload-report-table">
+            <thead>
+              <tr>
+                <th>source_ip</th>
+                <th>reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in report_source_ips_display %}
+              <tr>
+                <td>{{ item.src_ip or '-' }}</td>
+                <td>{{ safe_report_text(item.reason or '-') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+      {% endif %}
+
+      {% if noise_interpretation or filtered_out_breakdown %}
+      <details class="payload-report-details pd-details-group">
+        <summary class="pd-summary-header">Candidate-Excluded / Context Notes</summary>
+        <div class="pd-details-content">
+          {% if noise_interpretation %}
+          <p class="payload-report-paragraph">{{ safe_report_text(noise_interpretation) }}</p>
+          {% endif %}
+          {% if filtered_out_breakdown %}
+          <p class="payload-report-muted">Candidate-excluded rows are context for review, not safety verdicts.</p>
+          <ul class="payload-report-list payload-report-breakdown">
+            {% for key, value in filtered_out_breakdown.items() %}
+            <li><span>{{ display_taxonomy_label(key) }}</span><span>{{ value }}</span></li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      </details>
+      {% endif %}
+
+      {% if report_actions %}
+      <details class="payload-report-details pd-details-group">
+        <summary class="pd-summary-header">Report-Level Recommended Actions ({{ report_actions|length }})</summary>
+        <div class="pd-details-content payload-report-card-list">
+          {% for item in report_actions %}
+          {% if item is mapping %}
+          <article class="payload-report-mini-card">
+            <div class="payload-report-mini-card-head">
+              <strong>{{ item.get('priority') or 'Action' }}</strong>
+            </div>
+            {% if item.get('action') %}
+            <p>{{ safe_report_text(item.get('action')) }}</p>
+            {% endif %}
+            {% if item.get('why') %}
+            <p class="payload-report-muted">{{ safe_report_text(item.get('why')) }}</p>
+            {% endif %}
+          </article>
+          {% else %}
+          <p class="payload-report-paragraph">{{ safe_report_text(item) }}</p>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </details>
+      {% endif %}
+
+      {% if confidence_limitations_list %}
+      <details class="payload-report-details pd-details-group">
+        <summary class="pd-summary-header">Confidence and Limitations</summary>
+        <div class="pd-details-content">
+          <ul class="payload-report-list">
+            {% for item in confidence_limitations_list %}
+            <li>{{ safe_report_text(item) }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </details>
+      {% endif %}
+    </div>
   </section>
   {% endif %}
 

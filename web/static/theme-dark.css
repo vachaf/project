@@ -523,6 +523,86 @@
   color: #e2e8f0;
 }
 
+[data-theme="dark"] .payload-report-overview.card {
+  background: #151d30;
+  border-color: #253048;
+  color: #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .payload-report-overview h3,
+[data-theme="dark"] .payload-report-overview h4,
+[data-theme="dark"] .payload-report-overview-head h3,
+[data-theme="dark"] .payload-report-mini-card strong {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .payload-report-overview p,
+[data-theme="dark"] .payload-report-overview li,
+[data-theme="dark"] .payload-report-list,
+[data-theme="dark"] .payload-report-mini-card p,
+[data-theme="dark"] .payload-report-paragraph,
+[data-theme="dark"] .payload-report-table td,
+[data-theme="dark"] .payload-report-breakdown li {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .payload-section-kicker,
+[data-theme="dark"] .payload-report-muted,
+[data-theme="dark"] .payload-report-table th {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .payload-report-overall,
+[data-theme="dark"] .payload-report-block,
+[data-theme="dark"] .payload-report-takeaway {
+  border-top-color: #253048;
+}
+
+[data-theme="dark"] .payload-report-details,
+[data-theme="dark"] .payload-report-overview .pd-details-group {
+  background: #111828;
+  border-color: #253048;
+  color: #e2e8f0;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .payload-report-overview .pd-summary-header,
+[data-theme="dark"] .payload-report-details > summary {
+  background: #151d30;
+  border-color: #253048;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .payload-report-overview .pd-summary-header:hover {
+  background: #1a2540;
+}
+
+[data-theme="dark"] .payload-report-overview .pd-details-group[open] .pd-summary-header {
+  border-bottom-color: #253048;
+}
+
+[data-theme="dark"] .payload-report-overview .pd-details-content,
+[data-theme="dark"] .payload-report-card-list,
+[data-theme="dark"] .payload-report-table-wrap {
+  background: #111828;
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .payload-report-mini-card {
+  background: #151d30;
+  border-color: #253048;
+}
+
+[data-theme="dark"] .payload-report-table th,
+[data-theme="dark"] .payload-report-table td {
+  border-bottom-color: #253048;
+}
+
+[data-theme="dark"] .payload-report-breakdown code {
+  color: #e2e8f0;
+}
+
 [data-theme="dark"] .payload-card-marker {
   background: #1a2540;
 }
