@@ -773,6 +773,14 @@ html:not([data-theme="dark"]) .job-stat-card:hover {
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
-input[type="date"] {
-    color-scheme: light !important;
+html:not([data-theme="dark"]) .job-filter-form input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0) brightness(0.2) contrast(2) !important;
+    opacity: 1 !important;
+    cursor: pointer;
+}
+
+html[data-theme="dark"] .job-filter-form input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(2) contrast(1) !important;
+    opacity: 1 !important;
+    cursor: pointer;
 }
