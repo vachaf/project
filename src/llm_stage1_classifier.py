@@ -37,7 +37,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from urllib import error
 
-from llm_client import SUPPORTED_PROVIDERS, call_llm_json, provider_api_key_error, resolve_llm_config
+from llm_client import (
+    SUPPORTED_PROVIDERS,
+    call_llm_json,
+    combine_llm_usage,
+    normalize_llm_usage,
+    provider_api_key_error,
+    resolve_llm_config,
+)
 
 DEFAULT_TIMEOUT_SEC = 180
 DEFAULT_MODE = "routine"
@@ -90,6 +97,7 @@ class Stage1Result:
     recommended_actions: List[str]
     response_id: Optional[str]
     raw_output_text: str
+    llm_usage: Dict[str, Any]
 
 
 @dataclass
@@ -101,6 +109,7 @@ class Stage1Error:
     error_message: str
     response_id: Optional[str] = None
     raw_response_excerpt: str = ""
+    llm_usage: Optional[Dict[str, Any]] = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -419,6 +428,7 @@ def classify_candidate(
             store=store,
             reasoning_effort=reasoning_effort,
         )
+        llm_usage = normalize_llm_usage(llm_response, call_role="stage1_candidate")
         output_text = llm_response.output_text
         response_id = llm_response.response_id
         if not output_text:
@@ -430,9 +440,21 @@ def classify_candidate(
                 error_message="응답에서 output_text를 찾지 못했습니다.",
                 response_id=response_id,
                 raw_response_excerpt=json.dumps(llm_response.raw_response, ensure_ascii=False)[:1500],
+                llm_usage=llm_usage,
             )
 
-        parsed = maybe_normalize_file_disclosure_verdict(json.loads(output_text), candidate)
+        try:
+            parsed = maybe_normalize_file_disclosure_verdict(json.loads(output_text), candidate)
+        except json.JSONDecodeError as e:
+            return None, Stage1Error(
+                candidate_index=candidate_index,
+                request_id=request_id,
+                model=model,
+                error_type="json_decode_error",
+                error_message=str(e),
+                response_id=response_id,
+                llm_usage=llm_usage,
+            )
         result = Stage1Result(
             candidate_index=candidate_index,
             incident_group_key=incident_group_key,
@@ -470,6 +492,7 @@ def classify_candidate(
             recommended_actions=[normalize_str(x) for x in (parsed.get("recommended_actions") or []) if normalize_str(x)],
             response_id=response_id,
             raw_output_text=output_text,
+            llm_usage=llm_usage,
         )
         return result, None
 
@@ -494,14 +517,6 @@ def classify_candidate(
             model=model,
             error_type="url_error",
             error_message=normalize_str(e.reason) or repr(e),
-        )
-    except json.JSONDecodeError as e:
-        return None, Stage1Error(
-            candidate_index=candidate_index,
-            request_id=request_id,
-            model=model,
-            error_type="json_decode_error",
-            error_message=str(e),
         )
     except Exception as e:  # pragma: no cover - 운영 예외 포착용
         return None, Stage1Error(
@@ -552,6 +567,13 @@ def main() -> int:
                 "store": bool(args.store),
                 "reasoning_effort": args.reasoning_effort,
                 "base_url": llm_config.base_url,
+                "llm_usage_totals": {
+                    "schema_version": "llm_usage_totals.v1",
+                    "available": False,
+                    "estimated": False,
+                    "call_count": 0,
+                    "unavailable_reason": "dry_run_no_provider_call",
+                },
             },
             "candidates_preview": [
                 {
@@ -643,6 +665,14 @@ def main() -> int:
             "processed_candidate_count": len(candidates),
             "success_count": len(results),
             "error_count": len(errors_out),
+            "llm_usage_totals": combine_llm_usage(
+                [
+                    usage
+                    for row in results + errors_out
+                    for usage in [row.get("llm_usage")]
+                    if isinstance(usage, dict)
+                ]
+            ),
         },
         "results": results,
     }

@@ -459,6 +459,13 @@ def build_stage1_dry_run_placeholder(llm_input_path: Path, output_path: Path, pr
             "processed_candidate_count": len(candidates),
             "success_count": len(results),
             "error_count": 0,
+            "llm_usage_totals": {
+                "schema_version": "llm_usage_totals.v1",
+                "available": False,
+                "estimated": False,
+                "call_count": 0,
+                "unavailable_reason": "dry_run_no_provider_call",
+            },
         },
         "results": results,
     }

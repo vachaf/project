@@ -24,7 +24,14 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from urllib import error
 
-from llm_client import SUPPORTED_PROVIDERS, call_llm_json, provider_api_key_error, resolve_llm_config
+from llm_client import (
+    SUPPORTED_PROVIDERS,
+    call_llm_json,
+    combine_llm_usage,
+    normalize_llm_usage,
+    provider_api_key_error,
+    resolve_llm_config,
+)
 
 DEFAULT_TIMEOUT_SEC = 180
 DEFAULT_MODE = "routine"
@@ -263,6 +270,26 @@ def log_llm_response_summary(label: str, provider: str, response_id: Optional[st
         print("[WARN] Anthropic stop_reason=max_tokens: 응답 truncation 가능성이 있습니다.", file=sys.stderr)
 
 
+def build_stage_llm_usage(
+    *,
+    stage: str,
+    calls: Sequence[Dict[str, Any]],
+    unavailable_reason: Optional[str] = None,
+) -> Dict[str, Any]:
+    totals = combine_llm_usage(list(calls))
+    payload: Dict[str, Any] = {
+        "schema_version": "llm_usage_stage.v1",
+        "available": bool(totals.get("available")),
+        "stage": stage,
+        "estimated": bool(totals.get("estimated")),
+        "calls": list(calls),
+        "totals": totals,
+    }
+    if unavailable_reason:
+        payload["unavailable_reason"] = unavailable_reason
+    return payload
+
+
 def dump_stage2_parse_error(
     *,
     report_error_path: Path,
@@ -277,6 +304,7 @@ def dump_stage2_parse_error(
     pretty: bool,
     repair_attempted: bool,
     repair_response: Optional[Dict[str, Any]] = None,
+    llm_usage: Optional[Dict[str, Any]] = None,
 ) -> None:
     payload = {
         "error_type": "json_decode_error",
@@ -288,6 +316,8 @@ def dump_stage2_parse_error(
         "repair_attempted": repair_attempted,
         "raw_dump_path": str(raw_dump_path),
     }
+    if llm_usage:
+        payload["llm_usage"] = llm_usage
     if provider == "anthropic" and stop_reason == "max_tokens":
         payload["diagnostic_hint"] = "Anthropic stop_reason=max_tokens 이므로 JSON 응답이 잘렸을 가능성이 있습니다. ANTHROPIC_MAX_TOKENS 증가를 검토하세요."
 
@@ -302,6 +332,8 @@ def dump_stage2_parse_error(
         "repair_attempted": repair_attempted,
         "repair_response": repair_response,
     }
+    if llm_usage:
+        raw_payload["llm_usage"] = llm_usage
     dump_json(str(raw_dump_path), raw_payload, pretty=pretty)
     dump_json(str(report_error_path), payload, pretty=pretty)
 
@@ -2543,6 +2575,21 @@ def main() -> int:
                     "base_url": llm_config.base_url,
                     "input_stage1_results": os.path.abspath(args.stage1_results),
                     "input_llm_input": os.path.abspath(llm_input_path) if llm_input_payload else None,
+                    "llm_usage": {
+                        "schema_version": "llm_usage_stage.v1",
+                        "available": False,
+                        "stage": "stage2",
+                        "estimated": False,
+                        "calls": [],
+                        "totals": {
+                            "call_count": 0,
+                            "input_tokens": 0,
+                            "output_tokens": 0,
+                            "total_tokens": 0,
+                            "estimated": False,
+                        },
+                        "unavailable_reason": "dry_run_no_provider_call",
+                    },
                 },
                 "report": None,
             },
@@ -2573,6 +2620,8 @@ def main() -> int:
         output_text = llm_response.output_text
         response_id = llm_response.response_id
         stop_reason = llm_response.stop_reason
+        initial_llm_usage = normalize_llm_usage(llm_response, call_role="initial")
+        llm_usage_calls = [initial_llm_usage]
         log_llm_response_summary("stage2_response", llm_response.provider, response_id, stop_reason)
         if not output_text:
             empty_error = RuntimeError("응답에서 output_text를 찾지 못했습니다.")
@@ -2588,6 +2637,7 @@ def main() -> int:
                 parse_error=empty_error,
                 pretty=args.pretty,
                 repair_attempted=False,
+                llm_usage=build_stage_llm_usage(stage="stage2", calls=llm_usage_calls),
             )
             print(f"[ERROR] {empty_error}", file=sys.stderr)
             print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
@@ -2608,6 +2658,7 @@ def main() -> int:
                     parse_error=parse_error,
                     pretty=args.pretty,
                     repair_attempted=False,
+                    llm_usage=build_stage_llm_usage(stage="stage2", calls=llm_usage_calls),
                 )
                 print(f"[ERROR] stage2 JSON parse failed: {parse_error}", file=sys.stderr)
                 print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
@@ -2630,12 +2681,15 @@ def main() -> int:
                 repair_response.response_id,
                 repair_response.stop_reason,
             )
+            repair_llm_usage = normalize_llm_usage(repair_response, call_role="repair")
+            repair_usage_calls = [initial_llm_usage, repair_llm_usage]
             try:
                 parse_result = safe_parse_llm_json(repair_response.output_text)
                 llm_response = repair_response
                 output_text = repair_response.output_text
                 response_id = repair_response.response_id
                 stop_reason = repair_response.stop_reason
+                llm_usage_calls = repair_usage_calls
             except LLMJsonParseError as repair_error:
                 dump_stage2_parse_error(
                     report_error_path=report_error_path,
@@ -2653,13 +2707,16 @@ def main() -> int:
                         "response_id": repair_response.response_id,
                         "stop_reason": repair_response.stop_reason,
                         "output_text": repair_response.output_text,
+                        "llm_usage": repair_llm_usage,
                         "raw_response": repair_response.raw_response,
                         "initial_response_id": response_id,
                         "initial_stop_reason": stop_reason,
                         "initial_output_text": output_text,
+                        "initial_llm_usage": initial_llm_usage,
                         "initial_raw_response": llm_response.raw_response,
                         "initial_parse_error": str(parse_error),
                     },
+                    llm_usage=build_stage_llm_usage(stage="stage2", calls=repair_usage_calls),
                 )
                 print(f"[ERROR] stage2 JSON repair failed: {repair_error}", file=sys.stderr)
                 print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
@@ -2686,6 +2743,7 @@ def main() -> int:
                     "json_parse_strategy": parse_result.strategy,
                     "input_stage1_results": os.path.abspath(args.stage1_results),
                     "input_llm_input": os.path.abspath(llm_input_path) if llm_input_payload else None,
+                    "llm_usage": build_stage_llm_usage(stage="stage2", calls=llm_usage_calls),
                 },
                 "report": report_json,
             },

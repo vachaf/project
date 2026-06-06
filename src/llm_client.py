@@ -32,11 +32,151 @@ class LLMResponse:
     stop_reason: Optional[str] = None
 
 
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def normalize_provider(value: Optional[str]) -> str:
     provider = (value or os.getenv("LLM_PROVIDER") or "openai").strip().lower()
     if provider not in SUPPORTED_PROVIDERS:
         raise ValueError(f"unsupported provider: {provider} (supported: {', '.join(SUPPORTED_PROVIDERS)})")
     return provider
+
+
+def _missing_usage_payload(response: LLMResponse, *, call_role: str, reason: str) -> Dict[str, Any]:
+    return {
+        "schema_version": "llm_usage.v1",
+        "available": False,
+        "provider": response.provider,
+        "model": response.model,
+        "response_id": response.response_id,
+        "call_role": call_role,
+        "estimated": False,
+        "unavailable_reason": reason,
+    }
+
+
+def normalize_llm_usage(response: LLMResponse, *, call_role: str) -> Dict[str, Any]:
+    raw_response = response.raw_response
+    if not isinstance(raw_response, dict):
+        return _missing_usage_payload(response, call_role=call_role, reason="provider_usage_missing")
+
+    raw_usage = raw_response.get("usage")
+    if not isinstance(raw_usage, dict):
+        return _missing_usage_payload(response, call_role=call_role, reason="provider_usage_missing")
+
+    payload: Dict[str, Any] = {
+        "schema_version": "llm_usage.v1",
+        "available": True,
+        "provider": response.provider,
+        "model": response.model,
+        "response_id": response.response_id,
+        "call_role": call_role,
+        "estimated": False,
+        "breakdown": {},
+        "provider_usage": dict(raw_usage),
+    }
+
+    if response.provider == "openai":
+        input_tokens = _safe_int(raw_usage.get("input_tokens"))
+        output_tokens = _safe_int(raw_usage.get("output_tokens"))
+        total_tokens = _safe_int(raw_usage.get("total_tokens"), input_tokens + output_tokens)
+        input_details = raw_usage.get("input_tokens_details")
+        output_details = raw_usage.get("output_tokens_details")
+        breakdown = {
+            "cached_input_tokens": _safe_int(input_details.get("cached_tokens")) if isinstance(input_details, dict) else 0,
+            "reasoning_tokens": _safe_int(output_details.get("reasoning_tokens")) if isinstance(output_details, dict) else 0,
+        }
+        payload.update(
+            {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": total_tokens,
+                "breakdown": breakdown,
+            }
+        )
+        return payload
+
+    if response.provider == "anthropic":
+        input_tokens = _safe_int(raw_usage.get("input_tokens"))
+        output_tokens = _safe_int(raw_usage.get("output_tokens"))
+        cache_creation_input_tokens = _safe_int(raw_usage.get("cache_creation_input_tokens"))
+        cache_read_input_tokens = _safe_int(raw_usage.get("cache_read_input_tokens"))
+        total_input_tokens = input_tokens + cache_creation_input_tokens + cache_read_input_tokens
+        breakdown = {
+            "cache_creation_input_tokens": cache_creation_input_tokens,
+            "cache_read_input_tokens": cache_read_input_tokens,
+        }
+        if raw_usage.get("service_tier") is not None:
+            breakdown["service_tier"] = raw_usage.get("service_tier")
+        payload.update(
+            {
+                "input_tokens": input_tokens,
+                "total_input_tokens": total_input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": total_input_tokens + output_tokens,
+                "breakdown": breakdown,
+            }
+        )
+        return payload
+
+    return _missing_usage_payload(response, call_role=call_role, reason="unsupported_provider_usage")
+
+
+def combine_llm_usage(usages: List[Dict[str, Any]]) -> Dict[str, Any]:
+    available_usages = [usage for usage in usages if isinstance(usage, dict) and usage.get("available") is True]
+    unavailable_usages = [usage for usage in usages if isinstance(usage, dict) and usage.get("available") is not True]
+    by_provider: Dict[str, Dict[str, int]] = {}
+    totals = {
+        "schema_version": "llm_usage_totals.v1",
+        "available": bool(available_usages),
+        "call_count": len(available_usages),
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "estimated": False,
+        "by_provider": by_provider,
+        "unavailable_count": len(unavailable_usages),
+        "unavailable_reasons": {},
+    }
+    if available_usages:
+        first = available_usages[0]
+        totals["provider"] = first.get("provider")
+        totals["selected_model"] = first.get("model")
+
+    for usage in available_usages:
+        provider = str(usage.get("provider") or "unknown")
+        provider_bucket = by_provider.setdefault(
+            provider,
+            {
+                "call_count": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+            },
+        )
+        input_tokens = _safe_int(usage.get("input_tokens"))
+        output_tokens = _safe_int(usage.get("output_tokens"))
+        total_tokens = _safe_int(usage.get("total_tokens"), input_tokens + output_tokens)
+        totals["input_tokens"] += input_tokens
+        totals["output_tokens"] += output_tokens
+        totals["total_tokens"] += total_tokens
+        provider_bucket["call_count"] += 1
+        provider_bucket["input_tokens"] += input_tokens
+        provider_bucket["output_tokens"] += output_tokens
+        provider_bucket["total_tokens"] += total_tokens
+        if usage.get("estimated"):
+            totals["estimated"] = True
+
+    unavailable_reasons: Dict[str, int] = {}
+    for usage in unavailable_usages:
+        reason = str(usage.get("unavailable_reason") or "unknown")
+        unavailable_reasons[reason] = unavailable_reasons.get(reason, 0) + 1
+    totals["unavailable_reasons"] = unavailable_reasons
+    return totals
 
 
 def resolve_llm_config(provider_value: Optional[str]) -> LLMConfig:
