@@ -352,8 +352,12 @@ def _run_claimed_pipeline(
         safe_message = redact_worker_error(exc)
         failed_stage_detail = getattr(exc, "failed_at_stage", None) or failed_at_stage
         failure_detail = {"error_type": exc.__class__.__name__, "safe_message": safe_message}
-        if failed_stage_detail in {"export", "pipeline", "report_save"}:
+        if failed_stage_detail in {"export", "pipeline", "artifact_materialize", "report_save"}:
             failure_detail["failed_at_stage"] = failed_stage_detail
+        for key in ("command_label", "returncode", "stdout_tail", "stderr_tail"):
+            value = getattr(exc, key, None)
+            if value is not None:
+                failure_detail[key] = value if key == "returncode" else redact_worker_error(value)
         try:
             repository.mark_job_failed(
                 job_id=job_id,

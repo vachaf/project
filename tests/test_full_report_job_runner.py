@@ -39,11 +39,15 @@ class FakeSubprocess:
         total_count: Optional[int | str] = 1,
         write_run_dir_candidates: bool = True,
         write_scratch_candidates: bool = False,
+        fail_stdout: Optional[str] = None,
+        fail_stderr: Optional[str] = None,
     ) -> None:
         self.fail_step = fail_step
         self.total_count = total_count
         self.write_run_dir_candidates = write_run_dir_candidates
         self.write_scratch_candidates = write_scratch_candidates
+        self.fail_stdout = fail_stdout
+        self.fail_stderr = fail_stderr
         self.calls: list[tuple[list[str], dict[str, Any]]] = []
 
     def __call__(self, cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -51,7 +55,12 @@ class FakeSubprocess:
         script_name = Path(cmd[1]).name
         if script_name == "export_db_logs_cli.py":
             if self.fail_step == "export":
-                return subprocess.CompletedProcess(cmd, 7, stdout="export out", stderr="export err")
+                return subprocess.CompletedProcess(
+                    cmd,
+                    7,
+                    stdout=self.fail_stdout if self.fail_stdout is not None else "export out",
+                    stderr=self.fail_stderr if self.fail_stderr is not None else "export err",
+                )
             Path(option_value(cmd, "--out")).parent.mkdir(parents=True, exist_ok=True)
             if self.total_count is None:
                 payload = '{"meta": {}}\n'
@@ -64,7 +73,12 @@ class FakeSubprocess:
 
         if script_name == "run_analysis_pipeline.py":
             if self.fail_step == "pipeline":
-                return subprocess.CompletedProcess(cmd, 8, stdout="pipeline out", stderr="pipeline err")
+                return subprocess.CompletedProcess(
+                    cmd,
+                    8,
+                    stdout=self.fail_stdout if self.fail_stdout is not None else "pipeline out",
+                    stderr=self.fail_stderr if self.fail_stderr is not None else "pipeline err",
+                )
             run_dir = Path(option_value(cmd, "--run-dir"))
             run_dir.mkdir(parents=True, exist_ok=False)
             for filename in (
@@ -170,8 +184,12 @@ def test_export_failure_raises_runner_error(tmp_path: Path) -> None:
     with pytest.raises(FullReportRunnerError) as exc:
         runner.run(make_job())
 
-    assert "export command failed rc=7" in str(exc.value)
+    assert "full_report pipeline failed at export: returncode=7" in str(exc.value)
     assert exc.value.failed_at_stage == "export"
+    assert exc.value.command_label == "export_db_logs_cli.py"
+    assert exc.value.returncode == 7
+    assert exc.value.stdout_tail == "export out"
+    assert exc.value.stderr_tail == "export err"
     assert len(fake.calls) == 1
 
 
@@ -182,8 +200,12 @@ def test_pipeline_failure_raises_runner_error(tmp_path: Path) -> None:
     with pytest.raises(FullReportRunnerError) as exc:
         runner.run(make_job())
 
-    assert "pipeline command failed rc=8" in str(exc.value)
+    assert "full_report pipeline failed at pipeline: returncode=8" in str(exc.value)
     assert exc.value.failed_at_stage == "pipeline"
+    assert exc.value.command_label == "run_analysis_pipeline.py"
+    assert exc.value.returncode == 8
+    assert exc.value.stdout_tail == "pipeline out"
+    assert exc.value.stderr_tail == "pipeline err"
     assert len(fake.calls) == 2
 
 
@@ -356,7 +378,12 @@ def test_export_failure_emits_failed_stage_event(tmp_path: Path) -> None:
 
     assert exc.value.failed_at_stage == "export"
     assert event_types(events) == ["EXPORT_STARTED", "EXPORT_FAILED"]
-    assert events[-1]["detail_json"]["failed_at_stage"] == "export"
+    detail = events[-1]["detail_json"]
+    assert detail["failed_at_stage"] == "export"
+    assert detail["command_label"] == "export_db_logs_cli.py"
+    assert detail["returncode"] == 7
+    assert detail["stdout_tail"] == "export out"
+    assert detail["stderr_tail"] == "export err"
 
 
 def test_pipeline_failure_emits_failed_stage_event(tmp_path: Path) -> None:
@@ -375,3 +402,52 @@ def test_pipeline_failure_emits_failed_stage_event(tmp_path: Path) -> None:
         "PIPELINE_FAILED",
     ]
     assert events[-1]["detail_json"]["failed_at_stage"] == "pipeline"
+    assert events[-1]["detail_json"]["command_label"] == "run_analysis_pipeline.py"
+    assert events[-1]["detail_json"]["returncode"] == 8
+    assert events[-1]["detail_json"]["stdout_tail"] == "pipeline out"
+    assert events[-1]["detail_json"]["stderr_tail"] == "pipeline err"
+
+
+def test_subprocess_failure_redacts_secret_and_limits_stdout_stderr_tails(tmp_path: Path) -> None:
+    long_stdout = "x" * 2500 + " token=abc123"
+    long_stderr = "y" * 2500 + " sk-secretvalue123"
+    fake = FakeSubprocess(fail_step="export", fail_stdout=long_stdout, fail_stderr=long_stderr)
+    events: list[dict[str, Any]] = []
+    runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
+
+    with pytest.raises(FullReportRunnerError) as exc:
+        runner.run(make_job(), event_sink=lambda **kwargs: events.append(kwargs))
+
+    assert len(exc.value.stdout_tail) <= 2000
+    assert len(exc.value.stderr_tail) <= 2000
+    assert "abc123" not in exc.value.stdout_tail
+    assert "sk-secretvalue123" not in exc.value.stderr_tail
+    detail = events[-1]["detail_json"]
+    assert len(detail["stdout_tail"]) <= 2000
+    assert len(detail["stderr_tail"]) <= 2000
+    assert "abc123" not in detail["stdout_tail"]
+    assert "sk-secretvalue123" not in detail["stderr_tail"]
+
+
+def test_missing_pipeline_artifact_is_classified_as_artifact_materialize(tmp_path: Path) -> None:
+    fake = FakeSubprocess()
+    runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
+
+    original_build_artifact_mapping = runner.build_artifact_mapping
+
+    def remove_viewer_payload(*args: Any, **kwargs: Any) -> Any:
+        run_dir = tmp_path / "runs/jobs/123"
+        viewer_payload = run_dir / "viewer_payload.json"
+        if viewer_payload.exists():
+            viewer_payload.unlink()
+        return original_build_artifact_mapping(*args, **kwargs)
+
+    runner.build_artifact_mapping = remove_viewer_payload  # type: ignore[method-assign]
+    events: list[dict[str, Any]] = []
+
+    with pytest.raises(FullReportRunnerError) as exc:
+        runner.run(make_job(), event_sink=lambda **kwargs: events.append(kwargs))
+
+    assert exc.value.failed_at_stage == "artifact_materialize"
+    assert events[-1]["event_type"] == "PIPELINE_FAILED"
+    assert events[-1]["detail_json"]["failed_at_stage"] == "artifact_materialize"

@@ -13,17 +13,48 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
+from web.services.analysis_job_policy import redact_secret_text
+
 
 KST = ZoneInfo("Asia/Seoul")
 UTC = ZoneInfo("UTC")
 DEFAULT_REQUESTED_TIMEZONE = "Asia/Seoul"
 DEFAULT_ANALYSIS_MODE = "full_report"
+SUBPROCESS_TAIL_LIMIT = 2000
+ERROR_SUMMARY_TAIL_LIMIT = 300
 
 
 class FullReportRunnerError(RuntimeError):
-    def __init__(self, message: str, *, failed_at_stage: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        failed_at_stage: Optional[str] = None,
+        command_label: Optional[str] = None,
+        returncode: Optional[int] = None,
+        stdout_tail: Optional[str] = None,
+        stderr_tail: Optional[str] = None,
+    ) -> None:
         super().__init__(message)
         self.failed_at_stage = failed_at_stage
+        self.command_label = command_label
+        self.returncode = returncode
+        self.stdout_tail = stdout_tail
+        self.stderr_tail = stderr_tail
+
+    def diagnostic_detail(self) -> dict[str, Any]:
+        detail: dict[str, Any] = {}
+        if self.failed_at_stage:
+            detail["failed_at_stage"] = self.failed_at_stage
+        if self.command_label:
+            detail["command_label"] = self.command_label
+        if self.returncode is not None:
+            detail["returncode"] = self.returncode
+        if self.stdout_tail:
+            detail["stdout_tail"] = self.stdout_tail
+        if self.stderr_tail:
+            detail["stderr_tail"] = self.stderr_tail
+        return detail
 
 
 @dataclass(frozen=True)
@@ -136,6 +167,7 @@ class FullReportJobRunner:
                     failed_at_stage="export",
                     error_type=exc.__class__.__name__,
                     error_message=str(exc),
+                    error_detail=_exception_diagnostic_detail(exc),
                 ),
             )
             if isinstance(exc, FullReportRunnerError) and exc.failed_at_stage:
@@ -186,8 +218,17 @@ class FullReportJobRunner:
         )
         try:
             self._run_subprocess(pipeline_cmd, "pipeline")
-            result = self.build_artifact_mapping(job.artifact_root, scratch_work_dir=scratch_work_dir)
+            try:
+                result = self.build_artifact_mapping(job.artifact_root, scratch_work_dir=scratch_work_dir)
+            except Exception as exc:
+                if isinstance(exc, FullReportRunnerError) and exc.failed_at_stage:
+                    raise
+                raise FullReportRunnerError(
+                    str(exc),
+                    failed_at_stage="artifact_materialize",
+                ) from exc
         except Exception as exc:
+            failed_at_stage = getattr(exc, "failed_at_stage", None) or "pipeline"
             self._emit_event(
                 event_sink,
                 "PIPELINE_FAILED",
@@ -196,14 +237,15 @@ class FullReportJobRunner:
                     job,
                     artifact_root_path=artifact_root_path,
                     duration_seconds=time.monotonic() - pipeline_started_at,
-                    failed_at_stage="pipeline",
+                    failed_at_stage=failed_at_stage,
                     error_type=exc.__class__.__name__,
                     error_message=str(exc),
+                    error_detail=_exception_diagnostic_detail(exc),
                 ),
             )
             if isinstance(exc, FullReportRunnerError) and exc.failed_at_stage:
                 raise
-            raise FullReportRunnerError(str(exc), failed_at_stage="pipeline") from exc
+            raise FullReportRunnerError(str(exc), failed_at_stage=failed_at_stage) from exc
 
         self._emit_event(
             event_sink,
@@ -277,7 +319,7 @@ class FullReportJobRunner:
         if missing:
             raise FullReportRunnerError(
                 "required full_report artifacts missing: " + ", ".join(missing),
-                failed_at_stage="pipeline",
+                failed_at_stage="artifact_materialize",
             )
 
         analysis_candidates_path = artifact_root_path / "analysis_candidates.json"
@@ -377,10 +419,19 @@ class FullReportJobRunner:
         )
         if int(completed.returncode) != 0:
             failed_at_stage = step_name if step_name in {"export", "pipeline"} else None
+            stdout_tail = _redacted_tail(completed.stdout)
+            stderr_tail = _redacted_tail(completed.stderr)
             raise FullReportRunnerError(
-                f"{step_name} command failed rc={completed.returncode} "
-                f"stdout={_tail(completed.stdout)} stderr={_tail(completed.stderr)}",
+                _subprocess_failure_summary(
+                    failed_at_stage=step_name,
+                    returncode=int(completed.returncode),
+                    stderr_tail=stderr_tail,
+                ),
                 failed_at_stage=failed_at_stage,
+                command_label=_command_label(cmd),
+                returncode=int(completed.returncode),
+                stdout_tail=stdout_tail,
+                stderr_tail=stderr_tail,
             )
 
     def _subprocess_env(self) -> Optional[dict[str, str]]:
@@ -402,6 +453,7 @@ class FullReportJobRunner:
         failed_at_stage: Optional[str] = None,
         error_type: Optional[str] = None,
         error_message: Optional[str] = None,
+        error_detail: Optional[Mapping[str, Any]] = None,
     ) -> dict[str, Any]:
         detail: dict[str, Any] = {
             "artifact_root": self.normalize_relative_path(artifact_root_path),
@@ -419,7 +471,9 @@ class FullReportJobRunner:
         if error_type:
             detail["error_type"] = error_type
         if error_message:
-            detail["error_message"] = error_message
+            detail["error_message"] = redact_secret_text(error_message, max_length=ERROR_SUMMARY_TAIL_LIMIT)
+        if error_detail:
+            detail.update({key: value for key, value in error_detail.items() if value is not None})
         return detail
 
     def _emit_event(
@@ -445,8 +499,34 @@ def _coerce_datetime(value: Any, field_name: str) -> datetime:
     raise ValueError(f"{field_name} must be datetime or string")
 
 
-def _tail(value: Any, limit: int = 1000) -> str:
+def _tail(value: Any, limit: int = SUBPROCESS_TAIL_LIMIT) -> str:
     text = "" if value is None else str(value)
     if len(text) <= limit:
         return text
     return text[-limit:]
+
+
+def _redacted_tail(value: Any, limit: int = SUBPROCESS_TAIL_LIMIT) -> str:
+    return _tail(redact_secret_text(value, max_length=max(len(str(value or "")) + 20, limit + 20)), limit)
+
+
+def _command_label(cmd: Sequence[str]) -> str:
+    if len(cmd) >= 2:
+        return Path(str(cmd[1])).name
+    if cmd:
+        return Path(str(cmd[0])).name
+    return "subprocess"
+
+
+def _subprocess_failure_summary(*, failed_at_stage: str, returncode: int, stderr_tail: str) -> str:
+    stderr_summary = _tail(stderr_tail, ERROR_SUMMARY_TAIL_LIMIT)
+    return (
+        f"full_report pipeline failed at {failed_at_stage}: "
+        f"returncode={returncode} stderr_tail={stderr_summary}"
+    )
+
+
+def _exception_diagnostic_detail(exc: BaseException) -> dict[str, Any]:
+    if isinstance(exc, FullReportRunnerError):
+        return exc.diagnostic_detail()
+    return {}

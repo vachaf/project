@@ -401,6 +401,28 @@ def test_job_detail_renders_failed_phase1_timeline_read_only() -> None:
     assert 'href="/job/123/viewer"' not in body
 
 
+def test_job_detail_renders_failed_subprocess_diagnostics_in_timeline() -> None:
+    body = render_job_detail(
+        job=make_job(status="FAILED", error_message="full_report pipeline failed at pipeline: returncode=8"),
+        events=[
+            make_event(
+                "JOB_FAILED",
+                message="full_report pipeline failed at pipeline: returncode=8",
+                detail_json='{"failed_at_stage":"pipeline","returncode":8,"stdout_tail":"short out","stderr_tail":"short err"}',
+            )
+        ],
+        report=None,
+    )
+
+    assert "failed_at_stage" in body
+    assert "pipeline" in body
+    assert "returncode" in body
+    assert "stdout_tail" in body
+    assert "stderr_tail" in body
+    assert "short err" in body
+    assert 'type="submit"' not in body
+
+
 def test_failed_job_detail_shows_failure_guidance_error_and_missing_viewer() -> None:
     body = render_job_detail(
         job=make_job(status="FAILED", error_message="pipeline failed"),

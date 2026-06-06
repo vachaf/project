@@ -229,9 +229,22 @@ def no_data_result() -> Dict[str, Any]:
 
 
 class StageError(RuntimeError):
-    def __init__(self, message: str, failed_at_stage: str) -> None:
+    def __init__(
+        self,
+        message: str,
+        failed_at_stage: str,
+        *,
+        command_label: Optional[str] = None,
+        returncode: Optional[int] = None,
+        stdout_tail: Optional[str] = None,
+        stderr_tail: Optional[str] = None,
+    ) -> None:
         super().__init__(message)
         self.failed_at_stage = failed_at_stage
+        self.command_label = command_label
+        self.returncode = returncode
+        self.stdout_tail = stdout_tail
+        self.stderr_tail = stderr_tail
 
 
 def _eventually(predicate: Any, *, timeout: float = 2.0) -> bool:
@@ -897,6 +910,39 @@ def test_run_pipeline_runner_stage_failure_marks_failed_at_stage() -> None:
     assert exit_code == 1
     assert repo.failed_calls == 1
     assert repo.failed_kwargs[0]["detail_json"]["failed_at_stage"] == "pipeline"
+    assert "abc123" not in repo.failed_kwargs[0]["error_message"]
+
+
+def test_run_pipeline_runner_subprocess_failure_records_limited_diagnostics() -> None:
+    repo = FakeRepository(claimed_job())
+    runner = FakeRunner(
+        error=StageError(
+            "full_report pipeline failed at pipeline: returncode=8 stderr_tail=failed token=abc123",
+            "pipeline",
+            command_label="run_analysis_pipeline.py",
+            returncode=8,
+            stdout_tail="pipeline stdout tail",
+            stderr_tail="pipeline stderr tail token=abc123",
+        )
+    )
+
+    exit_code = analysis_job_worker.run_once(
+        repo,
+        worker_id="local-dev",
+        run_pipeline=True,
+        runner=runner,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    detail = repo.failed_kwargs[0]["detail_json"]
+    assert exit_code == 1
+    assert detail["failed_at_stage"] == "pipeline"
+    assert detail["command_label"] == "run_analysis_pipeline.py"
+    assert detail["returncode"] == 8
+    assert detail["stdout_tail"] == "pipeline stdout tail"
+    assert "abc123" not in detail["stderr_tail"]
+    assert "[REDACTED]" in detail["stderr_tail"]
     assert "abc123" not in repo.failed_kwargs[0]["error_message"]
 
 
