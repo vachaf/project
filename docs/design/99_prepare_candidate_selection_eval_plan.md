@@ -170,6 +170,70 @@ Validation:
 
 이 평가는 regression guard로 사용한다. 작은 데이터셋 점수만으로 policy 품질을 일반화하지 않는다.
 
+## Smoke result: actual run artifact
+
+2026-06-06에 실제 run artifact를 대상으로 스크립트 smoke를 수행했다.
+
+Input:
+
+- labels: `data/eval/prepare_candidate_selection_minimal.json`
+- analysis candidates: `runs/jobs/12/analysis_candidates.json`
+- filtered reasons: `runs/jobs/12/filtered_reasons.json`
+
+Command:
+
+```bash
+python3 scripts/eval_prepare_candidate_selection.py \
+  --labels data/eval/prepare_candidate_selection_minimal.json \
+  --analysis-candidates runs/jobs/12/analysis_candidates.json \
+  --filtered-reasons runs/jobs/12/filtered_reasons.json \
+  --json
+```
+
+Result:
+
+- `candidate_count`: 5
+- `total_labeled`: 30
+- `evaluated_count`: 26
+- `unsure_count`: 4
+- `tp`: 0
+- `fp`: 0
+- `fn`: 14
+- `tn`: 12
+- `precision`: `null`
+- `recall`: 0.0
+- `f1`: `null`
+- `warnings`: none
+
+False positives:
+
+- none
+
+False negatives:
+
+- `eval_req_001`: `xss_probe`
+- `eval_req_002`: `sqli_probe`
+- `eval_req_003`: `path_traversal_probe`
+- `eval_req_004`: `sensitive_path_probe`
+- `eval_req_005`: `auth_behavior_signal`
+- `eval_req_006`: `protocol_anomaly_signal`
+- `eval_req_007`: `sensitive_path_probe`
+- `eval_req_008`: `sqli_probe`
+- `eval_req_009`: `path_traversal_probe`
+- `eval_req_010`: `sensitive_path_probe`
+- `eval_req_011`: `protocol_anomaly_signal`
+- `eval_req_012`: `sensitive_path_probe`
+- `eval_req_013`: `protocol_anomaly_signal`
+- `eval_req_014`: `path_traversal_probe`
+
+Interpretation:
+
+- This is a prepare candidate selection smoke result, not an intrusion detection success metric.
+- The minimal label dataset currently uses `minimal_manual_fixture` request IDs, while `runs/jobs/12` contains actual run request IDs. Therefore the score mainly confirms script execution, artifact parsing, and guardrail reporting against a real run artifact.
+- `candidate_expected` does not mean attack success.
+- `candidate_not_expected` does not mean benign/normal.
+- This smoke does not evaluate Stage1/Stage2 accuracy.
+
 ## 후속 TODO
 
 - 기존 prepare regression fixture에서 request_id 안정성을 확보해 label source를 실제 fixture와 연결한다.
