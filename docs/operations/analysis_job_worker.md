@@ -120,6 +120,51 @@ python3 src/analysis_job_worker.py \
 - `--max-jobs`는 smoke/test용이다.
 - 운영에서는 보통 `--max-jobs` 없이 실행한다.
 
+## stale RUNNING recovery CLI
+
+stale `RUNNING` recovery는 운영자가 명시적으로 실행하는 CLI 절차다. worker 시작 시 자동 recovery를 수행하지 않고, Web UI도 destructive action button을 제공하지 않는다.
+
+후보 판단 기준은 정책 문서 [Analysis Job Stale RUNNING Recovery Policy](../design/99_analysis_job_stale_running_recovery_policy.md)를 따른다.
+
+- `status='RUNNING'`
+- `analysis_mode='full_report'`
+- primary: `heartbeat_at`이 있고 `--stale-after-minutes`보다 오래됨
+- secondary: `heartbeat_at`이 없고 `started_at`이 `--startup-grace-minutes`보다 오래됨
+- 기본값: `--stale-after-minutes 30`, `--startup-grace-minutes 5`, `--limit 20`
+
+dry-run 후보 조회:
+
+```bash
+python3 src/analysis_job_worker.py \
+  --recover-stale \
+  --dry-run \
+  --stale-after-minutes 30 \
+  --startup-grace-minutes 5 \
+  --limit 20
+```
+
+명시적 FAILED 처리:
+
+```bash
+python3 src/analysis_job_worker.py \
+  --recover-stale \
+  --mark-failed \
+  --reason "worker host rebooted; no active process" \
+  --stale-after-minutes 30 \
+  --startup-grace-minutes 5 \
+  --limit 20
+```
+
+CLI 동작:
+
+- `--recover-stale --dry-run`은 candidate를 출력하고 DB를 변경하지 않는다.
+- `--recover-stale --mark-failed --reason "..."`는 조회된 stale candidate만 `FAILED`로 닫는다.
+- `--dry-run`과 `--mark-failed`는 동시에 사용할 수 없다.
+- `--recover-stale` 단독 실행은 CLI error다.
+- `--mark-failed`에는 `--reason`이 필수다.
+- 처리 시 `JOB_MARKED_FAILED_STALE` event를 남긴다.
+- `PENDING` requeue, artifact 삭제, `attempt_count/max_attempts` 변경, `analysis_reports` 변경은 수행하지 않는다.
+
 ## 환경 변수와 config/.env
 
 worker code는 환경변수를 통해 DB/LLM 설정을 받는다. 실제 secret 값은 문서나 `config/.env.example`에 쓰지 않는다. 필요한 key 이름은 `config/.env.example`을 기준으로 확인한다.
@@ -227,6 +272,8 @@ sudo systemctl stop web-log-analysis-worker
 
 - worker가 claim했고 pipeline 실행 중이다.
 - `heartbeat_at`은 `RUNNING` job이 살아 있는지 보는 힌트다.
+- Web UI는 오래된 heartbeat 또는 오래된 missing heartbeat startup state를 `Potentially stale`로 표시한다.
+- `Potentially stale`은 상태 변경이 아니라 운영 확인 신호다.
 
 ### SUCCEEDED
 
@@ -266,6 +313,68 @@ FROM analysis_reports
 WHERE job_id = <job_id>;
 ```
 
+stale candidate 확인 SQL:
+
+```sql
+SELECT id, status, worker_id, started_at, heartbeat_at, attempt_count, max_attempts,
+       artifact_root, error_message
+FROM analysis_jobs
+WHERE status = 'RUNNING'
+  AND analysis_mode = 'full_report'
+  AND (
+    (heartbeat_at IS NOT NULL AND heartbeat_at < UTC_TIMESTAMP(3) - INTERVAL 30 MINUTE)
+    OR (heartbeat_at IS NULL AND started_at < UTC_TIMESTAMP(3) - INTERVAL 5 MINUTE)
+  )
+ORDER BY COALESCE(heartbeat_at, started_at) ASC, started_at ASC, id ASC
+LIMIT 20;
+```
+
+## stale RUNNING 운영 runbook
+
+1. Web UI dashboard/detail에서 `Potentially stale` 표시가 있는지 확인한다.
+2. SQL 또는 CLI dry-run으로 stale candidate를 조회한다.
+
+```bash
+python3 src/analysis_job_worker.py \
+  --recover-stale \
+  --dry-run \
+  --stale-after-minutes 30 \
+  --startup-grace-minutes 5 \
+  --limit 20
+```
+
+3. systemd 상태와 journal을 확인한다.
+
+```bash
+sudo systemctl status web-log-analysis-worker
+journalctl -u web-log-analysis-worker --since "2 hours ago"
+```
+
+4. worker process가 실제로 살아 있는지 확인한다. 운영 환경에 맞게 `ps`, supervisor, container status를 확인한다.
+5. 대상 job의 `artifact_root`와 `analysis_reports` 유무를 확인한다. partial artifact는 삭제하지 않는다.
+6. 실제 실행 중이 아님을 확인한 뒤 명시적 reason으로 FAILED 처리한다.
+
+```bash
+python3 src/analysis_job_worker.py \
+  --recover-stale \
+  --mark-failed \
+  --reason "worker process stopped; journal confirmed no active run" \
+  --stale-after-minutes 30 \
+  --startup-grace-minutes 5 \
+  --limit 20
+```
+
+7. Web detail 또는 SQL에서 `JOB_MARKED_FAILED_STALE` event를 확인한다.
+8. 다시 dry-run을 실행해 candidate가 줄었는지 확인한다.
+
+주의:
+
+- stale recovery는 retry/rerun이 아니다.
+- 기존 job을 `PENDING`으로 되돌리지 않는다.
+- 기존 artifact를 삭제하거나 덮어쓰지 않는다.
+- 재실행이 필요하면 별도 retry/rerun workflow로 새 정책을 적용해야 한다.
+- Web UI는 stale 표시만 제공하고 mark failed button을 제공하지 않는다.
+
 ## 운영 주의사항
 
 - Web app은 worker를 직접 실행하지 않는다.
@@ -275,22 +384,20 @@ WHERE job_id = <job_id>;
 - no-data는 실패가 아니다.
 - real LLM 실행은 API key와 비용이 필요하다.
 - `heartbeat_at`은 `RUNNING` job이 살아 있는지 보는 힌트다.
-- `heartbeat_at`은 기록되지만 stale `RUNNING` recovery는 자동으로 수행되지 않는다.
+- stale `RUNNING` recovery는 CLI로 구현되어 있지만 자동으로 수행되지 않는다.
 - retry/requeue는 자동으로 수행되지 않는다.
 - cancel/cancelled handling은 아직 구현되지 않았다.
-- stage-level `job_events`는 아직 emitted 되지 않는다. 현재 worker는 lifecycle 중심 event를 기록한다.
+- stage-level `job_events`는 Phase 1 coarse boundary 기준으로 기록된다.
 - `lint_result_path`는 schema/UI key가 있으나 현재 full_report runner가 채우지 않는다.
 - systemd 예시는 1 worker 기준이다.
 - 다중 worker는 atomic claim 덕분에 가능하지만, 실제 multi-worker 운영 검증 전까지 현재 운영 권장은 보수적으로 1 worker다.
 
 ## 남은 TODO
 
-- stale `RUNNING` job recovery
 - retry/requeue CLI/API/UI
 - cancel/cancelled semantics
 - failed/partial artifact policy 고도화
 - worker health endpoint 또는 Web UI worker status 표시
-- stage-level job event logging
 - lint_result_path / manifest / stage2_report_input artifact mapping 결정
 - legacy `/report/*` 정리
 - Markdown report HTML rendering

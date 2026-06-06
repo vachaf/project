@@ -1,6 +1,6 @@
 # 99_비교실험_후속개선_TODO
 
-- 기준 시점: 2026-06-02
+- 기준 시점: 2026-06-06
 - 문서 역할: 앞으로 해야 할 일만 남기는 TODO
 - 완료 이력: [99_비교실험_후속개선_history.md](./99_비교실험_후속개선_history.md)
 - 관련 대시보드: [../진행상황.md](../진행상황.md)
@@ -24,6 +24,7 @@
 - DB-backed log collection + analysis job design: [../design/99_db_backed_log_collection_and_analysis_job_design.md](../design/99_db_backed_log_collection_and_analysis_job_design.md)
 - DB-backed Web UI/API safety addendum: [../design/99_db_backed_web_ui_api_safety_addendum.md](../design/99_db_backed_web_ui_api_safety_addendum.md)
 - Analysis job stage events design: [../design/99_analysis_job_stage_events_design.md](../design/99_analysis_job_stage_events_design.md)
+- Stale RUNNING recovery policy: [../design/99_analysis_job_stale_running_recovery_policy.md](../design/99_analysis_job_stale_running_recovery_policy.md)
 - DB-backed analysis job table setup: [../operations/07_DB_backed_analysis_job_tables.md](../operations/07_DB_backed_analysis_job_tables.md)
 - Analysis job table SQL: [../operations/sql/01_analysis_job_tables.sql](../operations/sql/01_analysis_job_tables.sql)
 - Sliding Window adoption review: [../design/99_sliding_window_adoption_review.md](../design/99_sliding_window_adoption_review.md)
@@ -96,6 +97,15 @@
   - `REPORT_SAVE_*`에는 `duration_seconds`, `JOB_SUCCEEDED.detail_json`에는 `worker_id`를 보강했다.
   - Web UI `/job/{id}` 실행 타임라인은 저장된 `job_events`를 read-only로 표시하며, Phase 1 이벤트 렌더링 회귀 테스트를 추가했다.
   - 검증: `PYTHONPATH=. pytest -q` → `319 passed`.
+- [x] stale RUNNING recovery CLI와 Web UI hint 구현
+  - 정책 문서: [../design/99_analysis_job_stale_running_recovery_policy.md](../design/99_analysis_job_stale_running_recovery_policy.md)
+  - 운영 문서: [../operations/analysis_job_worker.md](../operations/analysis_job_worker.md)
+  - `--recover-stale --dry-run` 후보 조회를 구현했다.
+  - `--recover-stale --mark-failed --reason "..."` 명시 FAILED 처리를 구현했다.
+  - `--stale-after-minutes`, `--startup-grace-minutes`, `--limit` 옵션을 지원한다.
+  - `JOB_MARKED_FAILED_STALE` event를 기록한다.
+  - `PENDING` requeue, artifact 삭제, `attempt_count/max_attempts` 변경, `analysis_reports` 변경은 하지 않는다.
+  - Web UI dashboard/detail은 `Potentially stale` 표시만 제공하며 mark failed button은 제공하지 않는다.
 
 ### 다음 우선순위
 
@@ -103,12 +113,10 @@
   - `--run-pipeline` loop mode를 실제 DB/LLM 환경에서 장시간 실행한다.
   - systemd `enable/start/status/journalctl` 운영 검증을 남긴다.
   - 운영 권장은 여전히 보수적으로 1 worker 기준이며, multi-worker는 명시적으로 검증한 뒤 확대한다.
-- [ ] stale RUNNING recovery
-  - `heartbeat_at`은 기록되지만 stale 판단/복구는 자동화되어 있지 않다.
-  - stale job을 FAILED 또는 PENDING으로 전환할 기준과 event 기록 방식을 정한다.
 - [ ] retry/requeue workflow
   - `attempt_count/max_attempts` 기반 claim skip은 있으나 FAILED job retry/requeue CLI/API/UI는 없다.
   - retry 가능한 오류와 artifact overwrite/fail-fast 정책을 함께 정한다.
+  - stale failed marking과 retry/rerun은 별도 workflow로 유지한다.
 - [ ] cancel/cancelled handling
   - `CANCELLED` 상태와 cancel API/UI/worker semantics는 아직 구현하지 않는다.
 - [ ] worker health/status UI

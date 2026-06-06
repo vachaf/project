@@ -5,6 +5,14 @@
 - 목적: DB-backed `analysis_jobs`에서 worker 중단으로 남는 stale `RUNNING` job의 판단/복구 정책을 정한다.
 - 범위: `analysis_mode=full_report` DB-backed MVP worker 운영 정책. 이번 문서는 정책 설계이며 코드/DB schema/worker/Web UI 변경을 포함하지 않는다.
 
+Implementation note:
+
+- 2026-06-06 기준으로 이 정책의 안전한 MVP 구현이 완료됐다.
+- repository는 stale candidate 조회와 stale `RUNNING`을 명시적으로 `FAILED` 처리하는 method를 제공한다.
+- worker CLI는 `--recover-stale --dry-run`과 `--recover-stale --mark-failed --reason "..."`를 지원한다.
+- Web UI는 dashboard/detail에 `Potentially stale` 표시만 제공한다.
+- 자동 `PENDING` requeue, artifact 삭제, worker startup 자동 recovery, Web UI destructive action은 구현하지 않았다.
+
 관련 문서:
 
 - [99_analysis_job_worker_status_investigation.md](./99_analysis_job_worker_status_investigation.md)
@@ -335,38 +343,45 @@ repository 구현 원칙:
 
 ### CLI
 
-후속 CLI 후보:
+구현된 CLI:
 
 ```bash
 python3 src/analysis_job_worker.py \
   --recover-stale \
+  --dry-run \
   --stale-after-minutes 30 \
-  --dry-run
+  --startup-grace-minutes 5 \
+  --limit 20
 ```
 
-적용 모드 후보:
+명시적 FAILED 처리:
 
 ```bash
 python3 src/analysis_job_worker.py \
   --recover-stale \
-  --stale-after-minutes 30 \
   --mark-failed \
-  --reason "worker host rebooted; no active process"
+  --reason "worker host rebooted; no active process" \
+  --stale-after-minutes 30 \
+  --startup-grace-minutes 5 \
+  --limit 20
 ```
 
 CLI 원칙:
 
-- 기본은 `--dry-run`.
+- `--recover-stale --dry-run`은 상태 변경 없이 candidate를 출력한다.
 - `--mark-failed` 같은 명시적 apply flag 없이는 상태 변경 금지.
+- `--dry-run`과 `--mark-failed` 동시 사용은 error다.
+- `--recover-stale` 단독 실행은 error다.
 - `--requeue`는 제공하지 않는다. retry/rerun CLI와 분리한다.
 - artifact 삭제 옵션을 제공하지 않는다.
 - 처리 결과는 job id, worker_id, started_at, heartbeat_at, artifact_root, action을 표로 출력한다.
 
 ### Web
 
-후속 Web 후보:
+구현된 Web 표시:
 
 - dashboard/detail에서 `RUNNING` + old `heartbeat_at`이면 `Potentially stale` badge 표시.
+- dashboard/detail에서 `RUNNING` + missing `heartbeat_at` + old `started_at`이면 `Potentially stale` badge 표시.
 - Web UI는 초기에는 상태 변경 버튼을 제공하지 않는다.
 - operator-only action이 필요해지면 별도 권한/CSRF/audit/event 정책을 먼저 설계한다.
 
@@ -380,7 +395,7 @@ AND heartbeat_at older than configured stale threshold
 
 ## 9. 테스트 계획
 
-후속 구현 시 테스트 후보:
+구현된 테스트 범위:
 
 | 테스트 | 목적 |
 | --- | --- |
@@ -417,20 +432,19 @@ AND heartbeat_at older than configured stale threshold
 - Web UI 일반 사용자에게 destructive recovery button을 노출하지 않는다.
 - DB schema를 먼저 늘리지 않는다. 현재 schema의 `heartbeat_at`, `started_at`, `worker_id`, `error_message`, `job_events.detail_json`으로 시작한다.
 
-## 11. 권장 커밋 순서
+## 11. 구현 이력과 남은 분리 원칙
 
-후속 구현을 한다면 다음 순서를 권장한다.
+구현 이력:
 
 ```text
-1. docs: stale RUNNING recovery policy 문서 확정
-2. repository: stale RUNNING query + mark failed stale method 추가
-3. tests: repository stale query/mark failed/no requeue/artifact untouched 검증
-4. CLI: --recover-stale dry-run 추가
-5. CLI: 명시 --mark-failed apply mode 추가
-6. operations docs: 운영 runbook과 SQL/CLI 예시 갱신
-7. Web: Potentially stale badge 표시
-8. Web/API: operator action은 권한/audit 설계 후 별도 진행
-9. retry/rerun workflow는 stale FAILED 처리와 별도 설계/구현
+1. docs: stale RUNNING recovery policy 문서 확정 (e18946d)
+2. repository/CLI: --recover-stale dry-run 추가 (24221c9)
+3. repository/CLI: 명시 --mark-failed apply mode 추가 (919a620)
+4. Web: Potentially stale badge 표시 (48b99c0)
+5. operations/progress docs: 구현 완료 상태와 운영 runbook 반영
 ```
 
-첫 구현 단위는 dry-run query까지만 작게 끊는 것이 안전하다. 상태 변경과 Web action은 그 다음 단계로 분리한다.
+남은 분리 원칙:
+
+- Web/API operator action은 권한/CSRF/audit 설계 후 별도 진행한다.
+- retry/rerun workflow는 stale FAILED 처리와 별도 설계/구현한다.
