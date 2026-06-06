@@ -21,6 +21,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from urllib import error
 
@@ -43,7 +44,11 @@ SEVERITY_ORDER = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}
 CONFIDENCE_ORDER = {"high": 3, "medium": 2, "low": 1}
 TABLE_PRIORITY = {"security": 3, "error": 2, "access": 1}
 RECON_FILTERED_CATEGORIES = ("low_signal_fuzzing", "low_signal_dir_probe")
-REFERENCE_BASELINE_FILTERED_CATEGORIES = ("benign_normal_search", "normal_search_baseline")
+REFERENCE_BASELINE_FILTERED_CATEGORIES = ("known_baseline_like", "known_baseline_like_legacy_alias")
+SAFE_FILTERED_CATEGORY_ALIASES = {
+    "benign_normal_search": "known_baseline_like_legacy_alias",
+    "normal_search_baseline": "known_baseline_like_legacy_alias",
+}
 ENV_FILE_NAMES = ("config/llm.env", "llm.env", ".env")
 IP_BEHAVIOR_CONTEXT_LIMIT = 10
 IP_BEHAVIOR_LIST_LIMIT = 10
@@ -55,6 +60,24 @@ AUTH_BEHAVIOR_CONTEXT_LIMIT = 10
 METHOD_BEHAVIOR_CONTEXT_LIMIT = 10
 PROTOCOL_ANOMALY_CONTEXT_LIMIT = 10
 PLACEHOLDER_STRINGS = {"", "-", "None", "null"}
+REPORT_TEXT_FIELDS = {
+    "report_title",
+    "overall_assessment",
+    "executive_summary",
+    "key_findings",
+    "title",
+    "detail",
+    "notable_incidents",
+    "why_it_matters",
+    "notable_source_ips",
+    "reason",
+    "noise_interpretation",
+    "recommended_actions",
+    "action",
+    "why",
+    "confidence_and_limitations",
+    "presentation_takeaway",
+}
 
 
 @dataclass
@@ -824,8 +847,67 @@ def normalize_counter_dict(raw: Any) -> Dict[str, int]:
         key_text = normalize_str(key)
         if not key_text:
             continue
-        normalized[key_text] = safe_int(value, 0)
+        normalized[key_text] = normalized.get(key_text, 0) + safe_int(value, 0)
     return dict(sorted(normalized.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def normalize_filtered_category_for_report(category: Any) -> str:
+    text = normalize_str(category)
+    return SAFE_FILTERED_CATEGORY_ALIASES.get(text, text)
+
+
+def normalize_filtered_breakdown_for_report(raw: Any) -> Dict[str, int]:
+    if not isinstance(raw, dict):
+        return {}
+    normalized: Dict[str, int] = {}
+    for key, value in raw.items():
+        category = normalize_filtered_category_for_report(key)
+        if not category:
+            continue
+        normalized[category] = normalized.get(category, 0) + safe_int(value, 0)
+    return dict(sorted(normalized.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def sanitize_report_text(value: str) -> Tuple[str, List[str]]:
+    text = normalize_str(value)
+    warnings: List[str] = []
+    replacements = [
+        ("benign_normal_search", "known_baseline_like_legacy_alias", "forbidden_phrase:benign_normal_search"),
+        ("normal_search_baseline", "known_baseline_like_legacy_alias", "forbidden_phrase:normal_search_baseline"),
+        ("benign_fallback_html", "low_signal_request_legacy_alias", "forbidden_phrase:benign_fallback_html"),
+        ("benign", "baseline-like", "forbidden_phrase:benign"),
+        ("무해", "안전 확정 불가", "forbidden_phrase:무해"),
+        ("정상", "기준선 유사", "forbidden_phrase:정상"),
+    ]
+    for pattern, replacement, warning in replacements:
+        if pattern in text:
+            text = text.replace(pattern, replacement)
+            warnings.append(warning)
+    if re.search(r"(?<![A-Za-z_])normal(?![A-Za-z_])", text):
+        text = re.sub(r"(?<![A-Za-z_])normal(?![A-Za-z_])", "baseline-like", text)
+        warnings.append("forbidden_phrase:normal")
+    return text, warnings
+
+
+def sanitize_report_json_text(payload: Any, *, current_key: str = "") -> Tuple[Any, List[str]]:
+    warnings: List[str] = []
+    if isinstance(payload, dict):
+        sanitized: Dict[str, Any] = {}
+        for key, value in payload.items():
+            child, child_warnings = sanitize_report_json_text(value, current_key=normalize_str(key))
+            sanitized[key] = child
+            warnings.extend(child_warnings)
+        return sanitized, warnings
+    if isinstance(payload, list):
+        rows = []
+        for item in payload:
+            child, child_warnings = sanitize_report_json_text(item, current_key=current_key)
+            rows.append(child)
+            warnings.extend(child_warnings)
+        return rows, warnings
+    if isinstance(payload, str) and current_key in REPORT_TEXT_FIELDS:
+        return sanitize_report_text(payload)
+    return payload, warnings
 
 
 def build_filtered_category_rows(filtered_out_breakdown: Dict[str, int], total_filtered_out_rows: int, top_n: int) -> List[Dict[str, Any]]:
@@ -1289,7 +1371,7 @@ def build_report_input(
     method_behavior_summaries = (llm_input_payload or {}).get("method_behavior_summaries") or []
     protocol_anomaly_summaries = (llm_input_payload or {}).get("protocol_anomaly_summaries") or []
     stage1_errors = (stage1_errors_payload or {}).get("errors") or []
-    filtered_out_breakdown = normalize_counter_dict(llm_meta.get("filtered_out_breakdown"))
+    filtered_out_breakdown = normalize_filtered_breakdown_for_report(llm_meta.get("filtered_out_breakdown"))
     total_filtered_out_rows = safe_int(counts.get("filtered_out_rows"), 0)
     candidate_lookup = build_candidate_evidence_lookup(llm_input_payload)
 
@@ -1521,9 +1603,9 @@ def build_report_input(
                 "promotion_review_rule": "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토",
             },
             "reference_baseline_policy": {
-                "default_action": "benign_normal_search 또는 normal_search_baseline 카테고리와 supporting_role=reference_baseline 은 정상 비교군으로 해석",
-                "reporting_rule": "후보 밖 탐색성 요청이나 low signal fuzzing 으로 표현하지 않고 같은 endpoint 의 정상 baseline 또는 reference baseline 으로 설명",
-                "comparison_rule": "정상 baseline 이 근접해 있어도 공격 candidate 의 의도나 심각도를 낮추지 않고 정상/공격 비교 문맥으로만 사용",
+                "default_action": "known_baseline_like 또는 known_baseline_like_legacy_alias 카테고리와 supporting_role=reference_baseline 은 candidate-excluded baseline-like context 로 해석",
+                "reporting_rule": "후보 밖 탐색성 요청이나 low signal fuzzing 으로 표현하지 않고 같은 endpoint 의 baseline-like 또는 reference baseline 문맥으로 설명",
+                "comparison_rule": "baseline-like context 가 근접해 있어도 공격 candidate 의 의도나 심각도를 낮추지 않고 비교 문맥으로만 사용",
             },
             "probing_sequence_policy": {
                 "default_action": "probing_sequence_summaries 는 context-only 이며 개별 incident 로 승격하지 않음",
@@ -1533,7 +1615,7 @@ def build_report_input(
             },
             "static_baseline_summary_policy": {
                 "default_action": "static_baseline_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
-                "interpretation_rule": "favicon, robots.txt, sitemap.xml, static asset, health check, normal GET 은 baseline/static context 로만 설명",
+                "interpretation_rule": "favicon, robots.txt, sitemap.xml, static asset, health check, baseline GET 은 baseline/static context 로만 설명",
                 "success_rule": "status_code, response_body_bytes, content_type 만으로 static file 내용, crawler policy, site structure, JS 실행, file exposure, health 상태를 단정하지 않음",
                 "visibility_rule": "Apache 로그 표면에서는 response body 원문, 브라우저 실행 여부, 서버 내부 파일 존재 여부를 확인할 수 없으므로 static/baseline outcome 은 관찰 문맥으로만 해석",
             },
@@ -1553,7 +1635,7 @@ def build_report_input(
             "mixed_baseline_scanner_summary_policy": {
                 "default_action": "mixed_baseline_scanner_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
                 "interpretation_rule": "baseline/static/crawler-like 요청과 scanner-like sensitive path 가 같은 window 에 함께 있어도 단일 공격 성공으로 합치지 않고 각각의 문맥을 분리해서 설명",
-                "separation_rule": "normal/static/crawler-like baseline 과 sensitive path probe context 를 구분해 설명",
+                "separation_rule": "baseline/static/crawler-like context 와 sensitive path probe context 를 구분해 설명",
                 "success_rule": "status_code, response_body_bytes, content_type 만으로 file exposure, app presence, crawler authenticity, page existence, attack success 를 단정하지 않음",
                 "visibility_rule": "Apache 로그 표면에서는 response body 원문, crawler verification, 서버 내부 파일 존재 여부를 확인할 수 없으므로 mixed context 는 관찰 문맥으로만 해석",
             },
@@ -1621,14 +1703,14 @@ def build_report_input(
                 "wrapper_vs_traversal_rule": "이는 단순 ../ path traversal 과 구분되는 PHP wrapper 기반 file disclosure 또는 source disclosure 시도이며, suspicious_file_disclosure verdict 또는 file_disclosure:* hint 가 있으면 해당 의미를 우선 설명",
                 "hint_interpretation_rule": "file_disclosure:* reason_hints 는 의도/시도 근거이지 성공/유출 근거가 아님",
                 "success_rule": "Apache 로그만으로 실제 PHP source/config 파일 내용 노출 성공을 확정하지 않음",
-                "status_200_rule": "status_code=200, text/html, response_body_bytes 또는 200 empty body 는 정상 라우팅, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답 가능성을 함께 검토하며 file disclosure 성공 근거로 사용하지 않음",
+                "status_200_rule": "status_code=200, text/html, response_body_bytes 또는 200 empty body 는 expected routing, 빈 PHP 출력, 로그인/에러 템플릿, fallback-like 응답 가능성을 함께 검토하며 file disclosure 성공 근거로 사용하지 않음",
                 "direct_config_rule": "/config.php, /admin/config.php 직접 접근은 sensitive config path probing context 로 설명하고, wrapper payload 와 동일한 강한 file disclosure 시도로 과장하지 않으며 response body 원문 없이는 노출 성공으로 단정하지 않음",
                 "empty_body_rule": "response_body_bytes=0 은 직접 접근 시도 또는 라우팅 성공 가능성만 시사하며 본문 노출 증거는 아님",
             },
             "supporting_events_policy": {
                 "default_action": "supporting_events 는 개별 incident 가 아니라 문맥 정보로만 해석",
                 "temporal_rule": "같은 src_ip 와 같은 uri 또는 endpoint family 의 근접 시계열로 해석",
-                "reference_baseline_rule": "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 이면 같은 endpoint 의 정상 요청 예시로만 설명",
+                "reference_baseline_rule": "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 이면 같은 endpoint 의 baseline-like reference 요청 예시로만 설명",
                 "auth_behavior_rule": "supporting_role=auth_behavior_support 또는 supporting_reason=covered_by_auth_behavior_summary 이면 반복 auth 실패 row 가 top-level auth_behavior_summaries 에 의해 대표 사건 밖 문맥으로 정리된 것이라고 해석",
                 "decoded_hint_rule": "encoding:* reason_hints 는 우회성 인코딩 시도 보조 근거로만 사용",
                 "educational_sql_rule": "교육/문서 검색 문맥 hint 가 있으면 SQLi 단정을 낮추고 자연어 질의 가능성을 함께 검토",
@@ -1768,8 +1850,8 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "D. Context-only summary rules\n"
             "- Common: 모든 *_summaries 및 ip_behavior_aggregates는 context-only collection이다. should_promote_to_candidate=false이면 해당 summary 안의 어떤 row도 summary 때문에 analysis_candidate 또는 incident로 승격된 것으로 해석하지 마라. context-only collection은 key_findings severity를 올리는 단독 근거가 아니다. collection별 request_count는 scope가 다르므로 서로 합산하거나 같은 사건 수처럼 직접 비교하지 마라. 여러 summary를 함께 언급할 때는 count scope 를 분리하라.\n"
             "- Count scope: static=request_count는 같은 src_ip와 static/health/browse baseline 시간창, crawler=같은 src_ip와 crawler-like UA/browse baseline 시간창, sensitive=같은 src_ip와 sensitive path 시간창, mixed=같은 src_ip와 mixed baseline/scanner 시간창, auth=request_count/auth_request_count는 auth endpoint family, method=같은 src_ip와 method/protocol relevant row 시간창, protocol=같은 src_ip와 protocol anomaly relevant row 시간창, ip aggregate=같은 src_ip/time window 기준 전체 또는 관련 요청 수다.\n"
-            "- static_baseline_summaries 가 있으면 이는 context-only 이며, favicon, robots.txt, sitemap.xml, static asset, health check, normal GET이 함께 관찰된 baseline/static context로만 설명하라. static file 존재, crawler policy 내용, site structure 노출, JS 실행, file exposure, health 정상 여부를 단정하지 마라.\n"
-            "- crawler_baseline_summaries 가 있으면 이는 context-only 이며, crawler-like User-Agent, robots.txt, sitemap.xml, product/category browse, normal browse가 함께 관찰된 crawler baseline context로만 설명하라. Googlebot/Bingbot/GenericCrawler-like User-Agent 는 spoof 가능하므로 실제 crawler 정체를 단정하지 마라. robots/sitemap 내용, site structure, product/category page existence, attack success를 단정하지 마라.\n"
+            "- static_baseline_summaries 가 있으면 이는 context-only 이며, favicon, robots.txt, sitemap.xml, static asset, health check, baseline GET이 함께 관찰된 baseline/static context로만 설명하라. static file 존재, crawler policy 내용, site structure 노출, JS 실행, file exposure, health 상태를 단정하지 마라.\n"
+            "- crawler_baseline_summaries 가 있으면 이는 context-only 이며, crawler-like User-Agent, robots.txt, sitemap.xml, product/category browse, baseline browse가 함께 관찰된 crawler baseline context로만 설명하라. Googlebot/Bingbot/GenericCrawler-like User-Agent 는 spoof 가능하므로 실제 crawler 정체를 단정하지 마라. robots/sitemap 내용, site structure, product/category page existence, attack success를 단정하지 마라.\n"
             "- sensitive_path_probe_summaries 가 있으면 이는 context-only 이며, wp-login/wp-admin/.env/phpinfo/server-status/backup.zip 같은 path가 관찰된 scanner-like sensitive path probing context로만 설명하라. WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 단정하지 마라.\n"
             "- mixed_baseline_scanner_summaries 가 있으면 이는 context-only 이며, baseline/static/crawler-like 요청과 scanner-like sensitive path가 함께 관찰된 mixed context로만 설명하라. baseline/static/crawler-like context 와 sensitive path probe context 를 같은 성공 공격이나 단일 침해 체인으로 합치지 말고 분리하라.\n"
             "- Probing sequence: 같은 src_ip에서 짧은 시간 안에 여러 민감/관리/백업 경로 접근이 관찰된 reconnaissance 또는 directory probing 흐름으로만 설명하라. 반복 200 text/html 또는 동일 response_body_bytes는 fallback HTML 가능성으로만 설명하고 compromise/exposure proof로 쓰지 마라. 403/401은 access control이 동작한 정황으로 설명하되 scan/probe intent는 남길 수 있다.\n"
@@ -1790,15 +1872,18 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "- key_findings severity 를 부여할 때는 명시적인 non-context-only 근거가 없으면 report_input.policy_notes.key_finding_severity_policy.max_top_incident_severity보다 높이지 마라.\n"
             "- top_incidents가 없거나 모두 info/low이고 finding이 context-only summary 중심이면 key_findings severity는 info 또는 low를 사용하라.\n"
             "- medium/high는 report_input에 medium/high top_incident가 있거나 반복적인 고신뢰 candidate incident, 또는 다른 명시적 non-context-only candidate evidence가 있을 때만 사용하라.\n"
-            "- 정상 baseline이 근접해 있어도 공격 candidate의 의도나 심각도를 낮추는 근거로 사용하지 말고 정상/공격 비교 문맥으로만 사용하라."
+            "- baseline-like context가 근접해 있어도 공격 candidate의 의도나 심각도를 낮추는 근거로 사용하지 말고 candidate/context 비교 문맥으로만 사용하라."
         ),
         (
             "G. Filtered-out / supporting events policy\n"
             "- noise_summary가 비어 있어도 filtered_out_breakdown이 있으면 후보 밖 요청의 세부 분포가 존재하는 것으로 서술하라. filtered_out_breakdown, top_filtered_categories, top_out_of_candidate_recon은 후보 밖 문맥 섹션과 recommended_actions에 반영하라.\n"
+            "- Do not call filtered-out or candidate-excluded rows benign or normal. Candidate-excluded means not selected for candidate analysis, not safe.\n"
+            "- Use candidate-excluded, baseline-like, known_baseline_like, known_baseline_like_legacy_alias, or context-only baseline-like instead.\n"
+            "- Do not infer benign, safe, or normal from status_code, response size, route, User-Agent, or known asset IP.\n"
             "- low_signal_fuzzing과 low_signal_dir_probe는 기본적으로 incident로 승격하지 말고 '후보 밖 탐색성 요청'으로 표기하라. 단, 동일 IP, 동일 시간대, 후속 고신호 incident와 결합될 때만 승격 검토 대상으로 서술하라.\n"
-            "- benign_normal_search 또는 normal_search_baseline filtered_out category 는 low_signal_fuzzing 과 분리해서 정상 비교군 또는 reference baseline 으로 표현하라.\n"
+            "- known_baseline_like 또는 known_baseline_like_legacy_alias filtered_out category 는 low_signal_fuzzing 과 분리해서 candidate-excluded baseline-like 또는 reference baseline 으로 표현하라.\n"
             "- supporting_events는 개별 incident가 아니라 같은 src_ip, uri 또는 endpoint family, 인접 시간대의 보조 문맥이다. 개별 incident로 승격하지 마라.\n"
-            "- supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline은 같은 endpoint의 정상 baseline 또는 reference baseline으로 설명하라.\n"
+            "- supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline은 같은 endpoint의 baseline-like 또는 reference baseline으로 설명하라.\n"
             "- supporting_role=auth_behavior_support 또는 supporting_reason=covered_by_auth_behavior_summary는 반복 auth 실패 row가 대표 사건 밖 문맥으로 정리된 것으로 설명하고 각 row를 별도 incident로 재승격하지 마라.\n"
             "- supporting_events의 encoding:* hint는 우회성 인코딩 시도 보조 근거이며, educational_sql_search 계열 hint와 false_positive_review_candidates는 자연어형 보안 검색 질의 검토 정보로만 사용하라."
         ),
@@ -1855,7 +1940,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "known_asset_ips 와 일치하는 IP 는 내부 테스트/자체 호출 가능성을 반드시 함께 언급하라.",
             "noise_summary 가 비어 있어도 filtered_out_breakdown 이 있으면 후보 밖 세부 분포가 존재하는 것으로 서술하라.",
             "supporting_events 는 개별 incident 로 승격하지 말고, 같은 src_ip 와 같은 uri 또는 endpoint family 의 temporal chain 보조 문맥으로만 사용하라.",
-            "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 인 supporting_events 는 후보 밖 탐색성 요청으로 쓰지 말고, 같은 endpoint 의 정상 baseline 또는 reference baseline 으로 설명하라.",
+            "supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline 인 supporting_events 는 후보 밖 탐색성 요청으로 쓰지 말고, 같은 endpoint 의 baseline-like 또는 reference baseline 으로 설명하라.",
             "supporting_role=auth_behavior_support 또는 supporting_reason=covered_by_auth_behavior_summary 인 supporting_events 는 반복 auth 실패 row 가 auth_behavior_summaries 에 의해 대표 사건 밖 문맥으로 정리된 것으로 설명하고 각 row 를 별도 incident 로 재승격하지 마라.",
             "supporting_events 에 educational_sql_search 또는 sql_keyword_without_attack_structure 계열 hint 가 있으면 SQL 키워드 검색을 공격으로 단정하지 마라.",
             "supporting_events 나 incident reason_hints 에 encoding:double_decoded_sqli, encoding:decoded_depth_2 같은 hint 가 있으면 인코딩 기반 evasion 시도 가능성을 보조적으로 언급하라.",
@@ -1865,11 +1950,11 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "probing_sequence_summaries 안의 direct config path 접근은 context_only 이며 개별 incident 나 config 노출 성공으로 과승격하지 마라.",
             "probing_sequence_summaries 에 403 또는 401 응답이 있으면 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급하라.",
             "known_asset 이거나 known asset IP 와 겹치는 probing_sequence_summaries 는 내부 테스트/운영 점검 가능성을 함께 병기하라.",
-            "static_baseline_summaries 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 와 짧은 시간 window 안에서 favicon, robots.txt, sitemap.xml, static asset, health check, normal GET 이 함께 관찰된 baseline/static context 로만 설명하라.",
+            "static_baseline_summaries 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 와 짧은 시간 window 안에서 favicon, robots.txt, sitemap.xml, static asset, health check, baseline GET 이 함께 관찰된 baseline/static context 로만 설명하라.",
             "static_baseline_summaries 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 summary 때문에 candidate 로 승격된 것으로 해석하지 마라.",
-            "static_baseline_summaries 의 status_code, response_body_bytes, content_type 만으로 static file 존재, crawler policy 내용, site structure 노출, JS 실행, file exposure, health 정상 여부를 단정하지 마라.",
+            "static_baseline_summaries 의 status_code, response_body_bytes, content_type 만으로 static file 존재, crawler policy 내용, site structure 노출, JS 실행, file exposure, health 상태를 단정하지 마라.",
             "Apache 로그 표면에서는 response body 원문, 브라우저 실행 여부, 서버 내부 파일 존재 여부를 확인할 수 없으므로 static_baseline_summaries 는 관찰 문맥으로만 해석하라.",
-            "crawler_baseline_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 말고, 같은 src_ip 와 짧은 시간 window 안에서 crawler-like User-Agent, robots.txt, sitemap.xml, product/category browse, normal browse 가 함께 관찰된 crawler baseline context 로만 설명하라.",
+            "crawler_baseline_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 말고, 같은 src_ip 와 짧은 시간 window 안에서 crawler-like User-Agent, robots.txt, sitemap.xml, product/category browse, baseline browse 가 함께 관찰된 crawler baseline context 로만 설명하라.",
             "crawler_baseline_summaries 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 summary 때문에 candidate 로 승격된 것으로 해석하지 마라.",
             "Googlebot/Bingbot/GenericCrawler-like User-Agent 는 spoof 가능하므로 실제 crawler 정체를 단정하지 마라.",
             "crawler_baseline_summaries 의 status_code, response_body_bytes, content_type 만으로 robots policy 내용, sitemap 내용, site structure, product/category page existence, 공격 성공을 단정하지 마라.",
@@ -1914,9 +1999,10 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "known_asset IP 와 결합된 비브라우저성 또는 자동화성 UA 는 내부 테스트 또는 운영 점검 가능성을 함께 병기하라.",
             "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, 별도 '후보 밖 탐색성 요청' 섹션에서 설명하라.",
             "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라.",
-            "benign_normal_search 또는 normal_search_baseline filtered_out category 는 low_signal_fuzzing 과 분리해서 정상 비교군 또는 reference baseline 으로 설명하라.",
-            "정상 baseline 이 근접해 있어도 공격 candidate 의 의도나 심각도를 낮추는 근거로 사용하지 마라.",
-            "low_signal_fuzzing, low_signal_dir_probe, benign_normal_search, benign_fallback_html 같은 filtered_out_breakdown 카테고리가 있으면 noise_interpretation 에 구체적으로 반영하라.",
+            "filtered-out 또는 candidate-excluded row를 benign, normal, 정상, 무해로 부르지 마라. candidate-excluded는 candidate 분석 대상으로 선택되지 않았다는 뜻이지 안전하다는 뜻이 아니다.",
+            "known_baseline_like 또는 known_baseline_like_legacy_alias filtered_out category 는 low_signal_fuzzing 과 분리해서 candidate-excluded baseline-like 또는 reference baseline 으로 설명하라.",
+            "baseline-like context 가 근접해 있어도 공격 candidate 의 의도나 심각도를 낮추는 근거로 사용하지 마라.",
+            "low_signal_fuzzing, low_signal_dir_probe, known_baseline_like, known_baseline_like_legacy_alias 같은 filtered_out_breakdown 카테고리가 있으면 noise_interpretation 에 구체적으로 반영하라.",
             "executive_summary 는 짧고 발표용으로 읽기 쉽게 작성하라.",
             "recommended_actions 는 구체적이고 운영 가능한 형태로 제시하라.",
             "notable_incidents 의 incident_ref 는 report_input.top_incidents 에 있는 값을 그대로 복사하라.",
@@ -2067,7 +2153,8 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     lines.append("정책:")
     lines.append("- low_signal_fuzzing / low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않습니다.")
     lines.append("- low_signal_fuzzing / low_signal_dir_probe 만 후보 밖 탐색성 요청으로 고정 표기합니다.")
-    lines.append("- benign_normal_search / normal_search_baseline 과 supporting_role=reference_baseline 은 정상 baseline 또는 reference baseline 으로 설명합니다.")
+    lines.append("- known_baseline_like / known_baseline_like_legacy_alias 와 supporting_role=reference_baseline 은 candidate-excluded baseline-like 또는 reference baseline 으로 설명합니다.")
+    lines.append("- candidate-excluded 는 candidate 분석 대상으로 선택되지 않았다는 뜻이며 안전 판정이 아닙니다.")
     lines.append("- 동일 IP·동일 시간대·후속 고신호 incident 와 결합될 때만 승격 검토합니다.")
     if top_out_of_candidate_recon:
         lines.append("")
@@ -2122,7 +2209,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
             )
             lines.append(f"  - reason_hints={reason_hints}")
             lines.append("  - 해석: static/health/browse baseline 관찰 문맥으로만 본다.")
-            lines.append("  - 제한: status, bytes, content_type 만으로 static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 정상 여부를 단정하지 않는다.")
+            lines.append("  - 제한: status, bytes, content_type 만으로 static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 상태를 단정하지 않는다.")
             if bool(item.get("known_asset")):
                 lines.append("  - 주의: known asset IP 와 일치하므로 내부 테스트/운영 점검 가능성을 함께 고려해야 합니다.")
     else:
@@ -2366,7 +2453,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     if recon_rows:
         lines.append("- 후보 밖 탐색성 요청 승격 정책: low_signal_fuzzing / low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않고, 동일 IP·동일 시간대·후속 고신호 incident 와 결합될 때만 승격 검토")
     if any(normalize_str(row.get("category")) in REFERENCE_BASELINE_FILTERED_CATEGORIES for row in filtered_rows):
-        lines.append("- 정상 baseline 정책: benign_normal_search / normal_search_baseline 은 후보 밖 탐색성 요청이 아니라 정상 비교군 또는 reference baseline 으로 해석")
+        lines.append("- baseline-like 정책: known_baseline_like / known_baseline_like_legacy_alias 는 후보 밖 탐색성 요청이 아니라 candidate-excluded baseline-like 또는 reference baseline 으로 해석")
     if probing_sequence_summaries:
         lines.append("- context-only probing sequence:")
         for item in probing_sequence_summaries[:5]:
@@ -2387,7 +2474,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
                 f"asset_categories={','.join(item.get('asset_categories_observed') or []) or '-'} | "
                 f"status_counts={json.dumps(item.get('status_counts') or {}, ensure_ascii=False)}"
             )
-        lines.append("- static baseline 해석 제한: status_code, response_body_bytes, content_type 만으로 static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 정상 여부를 단정하지 않는다.")
+        lines.append("- static baseline 해석 제한: status_code, response_body_bytes, content_type 만으로 static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 상태를 단정하지 않는다.")
     if crawler_baseline_summaries:
         lines.append("- Crawler baseline context:")
         lines.append("- crawler_baseline_summaries 의 request 수는 같은 src_ip 와 crawler-like UA/browse baseline 시간창 기준 관찰 수다.")
@@ -2503,7 +2590,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append("- static_baseline_summaries, crawler_baseline_summaries, sensitive_path_probe_summaries, mixed_baseline_scanner_summaries, auth_behavior_summaries, method_behavior_summaries, protocol_anomaly_summaries, ip_behavior_aggregates 는 scope 가 다르므로 count 를 range 로 합치거나 같은 사건 수처럼 직접 합산하지 않는다.")
     lines.append("- key_findings severity 는 명시적인 non-context-only 근거가 없으면 top_incidents 최대 severity 를 넘기지 않는다.")
     lines.append("- top_incidents 가 없거나 모두 info/low 이고 관찰 근거가 context-only summary 중심이면 key_findings severity 는 info 또는 low 를 사용한다.")
-    lines.append("- static_baseline_summaries 는 context-only 이며 static/health/browse baseline 문맥으로만 사용하고 static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 정상 여부를 단정하지 않는다.")
+    lines.append("- static_baseline_summaries 는 context-only 이며 static/health/browse baseline 문맥으로만 사용하고 static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 상태를 단정하지 않는다.")
     lines.append("- crawler_baseline_summaries 는 context-only 이며 crawler-like baseline 문맥으로만 사용하고 crawler authenticity, robots/sitemap 내용, site structure, page existence, attack success 를 단정하지 않는다.")
     lines.append("- sensitive_path_probe_summaries 는 context-only 이며 scanner-like sensitive path probing 문맥으로만 사용하고 WordPress 존재, admin access, .env/phpinfo/server-status/backup 노출, 차단 성공, attack success 를 단정하지 않는다.")
     lines.append("- mixed_baseline_scanner_summaries 는 context-only 이며 baseline/static/crawler-like 와 scanner-like 문맥을 분리해서 설명하고, 이를 같은 성공 공격이나 단일 침해 체인으로 합치지 않는다.")
@@ -2722,8 +2809,14 @@ def main() -> int:
                 print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
                 return 1
 
-        report_json = parse_result.parsed
+        report_json, guardrail_warnings = sanitize_report_json_text(parse_result.parsed)
+        guardrail_warnings = sorted(set(guardrail_warnings))
         print(f"[INFO] stage2 JSON parsed via {parse_result.strategy}")
+        if guardrail_warnings:
+            print(
+                "[WARN] stage2 wording guardrail applied: " + ", ".join(guardrail_warnings),
+                file=sys.stderr,
+            )
         markdown = render_markdown(report_json, report_input, selected_model=selected_model, mode=args.mode)
 
         dump_json(
@@ -2741,6 +2834,7 @@ def main() -> int:
                     "response_id": response_id,
                     "stop_reason": stop_reason,
                     "json_parse_strategy": parse_result.strategy,
+                    "guardrail_warnings": guardrail_warnings,
                     "input_stage1_results": os.path.abspath(args.stage1_results),
                     "input_llm_input": os.path.abspath(llm_input_path) if llm_input_payload else None,
                     "llm_usage": build_stage_llm_usage(stage="stage2", calls=llm_usage_calls),

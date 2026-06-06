@@ -300,7 +300,8 @@ Interpretation:
 - reason taxonomy별 최소 coverage를 둔다.
 - prepare output을 자동 생성하고 eval까지 실행하는 CI smoke command를 검토한다.
 - false negative의 filtered reason 분포를 summary로 추가할지 검토한다.
-- Stage1/Stage2 평가는 별도 문서/별도 라벨 정책으로 분리한다.
+- Stage1/Stage2 accuracy 평가는 별도 문서/별도 라벨 정책으로 분리한다.
+- Stage2 report wording은 `candidate_not_expected != benign/normal` 정책을 따라야 하며, candidate-excluded/baseline-like/context-only baseline-like 표현을 사용한다.
 
 ## Do-not-change list
 

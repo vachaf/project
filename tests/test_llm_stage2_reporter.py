@@ -108,6 +108,45 @@ def stage2_output_text() -> str:
     )
 
 
+def stage2_output_text_with_filtered_wording() -> str:
+    return json.dumps(
+        {
+            "report_title": "테스트 보고서",
+            "overall_assessment": "후보 밖 요청은 benign_normal_search로 보이며 일부 정상 탐색 문맥이다.",
+            "executive_summary": [
+                "benign_normal_search 표현이 포함된 요약",
+                "정상 검색이라는 표현이 포함된 요약",
+                "normal baseline이라는 표현이 포함된 요약",
+            ],
+            "key_findings": [
+                {"title": "benign finding", "detail": "후보 밖 row를 무해로 단정했다.", "severity": "low"},
+                {"title": "포인트 2", "detail": "normalization 같은 기술 단어는 유지되어야 한다.", "severity": "low"},
+                {"title": "포인트 3", "detail": "normal_search_baseline category 언급", "severity": "low"},
+            ],
+            "notable_incidents": [
+                {
+                    "incident_ref": "inc-1",
+                    "request_id": "req-1",
+                    "src_ip": "203.0.113.10",
+                    "verdict": "suspicious_sqli",
+                    "severity": "medium",
+                    "why_it_matters": "SQLi 형태의 요청이 관찰되었다.",
+                }
+            ],
+            "notable_source_ips": [{"src_ip": "203.0.113.10", "reason": "후속 확인 대상"}],
+            "noise_interpretation": "filtered_out_breakdown에 benign_normal_search가 있고 정상 비교군이다.",
+            "recommended_actions": [
+                {"priority": "P1", "action": "원본 로그 확인", "why": "근거 확인"},
+                {"priority": "P2", "action": "동일 IP 확인", "why": "반복 여부 확인"},
+                {"priority": "P3", "action": "모니터링", "why": "재발 확인"},
+            ],
+            "confidence_and_limitations": ["Apache 로그만 사용했다.", "성공 여부는 단정하지 않는다."],
+            "presentation_takeaway": "후보 제외 row를 benign으로 단정하지 않는다.",
+        },
+        ensure_ascii=False,
+    )
+
+
 def run_stage2_main(monkeypatch, argv: list[str]) -> int:
     monkeypatch.setattr(sys, "argv", ["llm_stage2_reporter.py", *argv])
     return stage2.main()
@@ -164,6 +203,113 @@ def test_stage2_normal_report_meta_includes_usage_calls_and_totals(tmp_path: Pat
     assert usage["totals"]["call_count"] == 1
     assert usage["totals"]["total_tokens"] == 280
     assert "raw_response" not in json.dumps(payload)
+
+
+def test_stage2_prompt_includes_candidate_excluded_wording_guardrail() -> None:
+    messages = stage2.build_messages({"policy_notes": {}, "top_incidents": []})
+    prompt_text = "\n".join(message["content"] for message in messages)
+
+    assert "Do not call filtered-out or candidate-excluded rows benign or normal." in prompt_text
+    assert "Candidate-excluded means not selected for candidate analysis, not safe." in prompt_text
+    assert "known_baseline_like_legacy_alias" in prompt_text
+
+
+def test_stage2_report_input_aliases_legacy_filtered_categories() -> None:
+    report_input = stage2.build_report_input(
+        stage1_payload={
+            "meta": {"success_count": 0, "error_count": 0},
+            "results": [],
+        },
+        llm_input_payload={
+            "meta": {
+                "counts": {"filtered_out_rows": 6},
+                "filtered_out_breakdown": {
+                    "benign_normal_search": 4,
+                    "normal_search_baseline": 2,
+                },
+            }
+        },
+        stage1_errors_payload=None,
+        top_incidents=3,
+        top_noise_groups=8,
+        top_ips=3,
+        known_asset_ips=[],
+    )
+
+    assert report_input["distributions"]["filtered_out_breakdown"] == {
+        "known_baseline_like_legacy_alias": 6
+    }
+    assert report_input["top_filtered_categories"] == [
+        {"category": "known_baseline_like_legacy_alias", "count": 6, "share_pct": 100.0}
+    ]
+    assert "benign_normal_search" not in json.dumps(report_input)
+
+
+def test_stage2_wording_sanitizer_replaces_forbidden_report_text_and_keeps_normalization() -> None:
+    sanitized, warnings = stage2.sanitize_report_text(
+        "benign_normal_search 정상 무해 normal baseline, but path normalization stays."
+    )
+
+    assert "benign_normal_search" not in sanitized
+    assert "정상" not in sanitized
+    assert "무해" not in sanitized
+    assert " normal " not in sanitized
+    assert "path normalization stays" in sanitized
+    assert "forbidden_phrase:benign_normal_search" in warnings
+    assert "forbidden_phrase:정상" in warnings
+    assert "forbidden_phrase:무해" in warnings
+    assert "forbidden_phrase:normal" in warnings
+
+
+def test_stage2_output_forbidden_wording_gets_replaced_and_warned(tmp_path: Path, monkeypatch) -> None:
+    stage1_path = write_stage1_results(tmp_path)
+    out_dir = tmp_path / "out"
+
+    def fake_call_llm_json(**kwargs):
+        return LLMResponse(
+            output_text=stage2_output_text_with_filtered_wording(),
+            response_id="resp_stage2",
+            raw_response={
+                "id": "resp_stage2",
+                "usage": {
+                    "input_tokens": 200,
+                    "output_tokens": 80,
+                    "total_tokens": 280,
+                },
+            },
+            provider="openai",
+            model=kwargs["model"],
+        )
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(stage2, "call_llm_json", fake_call_llm_json)
+
+    assert run_stage2_main(
+        monkeypatch,
+        [
+            "--stage1-results",
+            str(stage1_path),
+            "--out-dir",
+            str(out_dir),
+            "--base-name",
+            "sample",
+            "--provider",
+            "openai",
+        ],
+    ) == 0
+
+    payload = json.loads((out_dir / "sample_stage2_report.json").read_text(encoding="utf-8"))
+    report_text = json.dumps(payload["report"], ensure_ascii=False)
+    assert "benign_normal_search" not in report_text
+    assert "normal_search_baseline" not in report_text
+    assert "정상" not in report_text
+    assert "무해" not in report_text
+    assert "normalization 같은" in report_text
+    assert "known_baseline_like_legacy_alias" in report_text
+    warnings = payload["meta"]["guardrail_warnings"]
+    assert "forbidden_phrase:benign_normal_search" in warnings
+    assert "forbidden_phrase:normal_search_baseline" in warnings
+    assert "forbidden_phrase:정상" in warnings
 
 
 def test_stage2_anthropic_repair_success_preserves_initial_and_repair_usage(tmp_path: Path, monkeypatch) -> None:
