@@ -54,6 +54,7 @@
   - [99_prepare_regression_fixture_설계.md](./99_prepare_regression_fixture_설계.md): prepare regression fixture 설계
   - [99_stage_dryrun_regression_설계.md](./99_stage_dryrun_regression_설계.md): Stage dry-run regression 설계
   - [99_output_cleanup_script_설계.md](./99_output_cleanup_script_설계.md): output cleanup script 안전 설계 기준
+  - [99_cleanup_outputs_lab_protection_policy_review.md](./99_cleanup_outputs_lab_protection_policy_review.md): runner migration 이후에도 `cleanup_outputs.py`의 `lab` 보호 정책을 유지할지 검토한 문서
 - prepare module split
   - [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md): round1 prepare 모듈 분리 완료 요약
   - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md): round2 prepare 모듈 분리 완료 요약
