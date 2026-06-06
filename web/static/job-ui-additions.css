@@ -445,15 +445,16 @@
 
 .job-filter-form {
   display: grid;
-  grid-template-columns: 0.8fr 1.2fr 1.2fr auto auto;
+  grid-template-columns: minmax(150px, 0.85fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(190px, auto) auto;
   gap: 0.85rem;
-  align-items: center;
+  align-items: end;
   margin-top: 1rem;
 }
 
 .job-filter-group {
   display: grid;
   gap: 0.35rem;
+  align-self: stretch;
   color: var(--job-muted);
   font-size: 12px;
   font-weight: 700;
@@ -461,7 +462,8 @@
 
 .job-filter-select,
 .job-filter-input {
-  min-height: 2.35rem;
+  height: 2.5rem;
+  min-height: 2.5rem;
   min-width: 0;
   border: 1px solid var(--job-border);
   border-radius: 7px;
@@ -483,10 +485,19 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  min-height: 2.35rem;
+  height: 2.5rem;
+  min-height: 2.5rem;
   color: var(--job-text);
   font-size: 13px;
   font-weight: 700;
+}
+
+.job-filter-check {
+  align-self: end;
+  padding: 0 0.65rem;
+  border: 1px solid var(--job-border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .job-filter-checkbox input {
@@ -499,6 +510,15 @@
   display: inline-flex;
   gap: 0.5rem;
   align-items: center;
+  align-self: end;
+  min-height: 2.5rem;
+}
+
+.job-filter-actions .job-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
 }
 
 .job-filter-warning {
@@ -543,6 +563,10 @@
   .job-filter-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .job-filter-actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 640px) {
@@ -578,6 +602,10 @@
 
   .job-filter-actions {
     flex-wrap: wrap;
+  }
+
+  .job-filter-actions .job-btn {
+    flex: 1 1 8rem;
   }
 }
 

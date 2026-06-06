@@ -289,6 +289,8 @@
                     {% if report.viewer_payload_path %}
                     <a class="job-artifact-open-link job-artifact-open-link-primary" href="/job/{{ job.id }}/viewer">Open Analysis Viewer</a>
                     <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/viewer_payload">Open viewer_payload.json</a>
+                    {% elif job.status == 'FAILED' %}
+                    <span class="job-muted">viewer_payload.json not generated due to failure</span>
                     {% else %}
                     <span class="job-muted">viewer_payload.json not generated</span>
                     {% endif %}
@@ -348,11 +350,13 @@
                     <span class="job-artifact-kind">Debug/reference</span>
                     {{ artifact_value(job.id, 'stage2_report_md', report.stage2_report_md_path, job.status, is_no_data_job|default(false)) }}
                 </div>
+                {% if report.lint_result_path %}
                 <div class="job-report-item">
                     <div class="job-detail-label">Lint Result</div>
                     <span class="job-artifact-kind">Debug/reference</span>
                     {{ artifact_value(job.id, 'lint_result', report.lint_result_path, job.status, is_no_data_job|default(false)) }}
                 </div>
+                {% endif %}
             </div>
             {% else %}
             <div class="job-empty-state job-empty-state-compact">

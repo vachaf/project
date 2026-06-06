@@ -63,6 +63,8 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     assert "runs/jobs/123/stage2_report.md" in body
     assert "Raw artifact" in body
     assert "Debug/reference" in body
+    assert "Lint Result" not in body
+    assert 'href="/job/123/artifact/lint_result"' not in body
     assert "job-viewer-cta" in body
     assert "job-report-item-recommended" not in body
     assert "job-artifact-open-link-primary" in body
@@ -78,6 +80,15 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     assert "benign" not in body.lower()
     assert " normal " not in body.lower()
     assert "severity" not in body.lower()
+
+
+def test_job_detail_shows_lint_result_artifact_when_path_exists() -> None:
+    body = render_job_detail(make_report(lint_result_path="runs/jobs/123/lint_result.json"))
+
+    assert "Lint Result" in body
+    assert "runs/jobs/123/lint_result.json" in body
+    assert 'href="/job/123/artifact/lint_result"' in body
+    assert "Debug/reference" in body
 
 
 def test_job_detail_shows_no_data_report_without_error_state() -> None:

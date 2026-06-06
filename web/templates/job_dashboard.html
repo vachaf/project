@@ -84,7 +84,7 @@
                     <span>To (KST)</span>
                     <input class="job-filter-input" type="date" name="to" value="{{ dashboard_filter_state.to | default('') }}">
                 </label>
-                <label class="job-filter-checkbox">
+                <label class="job-filter-checkbox job-filter-check">
                     <input type="checkbox" name="stale" value="1" {% if dashboard_filter_state.stale %}checked{% endif %}>
                     <span>Potentially stale only</span>
                 </label>

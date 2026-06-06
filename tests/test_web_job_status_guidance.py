@@ -237,6 +237,10 @@ def test_job_dashboard_default_route_keeps_recent_full_report_listing(
     assert 'name="from"' in body
     assert 'name="to"' in body
     assert 'name="stale"' in body
+    assert 'class="job-filter-form"' in body
+    assert 'class="job-filter-checkbox job-filter-check"' in body
+    assert ">Apply</button>" in body
+    assert 'href="/" class="job-btn">Clear</a>' in body
     assert "#1" in body
     assert repo.list_jobs_calls == [
         {
