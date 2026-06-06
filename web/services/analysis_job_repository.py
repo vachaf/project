@@ -165,6 +165,62 @@ class AnalysisJobRepository:
                 )
                 return list(cur.fetchall())
 
+    def list_jobs(
+        self,
+        *,
+        status: Optional[str] = None,
+        time_from: Optional[datetime] = None,
+        time_to: Optional[datetime] = None,
+        stale_only: bool = False,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        safe_limit = max(1, min(int(limit), 200))
+        where = ["analysis_mode = %s"]
+        params: List[Any] = ["full_report"]
+        if status:
+            where.append("status = %s")
+            params.append(str(status).upper())
+        if time_from is not None:
+            where.append("time_to > %s")
+            params.append(time_from)
+        if time_to is not None:
+            where.append("time_from < %s")
+            params.append(time_to)
+        if stale_only:
+            where.append(
+                """
+                status = 'RUNNING'
+                AND (
+                  (
+                    heartbeat_at IS NOT NULL
+                    AND heartbeat_at < UTC_TIMESTAMP(3) - INTERVAL %s MINUTE
+                  )
+                  OR (
+                    heartbeat_at IS NULL
+                    AND started_at < UTC_TIMESTAMP(3) - INTERVAL %s MINUTE
+                  )
+                )
+                """
+            )
+            params.extend([STALE_RUNNING_HEARTBEAT_THRESHOLD_MINUTES, STALE_RUNNING_STARTUP_GRACE_MINUTES])
+        where_clause = " AND ".join(f"({item})" for item in where)
+        with self.connection_factory() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT id, requested_by, time_from, time_to, requested_timezone,
+                           status, analysis_mode, created_at, started_at, finished_at,
+                           worker_id, heartbeat_at, attempt_count, max_attempts,
+                           error_message, artifact_root
+                    FROM analysis_jobs
+                    WHERE {where_clause}
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT {safe_limit}
+                    """,
+                    tuple(params),
+                )
+                return list(cur.fetchall())
+
     def find_stale_running_jobs(
         self,
         *,

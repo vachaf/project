@@ -1,6 +1,11 @@
 {% extends "job_base.html" %}
 {% block title %}Security Intelligence Dashboard{% endblock %}
 {% block content %}
+{% set dashboard_filter_state = filter_state | default({'status': '', 'from': '', 'to': '', 'stale': false}) %}
+{% set dashboard_status_options = status_options | default(['PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED']) %}
+{% set dashboard_filter_warnings = filter_warnings | default([]) %}
+{% set dashboard_active_filter_chips = active_filter_chips | default([]) %}
+{% set dashboard_has_active_filters = has_active_filters | default(false) %}
 <div class="job-page-head">
             <div>
                 <div class="job-page-kicker">DB-backed analysis queue</div>
@@ -44,11 +49,71 @@
             </div>
         </section>
 
+        <section class="job-card job-filter-card" aria-label="job dashboard filters">
+            <div class="job-card-head">
+                <div>
+                    <h2 class="job-card-title">조회 필터</h2>
+                    <p class="job-card-subtitle">Status, KST date range, stale hint 기준으로 full_report 작업을 조회합니다.</p>
+                </div>
+                <div class="job-filter-result-count">{{ result_count | default(jobs|length) }} results</div>
+            </div>
+
+            {% if dashboard_filter_warnings %}
+            <div class="job-filter-warning" role="alert">
+                {% for warning in dashboard_filter_warnings %}
+                <div>{{ warning }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form class="job-filter-form" method="get" action="/">
+                <label class="job-filter-group">
+                    <span>Status</span>
+                    <select class="job-filter-select" name="status">
+                        <option value="">All statuses</option>
+                        {% for status in dashboard_status_options %}
+                        <option value="{{ status }}" {% if dashboard_filter_state.status == status %}selected{% endif %}>{{ status }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="job-filter-group">
+                    <span>From (KST)</span>
+                    <input class="job-filter-input" type="date" name="from" value="{{ dashboard_filter_state.from | default('') }}">
+                </label>
+                <label class="job-filter-group">
+                    <span>To (KST)</span>
+                    <input class="job-filter-input" type="date" name="to" value="{{ dashboard_filter_state.to | default('') }}">
+                </label>
+                <label class="job-filter-checkbox">
+                    <input type="checkbox" name="stale" value="1" {% if dashboard_filter_state.stale %}checked{% endif %}>
+                    <span>Potentially stale only</span>
+                </label>
+                <div class="job-filter-actions">
+                    <button type="submit" class="job-btn job-btn-primary">Apply</button>
+                    <a href="/" class="job-btn">Clear</a>
+                </div>
+            </form>
+
+            {% if dashboard_active_filter_chips %}
+            <div class="job-filter-chip-row" aria-label="active filters">
+                {% for chip in dashboard_active_filter_chips %}
+                <span class="job-filter-chip">{{ chip }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+
         <section class="job-card">
             <div class="job-card-head">
                 <div>
                     <h2 class="job-card-title">최근 작업</h2>
-                    <p class="job-card-subtitle">최근 100개 full_report 작업을 생성 시각 역순으로 표시합니다.</p>
+                    <p class="job-card-subtitle">
+                        {% if dashboard_has_active_filters %}
+                        현재 필터와 일치하는 full_report 작업을 생성 시각 역순으로 표시합니다.
+                        {% else %}
+                        최근 100개 full_report 작업을 생성 시각 역순으로 표시합니다.
+                        {% endif %}
+                    </p>
                 </div>
             </div>
 
@@ -102,9 +167,15 @@
             {% else %}
             <div class="job-empty-state">
                 <div class="job-empty-icon">□</div>
+                {% if dashboard_has_active_filters %}
+                <h3 class="job-empty-title">No jobs match the current filters.</h3>
+                <p class="job-muted">필터 조건을 줄이거나 전체 작업 목록으로 돌아가세요.</p>
+                <a href="/" class="job-btn">Clear filters</a>
+                {% else %}
                 <h3 class="job-empty-title">분석 작업이 없습니다</h3>
                 <p class="job-muted">시간 범위를 지정해 첫 번째 DB-backed full_report 작업을 등록하세요.</p>
                 <a href="/new-job" class="job-btn job-btn-primary">첫 작업 등록</a>
+                {% endif %}
             </div>
             {% endif %}
         </section>

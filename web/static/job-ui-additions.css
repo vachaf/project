@@ -218,9 +218,111 @@
   min-width: 0;
 }
 
+.job-filter-card {
+  margin-top: 1.25rem;
+}
+
+.job-filter-result-count {
+  flex: 0 0 auto;
+  color: var(--job-muted);
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.job-filter-form {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(9rem, 1fr) minmax(9rem, 1fr) auto auto;
+  gap: 0.85rem;
+  align-items: end;
+  margin-top: 1rem;
+}
+
+.job-filter-group {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--job-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.job-filter-select,
+.job-filter-input {
+  width: 100%;
+  min-height: 2.35rem;
+  border: 1px solid var(--job-border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--job-text);
+  font: inherit;
+  font-size: 13px;
+  padding: 0.55rem 0.65rem;
+}
+
+.job-filter-select:focus,
+.job-filter-input:focus {
+  outline: 2px solid rgba(0, 255, 136, 0.32);
+  outline-offset: 1px;
+  border-color: rgba(0, 255, 136, 0.55);
+}
+
+.job-filter-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.35rem;
+  color: var(--job-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.job-filter-checkbox input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--job-accent);
+}
+
+.job-filter-actions {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.job-filter-warning {
+  margin-top: 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(255, 170, 0, 0.45);
+  border-radius: 7px;
+  background: rgba(255, 170, 0, 0.09);
+  color: #ffd27a;
+  font-size: 13px;
+}
+
+.job-filter-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+}
+
+.job-filter-chip {
+  padding: 0.32rem 0.6rem;
+  border: 1px solid var(--job-border);
+  border-radius: 999px;
+  background: rgba(0, 212, 255, 0.07);
+  color: #8dd9ff;
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 @media (max-width: 900px) {
   .job-stats-grid,
   .job-report-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .job-filter-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -240,8 +342,13 @@
   .job-stats-grid,
   .job-form-row,
   .job-detail-grid,
-  .job-report-grid {
+  .job-report-grid,
+  .job-filter-form {
     grid-template-columns: 1fr;
+  }
+
+  .job-filter-actions {
+    flex-wrap: wrap;
   }
 }
 
@@ -295,8 +402,22 @@ html:not([data-theme="dark"]) .job-stale-badge {
 }
 
 html:not([data-theme="dark"]) .job-stale-note,
-html:not([data-theme="dark"]) .job-stale-box {
+html:not([data-theme="dark"]) .job-stale-box,
+html:not([data-theme="dark"]) .job-filter-warning {
   color: #805800;
+}
+
+html:not([data-theme="dark"]) .job-filter-select,
+html:not([data-theme="dark"]) .job-filter-input {
+  background: #ffffff;
+  border-color: #d5dde8;
+  color: #172033;
+}
+
+html:not([data-theme="dark"]) .job-filter-chip {
+  background: #f0f7ff;
+  border-color: #bfd7f5;
+  color: #245985;
 }
 
 html:not([data-theme="dark"]) .job-artifact-panel,

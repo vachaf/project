@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
@@ -53,6 +54,10 @@ ARTIFACT_KEY_TO_REPORT_COLUMN = {
     "lint_result": "lint_result_path",
 }
 
+ALLOWED_JOB_STATUSES = ("PENDING", "RUNNING", "SUCCEEDED", "FAILED")
+KST = ZoneInfo("Asia/Seoul")
+UTC = ZoneInfo("UTC")
+
 
 def _default_new_job_range() -> Dict[str, str]:
     now = datetime.now().replace(second=0, microsecond=0)
@@ -65,6 +70,74 @@ def _default_new_job_range() -> Dict[str, str]:
 
 def _public_error(exc: Exception) -> str:
     return redact_secret_text(str(exc), max_length=500) or "요청 처리 중 오류가 발생했습니다."
+
+
+def _parse_dashboard_date_filter(raw_value: str, *, label: str) -> tuple[Optional[datetime], Optional[str]]:
+    value = str(raw_value or "").strip()
+    if not value:
+        return None, None
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        return None, f"Invalid {label} date filter ignored: use YYYY-MM-DD."
+    if parsed.isoformat() != value:
+        return None, f"Invalid {label} date filter ignored: use YYYY-MM-DD."
+    kst_start = datetime.combine(parsed, time.min, tzinfo=KST)
+    return kst_start.astimezone(UTC).replace(tzinfo=None), None
+
+
+def _build_dashboard_filters(request: Request) -> Dict[str, Any]:
+    params = request.query_params
+    warnings = []
+    status = None
+    raw_status = str(params.get("status") or "").strip().upper()
+    if raw_status:
+        if raw_status in ALLOWED_JOB_STATUSES:
+            status = raw_status
+        else:
+            warnings.append("Invalid status filter ignored.")
+
+    raw_from = str(params.get("from") or "").strip()
+    time_from, from_warning = _parse_dashboard_date_filter(raw_from, label="from")
+    if from_warning:
+        warnings.append(from_warning)
+        raw_from = ""
+
+    raw_to = str(params.get("to") or "").strip()
+    time_to, to_warning = _parse_dashboard_date_filter(raw_to, label="to")
+    if to_warning:
+        warnings.append(to_warning)
+        raw_to = ""
+    if time_to is not None:
+        time_to = time_to + timedelta(days=1)
+
+    stale_only = params.get("stale") == "1"
+    filter_state = {
+        "status": status or "",
+        "from": raw_from if time_from is not None else "",
+        "to": raw_to if time_to is not None else "",
+        "stale": stale_only,
+    }
+    active_chips = []
+    if status:
+        active_chips.append(f"Status: {status}")
+    if time_from is not None:
+        active_chips.append(f"From: {filter_state['from']} KST")
+    if time_to is not None:
+        active_chips.append(f"To: {filter_state['to']} KST")
+    if stale_only:
+        active_chips.append("Potentially stale")
+
+    return {
+        "status": status,
+        "time_from": time_from,
+        "time_to": time_to,
+        "stale_only": stale_only,
+        "filter_state": filter_state,
+        "filter_warnings": warnings,
+        "active_filter_chips": active_chips,
+        "has_active_filters": bool(active_chips),
+    }
 
 
 def _get_requested_user_id(request: Request) -> Optional[int]:
@@ -186,9 +259,19 @@ def job_dashboard(request: Request):
     error = ""
     jobs = []
     status_counts = dict(DEFAULT_STATUS_COUNTS)
+    dashboard_filters = _build_dashboard_filters(request)
     try:
         status_counts = job_repository.count_by_status()
-        jobs = [serialize_job_for_dashboard(row) for row in job_repository.list_recent_jobs(limit=100)]
+        jobs = [
+            serialize_job_for_dashboard(row)
+            for row in job_repository.list_jobs(
+                status=dashboard_filters["status"],
+                time_from=dashboard_filters["time_from"],
+                time_to=dashboard_filters["time_to"],
+                stale_only=dashboard_filters["stale_only"],
+                limit=100,
+            )
+        ]
     except Exception as exc:
         error = _public_error(exc)
 
@@ -199,6 +282,12 @@ def job_dashboard(request: Request):
             "jobs": jobs,
             "status_counts": status_counts,
             "error": error,
+            "status_options": ALLOWED_JOB_STATUSES,
+            "filter_state": dashboard_filters["filter_state"],
+            "filter_warnings": dashboard_filters["filter_warnings"],
+            "active_filter_chips": dashboard_filters["active_filter_chips"],
+            "has_active_filters": dashboard_filters["has_active_filters"],
+            "result_count": len(jobs),
         },
     )
 

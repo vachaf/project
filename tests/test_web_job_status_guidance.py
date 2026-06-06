@@ -88,6 +88,12 @@ def render_dashboard(jobs: list[dict[str, Any]]) -> str:
         jobs=jobs,
         status_counts={"PENDING": 1, "RUNNING": 1, "SUCCEEDED": 0, "FAILED": 0},
         error="",
+        status_options=("PENDING", "RUNNING", "SUCCEEDED", "FAILED"),
+        filter_state={"status": "", "from": "", "to": "", "stale": False},
+        filter_warnings=[],
+        active_filter_chips=[],
+        has_active_filters=False,
+        result_count=len(jobs),
     )
 
 
@@ -113,13 +119,58 @@ class FakeJobRepository:
         return self.report
 
 
+class FakeDashboardRepository:
+    def __init__(self, rows: list[dict[str, Any]]) -> None:
+        self.rows = rows
+        self.list_jobs_calls: list[dict[str, Any]] = []
+        self.mutation_calls: list[str] = []
+
+    def count_by_status(self) -> dict[str, int]:
+        counts = {"PENDING": 0, "RUNNING": 0, "SUCCEEDED": 0, "FAILED": 0}
+        for row in self.rows:
+            status = str(row.get("status") or "").upper()
+            if status in counts:
+                counts[status] += 1
+        return counts
+
+    def list_jobs(
+        self,
+        *,
+        status: Optional[str] = None,
+        time_from: Optional[datetime] = None,
+        time_to: Optional[datetime] = None,
+        stale_only: bool = False,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        self.list_jobs_calls.append(
+            {
+                "status": status,
+                "time_from": time_from,
+                "time_to": time_to,
+                "stale_only": stale_only,
+                "limit": limit,
+            }
+        )
+        rows = list(self.rows)
+        if status:
+            rows = [row for row in rows if row.get("status") == status]
+        if stale_only:
+            rows = [
+                row
+                for row in rows
+                if row.get("is_potentially_stale") or serialize_job_for_dashboard(row)["is_potentially_stale"]
+            ]
+        return rows[:limit]
+
+
 def make_request(path: str = "/job/123") -> Request:
+    raw_path, _, raw_query = path.partition("?")
     return Request(
         {
             "type": "http",
             "method": "GET",
-            "path": path,
-            "query_string": b"",
+            "path": raw_path,
+            "query_string": raw_query.encode("utf-8"),
             "headers": [],
             "app": web_app_module.app,
         }
@@ -172,6 +223,140 @@ def test_running_job_dashboard_shows_running_hint_and_heartbeat() -> None:
     assert "Last heartbeat:" in body
 
 
+def test_job_dashboard_default_route_keeps_recent_full_report_listing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = FakeDashboardRepository([make_job(id=1, status="PENDING")])
+    monkeypatch.setattr(web_app_module, "job_repository", repo)
+
+    response = web_app_module.job_dashboard(make_request("/"))
+    body = response.body.decode("utf-8")
+
+    assert response.status_code == 200
+    assert 'name="status"' in body
+    assert 'name="from"' in body
+    assert 'name="to"' in body
+    assert 'name="stale"' in body
+    assert "#1" in body
+    assert repo.list_jobs_calls == [
+        {
+            "status": None,
+            "time_from": None,
+            "time_to": None,
+            "stale_only": False,
+            "limit": 100,
+        }
+    ]
+    assert repo.mutation_calls == []
+
+
+def test_job_dashboard_status_filter_returns_matching_status_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = FakeDashboardRepository(
+        [
+            make_job(id=1, status="FAILED", error_message="failed"),
+            make_job(id=2, status="RUNNING", started_at=utc_text(-1), heartbeat_at=utc_text(-1)),
+        ]
+    )
+    monkeypatch.setattr(web_app_module, "job_repository", repo)
+
+    response = web_app_module.job_dashboard(make_request("/?status=FAILED"))
+    body = response.body.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "#1" in body
+    assert "#2" not in body
+    assert "Status: FAILED" in body
+    assert repo.list_jobs_calls[-1]["status"] == "FAILED"
+
+
+def test_job_dashboard_invalid_status_warns_and_ignores_filter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = FakeDashboardRepository(
+        [
+            make_job(id=1, status="FAILED", error_message="failed"),
+            make_job(id=2, status="RUNNING", started_at=utc_text(-1), heartbeat_at=utc_text(-1)),
+        ]
+    )
+    monkeypatch.setattr(web_app_module, "job_repository", repo)
+
+    response = web_app_module.job_dashboard(make_request("/?status=FAILED%27%20OR%201=1--"))
+    body = response.body.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Invalid status filter ignored." in body
+    assert "#1" in body
+    assert "#2" in body
+    assert repo.list_jobs_calls[-1]["status"] is None
+    assert repo.mutation_calls == []
+
+
+def test_job_dashboard_date_filters_are_kst_dates_converted_to_utc_naive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = FakeDashboardRepository([make_job(id=1, status="SUCCEEDED")])
+    monkeypatch.setattr(web_app_module, "job_repository", repo)
+
+    response = web_app_module.job_dashboard(make_request("/?from=2026-06-01&to=2026-06-02"))
+
+    assert response.status_code == 200
+    call = repo.list_jobs_calls[-1]
+    assert call["time_from"] == datetime(2026, 5, 31, 15, 0, 0)
+    assert call["time_to"] == datetime(2026, 6, 2, 15, 0, 0)
+
+
+def test_job_dashboard_invalid_date_warns_and_ignores_filter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = FakeDashboardRepository([make_job(id=1, status="FAILED")])
+    monkeypatch.setattr(web_app_module, "job_repository", repo)
+
+    response = web_app_module.job_dashboard(make_request("/?from=2026-99-99"))
+    body = response.body.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Invalid from date filter ignored: use YYYY-MM-DD." in body
+    assert repo.list_jobs_calls[-1]["time_from"] is None
+
+
+def test_job_dashboard_stale_filter_returns_potentially_stale_running_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = FakeDashboardRepository(
+        [
+            make_job(id=1, status="RUNNING", started_at=utc_text(-90), heartbeat_at=utc_text(-45)),
+            make_job(id=2, status="RUNNING", started_at=utc_text(-2), heartbeat_at=utc_text(-1)),
+            make_job(id=3, status="FAILED", started_at=utc_text(-90), heartbeat_at=utc_text(-45)),
+        ]
+    )
+    monkeypatch.setattr(web_app_module, "job_repository", repo)
+
+    response = web_app_module.job_dashboard(make_request("/?stale=1"))
+    body = response.body.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "#1" in body
+    assert "#2" not in body
+    assert "#3" not in body
+    assert "Potentially stale" in body
+    assert repo.list_jobs_calls[-1]["stale_only"] is True
+
+
+def test_job_dashboard_empty_filter_result_uses_no_match_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = FakeDashboardRepository([])
+    monkeypatch.setattr(web_app_module, "job_repository", repo)
+
+    response = web_app_module.job_dashboard(make_request("/?status=FAILED"))
+    body = response.body.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "No jobs match the current filters." in body
+
+
 def test_fresh_running_job_does_not_show_potentially_stale_guidance() -> None:
     job = make_job(
         status="RUNNING",
@@ -185,7 +370,8 @@ def test_fresh_running_job_does_not_show_potentially_stale_guidance() -> None:
 
     assert job["is_potentially_stale"] is False
     assert "Potentially stale" not in detail_body
-    assert "Potentially stale" not in dashboard_body
+    assert "Heartbeat is older than the stale threshold." not in dashboard_body
+    assert 'class="job-stale-badge">Potentially stale</span>' not in dashboard_body
 
 
 def test_old_heartbeat_running_job_shows_potentially_stale_guidance() -> None:
