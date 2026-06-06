@@ -40,6 +40,7 @@
   - [99_llm_sample_validation_review.md](./99_llm_sample_validation_review.md)
   - [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)
   - [../design/99_lab_runner_migration_plan.md](../design/99_lab_runner_migration_plan.md)
+  - [../design/99_lab_artifact_fixture_selection_plan.md](../design/99_lab_artifact_fixture_selection_plan.md)
 
 ## 1. 목적
 
@@ -110,6 +111,7 @@ lab 원본은 다음 이유로 당분간 legacy lab artifact로 남긴다.
 
 - runner 실행 재현 경로는 `scripts/lab_runners/{set}/`로 이관됐다.
 - runner code의 current path와 migration 영향 범위는 [../design/99_lab_runner_migration_plan.md](../design/99_lab_runner_migration_plan.md)를 따른다.
+- 대표 fixture 후보와 artifact 이관 기준은 [../design/99_lab_artifact_fixture_selection_plan.md](../design/99_lab_artifact_fixture_selection_plan.md)를 따른다.
 - raw/stage report artifact는 fixture 후보 선별과 회귀 기대값 확인에 필요할 수 있다.
 - G R2처럼 raw socket runner 특성이 중요한 경우 단순 삭제하면 재현성이 깨진다.
 - 대표 fixture 후보는 후속 PR에서 별도로 선별해야 한다.
