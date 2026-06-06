@@ -171,6 +171,7 @@ Default outputs:
 data/processed/<base>_llm_input.json
 data/processed/<base>_analysis_candidates.json
 data/processed/<base>_noise_summary.json
+data/processed/<base>_filtered_reasons.json
 data/processed/<base>_stage1_results.json
 reports/<base>_stage2_report.json
 reports/<base>_stage2_report.md
@@ -217,6 +218,7 @@ def build_paths(base_name: str, processed_dir: Path, reports_dir: Path, write_fi
         "llm_input": processed_dir / f"{base_name}_llm_input.json",
         "analysis_candidates": processed_dir / f"{base_name}_analysis_candidates.json",
         "noise_summary": processed_dir / f"{base_name}_noise_summary.json",
+        "filtered_reasons": processed_dir / f"{base_name}_filtered_reasons.json",
         "filtered_out_rows": processed_dir / f"{base_name}_filtered_out_rows.json" if write_filtered_out else None,
         "stage1_results": processed_dir / f"{base_name}_stage1_results.json",
         "stage1_errors": processed_dir / f"{base_name}_stage1_errors.json",
@@ -328,6 +330,7 @@ def build_flat_files(manifest_path: Path, run_manifest_path: Optional[Path], pat
         "export": None,
         "llm_input": str(paths["llm_input"]) if paths.get("llm_input") else None,
         "analysis_candidates": str(paths["analysis_candidates"]) if paths.get("analysis_candidates") else None,
+        "filtered_reasons": str(paths["filtered_reasons"]) if paths.get("filtered_reasons") else None,
         "stage1_results": str(paths["stage1_results"]) if paths.get("stage1_results") else None,
         "stage2_report_input": str(paths["stage2_report_input"]) if paths.get("stage2_report_input") else None,
         "stage2_report_json": str(paths["stage2_report_json"]) if paths.get("stage2_report_json") else None,
@@ -356,6 +359,7 @@ def sync_run_dir_outputs(
         "export": None,
         "llm_input": None,
         "analysis_candidates": None,
+        "filtered_reasons": None,
         "stage1_results": None,
         "stage2_report_input": None,
         "stage2_report_json": None,
@@ -368,6 +372,7 @@ def sync_run_dir_outputs(
     copy_plan: List[tuple[str, Optional[Path], str]] = [
         ("llm_input", paths.get("llm_input"), "llm_input.json"),
         ("analysis_candidates", paths.get("analysis_candidates"), "analysis_candidates.json"),
+        ("filtered_reasons", paths.get("filtered_reasons"), "filtered_reasons.json"),
         ("stage1_results", paths.get("stage1_results"), "stage1_results.json"),
         ("stage2_report_input", paths.get("stage2_report_input"), "stage2_report_input.json"),
         ("stage2_report_json", paths.get("stage2_report_json"), "stage2_report.json"),

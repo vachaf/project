@@ -110,6 +110,29 @@ Apache 로그만으로 성공, 침해, 노출을 확정하지 않되, 관찰 가
 - rollup은 중복 제거와 요약을 수행하되 payload-like/context signal을 임의로 삭제하지 않는다.
 ```
 
+## 2.2 prepare 제외 사유 artifact 해석 경계
+
+prepare 단계의 `filtered_reasons.json`은 `analysis_candidates`에 올라가지 않은 row의 보수적 제외 사유를 설명하기 위한 산출물이다.
+
+이 산출물의 제외 사유는 candidate selection policy 관점의 설명이며, 아래 의미로 해석하지 않는다.
+
+```text
+- 후보 제외는 정상 판정이 아니다.
+- 후보 제외는 무해 확정이 아니다.
+- status_code, response size, route, User-Agent만으로 성공/실패/정상을 단정하지 않는다.
+- Apache logs-only evidence boundary 밖의 response body, DB 결과, browser execution, application state를 추론하지 않는다.
+```
+
+권장 표현:
+
+```text
+- candidate_excluded
+- low_signal_request
+- static_asset_like
+- known_baseline_like
+- context_only_represented_elsewhere
+```
+
 ## 3. 절대 단정 금지
 
 아래 표현은 Apache logs-only 증거만으로 사용하지 않는다.

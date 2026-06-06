@@ -23,6 +23,7 @@ LLM 분석용 정제 산출물을 생성하는 전처리 스크립트.
 - <base>_llm_input.json
 - <base>_analysis_candidates.json
 - <base>_noise_summary.json
+- <base>_filtered_reasons.json
 - <base>_filtered_out_rows.json (선택)
 - 또는 --flat-output-names 사용 시 접두어 없는 표준 파일명
 """
@@ -450,6 +451,7 @@ STATIC_PREFIXES = (
 SOURCE_PRIORITY = {"security": 3, "access": 2, "error": 1}
 SOURCE_ORDER = ["security", "access", "error"]
 DECODE_VARIANT_MAX_CHARS = 4096
+FILTERED_REASONS_SAMPLE_LIMIT = 500
 SUPPORTING_EVENT_TIME_WINDOW_SEC = 120
 TEMPORAL_CONTEXT_BUCKET_SEC = 120
 PROBING_SEQUENCE_WINDOW_SEC = 120
@@ -3538,6 +3540,84 @@ def build_filtered_row_payload(
     }
 
 
+FILTERED_REASON_DETAILS = {
+    "static_asset_like": "static extension or asset path pattern",
+    "known_baseline_like": "baseline-like request pattern represented as context, not a safety verdict",
+    "crawler_or_bot_like": "crawler-like user agent or browse path pattern",
+    "low_signal_request": "below candidate policy threshold with limited request-pattern signal",
+    "duplicate_or_repeated_low_signal": "repeated low-signal pattern summarized elsewhere",
+    "outside_candidate_policy": "outside current candidate policy threshold or scope",
+    "context_only_represented_elsewhere": "represented in context-only summaries or supporting events",
+    "unknown_excluded_reason": "excluded by candidate policy without a more specific public reason",
+}
+
+FILTERED_REASON_GUARDRAILS = [
+    "candidate_excluded_does_not_mean_benign",
+    "apache_logs_only_no_success_inference",
+    "status_code_response_size_route_or_user_agent_do_not_prove_success_or_benign",
+]
+
+def classify_filtered_reason(row: Dict[str, Any]) -> str:
+    category = normalize_text(row.get("_noise_category"))
+    if category == "static_asset":
+        return "static_asset_like"
+    if category in {"socketio_polling", "auth_baseline_context", "benign_normal_search"}:
+        return "known_baseline_like"
+    if category in {"low_signal_fuzzing", "low_signal_dir_probe", "auth_endpoint_context", "benign_fallback_html"}:
+        return "low_signal_request"
+
+    hints = [normalize_text(hint).lower() for hint in row.get("reason_hints") or []]
+    if any("crawler" in hint or "bot" in hint for hint in hints):
+        return "crawler_or_bot_like"
+    if any("static" in hint for hint in hints):
+        return "static_asset_like"
+    if any("baseline" in hint for hint in hints):
+        return "known_baseline_like"
+    if category:
+        return "outside_candidate_policy"
+    return "unknown_excluded_reason"
+
+
+def build_filtered_reason_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    reason = classify_filtered_reason(row)
+    return {
+        "request_id": normalize_text(row.get("request_id")),
+        "reason": reason,
+        "reason_detail": FILTERED_REASON_DETAILS.get(reason, FILTERED_REASON_DETAILS["unknown_excluded_reason"]),
+        "method": get_method(row),
+        "uri": get_uri(row),
+        "status_code": get_status_code(row),
+        "log_time": choose_best_time(row),
+        "src_ip": get_src_ip(row),
+    }
+
+
+def build_filtered_reasons_payload(
+    *,
+    total_rows: int,
+    candidate_count: int,
+    filtered_out_rows: List[Dict[str, Any]],
+    sample_limit: int = FILTERED_REASONS_SAMPLE_LIMIT,
+) -> Dict[str, Any]:
+    reason_counter = Counter(classify_filtered_reason(row) for row in filtered_out_rows)
+    excluded_rows = [build_filtered_reason_row(row) for row in filtered_out_rows[:sample_limit]]
+    return {
+        "schema_version": "filtered_reasons.v1",
+        "total_rows": total_rows,
+        "candidate_count": candidate_count,
+        "excluded_count": len(filtered_out_rows),
+        "excluded_summary": dict(sorted(reason_counter.items())),
+        "excluded": excluded_rows,
+        "meta": {
+            "excluded_sample_limit": sample_limit,
+            "excluded_sample_count": len(excluded_rows),
+            "excluded_truncated": len(filtered_out_rows) > sample_limit,
+            "summary_counts_include_all_excluded_rows": True,
+        },
+        "guardrails": FILTERED_REASON_GUARDRAILS,
+    }
+
+
 # ----------------------------
 # 규칙 기반 후보 평가
 # ----------------------------
@@ -4134,7 +4214,12 @@ def collect_rows(payload: Dict[str, Any], source_tables: List[str]) -> Iterable[
             yield table_name, row
 
 
-def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate: int, source_tables: List[str]) -> Tuple[Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+def build_outputs(
+    payload: Dict[str, Any],
+    min_score: int,
+    min_repeat_aggregate: int,
+    source_tables: List[str],
+) -> Tuple[Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any], List[Dict[str, Any]]]:
     original_meta = payload.get("meta", {})
     all_rows: List[Dict[str, Any]] = []
     filtered_out_rows: List[Dict[str, Any]] = []
@@ -4310,8 +4395,13 @@ def build_outputs(payload: Dict[str, Any], min_score: int, min_repeat_aggregate:
         )
         for r in non_aggregated_filtered
     ]
+    filtered_reasons_payload = build_filtered_reasons_payload(
+        total_rows=len(all_rows),
+        candidate_count=len(candidate_payload),
+        filtered_out_rows=filtered_out_rows,
+    )
 
-    return llm_input, candidate_payload, noise_payload, filtered_payload
+    return llm_input, candidate_payload, noise_payload, filtered_reasons_payload, filtered_payload
 
 
 def derive_base_name(input_path: str, explicit_base_name: Optional[str]) -> str:
@@ -4326,6 +4416,7 @@ def build_output_paths(input_path: str, out_dir: str, explicit_base_name: Option
             "llm_input": os.path.join(out_dir, "llm_input.json"),
             "analysis_candidates": os.path.join(out_dir, "analysis_candidates.json"),
             "noise_summary": os.path.join(out_dir, "noise_summary.json"),
+            "filtered_reasons": os.path.join(out_dir, "filtered_reasons.json"),
             "filtered_out_rows": os.path.join(out_dir, "filtered_out_rows.json"),
         }
 
@@ -4334,6 +4425,7 @@ def build_output_paths(input_path: str, out_dir: str, explicit_base_name: Option
         "llm_input": os.path.join(out_dir, f"{base_name}_llm_input.json"),
         "analysis_candidates": os.path.join(out_dir, f"{base_name}_analysis_candidates.json"),
         "noise_summary": os.path.join(out_dir, f"{base_name}_noise_summary.json"),
+        "filtered_reasons": os.path.join(out_dir, f"{base_name}_filtered_reasons.json"),
         "filtered_out_rows": os.path.join(out_dir, f"{base_name}_filtered_out_rows.json"),
     }
 
@@ -4343,7 +4435,7 @@ def main() -> None:
     payload = load_json(args.input)
     source_tables = parse_source_tables_arg(args.include_source_tables)
 
-    llm_input, candidate_payload, noise_payload, filtered_payload = build_outputs(
+    llm_input, candidate_payload, noise_payload, filtered_reasons_payload, filtered_payload = build_outputs(
         payload,
         min_score=args.min_score,
         min_repeat_aggregate=args.min_repeat_aggregate,
@@ -4360,6 +4452,7 @@ def main() -> None:
     dump_json(output_paths["llm_input"], llm_input, pretty=args.pretty)
     dump_json(output_paths["analysis_candidates"], candidate_payload, pretty=args.pretty)
     dump_json(output_paths["noise_summary"], noise_payload, pretty=args.pretty)
+    dump_json(output_paths["filtered_reasons"], filtered_reasons_payload, pretty=args.pretty)
     if args.write_filtered_out:
         dump_json(output_paths["filtered_out_rows"], filtered_payload, pretty=args.pretty)
 
@@ -4367,6 +4460,7 @@ def main() -> None:
     print(f"[OK] selected_source_tables: {','.join(source_tables)}")
     print(f"[OK] analysis_candidates: {output_paths['analysis_candidates']}")
     print(f"[OK] noise_summary: {output_paths['noise_summary']}")
+    print(f"[OK] filtered_reasons: {output_paths['filtered_reasons']}")
     if args.write_filtered_out:
         print(f"[OK] filtered_out_rows: {output_paths['filtered_out_rows']}")
     print(
