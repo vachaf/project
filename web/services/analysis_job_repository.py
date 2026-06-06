@@ -4,7 +4,7 @@ import os
 import json
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterator, List, Optional
 
 import pymysql
@@ -18,6 +18,8 @@ from web.services.analysis_job_policy import (
 
 DEFAULT_STATUS_COUNTS = {"PENDING": 0, "RUNNING": 0, "SUCCEEDED": 0, "FAILED": 0}
 ACTIVE_JOB_STATUSES = ("PENDING", "RUNNING")
+STALE_RUNNING_HEARTBEAT_THRESHOLD_MINUTES = 30
+STALE_RUNNING_STARTUP_GRACE_MINUTES = 5
 SENSITIVE_EVENT_DETAIL_KEYWORDS = (
     "authorization",
     "cookie",
@@ -787,10 +789,58 @@ def utc_naive_to_kst_text(value: Any, fmt: str = "%Y-%m-%d %H:%M") -> str:
     return value.replace(tzinfo=utc).astimezone(kst).strftime(fmt)
 
 
+def _parse_datetime_for_stale_check(value: Any) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
+def _potentially_stale_job_metadata(row: Dict[str, Any]) -> Dict[str, Any]:
+    if str(row.get("status") or "").upper() != "RUNNING":
+        return {
+            "is_potentially_stale": False,
+            "stale_reason": "",
+            "stale_threshold_minutes": STALE_RUNNING_HEARTBEAT_THRESHOLD_MINUTES,
+        }
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    heartbeat_at = _parse_datetime_for_stale_check(row.get("heartbeat_at"))
+    started_at = _parse_datetime_for_stale_check(row.get("started_at"))
+    if heartbeat_at is not None:
+        is_stale = heartbeat_at < now - timedelta(minutes=STALE_RUNNING_HEARTBEAT_THRESHOLD_MINUTES)
+        return {
+            "is_potentially_stale": is_stale,
+            "stale_reason": "stale_heartbeat" if is_stale else "",
+            "stale_threshold_minutes": STALE_RUNNING_HEARTBEAT_THRESHOLD_MINUTES,
+        }
+
+    is_stale = (
+        started_at is not None
+        and started_at < now - timedelta(minutes=STALE_RUNNING_STARTUP_GRACE_MINUTES)
+    )
+    return {
+        "is_potentially_stale": is_stale,
+        "stale_reason": "missing_heartbeat_startup_grace" if is_stale else "",
+        "stale_threshold_minutes": STALE_RUNNING_STARTUP_GRACE_MINUTES,
+    }
+
+
 def serialize_job_for_dashboard(row: Dict[str, Any]) -> Dict[str, Any]:
     status = str(row.get("status") or "unknown").upper()
     worker_id = str(row.get("worker_id") or "-")
     heartbeat_at = utc_naive_to_kst_text(row.get("heartbeat_at"), "%m-%d %H:%M")
+    stale_metadata = _potentially_stale_job_metadata(row)
     status_hint = {
         "PENDING": "Waiting for worker",
         "RUNNING": f"Running by {worker_id}" if worker_id != "-" else "Running",
@@ -814,4 +864,5 @@ def serialize_job_for_dashboard(row: Dict[str, Any]) -> Dict[str, Any]:
         "attempt_count": int(row.get("attempt_count") or 0),
         "error_message": redact_secret_text(row.get("error_message") or ""),
         "artifact_root": str(row.get("artifact_root") or ""),
+        **stale_metadata,
     }

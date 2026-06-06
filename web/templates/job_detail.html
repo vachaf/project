@@ -16,7 +16,12 @@
             <div class="job-detail-grid">
                 <div>
                     <div class="job-detail-label">상태</div>
-                    <div class="job-detail-value"><span class="job-status-badge job-status-{{ job.status|lower }}">{{ job.status }}</span></div>
+                    <div class="job-detail-value">
+                        <span class="job-status-badge job-status-{{ job.status|lower }}">{{ job.status }}</span>
+                        {% if job.is_potentially_stale %}
+                        <span class="job-stale-badge">Potentially stale</span>
+                        {% endif %}
+                    </div>
                 </div>
                 <div>
                     <div class="job-detail-label">분석 모드</div>
@@ -70,6 +75,17 @@
                     {% endif %}
                 </span>
             </div>
+            {% if job.is_potentially_stale %}
+            <div class="job-stale-box">
+                <strong>Potentially stale</strong>
+                <span>
+                    Heartbeat is older than the stale threshold. Verify worker status before marking failed.
+                    Threshold: {{ job.stale_threshold_minutes }} minutes.
+                    Reason: {{ job.stale_reason }}.
+                    CLI hint: <code>python3 src/analysis_job_worker.py --recover-stale --dry-run</code>
+                </span>
+            </div>
+            {% endif %}
             {% elif job.status == 'SUCCEEDED' and is_no_data_job|default(false) %}
             <div class="job-info-box">
                 <strong>No data</strong>

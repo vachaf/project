@@ -74,12 +74,18 @@
                             <td class="job-table-time-range">{{ job.time_from }}<br><span>~ {{ job.time_to }}</span></td>
                             <td>
                                 <span class="job-status-badge job-status-{{ job.status|lower }}">{{ job.status }}</span>
+                                {% if job.is_potentially_stale %}
+                                <span class="job-stale-badge">Potentially stale</span>
+                                {% endif %}
                                 <div class="job-muted">{{ job.status_hint or 'Status unknown' }}</div>
                                 {% if job.status == 'RUNNING' %}
                                   {% if job.heartbeat_at and job.heartbeat_at != '-' %}
                                   <div class="job-muted">Last heartbeat: {{ job.heartbeat_at }}</div>
                                   {% else %}
                                   <div class="job-muted">Heartbeat not recorded yet.</div>
+                                  {% endif %}
+                                  {% if job.is_potentially_stale %}
+                                  <div class="job-stale-note">Heartbeat is older than the stale threshold. Verify worker status before marking failed.</div>
                                   {% endif %}
                                 {% endif %}
                             </td>

@@ -78,6 +78,7 @@
 
 .job-policy-strip,
 .job-info-box,
+.job-stale-box,
 .job-policy-box,
 .job-artifact-panel {
   border-radius: 8px;
@@ -98,6 +99,7 @@
 
 .job-policy-strip strong,
 .job-info-box strong,
+.job-stale-box strong,
 .job-policy-box strong {
   flex: 0 0 auto;
   color: var(--job-text-2);
@@ -112,6 +114,40 @@
   background: rgba(0, 212, 255, 0.055);
   color: #8dd9ff;
   font-size: 13px;
+}
+
+.job-stale-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.32rem 0.6rem;
+  border: 1px solid rgba(255, 170, 0, 0.52);
+  border-radius: 5px;
+  background: rgba(255, 170, 0, 0.13);
+  color: #ffd27a;
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.job-stale-note {
+  margin-top: 0.35rem;
+  color: #ffd27a;
+  font-size: 12px;
+}
+
+.job-stale-box {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.95rem 1rem;
+  border-left: 4px solid var(--job-warn);
+  background: rgba(255, 170, 0, 0.09);
+  color: #ffd27a;
+  font-size: 13px;
+}
+
+.job-stale-box code {
+  color: var(--job-text-2);
 }
 
 .job-policy-box {
@@ -238,6 +274,7 @@
 
 html:not([data-theme="dark"]) .job-policy-strip,
 html:not([data-theme="dark"]) .job-info-box,
+html:not([data-theme="dark"]) .job-stale-box,
 html:not([data-theme="dark"]) .job-policy-box {
   background: #f0f7ff;
   border-color: #bfd7f5;
@@ -246,8 +283,20 @@ html:not([data-theme="dark"]) .job-policy-box {
 
 html:not([data-theme="dark"]) .job-policy-strip strong,
 html:not([data-theme="dark"]) .job-info-box strong,
+html:not([data-theme="dark"]) .job-stale-box strong,
 html:not([data-theme="dark"]) .job-policy-box strong {
   color: #14385f;
+}
+
+html:not([data-theme="dark"]) .job-stale-badge {
+  background: #fff7e0;
+  border-color: #e6b84f;
+  color: #805800;
+}
+
+html:not([data-theme="dark"]) .job-stale-note,
+html:not([data-theme="dark"]) .job-stale-box {
+  color: #805800;
 }
 
 html:not([data-theme="dark"]) .job-artifact-panel,
