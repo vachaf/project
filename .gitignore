@@ -43,4 +43,6 @@ metadata.env
 
 /data/windowed/
 /data/rollups/
-/data/
+/data/*
+!/data/eval/
+!/data/eval/*.json

