@@ -164,6 +164,7 @@
                 </div>
             </div>
             {% set summary = artifact_summary %}
+            {% set total_usage = summary.llm_usage_total|default({}) %}
             {% set stage1_usage = summary.stage1_usage|default({}) %}
             {% set stage2_usage = summary.stage2_usage|default({}) %}
             {% set filtered = filtered_summary %}
@@ -173,13 +174,15 @@
                 {% if usage.available %}
                 <dl class="job-summary-metrics">
                     <div><dt>Available</dt><dd>true</dd></div>
-                    <div><dt>Calls</dt><dd>{{ usage.call_count }}</dd></div>
-                    <div><dt>Input tokens</dt><dd>{{ usage.input_tokens }}</dd></div>
-                    <div><dt>Output tokens</dt><dd>{{ usage.output_tokens }}</dd></div>
-                    <div><dt>Total tokens</dt><dd>{{ usage.total_tokens }}</dd></div>
+                    <div><dt>Calls</dt><dd>{{ usage.call_count_display }}</dd></div>
+                    <div><dt>Input tokens</dt><dd>{{ usage.input_tokens_display }}</dd></div>
+                    <div><dt>Output tokens</dt><dd>{{ usage.output_tokens_display }}</dd></div>
+                    <div><dt>Total tokens</dt><dd>{{ usage.total_tokens_display }}</dd></div>
                     <div><dt>Provider</dt><dd>{{ usage.provider or '-' }}</dd></div>
                     <div><dt>Model</dt><dd>{{ usage.selected_model or '-' }}</dd></div>
-                    <div><dt>Unavailable</dt><dd>{{ usage.unavailable_count }}</dd></div>
+                    {% if usage.unavailable_count|default(0) > 0 %}
+                    <div><dt>Unavailable calls</dt><dd>{{ usage.unavailable_count_display }}</dd></div>
+                    {% endif %}
                 </dl>
                 {% else %}
                 <div class="job-summary-unavailable">
@@ -195,6 +198,26 @@
                 {% endif %}
             </div>
             {%- endmacro %}
+            {% if total_usage.available %}
+            <div class="job-summary-total">
+                <div>
+                    <span class="job-summary-total-label">Total LLM tokens</span>
+                    <strong>{{ total_usage.total_tokens_display }}</strong>
+                </div>
+                <div>
+                    <span class="job-summary-total-label">Calls</span>
+                    <strong>{{ total_usage.total_calls_display }}</strong>
+                </div>
+                <div>
+                    <span class="job-summary-total-label">Stage1</span>
+                    <strong>{{ total_usage.stage1_tokens_display }}</strong>
+                </div>
+                <div>
+                    <span class="job-summary-total-label">Stage2</span>
+                    <strong>{{ total_usage.stage2_tokens_display }}</strong>
+                </div>
+            </div>
+            {% endif %}
             <div class="job-summary-grid">
                 {{ usage_card('Stage1 LLM Usage', stage1_usage) }}
                 {{ usage_card('Stage2 LLM Usage', stage2_usage) }}
@@ -202,27 +225,29 @@
                     <div class="job-summary-card-title">Filtered Reasons</div>
                     {% if filtered.found %}
                     <dl class="job-summary-metrics">
-                        <div><dt>Total rows</dt><dd>{{ filtered.total_rows }}</dd></div>
-                        <div><dt>Candidates</dt><dd>{{ filtered.candidate_count }}</dd></div>
-                        <div><dt>Candidate-excluded rows</dt><dd>{{ filtered.excluded_count }}</dd></div>
+                        <div><dt>Total rows</dt><dd>{{ filtered.total_rows_display }}</dd></div>
+                        <div><dt>Candidates</dt><dd>{{ filtered.candidate_count_display }}</dd></div>
+                        <div><dt>Candidate-excluded rows</dt><dd>{{ filtered.excluded_count_display }}</dd></div>
                     </dl>
                     {% if filtered.top_reasons %}
                     <div class="job-summary-list-title">Excluded from candidate analysis</div>
                     <ul class="job-summary-reason-list">
                         {% for reason in filtered.top_reasons %}
-                        <li><code>{{ reason.reason }}</code><span>{{ reason.count }}</span></li>
-                        {% endfor %}
-                    </ul>
-                    {% endif %}
-                    {% if filtered.guardrails %}
-                    <div class="job-summary-list-title">Guardrails</div>
-                    <ul class="job-summary-guardrail-list">
-                        {% for guardrail in filtered.guardrails %}
-                        <li><code>{{ guardrail }}</code></li>
+                        <li><code>{{ reason.reason }}</code><span>{{ reason.count_display }}</span></li>
                         {% endfor %}
                     </ul>
                     {% endif %}
                     <div class="job-summary-note">Candidate-excluded rows are not safety verdicts.</div>
+                    {% if filtered.guardrails %}
+                    <details class="job-summary-guardrails">
+                        <summary>Guardrails ({{ filtered.guardrail_count_display }})</summary>
+                        <ul class="job-summary-guardrail-list">
+                            {% for guardrail in filtered.guardrails %}
+                            <li>{{ guardrail.label }}</li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                    {% endif %}
                     {% if filtered.artifact_available %}
                     <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/filtered_reasons">Open filtered_reasons.json</a>
                     {% endif %}

@@ -228,7 +228,11 @@ def test_job_detail_renders_artifact_usage_and_filtered_reason_summary(
             "candidate_count": 5,
             "excluded_count": 9,
             "excluded_summary": {"low_signal_request": 4, "static_asset_like": 3},
-            "guardrails": ["candidate_excluded_does_not_mean_safety_verdict"],
+            "guardrails": [
+                "candidate_excluded_does_not_mean_benign",
+                "apache_logs_only_no_success_inference",
+                "status_code_response_size_route_or_user_agent_do_not_prove_success_or_benign",
+            ],
             "excluded": [{"request_id": "excluded-1", "reason": "low_signal_request"}],
         },
     )
@@ -248,12 +252,23 @@ def test_job_detail_renders_artifact_usage_and_filtered_reason_summary(
     assert "Artifact Summary" in body
     assert "Stage1 LLM Usage" in body
     assert "Stage2 LLM Usage" in body
-    assert "13463" in body
-    assert "17846" in body
+    assert "13,463" in body
+    assert "15,674" in body
+    assert "17,846" in body
+    assert "32,265" in body
+    assert "14,419" in body
+    assert ">6<" in body
     assert "gpt-5.4-mini" in body
     assert "Candidate-excluded rows" in body
     assert "low_signal_request" in body
-    assert "candidate_excluded_does_not_mean_safety_verdict" in body
+    assert "Candidate-excluded rows are not safety verdicts." in body
+    assert "Apache logs alone do not prove exploit success." in body
+    assert "Status, size, route, or user-agent alone are not proof." in body
+    assert "Guardrails (3)" in body
+    assert "candidate_excluded_does_not_mean_benign" not in body
+    assert "apache_logs_only_no_success_inference" not in body
+    assert "status_code_response_size_route_or_user_agent_do_not_prove_success_or_benign" not in body
+    assert "Unavailable calls" not in body
     assert 'href="/job/123/artifact/filtered_reasons"' in body
     assert "raw_output_text" not in body
     assert "must not render" not in body
@@ -262,6 +277,40 @@ def test_job_detail_renders_artifact_usage_and_filtered_reason_summary(
     assert "normal" not in body.lower()
     assert "정상" not in body
     assert "무해" not in body
+
+
+def test_job_detail_renders_positive_unavailable_usage_count(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    write_json_artifact(
+        tmp_path,
+        "runs/jobs/123/stage1_results.json",
+        {
+            "meta": {
+                "llm_usage_totals": {
+                    "available": True,
+                    "call_count": 3,
+                    "input_tokens": 1000,
+                    "output_tokens": 2000,
+                    "total_tokens": 3000,
+                    "provider": "openai",
+                    "selected_model": "gpt-5.4-mini",
+                    "unavailable_count": 2,
+                }
+            }
+        },
+    )
+    install_detail_repo(
+        monkeypatch,
+        tmp_path,
+        make_report(stage1_result_path="runs/jobs/123/stage1_results.json"),
+    )
+
+    body = render_response_body(web_app_module.job_detail(make_request(path="/job/123"), 123))
+
+    assert "Unavailable calls" in body
+    assert "3,000" in body
 
 
 def test_job_detail_filtered_reasons_missing_is_graceful(

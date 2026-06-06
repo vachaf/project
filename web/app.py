@@ -56,6 +56,14 @@ ARTIFACT_KEY_TO_REPORT_COLUMN = {
 FILTERED_REASONS_ARTIFACT_KEY = "filtered_reasons"
 FILTERED_REASONS_FILENAME = "filtered_reasons.json"
 FILTERED_REASONS_TOP_N = 6
+FILTERED_REASON_GUARDRAIL_LABELS = {
+    "candidate_excluded_does_not_mean_benign": "Candidate-excluded rows are not safety verdicts.",
+    "candidate_excluded_does_not_mean_safety_verdict": "Candidate-excluded rows are not safety verdicts.",
+    "apache_logs_only_no_success_inference": "Apache logs alone do not prove exploit success.",
+    "status_code_response_size_route_or_user_agent_do_not_prove_success_or_benign": (
+        "Status, size, route, or user-agent alone are not proof."
+    ),
+}
 
 ALLOWED_JOB_STATUSES = ("PENDING", "RUNNING", "SUCCEEDED", "FAILED")
 KST = ZoneInfo("Asia/Seoul")
@@ -254,6 +262,15 @@ def _safe_int(value: Any, default: int = 0) -> int:
         return default
 
 
+def _format_count(value: Any) -> str:
+    if value is None:
+        return "-"
+    try:
+        return f"{int(value):,}"
+    except (TypeError, ValueError):
+        return "-"
+
+
 def _load_artifact_json(path: Path) -> Optional[Dict[str, Any]]:
     try:
         with path.open("r", encoding="utf-8") as handle:
@@ -268,12 +285,17 @@ def _build_unavailable_usage_summary(stage: str, reason: str) -> Dict[str, Any]:
         "stage": stage,
         "available": False,
         "call_count": 0,
+        "call_count_display": "0",
         "input_tokens": 0,
+        "input_tokens_display": "0",
         "output_tokens": 0,
+        "output_tokens_display": "0",
         "total_tokens": 0,
+        "total_tokens_display": "0",
         "provider": "",
         "selected_model": "",
         "unavailable_count": 0,
+        "unavailable_count_display": "0",
         "unavailable_reason": reason,
     }
 
@@ -300,18 +322,63 @@ def _build_usage_summary(stage: str, payload: Optional[Dict[str, Any]]) -> Dict[
     if not totals:
         return _build_unavailable_usage_summary(stage, "usage_totals_missing")
 
+    call_count = _safe_int(totals.get("call_count"))
+    input_tokens = _safe_int(totals.get("input_tokens"))
+    output_tokens = _safe_int(totals.get("output_tokens"))
+    total_tokens = _safe_int(totals.get("total_tokens"))
+    unavailable_count = _safe_int(totals.get("unavailable_count"))
     return {
         "stage": stage,
         "available": available,
-        "call_count": _safe_int(totals.get("call_count")),
-        "input_tokens": _safe_int(totals.get("input_tokens")),
-        "output_tokens": _safe_int(totals.get("output_tokens")),
-        "total_tokens": _safe_int(totals.get("total_tokens")),
+        "call_count": call_count,
+        "call_count_display": _format_count(call_count),
+        "input_tokens": input_tokens,
+        "input_tokens_display": _format_count(input_tokens),
+        "output_tokens": output_tokens,
+        "output_tokens_display": _format_count(output_tokens),
+        "total_tokens": total_tokens,
+        "total_tokens_display": _format_count(total_tokens),
         "provider": provider,
         "selected_model": selected_model,
-        "unavailable_count": _safe_int(totals.get("unavailable_count")),
+        "unavailable_count": unavailable_count,
+        "unavailable_count_display": _format_count(unavailable_count),
         "unavailable_reason": str(totals.get("unavailable_reason") or ""),
     }
+
+
+def _build_combined_usage_summary(*usages: Dict[str, Any]) -> Dict[str, Any]:
+    available_usages = [usage for usage in usages if isinstance(usage, dict) and usage.get("available")]
+    call_count = sum(_safe_int(usage.get("call_count")) for usage in available_usages)
+    input_tokens = sum(_safe_int(usage.get("input_tokens")) for usage in available_usages)
+    output_tokens = sum(_safe_int(usage.get("output_tokens")) for usage in available_usages)
+    total_tokens = sum(_safe_int(usage.get("total_tokens")) for usage in available_usages)
+    stage_totals = {
+        str(usage.get("stage") or ""): _safe_int(usage.get("total_tokens"))
+        for usage in available_usages
+        if usage.get("stage")
+    }
+    return {
+        "available": bool(available_usages),
+        "total_calls": call_count,
+        "total_calls_display": _format_count(call_count),
+        "total_input_tokens": input_tokens,
+        "total_input_tokens_display": _format_count(input_tokens),
+        "total_output_tokens": output_tokens,
+        "total_output_tokens_display": _format_count(output_tokens),
+        "total_tokens": total_tokens,
+        "total_tokens_display": _format_count(total_tokens),
+        "stage1_tokens": stage_totals.get("stage1", 0),
+        "stage1_tokens_display": _format_count(stage_totals.get("stage1", 0)),
+        "stage2_tokens": stage_totals.get("stage2", 0),
+        "stage2_tokens_display": _format_count(stage_totals.get("stage2", 0)),
+    }
+
+
+def _format_guardrail_label(raw_key: Any) -> str:
+    key = str(raw_key or "").strip()
+    if not key:
+        return "Additional artifact guardrail."
+    return FILTERED_REASON_GUARDRAIL_LABELS.get(key, "Additional artifact guardrail.")
 
 
 def _build_filtered_reasons_summary(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -321,23 +388,31 @@ def _build_filtered_reasons_summary(payload: Optional[Dict[str, Any]]) -> Dict[s
     excluded_summary = payload.get("excluded_summary") if isinstance(payload.get("excluded_summary"), dict) else {}
     top_reasons = sorted(
         (
-            {"reason": str(reason), "count": _safe_int(count)}
+            {"reason": str(reason), "count": _safe_int(count), "count_display": _format_count(count)}
             for reason, count in excluded_summary.items()
         ),
         key=lambda item: (-item["count"], item["reason"]),
     )[:FILTERED_REASONS_TOP_N]
     guardrails = [
-        str(item)
+        {"label": _format_guardrail_label(item)}
         for item in payload.get("guardrails", [])
         if isinstance(item, (str, int, float))
     ][:FILTERED_REASONS_TOP_N]
+    total_rows = _safe_int(payload.get("total_rows"))
+    candidate_count = _safe_int(payload.get("candidate_count"))
+    excluded_count = _safe_int(payload.get("excluded_count"))
     return {
         "found": True,
-        "total_rows": _safe_int(payload.get("total_rows")),
-        "candidate_count": _safe_int(payload.get("candidate_count")),
-        "excluded_count": _safe_int(payload.get("excluded_count")),
+        "total_rows": total_rows,
+        "total_rows_display": _format_count(total_rows),
+        "candidate_count": candidate_count,
+        "candidate_count_display": _format_count(candidate_count),
+        "excluded_count": excluded_count,
+        "excluded_count_display": _format_count(excluded_count),
         "top_reasons": top_reasons,
         "guardrails": guardrails,
+        "guardrail_count": len(guardrails),
+        "guardrail_count_display": _format_count(len(guardrails)),
     }
 
 
@@ -364,11 +439,14 @@ def _build_job_artifact_summary(report: Optional[Dict[str, Any]]) -> Dict[str, A
         filtered_payload = None
         filtered_href = False
 
+    stage1_usage = _build_usage_summary("stage1", stage1_payload)
+    stage2_usage = _build_usage_summary("stage2", stage2_payload)
     filtered_summary = _build_filtered_reasons_summary(filtered_payload)
     filtered_summary["artifact_available"] = filtered_href
     return {
-        "stage1_usage": _build_usage_summary("stage1", stage1_payload),
-        "stage2_usage": _build_usage_summary("stage2", stage2_payload),
+        "llm_usage_total": _build_combined_usage_summary(stage1_usage, stage2_usage),
+        "stage1_usage": stage1_usage,
+        "stage2_usage": stage2_usage,
         "filtered_reasons": filtered_summary,
     }
 

@@ -214,19 +214,50 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
+  margin-top: 1rem;
 }
 
+.job-summary-total,
 .job-summary-card {
   min-width: 0;
   padding: 1rem;
   border: 1px solid var(--job-border);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.025);
+  line-height: 1.5;
+}
+
+.job-summary-total {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, minmax(0, 0.8fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+  border-color: rgba(0, 212, 255, 0.35);
+  background: rgba(0, 212, 255, 0.055);
+}
+
+.job-summary-total div {
+  min-width: 0;
+}
+
+.job-summary-total-label {
+  display: block;
+  color: var(--job-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.job-summary-total strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--job-text-2);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
 }
 
 .job-summary-card-title {
   color: var(--job-text-2);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -254,8 +285,9 @@
 .job-summary-metrics dd {
   margin: 0;
   color: var(--job-text-2);
-  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
   overflow-wrap: anywhere;
   text-align: right;
 }
@@ -288,6 +320,24 @@
   color: var(--job-text-2);
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.job-summary-guardrails {
+  margin-top: 0.85rem;
+  color: var(--job-text-2);
+  font-size: 13px;
+}
+
+.job-summary-guardrails summary {
+  cursor: pointer;
+  color: var(--job-muted);
+  font-weight: 800;
+}
+
+.job-summary-guardrail-list li {
+  display: list-item;
+  margin-left: 1rem;
+  line-height: 1.45;
 }
 
 .job-summary-note,
@@ -418,6 +468,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .job-summary-total {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .job-filter-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -439,6 +493,7 @@
   .job-form-row,
   .job-detail-grid,
   .job-summary-grid,
+  .job-summary-total,
   .job-report-grid,
   .job-filter-form {
     grid-template-columns: 1fr;
@@ -518,6 +573,7 @@ html:not([data-theme="dark"]) .job-filter-chip {
 }
 
 html:not([data-theme="dark"]) .job-artifact-panel,
+html:not([data-theme="dark"]) .job-summary-total,
 html:not([data-theme="dark"]) .job-summary-card,
 html:not([data-theme="dark"]) .job-report-item {
   background: #ffffff;
