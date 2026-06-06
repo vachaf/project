@@ -475,6 +475,30 @@
   color: #94a3b8;
 }
 
+[data-theme="dark"] .job-report-item-recommended {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.13), #151d30);
+  border-color: rgba(96, 165, 250, 0.42);
+}
+
+[data-theme="dark"] .job-artifact-kind {
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.24);
+  color: #a8b3c7;
+}
+
+[data-theme="dark"] .job-artifact-recommended-badge,
+[data-theme="dark"] .job-artifact-open-link-primary {
+  background: rgba(96, 165, 250, 0.16);
+  border-color: rgba(96, 165, 250, 0.44);
+  color: #dbeafe;
+}
+
+[data-theme="dark"] .job-artifact-open-link-primary:hover {
+  background: rgba(96, 165, 250, 0.24);
+  border-color: rgba(147, 197, 253, 0.58);
+  color: #ffffff;
+}
+
 /* ============================================
    13. Empty state
    ============================================ */

@@ -265,7 +265,7 @@
             <div class="job-card-head">
                 <div>
                     <h2 class="job-card-title">Analysis Report Artifacts</h2>
-                    <p class="job-card-subtitle">analysis_reports 최신 row에 저장된 read-only artifact path를 표시합니다.</p>
+                    <p class="job-card-subtitle">Use Open Viewer for the integrated read-only analysis view. Raw artifacts are for inspection/debugging.</p>
                 </div>
             </div>
             {% if report %}
@@ -290,22 +290,27 @@
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Export</div>
+                    <span class="job-artifact-kind">Raw artifact</span>
                     {{ artifact_value(job.id, 'export', report.export_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">LLM Input</div>
+                    <span class="job-artifact-kind">Debug/reference</span>
                     {{ artifact_value(job.id, 'llm_input', report.llm_input_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Analysis Candidates</div>
+                    <span class="job-artifact-kind">Raw artifact</span>
                     {{ artifact_value(job.id, 'analysis_candidates', report.analysis_candidates_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Noise Summary</div>
+                    <span class="job-artifact-kind">Debug/reference</span>
                     {{ artifact_value(job.id, 'noise_summary', report.noise_summary_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Filtered Reasons</div>
+                    <span class="job-artifact-kind">Debug/reference</span>
                     <code>{{ report.artifact_root ~ '/filtered_reasons.json' if report.artifact_root else 'not generated' }}</code>
                     {% if filtered_summary.artifact_available|default(false) %}
                     <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/filtered_reasons">Open</a>
@@ -315,25 +320,30 @@
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Stage1 Result</div>
+                    <span class="job-artifact-kind">Debug/reference</span>
                     {{ artifact_value(job.id, 'stage1_result', report.stage1_result_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Stage2 Report JSON</div>
+                    <span class="job-artifact-kind">Debug/reference</span>
                     {{ artifact_value(job.id, 'stage2_report', report.stage2_report_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Stage2 Report Markdown</div>
+                    <span class="job-artifact-kind">Debug/reference</span>
                     {{ artifact_value(job.id, 'stage2_report_md', report.stage2_report_md_path, job.status, is_no_data_job|default(false)) }}
                 </div>
-                <div class="job-report-item">
+                <div class="job-report-item job-report-item-recommended">
                     <div class="job-detail-label">Viewer Payload</div>
+                    <span class="job-artifact-recommended-badge">Recommended human view</span>
                     {{ artifact_value(job.id, 'viewer_payload', report.viewer_payload_path, job.status, is_no_data_job|default(false)) }}
                     {% if report.viewer_payload_path %}
-                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/viewer">Open Viewer</a>
+                    <a class="job-artifact-open-link job-artifact-open-link-primary" href="/job/{{ job.id }}/viewer">Open Viewer</a>
                     {% endif %}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Lint Result</div>
+                    <span class="job-artifact-kind">Debug/reference</span>
                     {{ artifact_value(job.id, 'lint_result', report.lint_result_path, job.status, is_no_data_job|default(false)) }}
                 </div>
             </div>

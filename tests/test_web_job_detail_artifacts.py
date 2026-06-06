@@ -50,18 +50,29 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     body = render_job_detail(make_report())
 
     assert "Analysis Report Artifacts" in body
+    assert "Use Open Viewer for the integrated read-only analysis view." in body
+    assert "Raw artifacts are for inspection/debugging." in body
     assert "runs/jobs/123/export.json" in body
     assert "runs/jobs/123/analysis_candidates.json" in body
     assert "runs/jobs/123/noise_summary.json" in body
     assert "runs/jobs/123/stage2_report.json" in body
     assert "runs/jobs/123/stage2_report.md" in body
     assert "runs/jobs/123/viewer_payload.json" in body
+    assert "Recommended human view" in body
+    assert "Raw artifact" in body
+    assert "Debug/reference" in body
+    assert "job-report-item-recommended" in body
+    assert "job-artifact-open-link-primary" in body
     assert 'href="/job/123/artifact/export"' in body
     assert 'href="/job/123/artifact/stage2_report"' in body
     assert 'href="/job/123/artifact/stage2_report_md"' in body
     assert 'href="/job/123/artifact/viewer_payload"' in body
     assert 'href="/job/123/viewer"' in body
     assert "/report/job-123/payload" not in body
+    assert "final verdict" not in body.lower()
+    assert "attack success" not in body.lower()
+    assert "benign" not in body.lower()
+    assert " normal " not in body.lower()
     assert "severity" not in body.lower()
 
 
