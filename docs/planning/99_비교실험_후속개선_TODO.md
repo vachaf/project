@@ -134,6 +134,22 @@
 - [ ] filtered reason taxonomy 품질 개선
   - `static_asset_like`, `known_baseline_like`, `crawler_or_bot_like`, `low_signal_request`, `duplicate_or_repeated_low_signal`, `outside_candidate_policy`, `context_only_represented_elsewhere`, `unknown_excluded_reason` 분류 품질을 운영 샘플로 점검한다.
   - `normal`/`benign` 확정 표현으로 되돌리지 않는다.
+- [ ] LLM token usage 실제 provider run artifact smoke
+  - OpenAI 실제 run에서 Stage1 `results[*].llm_usage`, Stage1 `meta.llm_usage_totals`, Stage2 `meta.llm_usage.calls/totals`가 채워지는지 확인한다.
+  - Anthropic 실제 run 또는 통제된 repair fixture에서 initial/repair usage 분리가 운영 artifact에서도 확인되는지 점검한다.
+  - dry-run은 계속 `available=false`, `dry_run_no_provider_call`로 유지한다.
+- [ ] LLM token usage Web 표시 여부 결정
+  - Web detail/artifact viewer에서 token counts를 요약 표시할지 검토한다.
+  - 표시하더라도 비용 추정이나 provider raw response는 노출하지 않는다.
+- [ ] LLM token usage job_events aggregate 여부 결정
+  - 현재 구현은 artifact-only이며 `job_events.detail_json`에는 usage aggregate를 저장하지 않는다.
+  - 후속으로 필요하면 `PIPELINE_COMPLETED` 또는 `JOB_SUCCEEDED`에 aggregate totals만 제한적으로 기록할지 검토한다.
+- [ ] LLM token usage DB mapping/table 여부 결정
+  - `analysis_reports` column은 추가하지 않았다.
+  - 운영 조회/집계 요구가 생기면 artifact-only 유지, `analysis_reports` mapping, 별도 usage table 중 하나를 설계한다.
+- [ ] LLM cost estimate 설계 여부 결정
+  - 현재 구현은 token counts만 기록하고 비용 계산은 하지 않는다.
+  - 비용 추정은 provider/model pricing snapshot, currency, pricing source/date를 고정하는 설계 이후 별도 작업으로 진행한다.
 - [ ] Q&A/발표 자료 wording 반영
   - “후보 제외 != 정상 판정” 표현을 Q&A와 발표 자료에 반영한다.
   - `status_code`, response size, route, User-Agent만으로 성공/정상/무해를 단정하지 않는다는 설명을 유지한다.

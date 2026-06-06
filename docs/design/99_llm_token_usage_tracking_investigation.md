@@ -1,27 +1,41 @@
 # 99_llm_token_usage_tracking_investigation
 
 - 작성일: 2026-06-06
-- 문서 상태: investigation / implementation plan candidate
-- 기준 커밋: 200e4114d2be9b0ec892b05326375c000e063fad
+- 문서 상태: investigation + implementation note
+- 기준 커밋:
+  - 조사 기준: 200e4114d2be9b0ec892b05326375c000e063fad
+  - 1차 구현 기준: 3ecf37a4cee7420f9980b5253ba4cd4596a16717
 - 범위: Stage1/Stage2 LLM token usage 기록 가능성 조사
-- 비범위: 코드 수정, DB schema 수정, provider call 변경, prompt/schema 변경, 비용 계산 구현
+- 구현 범위: artifact-only token usage 기록
+- 비범위: DB schema 수정, provider call 변경, prompt/schema 변경, job_events aggregate 저장, Web UI 표시, 비용 계산 구현
 
 ## 1. 결론
 
-현재 코드도 provider 원본 응답 자체는 `LLMResponse.raw_response`로 받는다.
+조사 당시 코드도 provider 원본 응답 자체는 `LLMResponse.raw_response`로 받았다.
 
-따라서 OpenAI/Anthropic 응답의 `usage`를 얻을 가능성은 있다. 다만 현재 정상 성공 경로에서는 `usage`를 추출하지 않고, Stage1/Stage2 artifact에도 저장하지 않는다.
+따라서 OpenAI/Anthropic 응답의 `usage`를 얻을 가능성이 있었다. 조사 당시 정상 성공 경로에서는 `usage`를 추출하지 않고, Stage1/Stage2 artifact에도 저장하지 않았다.
 
-가장 안전한 1차 구현 방향은 DB schema 변경 없이 artifact에만 token usage를 남기는 것이다.
+3ecf37a 기준 1차 구현은 DB schema 변경 없이 artifact에만 token usage를 남기는 방식으로 완료됐다.
 
-권장 순서:
+구현 완료 항목:
 
-1. `llm_client.py`에서 provider별 `raw_response["usage"]`를 normalized usage로 추출한다.
-2. Stage1 개별 candidate result에 `llm_usage`를 붙인다.
-3. Stage1 `meta.llm_usage_totals`에 합산값을 둔다.
-4. Stage2 `stage2_report.json.meta.llm_usage`에 report call usage를 둔다.
-5. Anthropic Stage2 JSON repair가 발생하면 initial/repair usage를 분리 저장하고 total도 별도로 둔다.
-6. `job_events.detail_json`에는 기본적으로 쓰지 않고, 필요하면 `JOB_SUCCEEDED` 또는 `PIPELINE_COMPLETED`에 aggregate totals만 후속으로 검토한다.
+1. `llm_client.py`에서 provider별 `raw_response["usage"]`를 normalized usage로 추출하는 `normalize_llm_usage()`를 추가했다.
+2. `available=true` usage만 합산하는 `combine_llm_usage()`를 추가했다.
+3. Stage1 개별 candidate result에 `llm_usage`를 저장한다.
+4. Stage1 `meta.llm_usage_totals`에 합산값을 저장한다.
+5. Stage2 `stage2_report.json.meta.llm_usage.calls/totals`에 call usage와 합산값을 저장한다.
+6. Anthropic Stage2 JSON repair가 발생하면 `initial` / `repair` usage를 분리한다.
+7. dry-run은 실제 provider call이 없으므로 token을 추정하지 않고 `available=false`로 표시한다.
+8. `job_events.detail_json`에는 usage aggregate를 쓰지 않는다.
+
+명시적으로 하지 않은 것:
+
+- DB schema 변경 없음
+- `analysis_reports` column 추가 없음
+- `job_events` aggregate usage 저장 없음
+- Web UI 표시 없음
+- 비용 추정 없음
+- 정상 success artifact에 raw provider response 전체 저장 없음
 
 ## 2. 현재 코드 조사
 
@@ -31,18 +45,19 @@
 
 - `src/llm_client.py`
 
-현재 구조:
+조사 당시 구조:
 
 - `LLMResponse` dataclass는 `output_text`, `response_id`, `raw_response`, `provider`, `model`, `stop_reason`을 가진다.
 - `call_openai_responses()`는 `/responses` 응답 JSON 전체를 `raw_response`로 보존한다.
 - `call_anthropic_messages()`는 `/messages` 응답 JSON 전체를 `raw_response`로 보존한다.
-- 하지만 `LLMResponse`에 `usage` 전용 필드는 없다.
+- 조사 당시 `LLMResponse`에 `usage` 전용 필드는 없었다.
 - `response_payload_stop_reason()`은 top-level `stop_reason`만 읽는다. OpenAI Responses의 상태/불완전 사유나 usage는 별도 추출하지 않는다.
 
-판단:
+구현 상태:
 
-- provider response가 `usage`를 포함하면 현재 wrapper 경계에서는 이미 접근 가능하다.
-- 정상 산출물에 안정적으로 남기려면 raw response 전체를 저장하지 말고 usage만 normalized 형태로 추출해야 한다.
+- `normalize_llm_usage(response, call_role=...)`는 `LLMResponse.raw_response["usage"]`만 정규화한다.
+- `provider_usage`에는 raw response 전체가 아니라 provider의 raw usage object만 저장한다.
+- `combine_llm_usage(usages)`는 `available=true` usage만 합산하고 `by_provider`, `unavailable_count`, `unavailable_reasons`를 포함한다.
 
 ### 2.2 Stage1
 
@@ -50,19 +65,20 @@
 
 - `src/llm_stage1_classifier.py`
 
-현재 구조:
+조사 당시 구조:
 
 - candidate별로 `classify_candidate()`가 `call_llm_json()`을 호출한다.
 - 성공 시 `Stage1Result`에 `response_id`, `raw_output_text`는 저장한다.
 - `llm_response.raw_response`는 성공 결과에 저장하지 않는다.
 - empty output error에서는 `raw_response_excerpt`를 error artifact에 일부 저장한다.
-- dry-run은 실제 provider call 없이 request plan만 `stage1_results.json`에 저장한다.
+- dry-run은 실제 provider call 없이 request plan만 `stage1_results.json`에 저장했다.
 
-판단:
+구현 상태:
 
-- candidate별 usage는 `classify_candidate()` 성공 시점에 붙일 수 있다.
-- Stage1은 candidate별 API 호출 구조라 per-candidate usage 저장에 가장 적합하다.
-- `stage1_results.json.results[*].llm_usage`와 `stage1_results.json.meta.llm_usage_totals` 조합이 가장 자연스럽다.
+- Stage1 성공 result에 `results[*].llm_usage`를 저장한다.
+- Stage1 parse/empty-output error 중 `LLMResponse`를 받은 경우 error result에 normalized `llm_usage`를 보존할 수 있다.
+- Stage1 `meta.llm_usage_totals`는 `available=true` usage만 합산한다.
+- Stage1 dry-run은 per-candidate usage를 붙이지 않고 `meta.llm_usage_totals.available=false`, `unavailable_reason=dry_run_no_provider_call`로 기록한다.
 
 ### 2.3 Stage2
 
@@ -70,7 +86,7 @@
 
 - `src/llm_stage2_reporter.py`
 
-현재 구조:
+조사 당시 구조:
 
 - `build_report_input()`으로 `stage2_report_input.json`을 먼저 생성한다.
 - 정상 경로에서는 `call_llm_json()` 응답을 parse하고 `stage2_report.json`에 다음 meta를 저장한다.
@@ -79,16 +95,18 @@
   - `response_id`
   - `stop_reason`
   - `json_parse_strategy`
-- 정상 `stage2_report.json`에는 raw response나 usage가 저장되지 않는다.
+- 정상 `stage2_report.json`에는 raw response나 usage가 저장되지 않았다.
 - parse 실패/empty output 경로에서는 `stage2_report_raw_error.json`에 raw response를 저장한다.
 - Anthropic JSON parse 실패 시 repair request를 한 번 더 호출한다. repair 성공 시 최종 report에는 repair response metadata만 남고, initial response usage는 현재 저장되지 않는다.
-- dry-run은 실제 provider call 없이 `report: null`과 dry-run meta만 저장한다.
+- dry-run은 실제 provider call 없이 `report: null`과 dry-run meta만 저장했다.
 
-판단:
+구현 상태:
 
-- Stage2 usage는 `stage2_report.json.meta.llm_usage`에 붙일 수 있다.
-- Anthropic repair path는 비용/usage 관점에서 두 번 호출하므로 initial/repair를 분리해야 한다.
-- parse 실패 artifact에는 현재 raw response가 들어가므로 usage도 raw response 안에 있을 수 있지만, 정상화된 usage field는 없다.
+- Stage2 `stage2_report.json.meta.llm_usage`는 repair 여부와 관계없이 `calls` + `totals` 구조를 사용한다.
+- 일반 성공은 `calls=[initial]`, `totals.call_count=1`이다.
+- Anthropic repair 성공은 `calls=[initial, repair]`, `totals.call_count=2`이다.
+- Stage2 dry-run은 `available=false`, `calls=[]`, totals 0, `unavailable_reason=dry_run_no_provider_call`이다.
+- error artifact는 기존 raw error 정책을 유지하되 가능한 경우 normalized usage를 별도 field로 남긴다.
 
 ### 2.4 run_analysis_pipeline / full_report runner / DB-backed worker
 
@@ -108,12 +126,11 @@
 - `job_events.detail_json`은 JSON 저장 가능하고 recursive redaction도 적용된다.
 - worker는 `PIPELINE_COMPLETED`, `REPORT_SAVE_*`, `JOB_SUCCEEDED`, `JOB_FAILED` events를 기록하지만 usage를 읽거나 합산하지 않는다.
 
-판단:
+구현 상태:
 
-- DB schema 변경 없이 artifact에 usage를 저장하는 것은 가능하다.
-- DB schema 변경 없이 `job_events.detail_json`에 aggregate usage를 저장하는 것도 기술적으로 가능하다.
-- 하지만 per-candidate usage나 provider 세부 breakdown을 events에 넣으면 event payload가 커지고 event timeline이 비용/telemetry 저장소처럼 변할 수 있다.
-- 1차 구현은 artifact-only가 안전하다.
+- 1차 구현은 artifact-only다.
+- DB schema, `analysis_reports`, `job_events`, Web UI는 수정하지 않았다.
+- run_dir 파일 layout은 바뀌지 않는다. usage는 기존 `stage1_results.json`과 `stage2_report.json` 내부 metadata로 저장된다.
 
 ## 3. provider별 usage field 차이
 
@@ -429,22 +446,26 @@ DB 조회가 필요한 운영 지표가 되면 후속 schema 설계가 필요하
 }
 ```
 
-## 5. 안전한 normalized usage helper 후보
+## 5. 구현된 normalized usage helper
 
-코드 변경 시 helper는 provider wrapper 계층이 가장 적절하다.
+3ecf37a 기준 helper는 provider wrapper 계층인 `src/llm_client.py`에 구현했다.
 
-후보 API:
+구현 API:
 
 ```python
 def normalize_llm_usage(response: LLMResponse, *, call_role: str) -> dict:
     ...
+
+def combine_llm_usage(usages: list[dict]) -> dict:
+    ...
 ```
 
-공통 필드 후보:
+공통 field:
 
 ```json
 {
   "schema_version": "llm_usage.v1",
+  "available": true,
   "provider": "openai",
   "model": "gpt-5.4-mini",
   "response_id": "resp_...",
@@ -457,7 +478,7 @@ def normalize_llm_usage(response: LLMResponse, *, call_role: str) -> dict:
 }
 ```
 
-Provider-specific field는 `provider_usage` 또는 `breakdown` 아래에 둔다.
+Provider-specific field는 `provider_usage`와 `breakdown` 아래에 둔다.
 
 ```json
 {
@@ -471,9 +492,11 @@ Provider-specific field는 `provider_usage` 또는 `breakdown` 아래에 둔다.
 }
 ```
 
-## 6. 테스트 후보
+`combine_llm_usage()`는 `available=true` usage만 합산하며, `by_provider`, `unavailable_count`, `unavailable_reasons`를 포함한다.
 
-코드 구현 시 추가할 테스트:
+## 6. 구현 검증 상태
+
+3ecf37a 구현에서 추가/확인한 테스트:
 
 - OpenAI raw response fixture에서 `usage` normalized 추출
 - Anthropic raw response fixture에서 `usage` normalized 추출
@@ -482,17 +505,20 @@ Provider-specific field는 `provider_usage` 또는 `breakdown` 아래에 둔다.
 - Stage1 meta totals 합산
 - Stage2 report meta에 `llm_usage` 포함
 - Stage2 Anthropic repair path에서 initial/repair usage 분리
-- dry-run에서 `available=false` 또는 usage 생략
+- Stage1 dry-run usage unavailable 처리
+- Stage2 dry-run usage unavailable 처리
 - error path에서 raw response 전체가 정상 artifact로 새지 않는지 확인
-- DB schema 변경 없이 기존 `analysis_reports` upsert 테스트 유지
+- 기존 Stage2 enrichment / quality tests 유지
+- 관련 stage/provider tests 유지
 
-## 7. Open questions
+## 7. 남은 TODO
 
-- Stage1 result schema를 외부에서 strict하게 소비하는 도구가 있는가?
-- `raw_output_text`를 계속 저장하는 현재 정책과 token usage 저장 정책을 함께 재검토할 필요가 있는가?
-- `job_events.detail_json`에 aggregate를 남길 경우, Web UI timeline에 표시할 것인가?
-- provider별 `total_tokens` 합산을 같은 의미로 비교할지, provider별 breakdown을 우선할지 결정이 필요하다.
-- 비용 추정은 가격 snapshot을 어디에 둘지 결정한 뒤 별도 작업으로 진행한다.
+- 실제 OpenAI/Anthropic provider run artifact smoke를 남긴다.
+- Web UI에 token usage를 표시할지 결정한다.
+- `job_events.detail_json`에 aggregate usage를 남길지 결정한다.
+- `analysis_reports` mapping 또는 별도 usage table이 필요한지 결정한다.
+- provider별 `total_tokens`를 단순 비교할지, provider별 breakdown을 우선할지 결정한다.
+- 비용 추정은 pricing snapshot 설계 이후 별도 작업으로 진행한다.
 
 ## 8. 참고 공식 문서
 
