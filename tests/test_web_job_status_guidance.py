@@ -241,6 +241,10 @@ def test_job_dashboard_default_route_keeps_recent_full_report_listing(
     assert 'class="job-filter-checkbox job-filter-check"' in body
     assert ">Apply</button>" in body
     assert 'href="/" class="job-btn">Clear</a>' in body
+    assert "final verdict" not in body.lower()
+    assert "attack success" not in body.lower()
+    assert "benign" not in body.lower()
+    assert " normal " not in body.lower()
     assert "#1" in body
     assert repo.list_jobs_calls == [
         {
