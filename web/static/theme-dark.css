@@ -475,7 +475,7 @@
   color: #94a3b8;
 }
 
-[data-theme="dark"] .job-report-item-recommended {
+[data-theme="dark"] .job-viewer-cta {
   background: linear-gradient(180deg, rgba(96, 165, 250, 0.13), #151d30);
   border-color: rgba(96, 165, 250, 0.42);
 }
@@ -486,7 +486,6 @@
   color: #a8b3c7;
 }
 
-[data-theme="dark"] .job-artifact-recommended-badge,
 [data-theme="dark"] .job-artifact-open-link-primary {
   background: rgba(96, 165, 250, 0.16);
   border-color: rgba(96, 165, 250, 0.44);

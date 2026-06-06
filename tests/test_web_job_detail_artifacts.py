@@ -50,19 +50,23 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     body = render_job_detail(make_report())
 
     assert "Analysis Report Artifacts" in body
-    assert "Use Open Viewer for the integrated read-only analysis view." in body
+    assert "Use the analysis viewer for the integrated read-only human view." in body
     assert "Raw artifacts are for inspection/debugging." in body
+    assert "Recommended Analysis Viewer" in body
+    assert "Integrated read-only human view for report summary, findings, contexts, and supporting events." in body
+    assert "Open Analysis Viewer" in body
+    assert "Open viewer_payload.json" in body
     assert "runs/jobs/123/export.json" in body
     assert "runs/jobs/123/analysis_candidates.json" in body
     assert "runs/jobs/123/noise_summary.json" in body
     assert "runs/jobs/123/stage2_report.json" in body
     assert "runs/jobs/123/stage2_report.md" in body
-    assert "runs/jobs/123/viewer_payload.json" in body
-    assert "Recommended human view" in body
     assert "Raw artifact" in body
     assert "Debug/reference" in body
-    assert "job-report-item-recommended" in body
+    assert "job-viewer-cta" in body
+    assert "job-report-item-recommended" not in body
     assert "job-artifact-open-link-primary" in body
+    assert "Open Open Viewer" not in body
     assert 'href="/job/123/artifact/export"' in body
     assert 'href="/job/123/artifact/stage2_report"' in body
     assert 'href="/job/123/artifact/stage2_report_md"' in body

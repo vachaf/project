@@ -265,7 +265,7 @@
             <div class="job-card-head">
                 <div>
                     <h2 class="job-card-title">Analysis Report Artifacts</h2>
-                    <p class="job-card-subtitle">Use Open Viewer for the integrated read-only analysis view. Raw artifacts are for inspection/debugging.</p>
+                    <p class="job-card-subtitle">Use the analysis viewer for the integrated read-only human view. Raw artifacts are for inspection/debugging.</p>
                 </div>
             </div>
             {% if report %}
@@ -279,6 +279,21 @@
             <span class="job-muted">not generated due to failure</span>
             {% endif %}
             {%- endmacro %}
+            <div class="job-viewer-cta">
+                <div>
+                    <div class="job-viewer-cta-kicker">Recommended</div>
+                    <h3>Recommended Analysis Viewer</h3>
+                    <p>Integrated read-only human view for report summary, findings, contexts, and supporting events.</p>
+                </div>
+                <div class="job-viewer-cta-actions">
+                    {% if report.viewer_payload_path %}
+                    <a class="job-artifact-open-link job-artifact-open-link-primary" href="/job/{{ job.id }}/viewer">Open Analysis Viewer</a>
+                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/viewer_payload">Open viewer_payload.json</a>
+                    {% else %}
+                    <span class="job-muted">viewer_payload.json not generated</span>
+                    {% endif %}
+                </div>
+            </div>
             <div class="job-report-grid">
                 <div class="job-report-item">
                     <div class="job-detail-label">Summary</div>
@@ -332,14 +347,6 @@
                     <div class="job-detail-label">Stage2 Report Markdown</div>
                     <span class="job-artifact-kind">Debug/reference</span>
                     {{ artifact_value(job.id, 'stage2_report_md', report.stage2_report_md_path, job.status, is_no_data_job|default(false)) }}
-                </div>
-                <div class="job-report-item job-report-item-recommended">
-                    <div class="job-detail-label">Viewer Payload</div>
-                    <span class="job-artifact-recommended-badge">Recommended human view</span>
-                    {{ artifact_value(job.id, 'viewer_payload', report.viewer_payload_path, job.status, is_no_data_job|default(false)) }}
-                    {% if report.viewer_payload_path %}
-                    <a class="job-artifact-open-link job-artifact-open-link-primary" href="/job/{{ job.id }}/viewer">Open Viewer</a>
-                    {% endif %}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Lint Result</div>

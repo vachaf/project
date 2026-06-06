@@ -210,13 +210,46 @@
   overflow-wrap: anywhere;
 }
 
-.job-report-item-recommended {
-  border-color: rgba(0, 212, 255, 0.42);
+.job-viewer-cta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(0, 212, 255, 0.42);
+  border-radius: 8px;
   background: linear-gradient(180deg, rgba(0, 212, 255, 0.095), rgba(255, 255, 255, 0.025));
 }
 
-.job-artifact-kind,
-.job-artifact-recommended-badge {
+.job-viewer-cta h3 {
+  margin: 0.1rem 0 0.25rem;
+  color: var(--job-text);
+  font-size: 16px;
+}
+
+.job-viewer-cta p {
+  margin: 0;
+  color: var(--job-text-2);
+  font-size: 13px;
+}
+
+.job-viewer-cta-kicker {
+  color: var(--job-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.job-viewer-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.job-artifact-kind {
   display: inline-flex;
   width: fit-content;
   align-items: center;
@@ -232,12 +265,6 @@
 .job-artifact-kind {
   color: var(--job-muted);
   background: rgba(255, 255, 255, 0.035);
-}
-
-.job-artifact-recommended-badge {
-  border-color: rgba(0, 212, 255, 0.45);
-  color: var(--job-text);
-  background: rgba(0, 212, 255, 0.12);
 }
 
 .job-artifact-open-link-primary {
@@ -526,6 +553,15 @@
     flex-direction: column;
   }
 
+  .job-viewer-cta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .job-viewer-cta-actions {
+    justify-content: flex-start;
+  }
+
   .job-topnav {
     flex-wrap: wrap;
   }
@@ -636,7 +672,7 @@ html:not([data-theme="dark"]) .job-report-item code {
   color: #334155;
 }
 
-html:not([data-theme="dark"]) .job-report-item-recommended {
+html:not([data-theme="dark"]) .job-viewer-cta {
   border-color: #8fc7e8;
   background: linear-gradient(180deg, #eefaff 0%, #ffffff 100%);
 }
@@ -647,7 +683,6 @@ html:not([data-theme="dark"]) .job-artifact-kind {
   color: #5e6e85;
 }
 
-html:not([data-theme="dark"]) .job-artifact-recommended-badge,
 html:not([data-theme="dark"]) .job-artifact-open-link-primary {
   border-color: #8fc7e8;
   color: #164c63;
