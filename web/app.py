@@ -53,6 +53,9 @@ ARTIFACT_KEY_TO_REPORT_COLUMN = {
     "viewer_payload": "viewer_payload_path",
     "lint_result": "lint_result_path",
 }
+FILTERED_REASONS_ARTIFACT_KEY = "filtered_reasons"
+FILTERED_REASONS_FILENAME = "filtered_reasons.json"
+FILTERED_REASONS_TOP_N = 6
 
 ALLOWED_JOB_STATUSES = ("PENDING", "RUNNING", "SUCCEEDED", "FAILED")
 KST = ZoneInfo("Asia/Seoul")
@@ -168,6 +171,9 @@ def _is_relative_to(path: Path, parent: Path) -> bool:
 
 
 def _resolve_report_artifact_path(report: Dict[str, Any], artifact_key: str) -> Path:
+    if artifact_key == FILTERED_REASONS_ARTIFACT_KEY:
+        return _resolve_artifact_root_child(report, FILTERED_REASONS_FILENAME)
+
     column = ARTIFACT_KEY_TO_REPORT_COLUMN.get(artifact_key)
     if not column:
         raise _artifact_not_found()
@@ -199,6 +205,25 @@ def _resolve_report_artifact_path(report: Dict[str, Any], artifact_key: str) -> 
     return resolved_path
 
 
+def _resolve_artifact_root_child(report: Dict[str, Any], filename: str) -> Path:
+    try:
+        relative_artifact_root = validate_relative_artifact_path(report.get("artifact_root"))
+    except AnalysisJobValidationError:
+        raise _artifact_not_found() from None
+
+    project_root = PROJECT_ROOT.resolve()
+    artifact_root_path = (project_root / relative_artifact_root).resolve()
+    if not _is_relative_to(artifact_root_path, project_root):
+        raise _artifact_not_found()
+
+    resolved_path = (artifact_root_path / filename).resolve()
+    if not _is_relative_to(resolved_path, artifact_root_path):
+        raise _artifact_not_found()
+    if not resolved_path.is_file():
+        raise _artifact_not_found()
+    return resolved_path
+
+
 def _artifact_media_type(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix == ".json":
@@ -220,6 +245,132 @@ def _load_viewer_payload_json(path: Path) -> Dict[str, Any]:
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="invalid viewer payload JSON: expected object")
     return payload
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _load_artifact_json(path: Path) -> Optional[Dict[str, Any]]:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _build_unavailable_usage_summary(stage: str, reason: str) -> Dict[str, Any]:
+    return {
+        "stage": stage,
+        "available": False,
+        "call_count": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "provider": "",
+        "selected_model": "",
+        "unavailable_count": 0,
+        "unavailable_reason": reason,
+    }
+
+
+def _build_usage_summary(stage: str, payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not payload:
+        return _build_unavailable_usage_summary(stage, "artifact_unavailable")
+
+    meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+    if stage == "stage1":
+        totals = meta.get("llm_usage_totals") if isinstance(meta.get("llm_usage_totals"), dict) else None
+        provider = str((totals or {}).get("provider") or "")
+        selected_model = str((totals or {}).get("selected_model") or "")
+        available = bool((totals or {}).get("available", True))
+    else:
+        usage = meta.get("llm_usage") if isinstance(meta.get("llm_usage"), dict) else {}
+        totals = usage.get("totals") if isinstance(usage.get("totals"), dict) else None
+        calls = usage.get("calls") if isinstance(usage.get("calls"), list) else []
+        first_call = calls[0] if calls and isinstance(calls[0], dict) else {}
+        provider = str(meta.get("provider") or first_call.get("provider") or "")
+        selected_model = str(meta.get("selected_model") or first_call.get("model") or "")
+        available = bool(usage.get("available", True))
+
+    if not totals:
+        return _build_unavailable_usage_summary(stage, "usage_totals_missing")
+
+    return {
+        "stage": stage,
+        "available": available,
+        "call_count": _safe_int(totals.get("call_count")),
+        "input_tokens": _safe_int(totals.get("input_tokens")),
+        "output_tokens": _safe_int(totals.get("output_tokens")),
+        "total_tokens": _safe_int(totals.get("total_tokens")),
+        "provider": provider,
+        "selected_model": selected_model,
+        "unavailable_count": _safe_int(totals.get("unavailable_count")),
+        "unavailable_reason": str(totals.get("unavailable_reason") or ""),
+    }
+
+
+def _build_filtered_reasons_summary(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not payload:
+        return {"found": False, "reason": "not_found"}
+
+    excluded_summary = payload.get("excluded_summary") if isinstance(payload.get("excluded_summary"), dict) else {}
+    top_reasons = sorted(
+        (
+            {"reason": str(reason), "count": _safe_int(count)}
+            for reason, count in excluded_summary.items()
+        ),
+        key=lambda item: (-item["count"], item["reason"]),
+    )[:FILTERED_REASONS_TOP_N]
+    guardrails = [
+        str(item)
+        for item in payload.get("guardrails", [])
+        if isinstance(item, (str, int, float))
+    ][:FILTERED_REASONS_TOP_N]
+    return {
+        "found": True,
+        "total_rows": _safe_int(payload.get("total_rows")),
+        "candidate_count": _safe_int(payload.get("candidate_count")),
+        "excluded_count": _safe_int(payload.get("excluded_count")),
+        "top_reasons": top_reasons,
+        "guardrails": guardrails,
+    }
+
+
+def _build_job_artifact_summary(report: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not report:
+        return {
+            "stage1_usage": _build_unavailable_usage_summary("stage1", "analysis_report_missing"),
+            "stage2_usage": _build_unavailable_usage_summary("stage2", "analysis_report_missing"),
+            "filtered_reasons": {"found": False, "reason": "analysis_report_missing"},
+        }
+
+    try:
+        stage1_payload = _load_artifact_json(_resolve_report_artifact_path(report, "stage1_result"))
+    except HTTPException:
+        stage1_payload = None
+    try:
+        stage2_payload = _load_artifact_json(_resolve_report_artifact_path(report, "stage2_report"))
+    except HTTPException:
+        stage2_payload = None
+    try:
+        filtered_payload = _load_artifact_json(_resolve_report_artifact_path(report, FILTERED_REASONS_ARTIFACT_KEY))
+        filtered_href = True
+    except HTTPException:
+        filtered_payload = None
+        filtered_href = False
+
+    filtered_summary = _build_filtered_reasons_summary(filtered_payload)
+    filtered_summary["artifact_available"] = filtered_href
+    return {
+        "stage1_usage": _build_usage_summary("stage1", stage1_payload),
+        "stage2_usage": _build_usage_summary("stage2", stage2_payload),
+        "filtered_reasons": filtered_summary,
+    }
 
 
 def _build_job_viewer_payload_summary(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -399,6 +550,7 @@ def job_detail(request: Request, job_id: int):
                 "job": {"id": job_id, "status": "NOT_FOUND", "time_from": "-", "time_to": "-", "analysis_mode": "-", "created_at": "-", "artifact_root": "", "error_message": "Job not found"},
                 "events": [],
                 "report": None,
+                "artifact_summary": _build_job_artifact_summary(None),
             },
         )
 
@@ -408,7 +560,13 @@ def job_detail(request: Request, job_id: int):
     return templates.TemplateResponse(
         request=request,
         name="job_detail.html",
-        context={"job": job, "events": events, "report": report, "is_no_data_job": _is_no_data_job(events, report)},
+        context={
+            "job": job,
+            "events": events,
+            "report": report,
+            "is_no_data_job": _is_no_data_job(events, report),
+            "artifact_summary": _build_job_artifact_summary(report),
+        },
     )
 
 

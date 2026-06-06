@@ -20,6 +20,35 @@ class FakeJobRepository:
         return self.report
 
 
+class FakeJobDetailRepository(FakeJobRepository):
+    def __init__(self, report: Optional[dict[str, Any]], *, job: Optional[dict[str, Any]] = None) -> None:
+        super().__init__(report)
+        self.job = job or {
+            "id": 123,
+            "status": "SUCCEEDED",
+            "analysis_mode": "full_report",
+            "time_from": "2026-05-30 00:00:00.000",
+            "time_to": "2026-05-30 01:00:00.000",
+            "requested_timezone": "Asia/Seoul",
+            "created_at": "2026-05-30 00:00:00.000",
+            "started_at": "2026-05-30 00:00:01.000",
+            "finished_at": "2026-05-30 00:00:02.000",
+            "heartbeat_at": "2026-05-30 00:00:02.000",
+            "worker_id": "worker-01",
+            "attempt_count": 1,
+            "max_attempts": 1,
+            "error_message": None,
+            "artifact_root": "runs/jobs/123",
+        }
+        self.events = [{"event_type": "JOB_SUCCEEDED", "event_time": "2026-05-30 00:00:02.000", "message": "ok"}]
+
+    def get_job(self, job_id: int) -> dict[str, Any]:
+        return self.job
+
+    def get_job_events(self, job_id: int) -> list[dict[str, Any]]:
+        return self.events
+
+
 def make_request(path: str = "/job/123/viewer", query_string: bytes = b"") -> Request:
     return Request(
         {
@@ -93,9 +122,21 @@ def write_payload(project_root: Path, relative_path: str = "runs/jobs/123/viewer
     return path
 
 
+def write_json_artifact(project_root: Path, relative_path: str, payload: dict[str, Any]) -> Path:
+    path = project_root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
 def install_repo(monkeypatch: pytest.MonkeyPatch, project_root: Path, report: Optional[dict[str, Any]]) -> None:
     monkeypatch.setattr(web_app_module, "PROJECT_ROOT", project_root)
     monkeypatch.setattr(web_app_module, "job_repository", FakeJobRepository(report))
+
+
+def install_detail_repo(monkeypatch: pytest.MonkeyPatch, project_root: Path, report: Optional[dict[str, Any]]) -> None:
+    monkeypatch.setattr(web_app_module, "PROJECT_ROOT", project_root)
+    monkeypatch.setattr(web_app_module, "job_repository", FakeJobDetailRepository(report))
 
 
 def render_response_body(response: Any) -> str:
@@ -132,6 +173,152 @@ def test_raw_viewer_payload_artifact_route_still_returns_json(monkeypatch: pytes
     assert response.status_code == 200
     assert response.media_type == "application/json"
     assert b"viewer_payload.v1" in response.body
+
+
+def test_job_detail_renders_artifact_usage_and_filtered_reason_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    write_json_artifact(
+        tmp_path,
+        "runs/jobs/123/stage1_results.json",
+        {
+            "meta": {
+                "llm_usage_totals": {
+                    "available": True,
+                    "call_count": 5,
+                    "input_tokens": 13463,
+                    "output_tokens": 956,
+                    "total_tokens": 14419,
+                    "provider": "openai",
+                    "selected_model": "gpt-5.4-mini",
+                    "unavailable_count": 0,
+                }
+            },
+            "results": [{"request_id": "req-1", "raw_output_text": "must not render"}],
+        },
+    )
+    write_json_artifact(
+        tmp_path,
+        "runs/jobs/123/stage2_report.json",
+        {
+            "meta": {
+                "provider": "openai",
+                "selected_model": "gpt-5.4-mini",
+                "llm_usage": {
+                    "available": True,
+                    "calls": [{"provider": "openai", "model": "gpt-5.4-mini"}],
+                    "totals": {
+                        "call_count": 1,
+                        "input_tokens": 15674,
+                        "output_tokens": 2172,
+                        "total_tokens": 17846,
+                        "unavailable_count": 0,
+                    },
+                },
+            }
+        },
+    )
+    write_json_artifact(
+        tmp_path,
+        "runs/jobs/123/filtered_reasons.json",
+        {
+            "schema_version": "filtered_reasons.v1",
+            "total_rows": 14,
+            "candidate_count": 5,
+            "excluded_count": 9,
+            "excluded_summary": {"low_signal_request": 4, "static_asset_like": 3},
+            "guardrails": ["candidate_excluded_does_not_mean_safety_verdict"],
+            "excluded": [{"request_id": "excluded-1", "reason": "low_signal_request"}],
+        },
+    )
+    install_detail_repo(
+        monkeypatch,
+        tmp_path,
+        make_report(
+            stage1_result_path="runs/jobs/123/stage1_results.json",
+            stage2_report_path="runs/jobs/123/stage2_report.json",
+        ),
+    )
+
+    response = web_app_module.job_detail(make_request(path="/job/123"), 123)
+    body = render_response_body(response)
+
+    assert response.status_code == 200
+    assert "Artifact Summary" in body
+    assert "Stage1 LLM Usage" in body
+    assert "Stage2 LLM Usage" in body
+    assert "13463" in body
+    assert "17846" in body
+    assert "gpt-5.4-mini" in body
+    assert "Candidate-excluded rows" in body
+    assert "low_signal_request" in body
+    assert "candidate_excluded_does_not_mean_safety_verdict" in body
+    assert 'href="/job/123/artifact/filtered_reasons"' in body
+    assert "raw_output_text" not in body
+    assert "must not render" not in body
+    assert "cost_estimate" not in body
+    assert "benign" not in body.lower()
+    assert "normal" not in body.lower()
+    assert "정상" not in body
+    assert "무해" not in body
+
+
+def test_job_detail_filtered_reasons_missing_is_graceful(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    write_json_artifact(
+        tmp_path,
+        "runs/jobs/123/stage1_results.json",
+        {"meta": {"llm_usage_totals": {"available": False, "unavailable_reason": "dry_run_no_provider_call"}}},
+    )
+    install_detail_repo(
+        monkeypatch,
+        tmp_path,
+        make_report(stage1_result_path="runs/jobs/123/stage1_results.json"),
+    )
+
+    body = render_response_body(web_app_module.job_detail(make_request(path="/job/123"), 123))
+
+    assert "Usage unavailable" in body
+    assert "Dry-run: no provider call." in body
+    assert "Filtered reasons artifact not found" in body
+
+
+def test_raw_filtered_reasons_artifact_route_is_job_root_scoped(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    write_json_artifact(
+        tmp_path,
+        "runs/jobs/123/filtered_reasons.json",
+        {"schema_version": "filtered_reasons.v1"},
+    )
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    response = web_app_module.job_artifact(123, "filtered_reasons")
+
+    assert response.status_code == 200
+    assert response.media_type == "application/json"
+    assert b"filtered_reasons.v1" in response.body
+
+
+def test_filtered_reasons_artifact_root_traversal_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    write_json_artifact(
+        tmp_path,
+        "runs/jobs/secret/filtered_reasons.json",
+        {"schema_version": "filtered_reasons.v1"},
+    )
+    install_repo(monkeypatch, tmp_path, make_report(artifact_root="runs/jobs/123/../secret"))
+
+    with assert_http_error(404) as exc_info:
+        web_app_module.job_artifact(123, "filtered_reasons")
+
+    assert exc_info.value.status_code == 404
 
 
 def test_job_viewer_route_uses_job_back_link(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

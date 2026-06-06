@@ -210,6 +210,101 @@
   overflow-wrap: anywhere;
 }
 
+.job-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.job-summary-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--job-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.job-summary-card-title {
+  color: var(--job-text-2);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.job-summary-metrics {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.85rem 0 0;
+}
+
+.job-summary-metrics div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.job-summary-metrics dt,
+.job-summary-list-title {
+  color: var(--job-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.job-summary-metrics dd {
+  margin: 0;
+  color: var(--job-text-2);
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.job-summary-list-title {
+  margin-top: 1rem;
+}
+
+.job-summary-reason-list,
+.job-summary-guardrail-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job-summary-reason-list li,
+.job-summary-guardrail-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  color: var(--job-text-2);
+  font-size: 12px;
+}
+
+.job-summary-reason-list code,
+.job-summary-guardrail-list code {
+  color: var(--job-text-2);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.job-summary-note,
+.job-summary-unavailable {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 7px;
+  background: rgba(0, 212, 255, 0.055);
+  color: #8dd9ff;
+  font-size: 13px;
+}
+
+.job-summary-unavailable {
+  display: grid;
+  gap: 0.3rem;
+}
+
 .job-empty-state-compact {
   padding: 1.75rem 1rem;
 }
@@ -318,6 +413,7 @@
 
 @media (max-width: 900px) {
   .job-stats-grid,
+  .job-summary-grid,
   .job-report-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -342,6 +438,7 @@
   .job-stats-grid,
   .job-form-row,
   .job-detail-grid,
+  .job-summary-grid,
   .job-report-grid,
   .job-filter-form {
     grid-template-columns: 1fr;
@@ -421,10 +518,21 @@ html:not([data-theme="dark"]) .job-filter-chip {
 }
 
 html:not([data-theme="dark"]) .job-artifact-panel,
+html:not([data-theme="dark"]) .job-summary-card,
 html:not([data-theme="dark"]) .job-report-item {
   background: #ffffff;
   border-color: #d5dde8;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+html:not([data-theme="dark"]) .job-summary-metrics div {
+  border-bottom-color: #e5edf7;
+}
+
+html:not([data-theme="dark"]) .job-summary-note,
+html:not([data-theme="dark"]) .job-summary-unavailable {
+  background: #f0f7ff;
+  color: #245985;
 }
 
 html:not([data-theme="dark"]) .job-report-item code {

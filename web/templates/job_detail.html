@@ -1,6 +1,8 @@
 {% extends "job_base.html" %}
 {% block title %}Analysis Job #{{ job.id }}{% endblock %}
 {% block content %}
+{% set artifact_summary = artifact_summary|default({}) %}
+{% set filtered_summary = artifact_summary.filtered_reasons|default({}) %}
 <div class="job-page-head">
             <div>
                 <a href="/" class="job-back-link">← 대시보드로 돌아가기</a>
@@ -157,6 +159,86 @@
         <section class="job-card">
             <div class="job-card-head">
                 <div>
+                    <h2 class="job-card-title">Artifact Summary</h2>
+                    <p class="job-card-subtitle">기존 run artifact에서 읽은 관찰 정보를 read-only로 요약합니다.</p>
+                </div>
+            </div>
+            {% set summary = artifact_summary %}
+            {% set stage1_usage = summary.stage1_usage|default({}) %}
+            {% set stage2_usage = summary.stage2_usage|default({}) %}
+            {% set filtered = filtered_summary %}
+            {% macro usage_card(title, usage) -%}
+            <div class="job-summary-card">
+                <div class="job-summary-card-title">{{ title }}</div>
+                {% if usage.available %}
+                <dl class="job-summary-metrics">
+                    <div><dt>Available</dt><dd>true</dd></div>
+                    <div><dt>Calls</dt><dd>{{ usage.call_count }}</dd></div>
+                    <div><dt>Input tokens</dt><dd>{{ usage.input_tokens }}</dd></div>
+                    <div><dt>Output tokens</dt><dd>{{ usage.output_tokens }}</dd></div>
+                    <div><dt>Total tokens</dt><dd>{{ usage.total_tokens }}</dd></div>
+                    <div><dt>Provider</dt><dd>{{ usage.provider or '-' }}</dd></div>
+                    <div><dt>Model</dt><dd>{{ usage.selected_model or '-' }}</dd></div>
+                    <div><dt>Unavailable</dt><dd>{{ usage.unavailable_count }}</dd></div>
+                </dl>
+                {% else %}
+                <div class="job-summary-unavailable">
+                    <strong>Usage unavailable</strong>
+                    {% if usage.unavailable_reason == 'dry_run_no_provider_call' %}
+                    <span>Dry-run: no provider call.</span>
+                    {% elif usage.unavailable_reason %}
+                    <span>{{ usage.unavailable_reason }}</span>
+                    {% else %}
+                    <span>Usage totals were not found in this artifact.</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {%- endmacro %}
+            <div class="job-summary-grid">
+                {{ usage_card('Stage1 LLM Usage', stage1_usage) }}
+                {{ usage_card('Stage2 LLM Usage', stage2_usage) }}
+                <div class="job-summary-card">
+                    <div class="job-summary-card-title">Filtered Reasons</div>
+                    {% if filtered.found %}
+                    <dl class="job-summary-metrics">
+                        <div><dt>Total rows</dt><dd>{{ filtered.total_rows }}</dd></div>
+                        <div><dt>Candidates</dt><dd>{{ filtered.candidate_count }}</dd></div>
+                        <div><dt>Candidate-excluded rows</dt><dd>{{ filtered.excluded_count }}</dd></div>
+                    </dl>
+                    {% if filtered.top_reasons %}
+                    <div class="job-summary-list-title">Excluded from candidate analysis</div>
+                    <ul class="job-summary-reason-list">
+                        {% for reason in filtered.top_reasons %}
+                        <li><code>{{ reason.reason }}</code><span>{{ reason.count }}</span></li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    {% if filtered.guardrails %}
+                    <div class="job-summary-list-title">Guardrails</div>
+                    <ul class="job-summary-guardrail-list">
+                        {% for guardrail in filtered.guardrails %}
+                        <li><code>{{ guardrail }}</code></li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                    <div class="job-summary-note">Candidate-excluded rows are not safety verdicts.</div>
+                    {% if filtered.artifact_available %}
+                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/filtered_reasons">Open filtered_reasons.json</a>
+                    {% endif %}
+                    {% else %}
+                    <div class="job-summary-unavailable">
+                        <strong>Filtered reasons artifact not found</strong>
+                        <span>No filtered reasons artifact found under this job artifact root.</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="job-card">
+            <div class="job-card-head">
+                <div>
                     <h2 class="job-card-title">Analysis Report Artifacts</h2>
                     <p class="job-card-subtitle">analysis_reports 최신 row에 저장된 read-only artifact path를 표시합니다.</p>
                 </div>
@@ -196,6 +278,15 @@
                 <div class="job-report-item">
                     <div class="job-detail-label">Noise Summary</div>
                     {{ artifact_value(job.id, 'noise_summary', report.noise_summary_path, job.status, is_no_data_job|default(false)) }}
+                </div>
+                <div class="job-report-item">
+                    <div class="job-detail-label">Filtered Reasons</div>
+                    <code>{{ report.artifact_root ~ '/filtered_reasons.json' if report.artifact_root else 'not generated' }}</code>
+                    {% if filtered_summary.artifact_available|default(false) %}
+                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/filtered_reasons">Open</a>
+                    {% else %}
+                    <span class="job-muted">not generated or not mapped</span>
+                    {% endif %}
                 </div>
                 <div class="job-report-item">
                     <div class="job-detail-label">Stage1 Result</div>
