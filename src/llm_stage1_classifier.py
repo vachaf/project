@@ -260,6 +260,9 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
         "verdict, severity, recommended_actions 같은 enum 값은 스키마에 정의된 영어 값을 그대로 사용하라. "
         "reasoning_summary 와 evidence_fields 의 자유서술 내용은 반드시 한국어로 작성하라. "
         "path traversal 의 경우 status_code 200 만으로 실제 파일 노출 성공을 암시하지 마라. "
+        "suspicious_path_traversal 은 ../, encoded equivalent, traversal reason hint 같은 explicit directory-escape evidence 가 있을 때만 선택하라. "
+        "민감해 보이는 경로에 직접 요청했다는 사실만으로는 suspicious_path_traversal 을 선택하지 마라. "
+        "403 응답, error linkage, Referer 부재, non-browser User-Agent, 민감해 보이는 파일명은 directory escape 증거를 대체하지 못한다. "
         "php://filter, convert.base64-encode, resource= 정황은 단순 ../ path traversal 과 구분하라. "
         "file_disclosure:php_filter_wrapper, file_disclosure:base64_source_intent, file_disclosure:resource_parameter 힌트가 함께 있으면 suspicious_file_disclosure 를 우선 고려하라. "
         "PHP wrapper 관련 verdict 는 실제 파일 노출 성공이 아니라 source/config disclosure 시도로 표현하라. "
@@ -322,7 +325,7 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
             "suspicious_bruteforce": "인증 시도 반복이나 자격 증명 추측 행위로 보는 것이 가장 타당한 경우.",
             "suspicious_sqli": "SQL 인젝션 시도로 해석하는 것이 가장 타당한 경우.",
             "suspicious_xss": "XSS 시도로 해석하는 것이 가장 타당한 경우.",
-            "suspicious_path_traversal": "../, ..%2f, directory escape 같은 경로 이탈 또는 path traversal 구조로 해석하는 것이 가장 타당한 경우.",
+            "suspicious_path_traversal": "../, ..%2f, encoded equivalent, traversal:* reason hint 같은 명시적 directory escape 근거가 있어 경로 이탈 또는 path traversal 구조로 해석하는 것이 가장 타당한 경우.",
             "suspicious_file_disclosure": "PHP stream wrapper, file read primitive, source/config disclosure, LFI-like file disclosure 시도로 해석하는 것이 가장 타당한 경우. 예: php://filter, convert.base64-encode, resource=... 조합. 단, Apache 로그만으로 실제 파일 내용 반환 성공은 단정하지 않는다.",
             "suspicious_command_injection": "명령 실행 유도 시도로 해석하는 것이 가장 타당한 경우.",
             "suspicious_auth_abuse": "명확한 brute force 까지는 아니지만 인증 기능 오용 정황이 있는 경우.",
@@ -353,6 +356,8 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
             "request_id 와 error_link_id 는 상관분석 단서일 뿐 공격의 확정 증거는 아니다.",
             "Apache 로그에는 raw POST body 원문이 없을 수 있으므로 body 내부 payload를 직접 본 것처럼 단정하지 마라.",
             "path traversal 은 raw_request 의 시도 정황과 실제 파일 노출 성공 여부를 분리해서 판단하라.",
+            "/private/secret.txt, /.env, /admin, /config.php 처럼 민감해 보이는 경로를 직접 요청한 사실만으로는 suspicious_path_traversal 로 분류하지 마라.",
+            "명시적인 traversal 근거와 다른 공격 유형의 충분한 근거가 모두 없으면 제공된 증거에 따라 likely_false_positive 같은 보수적 verdict 를 우선 검토하라.",
             "php://filter, convert.base64-encode, resource=... 구조는 단순 path traversal 보다 suspicious_file_disclosure 쪽이 더 적절한지 우선 검토하라.",
             "file_disclosure:php_filter_wrapper, file_disclosure:base64_source_intent, file_disclosure:resource_parameter 힌트가 명확하면 suspicious_path_traversal 보다 suspicious_file_disclosure 를 우선 고려하라.",
             "response body 원문이 없으므로 PHP wrapper 관련 판단은 파일/source/config disclosure 시도로만 표현하고, 실제 노출 성공으로 단정하지 마라.",

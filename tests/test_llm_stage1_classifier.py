@@ -60,6 +60,87 @@ def stage1_output_text() -> str:
     )
 
 
+def private_secret_candidate() -> dict:
+    return {
+        "source_table": "security",
+        "log_id": 51,
+        "request_id": "req-private-secret",
+        "incident_group_key": "rid:req-private-secret",
+        "src_ip": "192.168.56.120",
+        "method": "GET",
+        "uri": "/private/secret.txt",
+        "query_string": "",
+        "status_code": 403,
+        "score": 5,
+        "verdict_hint": "suspicious",
+        "reason_hints": [
+            "error_status:403(+2)",
+            "error_linked(+2)",
+            "no_referer_non_browser_error(+1)",
+        ],
+        "raw_request": "GET /private/secret.txt HTTP/1.1",
+        "raw_request_target": "/private/secret.txt",
+        "user_agent": "demo-path-traversal/1.0",
+        "referer": "",
+        "response_body_bytes": 285,
+        "resp_content_type": "text/html",
+        "merged_source_tables": ["security"],
+        "merged_row_count": 1,
+        "merged_log_ids": [51],
+    }
+
+
+def test_stage1_prompt_requires_explicit_traversal_evidence_for_path_traversal() -> None:
+    messages = stage1.build_messages(
+        {"analysis_window": {"start": "2026-06-24T15:37:00+09:00", "end_exclusive": "2026-06-24T15:40:00+09:00"}},
+        private_secret_candidate(),
+        max_evidence_items=8,
+    )
+
+    system_prompt = messages[0]["content"]
+    user_payload = json.loads(messages[1]["content"])
+    traversal_guidance = user_payload["label_guidance"]["suspicious_path_traversal"]
+    instructions = "\n".join(user_payload["instructions"])
+
+    assert "explicit directory-escape evidence" in system_prompt
+    assert "../" in system_prompt
+    assert "encoded equivalent" in system_prompt
+    assert "traversal reason hint" in system_prompt
+    assert "directory escape" in traversal_guidance
+    assert "traversal:* reason hint" in traversal_guidance
+    assert "민감해 보이는 경로에 직접 요청했다는 사실만으로는 suspicious_path_traversal 을 선택하지 마라" in system_prompt
+    assert "/private/secret.txt, /.env, /admin, /config.php" in instructions
+
+
+def test_stage1_prompt_does_not_allow_weak_context_alone_as_traversal_evidence() -> None:
+    messages = stage1.build_messages({}, private_secret_candidate(), max_evidence_items=8)
+
+    prompt_text = messages[0]["content"] + "\n" + messages[1]["content"]
+
+    assert "403 응답" in prompt_text
+    assert "error linkage" in prompt_text
+    assert "Referer 부재" in prompt_text
+    assert "non-browser User-Agent" in prompt_text
+    assert "directory escape 증거를 대체하지 못한다" in prompt_text
+    assert "likely_false_positive 같은 보수적 verdict 를 우선 검토하라" in prompt_text
+
+
+def test_stage1_does_not_add_code_based_path_traversal_fallback() -> None:
+    parsed = {
+        "verdict": "suspicious_path_traversal",
+        "severity": "low",
+        "confidence": "medium",
+        "false_positive_possible": True,
+        "reasoning_summary": "모델이 path traversal로 반환했다.",
+        "evidence_fields": ["uri"],
+        "recommended_actions": ["watch"],
+    }
+
+    normalized = stage1.maybe_normalize_file_disclosure_verdict(parsed, private_secret_candidate())
+
+    assert normalized["verdict"] == "suspicious_path_traversal"
+
+
 def test_stage1_success_artifact_includes_per_candidate_usage_and_totals(tmp_path: Path, monkeypatch) -> None:
     input_path = write_llm_input(tmp_path)
     out_dir = tmp_path / "out"
