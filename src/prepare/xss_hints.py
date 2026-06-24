@@ -19,7 +19,7 @@ EVENT_HANDLER_ASSIGNMENT_RE = re.compile(r"(?i)\b(on[a-z0-9_]+)\s*=")
 JAVASCRIPT_PROTOCOL_RE = re.compile(r"(?i)javascript\s*:")
 BROWSER_DATA_ACCESS_RE = re.compile(r"(?i)(document\.cookie|localStorage|sessionStorage)")
 EXTERNAL_NAVIGATION_RE = re.compile(
-    r"(?i)(document\.location|window\.location|location\.href|location\s*=|fetch\s*\(|new\s+Image\s*\(\s*\)\s*\.src|navigator\.sendBeacon\s*\()"
+    r"(?i)(document\.location|window\.location|(?:\b|(?<![A-Za-z0-9_$]))location\s*\.\s*(?:href|assign|replace)\s*(?:=|\()|fetch\s*\(|new\s+Image\s*\(\s*\)\s*\.src|navigator\.sendBeacon\s*\()"
 )
 EXTERNAL_URL_RE = re.compile(r"(?i)\b(?:https?:)?//[^\s\"'<>]+")
 XSS_QUOTE_BREAKOUT_PATTERN = re.compile(r"(?i)(?:['\"]\s*>|['\"]\s*<|['\"]\s*on[a-z0-9_]+\s*=)")

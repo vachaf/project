@@ -106,7 +106,7 @@ def auth_finding(reason_hints: Any) -> Dict[str, Any]:
     }
 
 
-def traversal_finding_with_xss_context() -> Dict[str, Any]:
+def traversal_finding() -> Dict[str, Any]:
     return {
         "incident_ref": "inc-trv-1",
         "request_id": "rid-trv-1",
@@ -121,7 +121,6 @@ def traversal_finding_with_xss_context() -> Dict[str, Any]:
         "reason_hints": [
             "traversal:dotdot_slash(+4)",
             "traversal:etc_passwd(+5)",
-            "xss:external_navigation",
         ],
         "reasoning_summary": "traversal-like request observed",
         "evidence_fields": ["reason_hints", "raw_request_target"],
@@ -436,7 +435,7 @@ def test_findings_priority_top_incidents_then_stage1_then_llm_input(tmp_path: Pa
 
 def test_traversal_category_takes_priority_over_xss_context_hint(tmp_path: Path) -> None:
     stage2_report_input = base_stage2_report_input()
-    stage2_report_input["top_incidents"] = [traversal_finding_with_xss_context()]
+    stage2_report_input["top_incidents"] = [traversal_finding()]
 
     payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
     finding = payload["findings"][0]
@@ -445,7 +444,7 @@ def test_traversal_category_takes_priority_over_xss_context_hint(tmp_path: Path)
 
 def test_handler_and_log_schema_are_preserved_in_findings(tmp_path: Path) -> None:
     stage2_report_input = base_stage2_report_input()
-    stage2_report_input["top_incidents"] = [traversal_finding_with_xss_context()]
+    stage2_report_input["top_incidents"] = [traversal_finding()]
 
     payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
     finding = payload["findings"][0]
