@@ -45,6 +45,7 @@ from llm_client import (
     provider_api_key_error,
     resolve_llm_config,
 )
+from security_standards_mapping import build_security_standards_mapping
 
 DEFAULT_TIMEOUT_SEC = 180
 DEFAULT_MODE = "routine"
@@ -620,7 +621,9 @@ def main() -> int:
             candidate_index=idx,
         )
         if result:
-            results.append(asdict(result))
+            row = asdict(result)
+            row["standards_mapping"] = build_security_standards_mapping(row, candidate)
+            results.append(row)
             print(
                 f"[OK] idx={idx} request_id={result.request_id or '-'} "
                 f"verdict={result.verdict} severity={result.severity} confidence={result.confidence}"

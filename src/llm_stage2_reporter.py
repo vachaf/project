@@ -119,6 +119,7 @@ class IncidentBrief:
     raw_log_excerpt: str
     recommended_actions: List[str]
     known_asset: bool
+    standards_mapping: Dict[str, Any]
 
 
 @dataclass
@@ -769,6 +770,7 @@ def build_incident_briefs(
                 raw_log_excerpt=shorten_evidence_text(evidence_source.get("raw_log"), max_len=280),
                 recommended_actions=normalize_string_list(item.get("recommended_actions")),
                 known_asset=bool(item.get("known_asset")),
+                standards_mapping=item.get("standards_mapping") if isinstance(item.get("standards_mapping"), dict) else {},
             )
         )
     return briefs
@@ -1847,7 +1849,20 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "- Protocol anomaly: malformed/parsing/protocol 관찰 문맥으로만 설명하라. protocol bypass, malformed request exploit success, virtual host bypass, compromise success를 단정하지 마라."
         ),
         (
-            "D. Context-only summary rules\n"
+            "D. Standards mapping interpretation boundary\n"
+            "- top_incidents[].standards_mapping is deterministic taxonomy/test-scenario enrichment; it is not a new detection result.\n"
+            "- relationship=direct means the observed attack pattern directly corresponds to that taxonomy/test scenario; it is not confirmed weakness, confirmed vulnerability, or successful exploitation.\n"
+            "- relationship=conditional means additional evidence is required before stronger weakness/category attribution.\n"
+            "- relationship=related means contextual category/test scenario relevance, not direct vulnerability attribution.\n"
+            "- OWASP Top 10 is a high-level security risk/category mapping and does not prove the target application has that vulnerability.\n"
+            "- CWE is a software weakness taxonomy; for example, CWE-89 direct is SQL injection-like pattern correspondence, not confirmed DB weakness.\n"
+            "- WSTG is a security test scenario; do not phrase WSTG IDs as vulnerability IDs.\n"
+            "- Do not use standards_mapping to change Stage1 verdict, severity, confidence, create incidents, or infer exploit success such as file disclosure, DB execution/results, XSS execution, command execution, auth bypass, or account takeover.\n"
+            "- Respect each standards_mapping.items[].boundary_note; if it conflicts with Apache logs-only invariants, use the more conservative interpretation.\n"
+            "- Empty standards_mapping.items or unmapped_reason=non_security_verdict means this enrichment layer assigned no standards item; do not use it as proof of safe, secure, benign, or no vulnerability."
+        ),
+        (
+            "E. Context-only summary rules\n"
             "- Common: 모든 *_summaries 및 ip_behavior_aggregates는 context-only collection이다. should_promote_to_candidate=false이면 해당 summary 안의 어떤 row도 summary 때문에 analysis_candidate 또는 incident로 승격된 것으로 해석하지 마라. context-only collection은 key_findings severity를 올리는 단독 근거가 아니다. collection별 request_count는 scope가 다르므로 서로 합산하거나 같은 사건 수처럼 직접 비교하지 마라. 여러 summary를 함께 언급할 때는 count scope 를 분리하라.\n"
             "- Count scope: static=request_count는 같은 src_ip와 static/health/browse baseline 시간창, crawler=같은 src_ip와 crawler-like UA/browse baseline 시간창, sensitive=같은 src_ip와 sensitive path 시간창, mixed=같은 src_ip와 mixed baseline/scanner 시간창, auth=request_count/auth_request_count는 auth endpoint family, method=같은 src_ip와 method/protocol relevant row 시간창, protocol=같은 src_ip와 protocol anomaly relevant row 시간창, ip aggregate=같은 src_ip/time window 기준 전체 또는 관련 요청 수다.\n"
             "- static_baseline_summaries 가 있으면 이는 context-only 이며, favicon, robots.txt, sitemap.xml, static asset, health check, baseline GET이 함께 관찰된 baseline/static context로만 설명하라. static file 존재, crawler policy 내용, site structure 노출, JS 실행, file exposure, health 상태를 단정하지 마라.\n"
@@ -1861,21 +1876,21 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "- protocol_anomaly_summaries 가 있으면 이는 context-only 이며 malformed/protocol row를 대표 사건 밖 문맥으로 정리한 것이다. 개별 incident로 재승격하지 말고 protocol bypass 성공, 우회 성공, 침해 성공, 서버 취약점 성공을 단정하지 마라."
         ),
         (
-            "E. Known asset / User-Agent / lab-* guard\n"
+            "F. Known asset / User-Agent / lab-* guard\n"
             "- known_asset_ips와 일치하는 src_ip 또는 known_asset=true인 incident/summary는 내부 테스트, 자체 호출, 운영 점검 가능성을 반드시 함께 언급하고 공격자 단정 표현을 피하라.\n"
             "- src_ip는 '외부 공격자'로 바로 표현하지 말고 '출발지 IP', '클라이언트', '관찰된 요청 주체'처럼 중립적으로 표현하라.\n"
             "- User-Agent 값은 raw evidence로 인용할 수 있지만 lab-* 같은 실험 prefix 자체를 탐지 근거로 삼지 마라. tool-like/crawler-like UA는 spoof 가능하므로 실제 정체를 단정하지 말고, 자동화/테스트성 UA 가능성처럼 일반화하라.\n"
             "- known asset IP와 비브라우저성 또는 자동화성 UA가 결합되면 내부 테스트 또는 운영 점검 가능성을 함께 병기하라."
         ),
         (
-            "F. Severity and key findings policy\n"
+            "G. Severity and key findings policy\n"
             "- key_findings severity 를 부여할 때는 명시적인 non-context-only 근거가 없으면 report_input.policy_notes.key_finding_severity_policy.max_top_incident_severity보다 높이지 마라.\n"
             "- top_incidents가 없거나 모두 info/low이고 finding이 context-only summary 중심이면 key_findings severity는 info 또는 low를 사용하라.\n"
             "- medium/high는 report_input에 medium/high top_incident가 있거나 반복적인 고신뢰 candidate incident, 또는 다른 명시적 non-context-only candidate evidence가 있을 때만 사용하라.\n"
             "- baseline-like context가 근접해 있어도 공격 candidate의 의도나 심각도를 낮추는 근거로 사용하지 말고 candidate/context 비교 문맥으로만 사용하라."
         ),
         (
-            "G. Filtered-out / supporting events policy\n"
+            "H. Filtered-out / supporting events policy\n"
             "- noise_summary가 비어 있어도 filtered_out_breakdown이 있으면 후보 밖 요청의 세부 분포가 존재하는 것으로 서술하라. filtered_out_breakdown, top_filtered_categories, top_out_of_candidate_recon은 후보 밖 문맥 섹션과 recommended_actions에 반영하라.\n"
             "- Do not call filtered-out or candidate-excluded rows benign or normal. Candidate-excluded means not selected for candidate analysis, not safe.\n"
             "- Use candidate-excluded, baseline-like, known_baseline_like, known_baseline_like_legacy_alias, or context-only baseline-like instead.\n"
@@ -1888,12 +1903,12 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "- supporting_events의 encoding:* hint는 우회성 인코딩 시도 보조 근거이며, educational_sql_search 계열 hint와 false_positive_review_candidates는 자연어형 보안 검색 질의 검토 정보로만 사용하라."
         ),
         (
-            "H. Output schema and language policy\n"
+            "I. Output schema and language policy\n"
             "- 반드시 schema-valid JSON 객체만 반환하라. Markdown, 설명문, JSON 외 텍스트를 반환하지 마라.\n"
             "- 자유서술 필드는 모두 한국어로 작성하라."
         ),
         (
-            "I. Final self-check\n"
+            "J. Final self-check\n"
             "반환 전 최종 점검:\n"
             "- SQLi 성공, DB 결과, 인증 우회, 데이터 탈취를 단정했는가?\n"
             "- XSS 실행, 브라우저 실행, 쿠키/세션 탈취, 외부 전송 성공을 단정했는가?\n"

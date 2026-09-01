@@ -12,6 +12,45 @@ from llm_client import LLMResponse
 import llm_stage2_reporter as stage2
 
 
+def sample_standards_mapping() -> dict:
+    return {
+        "schema_version": "security_standards_mapping.v1",
+        "source": "deterministic_stage1_enrichment",
+        "observability": "attempt_only",
+        "items": [
+            {
+                "rule_id": "STD-MAP-SQLI-001",
+                "standard": "OWASP_TOP10",
+                "id": "A05:2025",
+                "name": "Injection",
+                "relationship": "direct",
+                "basis": ["stage1_verdict:suspicious_sqli"],
+                "boundary_note": "Apache logs do not confirm DB query execution.",
+            },
+            {
+                "rule_id": "STD-MAP-SQLI-002",
+                "standard": "CWE",
+                "id": "CWE-89",
+                "name": "SQL Injection",
+                "relationship": "direct",
+                "basis": ["stage1_verdict:suspicious_sqli"],
+                "boundary_note": "Apache logs do not confirm DB query execution.",
+            },
+        ],
+        "unmapped_reason": "",
+    }
+
+
+def empty_standards_mapping() -> dict:
+    return {
+        "schema_version": "security_standards_mapping.v1",
+        "source": "deterministic_stage1_enrichment",
+        "observability": "not_applicable",
+        "items": [],
+        "unmapped_reason": "non_security_verdict",
+    }
+
+
 def write_stage1_results(tmp_path: Path) -> Path:
     payload = {
         "meta": {
@@ -212,6 +251,37 @@ def test_stage2_prompt_includes_candidate_excluded_wording_guardrail() -> None:
     assert "Do not call filtered-out or candidate-excluded rows benign or normal." in prompt_text
     assert "Candidate-excluded means not selected for candidate analysis, not safe." in prompt_text
     assert "known_baseline_like_legacy_alias" in prompt_text
+
+
+def test_stage2_prompt_includes_standards_mapping_interpretation_boundary() -> None:
+    messages = stage2.build_messages({"policy_notes": {}, "top_incidents": []})
+    prompt_text = "\n".join(message["content"] for message in messages)
+
+    assert "Standards mapping interpretation boundary" in prompt_text
+    assert "standards_mapping is deterministic taxonomy/test-scenario enrichment" in prompt_text
+    assert "not a new detection result" in prompt_text
+    assert "relationship=direct" in prompt_text
+    assert "not confirmed weakness, confirmed vulnerability, or successful exploitation" in prompt_text
+    assert "relationship=conditional" in prompt_text
+    assert "additional evidence is required" in prompt_text
+    assert "relationship=related" in prompt_text
+    assert "contextual category/test scenario relevance" in prompt_text
+    assert "OWASP Top 10 is a high-level security risk/category mapping" in prompt_text
+    assert "CWE is a software weakness taxonomy" in prompt_text
+    assert "CWE-89 direct is SQL injection-like pattern correspondence" in prompt_text
+    assert "WSTG is a security test scenario" in prompt_text
+    assert "do not phrase WSTG IDs as vulnerability IDs" in prompt_text
+    assert "Do not use standards_mapping to change Stage1 verdict, severity, confidence" in prompt_text
+    assert "create incidents" in prompt_text
+    assert "DB execution/results" in prompt_text
+    assert "XSS execution" in prompt_text
+    assert "command execution" in prompt_text
+    assert "auth bypass" in prompt_text
+    assert "account takeover" in prompt_text
+    assert "Respect each standards_mapping.items[].boundary_note" in prompt_text
+    assert "use the more conservative interpretation" in prompt_text
+    assert "unmapped_reason=non_security_verdict" in prompt_text
+    assert "do not use it as proof of safe, secure, benign, or no vulnerability" in prompt_text
 
 
 def test_stage2_report_input_aliases_legacy_filtered_categories() -> None:
@@ -418,3 +488,168 @@ def test_stage2_dry_run_marks_usage_unavailable(tmp_path: Path, monkeypatch) -> 
         },
         "unavailable_reason": "dry_run_no_provider_call",
     }
+
+
+def test_stage2_report_input_preserves_standards_mapping_exactly() -> None:
+    original_mapping = sample_standards_mapping()
+    stage1_payload = {
+        "meta": {"success_count": 1, "error_count": 0},
+        "results": [
+            {
+                "candidate_index": 0,
+                "request_id": "req-1",
+                "incident_group_key": "rid:req-1",
+                "source_table": "security",
+                "log_id": 1,
+                "src_ip": "203.0.113.10",
+                "method": "GET",
+                "uri": "/search",
+                "query_string": "q=' OR 1=1--",
+                "log_time": "2026-06-06T00:01:00+09:00",
+                "status_code": 403,
+                "score": 10,
+                "verdict": "suspicious_sqli",
+                "severity": "medium",
+                "confidence": "medium",
+                "reason_hints": ["sqli:boolean_true_condition"],
+                "evidence_fields": ["query_string"],
+                "recommended_actions": ["review_raw_log"],
+                "standards_mapping": original_mapping,
+            }
+        ],
+    }
+
+    report_input = stage2.build_report_input(
+        stage1_payload=stage1_payload,
+        llm_input_payload={"meta": {"counts": {"candidate_rows": 1}}},
+        stage1_errors_payload=None,
+        top_incidents=3,
+        top_noise_groups=8,
+        top_ips=3,
+        known_asset_ips=[],
+    )
+
+    actual_mapping = report_input["top_incidents"][0]["standards_mapping"]
+    assert actual_mapping == original_mapping
+    assert actual_mapping["items"][0]["relationship"] == "direct"
+    assert actual_mapping["items"][1]["id"] == "CWE-89"
+    assert actual_mapping["items"][0]["boundary_note"] == "Apache logs do not confirm DB query execution."
+    assert "standards_mapping" in stage2.build_messages(report_input)[1]["content"]
+
+
+def test_stage2_old_artifact_without_standards_mapping_uses_empty_fallback(tmp_path: Path) -> None:
+    stage1_payload = json.loads(write_stage1_results(tmp_path).read_text(encoding="utf-8"))
+
+    report_input = stage2.build_report_input(
+        stage1_payload=stage1_payload,
+        llm_input_payload={"meta": {"counts": {"candidate_rows": 1}}},
+        stage1_errors_payload=None,
+        top_incidents=3,
+        top_noise_groups=8,
+        top_ips=3,
+        known_asset_ips=[],
+    )
+
+    assert report_input["top_incidents"][0]["request_id"] == "req-1"
+    assert report_input["top_incidents"][0]["standards_mapping"] == {}
+
+
+def test_stage2_report_input_preserves_empty_standards_mapping() -> None:
+    original_mapping = empty_standards_mapping()
+    stage1_payload = {
+        "meta": {"success_count": 1, "error_count": 0},
+        "results": [
+            {
+                "candidate_index": 0,
+                "request_id": "req-fp",
+                "incident_group_key": "rid:req-fp",
+                "source_table": "security",
+                "log_id": 3,
+                "src_ip": "203.0.113.12",
+                "method": "GET",
+                "uri": "/search",
+                "query_string": "q=select training material",
+                "log_time": "2026-06-06T00:02:00+09:00",
+                "status_code": 200,
+                "score": 2,
+                "verdict": "likely_false_positive",
+                "severity": "info",
+                "confidence": "medium",
+                "reason_hints": ["fp_hint:sql_keyword_without_attack_structure"],
+                "evidence_fields": ["query_string"],
+                "recommended_actions": ["watch"],
+                "standards_mapping": original_mapping,
+            }
+        ],
+    }
+
+    report_input = stage2.build_report_input(
+        stage1_payload=stage1_payload,
+        llm_input_payload={"meta": {"counts": {"candidate_rows": 1}}},
+        stage1_errors_payload=None,
+        top_incidents=3,
+        top_noise_groups=8,
+        top_ips=3,
+        known_asset_ips=[],
+    )
+
+    assert report_input["top_incidents"][0]["standards_mapping"] == original_mapping
+    assert report_input["top_incidents"][0]["standards_mapping"]["items"] == []
+
+
+def test_stage2_uses_representative_row_standards_mapping_without_union() -> None:
+    lower_priority_mapping = empty_standards_mapping()
+    representative_mapping = sample_standards_mapping()
+    stage1_payload = {
+        "meta": {"success_count": 2, "error_count": 0},
+        "results": [
+            {
+                "candidate_index": 0,
+                "request_id": "req-dup",
+                "source_table": "access",
+                "log_id": 1,
+                "src_ip": "203.0.113.10",
+                "method": "GET",
+                "uri": "/search",
+                "query_string": "q=test",
+                "log_time": "2026-06-06T00:01:00+09:00",
+                "status_code": 200,
+                "score": 2,
+                "verdict": "likely_false_positive",
+                "severity": "info",
+                "confidence": "medium",
+                "recommended_actions": ["watch"],
+                "standards_mapping": lower_priority_mapping,
+            },
+            {
+                "candidate_index": 1,
+                "request_id": "req-dup",
+                "source_table": "security",
+                "log_id": 2,
+                "src_ip": "203.0.113.10",
+                "method": "GET",
+                "uri": "/search",
+                "query_string": "q=' OR 1=1--",
+                "log_time": "2026-06-06T00:01:00+09:00",
+                "status_code": 403,
+                "score": 10,
+                "verdict": "suspicious_sqli",
+                "severity": "medium",
+                "confidence": "medium",
+                "recommended_actions": ["review_raw_log"],
+                "standards_mapping": representative_mapping,
+            },
+        ],
+    }
+
+    briefs = stage2.build_incident_briefs(
+        stage1_payload["results"],
+        top_n=3,
+        known_asset_ips=[],
+    )
+
+    assert len(briefs) == 1
+    assert briefs[0].duplicate_count == 2
+    assert briefs[0].source_table == "security"
+    assert briefs[0].standards_mapping == representative_mapping
+    assert briefs[0].standards_mapping != lower_priority_mapping
