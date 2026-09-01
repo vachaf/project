@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "external_security_benchmark_manifest.v1.schema.json",
+  "title": "External security benchmark annotation manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "benchmark", "source", "annotation", "cases"],
+  "properties": {
+    "schema_version": {"const": "external_security_benchmark_manifest.v1"},
+    "benchmark": {"const": "owasp_crs_path_file_access.v1"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["benchmark_source", "revision"],
+      "properties": {
+        "benchmark_source": {"const": "owasp_crs"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version"],
+      "properties": {"version": {"const": "owasp_crs_path_file_access.v1"}}
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/annotation_case"}
+    }
+  },
+  "$defs": {
+    "string_set": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "verdict_set": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "benign_normal",
+          "likely_false_positive",
+          "suspicious_scan",
+          "suspicious_bruteforce",
+          "suspicious_sqli",
+          "suspicious_xss",
+          "suspicious_path_traversal",
+          "suspicious_file_disclosure",
+          "suspicious_command_injection",
+          "suspicious_auth_abuse",
+          "server_error_probe",
+          "inconclusive"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "mapping_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_ids", "forbidden_ids"],
+      "properties": {
+        "required_ids": {"$ref": "#/$defs/string_set"},
+        "forbidden_ids": {"$ref": "#/$defs/string_set"}
+      }
+    },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eligible", "status", "surface", "required_capabilities", "exclusion_reason", "note"],
+      "properties": {
+        "eligible": {"type": "boolean"},
+        "status": {"enum": ["direct", "partial", "out_of_scope"]},
+        "surface": {"type": "string", "minLength": 1},
+        "required_capabilities": {"$ref": "#/$defs/string_set"},
+        "exclusion_reason": {
+          "type": ["string", "null"],
+          "enum": [
+            null,
+            "post_body_not_logged",
+            "xml_body_not_logged",
+            "multipart_body_not_logged",
+            "multipart_filename_not_logged",
+            "header_not_available",
+            "apache_normalization_not_preserved",
+            "unsupported_input_surface",
+            "requires_response_body",
+            "ambiguous_project_taxonomy"
+          ]
+        },
+        "note": {"type": "string"}
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_ground_truth",
+        "candidate_expected",
+        "classification_policy",
+        "allowed_stage1_verdicts",
+        "forbidden_stage1_verdicts",
+        "mapping_by_verdict",
+        "boundary"
+      ],
+      "properties": {
+        "project_ground_truth": {"enum": ["attack_positive", "project_negative", "not_scored"]},
+        "candidate_expected": {"type": ["boolean", "null"]},
+        "classification_policy": {"enum": ["exact", "compatible_set", "forbidden_only", "not_scored"]},
+        "allowed_stage1_verdicts": {"$ref": "#/$defs/verdict_set"},
+        "forbidden_stage1_verdicts": {"$ref": "#/$defs/verdict_set"},
+        "mapping_by_verdict": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "benign_normal",
+              "likely_false_positive",
+              "suspicious_scan",
+              "suspicious_bruteforce",
+              "suspicious_sqli",
+              "suspicious_xss",
+              "suspicious_path_traversal",
+              "suspicious_file_disclosure",
+              "suspicious_command_injection",
+              "suspicious_auth_abuse",
+              "server_error_probe",
+              "inconclusive"
+            ]
+          },
+          "additionalProperties": {"$ref": "#/$defs/mapping_contract"}
+        },
+        "boundary": {
+          "enum": [
+            "request_pattern_only",
+            "attempt_pattern_only_no_file_read_or_exploit_success",
+            "no_file_read_success_inference",
+            "no_command_execution_success_inference"
+          ]
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "note"],
+      "properties": {
+        "status": {"const": "approved"},
+        "note": {"type": "string"}
+      }
+    },
+    "annotation_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "observability", "expected", "review"],
+      "properties": {
+        "case_id": {"type": "string", "pattern": "^owasp_crs\\.(930100|930110|930120)\\.[1-9][0-9]*$"},
+        "observability": {"$ref": "#/$defs/observability"},
+        "expected": {"$ref": "#/$defs/expected"},
+        "review": {"$ref": "#/$defs/review"}
+      }
+    }
+  }
+}

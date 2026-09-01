@@ -1,0 +1,1357 @@
+{
+  "schema_version": "external_security_benchmark_manifest.v1",
+  "benchmark": "owasp_crs_path_file_access.v1",
+  "source": {
+    "benchmark_source": "owasp_crs",
+    "revision": "96d9f99043b89f07fb5a4fdad1d7effbbbbcec1a"
+  },
+  "annotation": {
+    "version": "owasp_crs_path_file_access.v1"
+  },
+  "cases": [
+    {
+      "case_id": "owasp_crs.930100.1",
+      "observability": {
+        "eligible": false,
+        "status": "partial",
+        "surface": "request.headers.FoobarHeader",
+        "required_capabilities": [
+          "arbitrary_request_headers"
+        ],
+        "exclusion_reason": "header_not_available",
+        "note": "The payload exists only in an arbitrary request header."
+      },
+      "expected": {
+        "project_ground_truth": "not_scored",
+        "candidate_expected": null,
+        "classification_policy": "not_scored",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Future header-capability lane; CRS expectation remains source provenance."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930100.2",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Triple-dot escape is visible in the raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli",
+          "suspicious_xss",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_path_traversal": {
+            "required_ids": [
+              "A01:2025",
+              "CWE-22",
+              "WSTG-ATHZ-01"
+            ],
+            "forbidden_ids": [
+              "CWE-552"
+            ]
+          }
+        },
+        "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Explicit triple-dot directory escape is a strict traversal case."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930100.3",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Encoded triple-dot payload is preserved verbatim in the raw target."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli",
+          "suspicious_xss",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_path_traversal": {
+            "required_ids": [
+              "A01:2025",
+              "CWE-22",
+              "WSTG-ATHZ-01"
+            ],
+            "forbidden_ids": [
+              "CWE-552"
+            ]
+          }
+        },
+        "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Strict traversal semantics; current decoder coverage is evaluated later, not emulated here."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930100.4",
+      "observability": {
+        "eligible": false,
+        "status": "partial",
+        "surface": "request.headers.FoobarHeader",
+        "required_capabilities": [
+          "arbitrary_request_headers"
+        ],
+        "exclusion_reason": "header_not_available",
+        "note": "The payload exists only in an arbitrary request header."
+      },
+      "expected": {
+        "project_ground_truth": "not_scored",
+        "candidate_expected": null,
+        "classification_policy": "not_scored",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Future header-capability lane; request target itself contains no traversal payload."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930100.5",
+      "observability": {
+        "eligible": false,
+        "status": "out_of_scope",
+        "surface": "request.body.xml_attribute",
+        "required_capabilities": [
+          "request_body",
+          "xml_body"
+        ],
+        "exclusion_reason": "xml_body_not_logged",
+        "note": "The encoded payload exists only in an XML body attribute."
+      },
+      "expected": {
+        "project_ground_truth": "not_scored",
+        "candidate_expected": null,
+        "classification_policy": "not_scored",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Canonical Apache logs do not preserve XML request bodies."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.1",
+      "observability": {
+        "eligible": false,
+        "status": "partial",
+        "surface": "request.headers.FoobarHeader",
+        "required_capabilities": [
+          "arbitrary_request_headers"
+        ],
+        "exclusion_reason": "header_not_available",
+        "note": "The traversal payload exists only in an arbitrary request header."
+      },
+      "expected": {
+        "project_ground_truth": "not_scored",
+        "candidate_expected": null,
+        "classification_policy": "not_scored",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Future header-capability lane."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.2",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Directory escape and target file are visible in the query value."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli",
+          "suspicious_xss",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_path_traversal": {
+            "required_ids": [
+              "A01:2025",
+              "CWE-22",
+              "WSTG-ATHZ-01"
+            ],
+            "forbidden_ids": [
+              "CWE-552"
+            ]
+          }
+        },
+        "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Strong strict traversal positive; source expect_ids is not the project label."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.3",
+      "observability": {
+        "eligible": false,
+        "status": "out_of_scope",
+        "surface": "request.body.form",
+        "required_capabilities": [
+          "request_body",
+          "form_body"
+        ],
+        "exclusion_reason": "post_body_not_logged",
+        "note": "The traversal payload exists only in URL-encoded POST data."
+      },
+      "expected": {
+        "project_ground_truth": "not_scored",
+        "candidate_expected": null,
+        "classification_policy": "not_scored",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Canonical Apache logs do not preserve POST form bodies."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.4",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Embedded foo../ is not a segment-boundary directory escape."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [
+          "benign_normal",
+          "likely_false_positive",
+          "inconclusive"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Embedded foo../ is not a segment-boundary directory escape."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.5",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Embedded foo.../ is not a segment-boundary directory escape."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [
+          "benign_normal",
+          "likely_false_positive",
+          "inconclusive"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Embedded foo.../ is not a segment-boundary directory escape."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.6",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "The ..foo segment is not a directory escape."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [
+          "benign_normal",
+          "likely_false_positive",
+          "inconclusive"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "The ..foo segment is not a directory escape."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.7",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Bare terminal /.. is a Level 1 negative control; Apache normalization is tested later."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [
+          "benign_normal",
+          "likely_false_positive",
+          "inconclusive"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Bare terminal /.. is a Level 1 negative control; Apache normalization is tested later."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.8",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Windows backslash directory escape is visible verbatim."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli",
+          "suspicious_xss",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_path_traversal": {
+            "required_ids": [
+              "A01:2025",
+              "CWE-22",
+              "WSTG-ATHZ-01"
+            ],
+            "forbidden_ids": [
+              "CWE-552"
+            ]
+          }
+        },
+        "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Explicit Windows directory escape is a strict traversal case."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.9",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Triple-dot escape is visible in the query value."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli",
+          "suspicious_xss",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_path_traversal": {
+            "required_ids": [
+              "A01:2025",
+              "CWE-22",
+              "WSTG-ATHZ-01"
+            ],
+            "forbidden_ids": [
+              "CWE-552"
+            ]
+          }
+        },
+        "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Source provenance keeps this separate from the identical 930100 request."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.10",
+      "observability": {
+        "eligible": false,
+        "status": "out_of_scope",
+        "surface": "request.body.multipart_filename",
+        "required_capabilities": [
+          "request_body",
+          "multipart_filename"
+        ],
+        "exclusion_reason": "multipart_filename_not_logged",
+        "note": "The forward-slash traversal payload exists only in the upload filename."
+      },
+      "expected": {
+        "project_ground_truth": "not_scored",
+        "candidate_expected": null,
+        "classification_policy": "not_scored",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Canonical Apache logs preserve Content-Type but not multipart filenames."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.11",
+      "observability": {
+        "eligible": false,
+        "status": "out_of_scope",
+        "surface": "request.body.multipart_filename",
+        "required_capabilities": [
+          "request_body",
+          "multipart_filename"
+        ],
+        "exclusion_reason": "multipart_filename_not_logged",
+        "note": "The backslash traversal payload exists only in the upload filename."
+      },
+      "expected": {
+        "project_ground_truth": "not_scored",
+        "candidate_expected": null,
+        "classification_policy": "not_scored",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Canonical Apache logs preserve Content-Type but not multipart filenames."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.12",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Semicolon/backslash traversal variant is visible verbatim."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli",
+          "suspicious_xss",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_path_traversal": {
+            "required_ids": [
+              "A01:2025",
+              "CWE-22",
+              "WSTG-ATHZ-01"
+            ],
+            "forbidden_ids": [
+              "CWE-552"
+            ]
+          }
+        },
+        "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Strict traversal semantics without reproducing CRS transforms."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930110.13",
+      "observability": {
+        "eligible": false,
+        "status": "out_of_scope",
+        "surface": "request.body.xml_attribute",
+        "required_capabilities": [
+          "request_body",
+          "xml_body"
+        ],
+        "exclusion_reason": "xml_body_not_logged",
+        "note": "The traversal payload exists only in an XML body attribute."
+      },
+      "expected": {
+        "project_ground_truth": "not_scored",
+        "candidate_expected": null,
+        "classification_policy": "not_scored",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Canonical Apache logs do not preserve XML request bodies."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.1",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Explicit traversal to boot.ini is visible in the query value."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli",
+          "suspicious_xss",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_path_traversal": {
+            "required_ids": [
+              "A01:2025",
+              "CWE-22",
+              "WSTG-ATHZ-01"
+            ],
+            "forbidden_ids": [
+              "CWE-552"
+            ]
+          }
+        },
+        "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
+      },
+      "review": {
+        "status": "approved",
+        "note": "The NUL suffix does not imply file-read success."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.2",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct /etc/passwd file-read probe is visible without directory escape."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_file_disclosure"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_file_disclosure": {
+            "required_ids": [],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          }
+        },
+        "boundary": "no_file_read_success_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Current Prepare may emit an etc_passwd traversal hint; mapping therefore requires no unavailable A02/CWE-552 branch and explicitly forbids CWE-22."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.3",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Explicit traversal to httpd.conf is visible in the query value."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli",
+          "suspicious_xss",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_path_traversal": {
+            "required_ids": [
+              "A01:2025",
+              "CWE-22",
+              "WSTG-ATHZ-01"
+            ],
+            "forbidden_ids": [
+              "CWE-552"
+            ]
+          }
+        },
+        "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Explicit directory escape makes this strict traversal, regardless of target resource."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.4",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": ".ssh/id_rsa is a direct sensitive-resource probe."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "compatible_set",
+        "allowed_stage1_verdicts": [
+          "suspicious_file_disclosure",
+          "suspicious_scan"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_file_disclosure": {
+            "required_ids": [],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          }
+        },
+        "boundary": "no_file_read_success_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": ".ssh/id_rsa is a direct sensitive-resource probe. File disclosure and isolated resource scan are the minimal compatible set; mapping is only guarded against CWE-22 because current query hints do not guarantee the direct-sensitive branch."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.5",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_name",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "The /sys namespace appears in the query parameter name."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "compatible_set",
+        "allowed_stage1_verdicts": [
+          "suspicious_file_disclosure",
+          "suspicious_scan"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_file_disclosure": {
+            "required_ids": [],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          }
+        },
+        "boundary": "no_file_read_success_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "The /sys namespace appears in the query parameter name. File disclosure and isolated resource scan are the minimal compatible set; mapping is only guarded against CWE-22 because current query hints do not guarantee the direct-sensitive branch."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.6",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "The /sys namespace appears in the query value."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "compatible_set",
+        "allowed_stage1_verdicts": [
+          "suspicious_file_disclosure",
+          "suspicious_scan"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_file_disclosure": {
+            "required_ids": [],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          }
+        },
+        "boundary": "no_file_read_success_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "The /sys namespace appears in the query value. File disclosure and isolated resource scan are the minimal compatible set; mapping is only guarded against CWE-22 because current query hints do not guarantee the direct-sensitive branch."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.7",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "A cat command token and encoded /etc/subuid resource are both visible."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "compatible_set",
+        "allowed_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_scan"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_command_injection": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-78",
+              "WSTG-INPV-12"
+            ],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          },
+          "suspicious_file_disclosure": {
+            "required_ids": [],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          }
+        },
+        "boundary": "no_command_execution_success_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "The request supports command, file-read, or isolated scan interpretation; execution and file read are not inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.8",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "A cat command token and encoded /etc/subuid resource are both visible."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "compatible_set",
+        "allowed_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_scan"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_command_injection": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-78",
+              "WSTG-INPV-12"
+            ],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          },
+          "suspicious_file_disclosure": {
+            "required_ids": [],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          }
+        },
+        "boundary": "no_command_execution_success_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "The request supports command, file-read, or isolated scan interpretation; execution and file read are not inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.9",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Shell redirection syntax and /tmp/curl target are visible."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "compatible_set",
+        "allowed_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_scan"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_command_injection": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-78",
+              "WSTG-INPV-12"
+            ],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          }
+        },
+        "boundary": "no_command_execution_success_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Unlike cat cases, this is file-write/redirection intent, so file disclosure is not allowed."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.10",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "The incomplete >/tmp fragment is visible."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [
+          "benign_normal",
+          "likely_false_positive",
+          "inconclusive"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal",
+          "suspicious_file_disclosure",
+          "suspicious_command_injection"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Incomplete redirection fragment is a rule-boundary negative control."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.11",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "The .environment lookalike is visible."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [
+          "benign_normal",
+          "likely_false_positive",
+          "inconclusive"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal",
+          "suspicious_file_disclosure",
+          "suspicious_command_injection"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Do not elevate an .env suffix lookalike or incomplete redirection fragment."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.12",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "The .dockery email-address lookalike is visible."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [
+          "benign_normal",
+          "likely_false_positive",
+          "inconclusive"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Email text containing .dockery must not become a high-confidence file-access verdict."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.13",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": ".docker/secrets is a direct hidden-resource probe."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "compatible_set",
+        "allowed_stage1_verdicts": [
+          "suspicious_file_disclosure",
+          "suspicious_scan"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_file_disclosure": {
+            "required_ids": [],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          }
+        },
+        "boundary": "no_file_read_success_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": ".docker/secrets is a direct hidden-resource probe. File disclosure and isolated resource scan are the minimal compatible set; mapping is only guarded against CWE-22 because current query hints do not guarantee the direct-sensitive branch."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.14",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "backup.sql.zip is a direct backup-artifact probe."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "compatible_set",
+        "allowed_stage1_verdicts": [
+          "suspicious_file_disclosure",
+          "suspicious_scan"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_file_disclosure": {
+            "required_ids": [],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          }
+        },
+        "boundary": "no_file_read_success_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "backup.sql.zip is a direct backup-artifact probe. File disclosure and isolated resource scan are the minimal compatible set; mapping is only guarded against CWE-22 because current query hints do not guarantee the direct-sensitive branch."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.15",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "Explicit ../ precedes the history filename."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli",
+          "suspicious_xss",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_path_traversal": {
+            "required_ids": [
+              "A01:2025",
+              "CWE-22",
+              "WSTG-ATHZ-01"
+            ],
+            "forbidden_ids": [
+              "CWE-552"
+            ]
+          }
+        },
+        "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Explicit directory escape distinguishes this from a direct history-file lookalike."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.16",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_name",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "The .history lookalike appears in the parameter name."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [
+          "benign_normal",
+          "likely_false_positive",
+          "inconclusive"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal",
+          "suspicious_file_disclosure"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Parameter-name suffix is a boundary negative, not a sensitive-file access attempt."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.17",
+      "observability": {
+        "eligible": false,
+        "status": "out_of_scope",
+        "surface": "request.body.xml_attribute",
+        "required_capabilities": [
+          "request_body",
+          "xml_body"
+        ],
+        "exclusion_reason": "xml_body_not_logged",
+        "note": "The /etc/passwd payload exists only in an XML body attribute."
+      },
+      "expected": {
+        "project_ground_truth": "not_scored",
+        "candidate_expected": null,
+        "classification_policy": "not_scored",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Canonical Apache logs do not preserve XML request bodies."
+      }
+    },
+    {
+      "case_id": "owasp_crs.930120.18",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target",
+          "query_string"
+        ],
+        "exclusion_reason": null,
+        "note": "node_modules package metadata is a direct resource probe."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "compatible_set",
+        "allowed_stage1_verdicts": [
+          "suspicious_file_disclosure",
+          "suspicious_scan"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_path_traversal"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_file_disclosure": {
+            "required_ids": [],
+            "forbidden_ids": [
+              "CWE-22"
+            ]
+          }
+        },
+        "boundary": "no_file_read_success_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "node_modules package metadata is a direct resource probe. File disclosure and isolated resource scan are the minimal compatible set; mapping is only guarded against CWE-22 because current query hints do not guarantee the direct-sensitive branch."
+      }
+    }
+  ]
+}

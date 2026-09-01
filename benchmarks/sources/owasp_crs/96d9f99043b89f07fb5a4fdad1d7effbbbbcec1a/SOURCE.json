@@ -1,0 +1,24 @@
+{
+  "source": "owasp_crs",
+  "repository": "https://github.com/coreruleset/coreruleset",
+  "revision": "96d9f99043b89f07fb5a4fdad1d7effbbbbcec1a",
+  "retrieved_at": "2026-09-01",
+  "license": "Apache-2.0",
+  "files": [
+    {
+      "name": "930100.yaml",
+      "upstream_path": "tests/regression/tests/REQUEST-930-APPLICATION-ATTACK-LFI/930100.yaml",
+      "sha256": "ba821dc9e205e932da60af2f5e9a9afe69597e8d2a07820ed264aba4bd1baa10"
+    },
+    {
+      "name": "930110.yaml",
+      "upstream_path": "tests/regression/tests/REQUEST-930-APPLICATION-ATTACK-LFI/930110.yaml",
+      "sha256": "d53c1f718a044bf5773b9efa77fd7d01f6b0c94ef152d9398df2aeb2762329f8"
+    },
+    {
+      "name": "930120.yaml",
+      "upstream_path": "tests/regression/tests/REQUEST-930-APPLICATION-ATTACK-LFI/930120.yaml",
+      "sha256": "333adb7b8264897893d6ce58ee46f5c8ab7e44fbde5dbb21f933dc27589abdd3"
+    }
+  ]
+}
