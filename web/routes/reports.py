@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -34,6 +35,10 @@ NOTABLE_INCIDENT_COLUMNS: List[Dict[str, Any]] = [
     {"key": "request_count", "label": "request_count", "always_visible": False},
     {"key": "recommended_action", "label": "recommended_action", "always_visible": False},
 ]
+SECURITY_STANDARDS_SUMMARY_VERSION = "security_standards_summary.v1"
+SECURITY_STANDARDS_KNOWN_GROUPS = ("OWASP_TOP10", "CWE", "WSTG")
+SECURITY_STANDARDS_MAX_GROUPS = 12
+SECURITY_STANDARDS_MAX_ROWS_PER_GROUP = 250
 
 
 def init_templates(value: Jinja2Templates) -> None:
@@ -158,6 +163,9 @@ def report_payload_detail(request: Request, report_id: str):
     findings_display = _apply_src_ip_display_mode(findings, mask_src_ip)
     contexts_preview_display = _apply_src_ip_display_mode(contexts_preview, mask_src_ip)
     payload_report = payload_obj.get("report") if isinstance(payload_obj.get("report"), dict) else {}
+    security_standards_summary = sanitize_security_standards_summary(
+        payload_obj.get("security_standards_summary")
+    )
     report_source_ips = [
         {
             "src_ip": str(row.get("src_ip") or row.get("source_ip") or "-"),
@@ -184,6 +192,7 @@ def report_payload_detail(request: Request, report_id: str):
             "contexts_preview": contexts_preview,
             "contexts_preview_display": contexts_preview_display,
             "report_source_ips_display": report_source_ips_display,
+            "security_standards_summary": security_standards_summary,
             "mask_src_ip": mask_src_ip,
             "is_legacy_report": True,
             **nav_context,
@@ -711,6 +720,116 @@ def sanitize_viewer_payload_summary(summary: Any) -> Dict[str, Any]:
     normalized["integrity_warnings"] = [str(item) for item in warnings] if isinstance(warnings, list) else []
 
     return normalized
+
+
+def _nonnegative_summary_int(value: Any) -> int:
+    if isinstance(value, bool):
+        return 0
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
+def _bounded_summary_text(value: Any, *, limit: int, fallback: str = "") -> str:
+    if value is None or isinstance(value, (Mapping, list, tuple, set)):
+        return fallback
+    text = str(value).strip()
+    return text[:limit] if text else fallback
+
+
+def _sanitize_security_standard_rows(rows: Any) -> tuple[List[Dict[str, Any]], bool]:
+    if not isinstance(rows, list):
+        return [], False
+
+    normalized: List[tuple[int, Dict[str, Any]]] = []
+    truncated = False
+    for source_index, row in enumerate(rows):
+        if not isinstance(row, Mapping):
+            continue
+        standard_id = _bounded_summary_text(row.get("id"), limit=200)
+        finding_count = _nonnegative_summary_int(row.get("finding_count"))
+        if not standard_id or finding_count <= 0:
+            continue
+
+        relationship_source = row.get("relationship_counts")
+        relationship_counts = {
+            relationship: _nonnegative_summary_int(relationship_source.get(relationship))
+            if isinstance(relationship_source, Mapping)
+            else 0
+            for relationship in ("direct", "conditional", "related")
+        }
+        normalized.append(
+            (
+                source_index,
+                {
+                    "id": standard_id,
+                    "name": _bounded_summary_text(row.get("name"), limit=400, fallback=standard_id),
+                    "finding_count": finding_count,
+                    "relationship_counts": relationship_counts,
+                },
+            )
+        )
+        if len(normalized) > SECURITY_STANDARDS_MAX_ROWS_PER_GROUP:
+            truncated = True
+            break
+
+    normalized = normalized[:SECURITY_STANDARDS_MAX_ROWS_PER_GROUP]
+    normalized.sort(key=lambda item: (-item[1]["finding_count"], item[0]))
+    return [row for _, row in normalized], truncated
+
+
+def sanitize_security_standards_summary(summary: Any) -> Dict[str, Any]:
+    if not isinstance(summary, Mapping):
+        return {}
+    if summary.get("schema_version") != SECURITY_STANDARDS_SUMMARY_VERSION:
+        return {}
+    raw_standards = summary.get("standards")
+    if not isinstance(raw_standards, Mapping):
+        return {}
+
+    standards: Dict[str, List[Dict[str, Any]]] = {}
+    display_truncated = False
+    for group_name in SECURITY_STANDARDS_KNOWN_GROUPS:
+        rows, rows_truncated = _sanitize_security_standard_rows(raw_standards.get(group_name))
+        standards[group_name] = rows
+        display_truncated = display_truncated or rows_truncated
+
+    remaining_group_slots = SECURITY_STANDARDS_MAX_GROUPS - len(SECURITY_STANDARDS_KNOWN_GROUPS)
+    for raw_group_name, raw_rows in raw_standards.items():
+        group_name = _bounded_summary_text(raw_group_name, limit=120)
+        if not group_name or group_name in SECURITY_STANDARDS_KNOWN_GROUPS:
+            continue
+        rows, rows_truncated = _sanitize_security_standard_rows(raw_rows)
+        if not rows:
+            continue
+        if remaining_group_slots <= 0:
+            display_truncated = True
+            break
+        standards[group_name] = rows
+        remaining_group_slots -= 1
+        display_truncated = display_truncated or rows_truncated
+
+    raw_observability = summary.get("observability_counts")
+    observability_counts = {
+        key: _nonnegative_summary_int(raw_observability.get(key))
+        if isinstance(raw_observability, Mapping)
+        else 0
+        for key in ("attempt_only", "behavior_only", "partial", "not_applicable")
+    }
+
+    return {
+        "schema_version": SECURITY_STANDARDS_SUMMARY_VERSION,
+        "source": _bounded_summary_text(summary.get("source"), limit=160),
+        "counting_unit": _bounded_summary_text(summary.get("counting_unit"), limit=120),
+        "scope": _bounded_summary_text(summary.get("scope"), limit=160),
+        "total_finding_count": _nonnegative_summary_int(summary.get("total_finding_count")),
+        "mapped_finding_count": _nonnegative_summary_int(summary.get("mapped_finding_count")),
+        "unmapped_finding_count": _nonnegative_summary_int(summary.get("unmapped_finding_count")),
+        "observability_counts": observability_counts,
+        "standards": standards,
+        "display_truncated": display_truncated,
+    }
 
 
 def sanitize_payload_findings(rows: Any, fallback_rows: Any = None) -> List[Dict[str, Any]]:

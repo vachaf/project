@@ -18,6 +18,7 @@ from web.routes.reports import init_templates as init_report_templates
 from web.routes.reports import router as reports_router
 from web.routes.reports import sanitize_payload_contexts
 from web.routes.reports import sanitize_payload_findings
+from web.routes.reports import sanitize_security_standards_summary
 from web.routes.reports import sanitize_viewer_payload_summary
 from web.routes.reports import sort_payload_findings_for_timeline
 from web.services.analysis_job_policy import (
@@ -679,6 +680,9 @@ def job_viewer_payload(request: Request, job_id: int):
     findings_display = _apply_src_ip_display_mode(findings, mask_src_ip)
     contexts_preview_display = _apply_src_ip_display_mode(contexts_preview, mask_src_ip)
     payload_report = payload_obj.get("report") if isinstance(payload_obj.get("report"), dict) else {}
+    security_standards_summary = sanitize_security_standards_summary(
+        payload_obj.get("security_standards_summary")
+    )
     report_source_ips = [
         {
             "src_ip": str(row.get("src_ip") or row.get("source_ip") or "-"),
@@ -703,6 +707,7 @@ def job_viewer_payload(request: Request, job_id: int):
             "contexts_preview": contexts_preview,
             "contexts_preview_display": contexts_preview_display,
             "report_source_ips_display": report_source_ips_display,
+            "security_standards_summary": security_standards_summary,
             "mask_src_ip": mask_src_ip,
             "back_url": f"/job/{job_id}",
             "back_label": "Back To Job Detail",

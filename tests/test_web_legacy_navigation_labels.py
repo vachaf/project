@@ -119,6 +119,34 @@ class FakeReportLoader:
         }, None
 
 
+class FakeSummaryReportLoader(FakeReportLoader):
+    def load_viewer_payload(self, report: Report) -> tuple[dict[str, Any], None]:
+        payload, error = super().load_viewer_payload(report)
+        payload["security_standards_summary"] = {
+            "schema_version": "security_standards_summary.v1",
+            "source": "deterministic_security_standards_summary",
+            "counting_unit": "deduplicated_finding",
+            "scope": "all_stage2_deduplicated_incidents",
+            "total_finding_count": 1,
+            "mapped_finding_count": 1,
+            "unmapped_finding_count": 0,
+            "observability_counts": {"attempt_only": 1},
+            "standards": {
+                "OWASP_TOP10": [
+                    {
+                        "id": "A05:2025",
+                        "name": "Injection",
+                        "finding_count": 1,
+                        "relationship_counts": {"direct": 1},
+                    }
+                ],
+                "CWE": [],
+                "WSTG": [],
+            },
+        }
+        return payload, error
+
+
 def test_legacy_report_payload_route_shows_legacy_notice_and_stage2_back_link(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -134,6 +162,23 @@ def test_legacy_report_payload_route_shows_legacy_notice_and_stage2_back_link(
     assert LEGACY_NOTICE in body
     assert "Back To Stage2 Detail" in body
     assert 'href="/report/legacy-report"' in body
+
+
+def test_legacy_report_payload_route_renders_sanitized_security_standards_summary(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    report = make_legacy_report(tmp_path)
+    monkeypatch.setattr(report_routes, "loader", FakeSummaryReportLoader(report))
+    monkeypatch.setattr(report_routes, "lint_for_report", lambda report: None)
+
+    response = report_routes.report_payload_detail(make_request("/report/legacy-report/payload"), "legacy-report")
+    body = response.body.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Security Standards Summary" in body
+    assert "1 / 1" in body
+    assert "A05:2025" in body
 
 
 class FakeJobRepository:

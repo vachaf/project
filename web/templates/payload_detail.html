@@ -26,6 +26,12 @@
   {% set payload_counts = payload_obj.get('counts') if payload_obj.get('counts') is mapping else {} %}
   {% set payload_meta = payload_obj.get('meta') if payload_obj.get('meta') is mapping else {} %}
   {% set payload_meta_counts = payload_meta.get('counts') if payload_meta.get('counts') is mapping else {} %}
+  {% set standards_summary = security_standards_summary if security_standards_summary is mapping else {} %}
+  {% set standards_groups = standards_summary.get('standards') if standards_summary.get('standards') is mapping else {} %}
+  {% set owasp_standard_rows = standards_groups.get('OWASP_TOP10') if standards_groups.get('OWASP_TOP10') is sequence and standards_groups.get('OWASP_TOP10') is not string else [] %}
+  {% set cwe_standard_rows = standards_groups.get('CWE') if standards_groups.get('CWE') is sequence and standards_groups.get('CWE') is not string else [] %}
+  {% set wstg_standard_rows = standards_groups.get('WSTG') if standards_groups.get('WSTG') is sequence and standards_groups.get('WSTG') is not string else [] %}
+  {% set standards_observability = standards_summary.get('observability_counts') if standards_summary.get('observability_counts') is mapping else {} %}
   {% set summary_pipeline_counts = summary.get('pipeline_counts') if summary.get('pipeline_counts') is mapping else {} %}
   {% set payload_summary_pipeline_counts = payload_summary_obj.get('pipeline_counts') if payload_summary_obj.get('pipeline_counts') is mapping else {} %}
   {% set schema_version = summary.get('schema_version') or 'viewer_payload.v1' %}
@@ -107,6 +113,25 @@
       Additional candidate-excluded context
     {% endif %}
   {%- endmacro %}
+  {% macro render_standard_summary_rows(rows) -%}
+    <div class="security-standard-row-list">
+      {% for item in rows %}
+      {% set relationship_counts = item.get('relationship_counts') if item.get('relationship_counts') is mapping else {} %}
+      <article class="security-standard-row">
+        <div class="security-standard-row-main">
+          <code class="security-standard-row-id">{{ item.get('id') }}</code>
+          <strong class="security-standard-row-name">{{ item.get('name') }}</strong>
+          <span class="security-standard-row-count">{{ item.get('finding_count') }} finding{% if item.get('finding_count') != 1 %}s{% endif %}</span>
+        </div>
+        <div class="security-standard-relationships" aria-label="Relationship counts">
+          {% if relationship_counts.get('direct') %}<span class="badge payload-badge security-standard-relationship">Direct {{ relationship_counts.get('direct') }}</span>{% endif %}
+          {% if relationship_counts.get('conditional') %}<span class="badge payload-badge security-standard-relationship">Conditional {{ relationship_counts.get('conditional') }}</span>{% endif %}
+          {% if relationship_counts.get('related') %}<span class="badge payload-badge security-standard-relationship">Related {{ relationship_counts.get('related') }}</span>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  {%- endmacro %}
 
   <header class="payload-dashboard-header card">
     <div class="payload-dashboard-title-block">
@@ -179,6 +204,112 @@
       <p class="payload-summary-meta">{{ summary.get('report_title') or 'N/A' }}</p>
     </article>
   </section>
+
+  {% if standards_summary and standards_summary.get('total_finding_count', 0) > 0 %}
+  <section class="section card security-standards-summary" id="security-standards-summary" aria-labelledby="security-standards-summary-title">
+    <div class="security-standards-summary-head">
+      <div>
+        <p class="payload-section-kicker">Deterministic artifact metadata</p>
+        <h3 id="security-standards-summary-title">Security Standards Summary</h3>
+      </div>
+      <div class="security-standards-metric" aria-label="Mapped findings {{ standards_summary.get('mapped_finding_count') }} of {{ standards_summary.get('total_finding_count') }}">
+        <span class="security-standards-metric-label">Mapped findings</span>
+        <strong class="security-standards-metric-value">{{ standards_summary.get('mapped_finding_count') }} / {{ standards_summary.get('total_finding_count') }}</strong>
+        <span class="security-standards-metric-meta">{{ standards_summary.get('unmapped_finding_count') }} without a valid standards mapping</span>
+      </div>
+    </div>
+
+    {% if findings|length != standards_summary.get('total_finding_count') %}
+    <p class="security-standards-scope-note">
+      Summary covers all {{ standards_summary.get('total_finding_count') }} deduplicated findings. The timeline currently contains {{ findings|length }} selected findings.
+    </p>
+    {% endif %}
+
+    <div class="security-standards-boundary" role="note">
+      <p>Mappings describe relationships between observed patterns and standards taxonomies or test scenarios. They do not confirm vulnerabilities, weaknesses, compliance, or successful exploitation.</p>
+      <p>Unmapped means this enrichment layer assigned no valid standards item. It does not mean the finding or target is safe.</p>
+    </div>
+
+    <section class="security-standards-primary" aria-labelledby="security-standards-owasp-title">
+      <div class="security-standards-subhead">
+        <h4 id="security-standards-owasp-title">OWASP-related Observed Categories</h4>
+        <p>A single finding may map to more than one standards category. Category counts should not be summed as a total incident count.</p>
+      </div>
+      {% if owasp_standard_rows %}
+        {{ render_standard_summary_rows(owasp_standard_rows) }}
+      {% elif standards_summary.get('mapped_finding_count') == 0 %}
+        <p class="security-standards-empty">No standards mappings were assigned by this enrichment layer.</p>
+      {% else %}
+        <p class="security-standards-empty">No OWASP-related category mappings are present in this summary.</p>
+      {% endif %}
+    </section>
+
+    <div class="security-standards-secondary">
+      {% if cwe_standard_rows %}
+      <details class="security-standards-details pd-details-group">
+        <summary class="pd-summary-header">CWE Mapping Breakdown</summary>
+        <div class="pd-details-content">
+          <p class="security-standards-detail-note">CWE mappings are taxonomy relationships to observed patterns, not confirmed weaknesses in the target application.</p>
+          {{ render_standard_summary_rows(cwe_standard_rows) }}
+        </div>
+      </details>
+      {% endif %}
+
+      {% if wstg_standard_rows %}
+      <details class="security-standards-details pd-details-group">
+        <summary class="pd-summary-header">Related WSTG Test Scenarios</summary>
+        <div class="pd-details-content">
+          <p class="security-standards-detail-note">WSTG entries identify related security test scenarios; they are not vulnerability identifiers.</p>
+          {{ render_standard_summary_rows(wstg_standard_rows) }}
+        </div>
+      </details>
+      {% endif %}
+
+      {% set other_group_namespace = namespace(has_groups=false) %}
+      {% for group_name, rows in standards_groups.items() %}
+        {% if group_name not in ['OWASP_TOP10', 'CWE', 'WSTG'] and rows %}{% set other_group_namespace.has_groups = true %}{% endif %}
+      {% endfor %}
+      {% if other_group_namespace.has_groups %}
+      <details class="security-standards-details pd-details-group">
+        <summary class="pd-summary-header">Other Standards Mappings</summary>
+        <div class="pd-details-content security-standards-other-groups">
+          {% for group_name, rows in standards_groups.items() %}
+          {% if group_name not in ['OWASP_TOP10', 'CWE', 'WSTG'] and rows %}
+          <section class="security-standards-other-group" aria-label="{{ group_name }} mappings">
+            <h4>{{ group_name }}</h4>
+            {{ render_standard_summary_rows(rows) }}
+          </section>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </details>
+      {% endif %}
+
+      <details class="security-standards-details pd-details-group">
+        <summary class="pd-summary-header">Evidence Scope</summary>
+        <div class="pd-details-content security-standards-evidence-grid">
+          {% if standards_observability.get('attempt_only') %}<p><span>Attempt observed</span><strong>{{ standards_observability.get('attempt_only') }}</strong></p>{% endif %}
+          {% if standards_observability.get('behavior_only') %}<p><span>Behavior pattern observed</span><strong>{{ standards_observability.get('behavior_only') }}</strong></p>{% endif %}
+          {% if standards_observability.get('partial') %}<p><span>Partial log evidence</span><strong>{{ standards_observability.get('partial') }}</strong></p>{% endif %}
+          {% if standards_observability.get('not_applicable') %}<p><span>Not applicable to this enrichment</span><strong>{{ standards_observability.get('not_applicable') }}</strong></p>{% endif %}
+        </div>
+      </details>
+
+      <details class="security-standards-details pd-details-group">
+        <summary class="pd-summary-header">Relationship meanings</summary>
+        <div class="pd-details-content security-standards-legend">
+          <p><strong>Direct</strong><span>Direct taxonomy or test-scenario relationship to the observed pattern; not a confirmed vulnerability.</span></p>
+          <p><strong>Conditional</strong><span>The relationship depends on additional evidence.</span></p>
+          <p><strong>Related</strong><span>Related category or test-scenario context; not direct vulnerability attribution.</span></p>
+        </div>
+      </details>
+    </div>
+
+    {% if standards_summary.get('display_truncated') %}
+    <p class="security-standards-truncation-note">Display limits were applied to unusually large standards metadata. The source artifact remains unchanged.</p>
+    {% endif %}
+  </section>
+  {% endif %}
 
   {% if report_title or overall_assessment or executive_summary or presentation_takeaway or key_findings or report_source_ips_display or noise_interpretation or filtered_out_breakdown or report_actions or confidence_limitations_list %}
   <section class="section card payload-report-overview">

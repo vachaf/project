@@ -546,6 +546,59 @@
   color: #e2e8f0;
 }
 
+[data-theme="dark"] .security-standards-summary.card {
+  background: #151d30;
+  border-color: #253048;
+  color: #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .security-standards-summary-head h3,
+[data-theme="dark"] .security-standards-subhead h4,
+[data-theme="dark"] .security-standards-other-group h4,
+[data-theme="dark"] .security-standards-metric-value,
+[data-theme="dark"] .security-standard-row-id,
+[data-theme="dark"] .security-standards-legend strong {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .security-standards-metric,
+[data-theme="dark"] .security-standards-boundary,
+[data-theme="dark"] .security-standard-row {
+  background: #111828;
+  border-color: #253048;
+}
+
+[data-theme="dark"] .security-standards-boundary p,
+[data-theme="dark"] .security-standard-row-name,
+[data-theme="dark"] .security-standards-evidence-grid p,
+[data-theme="dark"] .security-standards-legend p {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .security-standards-details,
+[data-theme="dark"] .security-standards-details .pd-details-content {
+  background: #111828;
+  border-color: #253048;
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .security-standards-details > summary {
+  background: #151d30;
+  border-color: #253048;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .security-standard-relationship {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .security-standards-other-group + .security-standards-other-group {
+  border-top-color: #253048;
+}
+
 [data-theme="dark"] .payload-report-overview.card {
   background: #151d30;
   border-color: #253048;

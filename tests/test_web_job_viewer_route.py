@@ -115,6 +115,77 @@ def make_viewer_payload(*, findings: Optional[list[dict[str, Any]]] = None, cont
     }
 
 
+def make_security_standards_summary(
+    *,
+    total: int = 12,
+    mapped: int = 9,
+    unmapped: int = 3,
+) -> dict[str, Any]:
+    return {
+        "schema_version": "security_standards_summary.v1",
+        "source": "deterministic_security_standards_summary",
+        "counting_unit": "deduplicated_finding",
+        "scope": "all_stage2_deduplicated_incidents",
+        "total_finding_count": total,
+        "mapped_finding_count": mapped,
+        "unmapped_finding_count": unmapped,
+        "observability_counts": {
+            "attempt_only": 6,
+            "behavior_only": 3,
+            "partial": 0,
+            "not_applicable": 3,
+            "future_scope": 99,
+        },
+        "standards": {
+            "OWASP_TOP10": [
+                {
+                    "id": "A01:2025",
+                    "name": "Broken Access Control",
+                    "finding_count": 4,
+                    "relationship_counts": {"direct": 3, "conditional": 0, "related": 1},
+                },
+                {
+                    "id": "A05:2025",
+                    "name": "Injection",
+                    "finding_count": 7,
+                    "relationship_counts": {"direct": 6, "conditional": 0, "related": 1},
+                },
+                {
+                    "id": "A07:2025",
+                    "name": "Authentication Failures",
+                    "finding_count": 2,
+                    "relationship_counts": {"direct": 0, "conditional": 1, "related": 1},
+                },
+            ],
+            "CWE": [
+                {
+                    "id": "CWE-89",
+                    "name": "SQL Injection",
+                    "finding_count": 3,
+                    "relationship_counts": {"direct": 3, "conditional": 0, "related": 0},
+                }
+            ],
+            "WSTG": [
+                {
+                    "id": "WSTG-INPV-05",
+                    "name": "Testing for SQL Injection",
+                    "finding_count": 3,
+                    "relationship_counts": {"direct": 3, "conditional": 0, "related": 0},
+                }
+            ],
+            "ASVS": [
+                {
+                    "id": "V5.3.1",
+                    "name": "Input Validation",
+                    "finding_count": 1,
+                    "relationship_counts": {"direct": 0, "conditional": 0, "related": 1},
+                }
+            ],
+        },
+        "diagnostics": {"invalid_finding_count": 0},
+    }
+
+
 def make_human_viewer_payload() -> dict[str, Any]:
     payload = make_viewer_payload()
     payload["summary"].update(
@@ -262,6 +333,225 @@ def test_job_viewer_route_renders_report_level_human_sections(
     assert " normal " not in body.lower()
     assert "정상" not in body
     assert "무해" not in body
+
+
+def test_sanitize_security_standards_summary_preserves_valid_known_and_unknown_groups() -> None:
+    summary = make_security_standards_summary()
+    summary["standards"]["A_MALFORMED"] = "not-a-list"
+    summary["standards"]["CWE"].extend(
+        [
+            None,
+            {"id": "", "finding_count": 2},
+            {"id": "CWE-0", "finding_count": 0},
+            {
+                "id": "CWE-79",
+                "name": "Cross-site Scripting",
+                "finding_count": 2,
+                "relationship_counts": {"direct": 1, "future": 9},
+                "unknown_nested": {"drop": True},
+            },
+        ]
+    )
+
+    sanitized = report_routes.sanitize_security_standards_summary(summary)
+
+    assert sanitized["schema_version"] == "security_standards_summary.v1"
+    assert sanitized["total_finding_count"] == 12
+    assert sanitized["mapped_finding_count"] == 9
+    assert sanitized["unmapped_finding_count"] == 3
+    assert [row["id"] for row in sanitized["standards"]["OWASP_TOP10"]] == [
+        "A05:2025",
+        "A01:2025",
+        "A07:2025",
+    ]
+    assert [row["id"] for row in sanitized["standards"]["CWE"]] == ["CWE-89", "CWE-79"]
+    assert sanitized["standards"]["CWE"][1]["relationship_counts"] == {
+        "direct": 1,
+        "conditional": 0,
+        "related": 0,
+    }
+    assert "unknown_nested" not in sanitized["standards"]["CWE"][1]
+    assert sanitized["standards"]["ASVS"][0]["id"] == "V5.3.1"
+    assert "A_MALFORMED" not in sanitized["standards"]
+    assert "future_scope" not in sanitized["observability_counts"]
+    assert "diagnostics" not in sanitized
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        None,
+        [],
+        {},
+        {"schema_version": "security_standards_summary.v2", "standards": {}},
+        {"schema_version": "security_standards_summary.v1"},
+        {"schema_version": "security_standards_summary.v1", "standards": "invalid"},
+    ],
+)
+def test_sanitize_security_standards_summary_hides_invalid_roots(summary: Any) -> None:
+    assert report_routes.sanitize_security_standards_summary(summary) == {}
+
+
+def test_sanitize_security_standards_summary_normalizes_negative_bool_and_garbage_counts() -> None:
+    summary = make_security_standards_summary()
+    summary.update(
+        {
+            "total_finding_count": "12",
+            "mapped_finding_count": -4,
+            "unmapped_finding_count": True,
+            "observability_counts": {"attempt_only": "garbage", "behavior_only": -2},
+        }
+    )
+    summary["standards"]["OWASP_TOP10"] = [
+        {"id": "A01:2025", "name": "Skip negative", "finding_count": -1},
+        {"id": "A05:2025", "name": "Injection", "finding_count": "2"},
+    ]
+
+    sanitized = report_routes.sanitize_security_standards_summary(summary)
+
+    assert sanitized["total_finding_count"] == 12
+    assert sanitized["mapped_finding_count"] == 0
+    assert sanitized["unmapped_finding_count"] == 0
+    assert sanitized["observability_counts"]["attempt_only"] == 0
+    assert sanitized["observability_counts"]["behavior_only"] == 0
+    assert [row["id"] for row in sanitized["standards"]["OWASP_TOP10"]] == ["A05:2025"]
+
+
+def test_sanitize_security_standards_summary_bounds_display_without_changing_source() -> None:
+    summary = make_security_standards_summary()
+    oversized_rows = [
+        {
+            "id": f"CWE-{index}",
+            "name": f"Weakness {index}",
+            "finding_count": 1,
+            "relationship_counts": {"related": 1},
+        }
+        for index in range(report_routes.SECURITY_STANDARDS_MAX_ROWS_PER_GROUP + 1)
+    ]
+    summary["standards"]["CWE"] = oversized_rows
+
+    sanitized = report_routes.sanitize_security_standards_summary(summary)
+
+    assert len(sanitized["standards"]["CWE"]) == report_routes.SECURITY_STANDARDS_MAX_ROWS_PER_GROUP
+    assert sanitized["display_truncated"] is True
+    assert len(summary["standards"]["CWE"]) == report_routes.SECURITY_STANDARDS_MAX_ROWS_PER_GROUP + 1
+
+
+def test_job_viewer_renders_security_standards_summary_before_report_and_uses_full_scope(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    payload = make_human_viewer_payload()
+    payload["findings"] = payload["findings"] * 12
+    payload["security_standards_summary"] = make_security_standards_summary(total=25, mapped=9, unmapped=16)
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+
+    assert body.index("Security Standards Summary") < body.index("Report Summary")
+    assert "Mapped findings" in body
+    assert "9 / 25" in body
+    assert "Summary covers all 25 deduplicated findings" in body
+    assert "timeline currently contains 12 selected findings" in body
+    assert "OWASP-related Observed Categories" in body
+    assert "A05:2025" in body
+    assert "Injection" in body
+    assert "Direct 6" in body
+    assert "CWE Mapping Breakdown" in body
+    assert "CWE-89" in body
+    assert "Related WSTG Test Scenarios" in body
+    assert "WSTG-INPV-05" in body
+    assert "Other Standards Mappings" in body
+    assert "V5.3.1" in body
+    assert "Evidence Scope" in body
+    assert "Attempt observed" in body
+    assert "Relationship meanings" in body
+    assert "do not confirm vulnerabilities, weaknesses, compliance, or successful exploitation" in body
+    assert "does not mean the finding or target is safe" in body
+
+
+def test_job_viewer_multi_category_summary_does_not_sum_categories_as_incidents(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    payload = make_viewer_payload(findings=[{"request_id": "rid-1"}])
+    summary = make_security_standards_summary(total=1, mapped=1, unmapped=0)
+    summary["standards"]["OWASP_TOP10"] = [
+        {
+            "id": "A01:2025",
+            "name": "Broken Access Control",
+            "finding_count": 1,
+            "relationship_counts": {"direct": 1},
+        },
+        {
+            "id": "A05:2025",
+            "name": "Injection",
+            "finding_count": 1,
+            "relationship_counts": {"related": 1},
+        },
+    ]
+    payload["security_standards_summary"] = summary
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+
+    assert "1 / 1" in body
+    assert "A01:2025" in body
+    assert "A05:2025" in body
+    assert "Category counts should not be summed as a total incident count" in body
+    assert "2 incidents" not in body
+
+
+def test_job_viewer_mapped_zero_uses_enrichment_empty_state_not_safety_claim(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    payload = make_viewer_payload(findings=[{"request_id": f"rid-{index}"} for index in range(5)])
+    summary = make_security_standards_summary(total=5, mapped=0, unmapped=5)
+    summary["standards"] = {"OWASP_TOP10": [], "CWE": [], "WSTG": []}
+    payload["security_standards_summary"] = summary
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+
+    assert "Security Standards Summary" in body
+    assert "0 / 5" in body
+    assert "No standards mappings were assigned by this enrichment layer" in body
+    assert "No vulnerabilities found" not in body
+
+
+def test_job_viewer_old_artifact_hides_summary_and_keeps_existing_viewer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    write_payload(tmp_path, payload=make_viewer_payload())
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+
+    assert "Security Standards Summary" not in body
+    assert "Event Timeline" in body
+    assert "Selected Event Detail" in body
+
+
+def test_job_viewer_escapes_html_looking_standard_text(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    payload = make_viewer_payload()
+    summary = make_security_standards_summary()
+    summary["standards"]["OWASP_TOP10"][0]["name"] = "<script>alert(1)</script>"
+    payload["security_standards_summary"] = summary
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in body
+    assert "<strong class=\"security-standard-row-name\"><script>" not in body
 
 
 def test_job_viewer_route_masks_report_level_source_ips(
