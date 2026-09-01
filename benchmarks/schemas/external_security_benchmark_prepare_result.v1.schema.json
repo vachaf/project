@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "external_security_benchmark_prepare_result.v1.schema.json",
+  "title": "External security benchmark Prepare-only result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "benchmark",
+    "source_revision",
+    "run",
+    "counts",
+    "metrics",
+    "family_metrics",
+    "diagnostics",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "external_security_benchmark_prepare_result.v1"
+    },
+    "benchmark": {
+      "const": "owasp_crs_path_file_access.v1"
+    },
+    "source_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run": {
+      "type": "object",
+      "required": ["level", "stage", "complete", "case_isolation", "prepare_parameters"],
+      "properties": {
+        "level": {"const": "level_1_normalized_row"},
+        "stage": {"const": "prepare_only"},
+        "complete": {"type": "boolean"},
+        "case_isolation": {"const": "one_build_outputs_call_per_direct_case"},
+        "prepare_parameters": {
+          "type": "object",
+          "required": ["min_score", "min_repeat_aggregate", "source_tables"],
+          "properties": {
+            "min_score": {"type": "integer"},
+            "min_repeat_aggregate": {"type": "integer"},
+            "source_tables": {
+              "type": "array",
+              "prefixItems": [{"const": "security"}],
+              "minItems": 1,
+              "maxItems": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "counts": {
+      "type": "object",
+      "required": [
+        "source_cases_total",
+        "directly_eligible_cases",
+        "partial_capability_cases",
+        "out_of_scope_cases",
+        "expected_candidate_cases",
+        "project_negative_cases",
+        "evaluated_direct_cases"
+      ],
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "candidate_recall_on_expected_candidates",
+        "negative_candidate_suppression_rate"
+      ],
+      "properties": {
+        "candidate_recall_on_expected_candidates": {"$ref": "#/$defs/fraction"},
+        "negative_candidate_suppression_rate": {"$ref": "#/$defs/fraction"}
+      },
+      "additionalProperties": false
+    },
+    "family_metrics": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/family_fraction"}
+    },
+    "diagnostics": {
+      "type": "object"
+    },
+    "cases": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/case_result"}
+    }
+  },
+  "$defs": {
+    "fraction": {
+      "type": ["object", "null"],
+      "properties": {
+        "passed": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 1},
+        "rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      },
+      "required": ["passed", "total", "rate"],
+      "additionalProperties": false
+    },
+    "family_fraction": {
+      "type": "object",
+      "properties": {
+        "case_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        "passed": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0},
+        "rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      },
+      "required": ["case_ids", "passed", "total", "rate"],
+      "additionalProperties": false
+    },
+    "case_result": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "source",
+        "observability",
+        "expected",
+        "request",
+        "actual",
+        "result"
+      ],
+      "properties": {
+        "case_id": {"type": "string", "minLength": 1},
+        "source": {"type": "object"},
+        "observability": {
+          "type": "object",
+          "required": ["eligible", "status", "exclusion_reason"],
+          "properties": {
+            "eligible": {"type": "boolean"},
+            "status": {"enum": ["direct", "partial", "out_of_scope"]},
+            "exclusion_reason": {"type": ["string", "null"]}
+          },
+          "additionalProperties": false
+        },
+        "expected": {
+          "type": "object",
+          "required": ["project_ground_truth", "candidate_expected"],
+          "properties": {
+            "project_ground_truth": {
+              "enum": ["attack_positive", "project_negative", "not_scored"]
+            },
+            "candidate_expected": {"type": ["boolean", "null"]}
+          },
+          "additionalProperties": false
+        },
+        "request": {"type": "object"},
+        "actual": {"type": "object"},
+        "result": {
+          "type": "object",
+          "required": ["candidate_selection", "diagnostic_category"],
+          "properties": {
+            "candidate_selection": {
+              "enum": ["pass", "fail", "error", "not_scored_observability"]
+            },
+            "diagnostic_category": {"type": ["string", "null"]},
+            "error": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
