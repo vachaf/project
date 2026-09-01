@@ -114,6 +114,7 @@
   - [99_POST_body_visibility_한계와_해석_기준.md](./99_POST_body_visibility_한계와_해석_기준.md): POST body visibility 한계와 해석 기준
   - [99_owasp_security_standard_mapping_investigation.md](./99_owasp_security_standard_mapping_investigation.md): OWASP Top 10:2025 / CWE / WSTG 매핑 가능성과 Apache logs-only 경계 조사
   - [99_owasp_security_standard_mapping_design.md](./99_owasp_security_standard_mapping_design.md): OWASP Top 10:2025 / CWE / WSTG deterministic enrichment 상세 설계
+  - [100_security_standards_coverage_summary_design.md](./100_security_standards_coverage_summary_design.md): deduplicated finding 기준 OWASP/CWE/WSTG 관찰 분포 summary semantics, artifact contract, Stage2/Viewer 통합 설계
   - [99_sensitive_path_probe_context_category_검토.md](./99_sensitive_path_probe_context_category_검토.md): sensitive path probe context category 도입 검토
   - [99_file_disclosure_verdict_taxonomy_검토.md](./99_file_disclosure_verdict_taxonomy_검토.md): file disclosure verdict taxonomy 상태와 후속 검증 조건 검토
   - [99_pipeline_run_dir_output_layout_plan.md](./99_pipeline_run_dir_output_layout_plan.md): run dir 검토 문서
