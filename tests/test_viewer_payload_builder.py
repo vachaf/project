@@ -178,6 +178,34 @@ def empty_standards_mapping() -> Dict[str, Any]:
     }
 
 
+def security_standards_summary(total: int = 10) -> Dict[str, Any]:
+    return {
+        "schema_version": "security_standards_summary.v1",
+        "source": "deterministic_security_standards_summary",
+        "counting_unit": "deduplicated_finding",
+        "scope": "all_stage2_deduplicated_incidents",
+        "total_finding_count": total,
+        "mapped_finding_count": 2,
+        "unmapped_finding_count": total - 2,
+        "observability_counts": {"attempt_only": 2, "not_applicable": total - 2},
+        "standards": {
+            "OWASP_TOP10": [
+                {
+                    "id": "A05:2025",
+                    "name": "Injection",
+                    "finding_count": 2,
+                    "relationship_counts": {"direct": 2, "conditional": 0, "related": 0},
+                }
+            ],
+            "CWE": [],
+            "WSTG": [],
+            "FUTURE_STANDARD": [{"id": "F-1", "future_optional": True}],
+        },
+        "diagnostics": {},
+        "future_optional": {"preserve": True},
+    }
+
+
 def test_minimal_payload_has_required_top_level_keys(tmp_path: Path) -> None:
     payload = run_builder(tmp_path, stage2_report_input=base_stage2_report_input())
     required_keys = {
@@ -519,6 +547,63 @@ def test_viewer_payload_preserves_stage2_standards_mapping_exactly(tmp_path: Pat
     assert payload["findings"][0]["verdict"] == "suspicious_sqli"
     assert payload["findings"][0]["severity"] == "low"
     assert payload["findings"][0]["confidence"] == "low"
+
+
+def test_viewer_payload_copies_full_dedup_summary_without_top_n_recomputation(tmp_path: Path) -> None:
+    original_summary = security_standards_summary(total=10)
+    original_mapping = standards_mapping()
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["security_standards_summary"] = original_summary
+    stage2_report_input["top_incidents"] = [
+        {**auth_finding(["sqli:boolean_true_condition"]), "standards_mapping": original_mapping},
+        auth_finding(["error_status:401(+2)"]),
+        auth_finding(["error_status:401(+2)"]),
+    ]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    assert len(payload["findings"]) == 3
+    assert payload["security_standards_summary"] == original_summary
+    assert payload["security_standards_summary"]["total_finding_count"] == 10
+    assert payload["security_standards_summary"]["future_optional"] == {"preserve": True}
+    assert payload["findings"][0]["standards_mapping"] == original_mapping
+
+
+def test_viewer_payload_old_artifact_does_not_synthesize_summary(tmp_path: Path) -> None:
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [auth_finding(["error_status:401(+2)"])]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    assert "security_standards_summary" not in payload
+
+
+def test_viewer_payload_stage1_fallback_does_not_recompute_missing_summary(tmp_path: Path) -> None:
+    stage1_finding = auth_finding(["sqli:boolean_true_condition"])
+    stage1_finding["standards_mapping"] = standards_mapping()
+
+    payload = run_builder(
+        tmp_path,
+        stage2_report_input=base_stage2_report_input(),
+        stage1_results={"results": [stage1_finding]},
+    )
+
+    assert payload["meta"]["source_of_truth"]["findings"] == "stage1_results.results"
+    assert len(payload["findings"]) == 1
+    assert "security_standards_summary" not in payload
+
+
+def test_viewer_payload_omits_malformed_security_standards_summary(tmp_path: Path) -> None:
+    malformed_summaries = [None, [], {}, {"schema_version": "v1"}, {"standards": {}}]
+
+    for index, malformed_summary in enumerate(malformed_summaries):
+        stage2_report_input = base_stage2_report_input()
+        stage2_report_input["security_standards_summary"] = malformed_summary
+        payload = run_builder(
+            tmp_path / f"case-{index}",
+            stage2_report_input=stage2_report_input,
+        )
+        assert "security_standards_summary" not in payload
 
 
 def test_viewer_payload_falls_back_to_stage1_standards_mapping(tmp_path: Path) -> None:

@@ -125,6 +125,16 @@ def normalize_standards_mapping(value: Any) -> Dict[str, Any]:
     return normalized
 
 
+def valid_security_standards_summary(value: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(value, dict):
+        return None
+    if not normalize_str(value.get("schema_version")):
+        return None
+    if not isinstance(value.get("standards"), dict):
+        return None
+    return value
+
+
 def normalize_path(value: Optional[str]) -> Optional[str]:
     if not value:
         return None
@@ -620,6 +630,9 @@ def main() -> int:
 
     report_fields = extract_report_fields(stage2_report_payload)
     pipeline_counts = ensure_dict(stage2_report_input.get("pipeline_counts"))
+    security_standards_summary = valid_security_standards_summary(
+        stage2_report_input.get("security_standards_summary")
+    )
     warnings: List[str] = []
     candidate_rows = safe_int(pipeline_counts.get("candidate_rows"), 0)
     if candidate_rows and candidate_rows != len(findings):
@@ -675,6 +688,8 @@ def main() -> int:
             "warnings": warnings,
         },
     }
+    if security_standards_summary is not None:
+        payload["security_standards_summary"] = security_standards_summary
 
     dump_json(args.out, payload, pretty=args.pretty)
     print(f"[OK] viewer_payload: {Path(args.out).expanduser().resolve()}")

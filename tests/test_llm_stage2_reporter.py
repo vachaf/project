@@ -51,6 +51,35 @@ def empty_standards_mapping() -> dict:
     }
 
 
+def xss_standards_mapping() -> dict:
+    return {
+        "schema_version": "security_standards_mapping.v1",
+        "source": "deterministic_stage1_enrichment",
+        "observability": "attempt_only",
+        "items": [
+            {
+                "rule_id": "STD-MAP-XSS-001",
+                "standard": "OWASP_TOP10",
+                "id": "A05:2025",
+                "name": "Injection",
+                "relationship": "direct",
+                "basis": ["stage1_verdict:suspicious_xss"],
+                "boundary_note": "Apache logs do not confirm browser execution.",
+            },
+            {
+                "rule_id": "STD-MAP-XSS-002",
+                "standard": "CWE",
+                "id": "CWE-79",
+                "name": "Cross-site Scripting",
+                "relationship": "direct",
+                "basis": ["stage1_verdict:suspicious_xss"],
+                "boundary_note": "Apache logs do not confirm browser execution.",
+            },
+        ],
+        "unmapped_reason": "",
+    }
+
+
 def write_stage1_results(tmp_path: Path) -> Path:
     payload = {
         "meta": {
@@ -315,6 +344,128 @@ def test_stage2_report_input_aliases_legacy_filtered_categories() -> None:
     assert "benign_normal_search" not in json.dumps(report_input)
 
 
+def test_security_standards_summary_uses_all_deduped_incidents_not_top_n() -> None:
+    base_finding = {
+        "source_table": "security",
+        "src_ip": "203.0.113.10",
+        "method": "GET",
+        "uri": "/search",
+        "status_code": 403,
+        "score": 10,
+        "verdict": "suspicious_sqli",
+        "severity": "medium",
+        "confidence": "medium",
+        "recommended_actions": ["review_raw_log"],
+    }
+    stage1_payload = {
+        "meta": {"success_count": 3, "error_count": 0},
+        "results": [
+            {
+                **base_finding,
+                "candidate_index": 0,
+                "request_id": "req-sqli",
+                "log_id": 1,
+                "log_time": "2026-06-06T00:01:00+09:00",
+                "standards_mapping": sample_standards_mapping(),
+            },
+            {
+                **base_finding,
+                "candidate_index": 1,
+                "request_id": "req-xss",
+                "log_id": 2,
+                "log_time": "2026-06-06T00:02:00+09:00",
+                "verdict": "suspicious_xss",
+                "standards_mapping": xss_standards_mapping(),
+            },
+            {
+                **base_finding,
+                "candidate_index": 2,
+                "request_id": "req-unmapped",
+                "log_id": 3,
+                "log_time": "2026-06-06T00:03:00+09:00",
+                "verdict": "likely_false_positive",
+                "severity": "info",
+                "standards_mapping": empty_standards_mapping(),
+            },
+        ],
+    }
+
+    report_input = stage2.build_report_input(
+        stage1_payload=stage1_payload,
+        llm_input_payload={"meta": {"counts": {"candidate_rows": 3}}},
+        stage1_errors_payload=None,
+        top_incidents=1,
+        top_noise_groups=8,
+        top_ips=3,
+        known_asset_ips=[],
+    )
+
+    summary = report_input["security_standards_summary"]
+    assert len(report_input["top_incidents"]) == 1
+    assert report_input["pipeline_counts"]["distinct_incident_count"] == 3
+    assert summary["total_finding_count"] == 3
+    assert summary["mapped_finding_count"] == 2
+    assert summary["unmapped_finding_count"] == 1
+    assert summary["observability_counts"] == {
+        "attempt_only": 2,
+        "behavior_only": 0,
+        "partial": 0,
+        "not_applicable": 1,
+    }
+    assert summary["standards"]["OWASP_TOP10"][0]["id"] == "A05:2025"
+    assert summary["standards"]["OWASP_TOP10"][0]["finding_count"] == 2
+    assert {row["id"]: row["finding_count"] for row in summary["standards"]["CWE"]} == {
+        "CWE-79": 1,
+        "CWE-89": 1,
+    }
+    assert (
+        report_input["pipeline_counts"]["distinct_incident_count"]
+        == summary["total_finding_count"]
+    )
+
+
+def test_stage2_llm_projection_excludes_aggregate_but_preserves_finding_mapping() -> None:
+    original_mapping = sample_standards_mapping()
+    report_input = stage2.build_report_input(
+        stage1_payload={
+            "meta": {"success_count": 1, "error_count": 0},
+            "results": [
+                {
+                    "candidate_index": 0,
+                    "request_id": "req-projection",
+                    "source_table": "security",
+                    "log_id": 1,
+                    "src_ip": "203.0.113.10",
+                    "method": "GET",
+                    "uri": "/search",
+                    "log_time": "2026-06-06T00:01:00+09:00",
+                    "status_code": 403,
+                    "score": 10,
+                    "verdict": "suspicious_sqli",
+                    "severity": "medium",
+                    "confidence": "medium",
+                    "standards_mapping": original_mapping,
+                }
+            ],
+        },
+        llm_input_payload={"meta": {"counts": {"candidate_rows": 1}}},
+        stage1_errors_payload=None,
+        top_incidents=1,
+        top_noise_groups=8,
+        top_ips=3,
+        known_asset_ips=[],
+    )
+    original_report_input = json.loads(json.dumps(report_input))
+
+    messages = stage2.build_messages(report_input)
+    llm_payload = json.loads(messages[1]["content"])
+
+    assert "security_standards_summary" in report_input
+    assert "security_standards_summary" not in llm_payload["report_input"]
+    assert llm_payload["report_input"]["top_incidents"][0]["standards_mapping"] == original_mapping
+    assert report_input == original_report_input
+
+
 def test_stage2_wording_sanitizer_replaces_forbidden_report_text_and_keeps_normalization() -> None:
     sanitized, warnings = stage2.sanitize_report_text(
         "benign_normal_search 정상 무해 normal baseline, but path normalization stays."
@@ -488,6 +639,11 @@ def test_stage2_dry_run_marks_usage_unavailable(tmp_path: Path, monkeypatch) -> 
         },
         "unavailable_reason": "dry_run_no_provider_call",
     }
+    report_input = json.loads(
+        (out_dir / "sample_stage2_report_input.json").read_text(encoding="utf-8")
+    )
+    assert report_input["security_standards_summary"]["total_finding_count"] == 1
+    assert report_input["security_standards_summary"]["unmapped_finding_count"] == 1
 
 
 def test_stage2_report_input_preserves_standards_mapping_exactly() -> None:
@@ -653,3 +809,20 @@ def test_stage2_uses_representative_row_standards_mapping_without_union() -> Non
     assert briefs[0].source_table == "security"
     assert briefs[0].standards_mapping == representative_mapping
     assert briefs[0].standards_mapping != lower_priority_mapping
+
+    report_input = stage2.build_report_input(
+        stage1_payload=stage1_payload,
+        llm_input_payload={"meta": {"counts": {"candidate_rows": 2}}},
+        stage1_errors_payload=None,
+        top_incidents=3,
+        top_noise_groups=8,
+        top_ips=3,
+        known_asset_ips=[],
+    )
+    summary = report_input["security_standards_summary"]
+    assert report_input["pipeline_counts"]["distinct_incident_count"] == 1
+    assert summary["total_finding_count"] == 1
+    assert summary["mapped_finding_count"] == 1
+    assert summary["unmapped_finding_count"] == 0
+    assert summary["standards"]["OWASP_TOP10"][0]["id"] == "A05:2025"
+    assert summary["standards"]["OWASP_TOP10"][0]["finding_count"] == 1

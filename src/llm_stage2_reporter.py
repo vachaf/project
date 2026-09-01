@@ -33,6 +33,7 @@ from llm_client import (
     provider_api_key_error,
     resolve_llm_config,
 )
+from security_standards_summary import build_security_standards_summary
 
 DEFAULT_TIMEOUT_SEC = 180
 DEFAULT_MODE = "routine"
@@ -1378,6 +1379,7 @@ def build_report_input(
     candidate_lookup = build_candidate_evidence_lookup(llm_input_payload)
 
     deduped_results = dedup_stage1_results(results, known_asset_ips=known_asset_ips)
+    security_standards_summary = build_security_standards_summary(deduped_results)
 
     verdict_counter = Counter(normalize_str(x.get("verdict")) or "unknown" for x in deduped_results)
     severity_counter = Counter(normalize_str(x.get("severity")) or "unknown" for x in deduped_results)
@@ -1526,6 +1528,7 @@ def build_report_input(
             "stage1_success_count": safe_int(meta.get("success_count"), len(results)),
             "stage1_error_count": safe_int(meta.get("error_count"), len(stage1_errors)),
         },
+        "security_standards_summary": security_standards_summary,
         "distributions": {
             "verdicts": dict(verdict_counter),
             "severities": dict(severity_counter),
@@ -1820,6 +1823,9 @@ def build_schema() -> Dict[str, Any]:
 
 
 def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
+    llm_report_input = dict(report_input)
+    llm_report_input.pop("security_standards_summary", None)
+
     system_prompt_sections = (
         (
             "A. Role and input boundary\n"
@@ -2023,7 +2029,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "notable_incidents 의 incident_ref 는 report_input.top_incidents 에 있는 값을 그대로 복사하라.",
             "report_title, overall_assessment, executive_summary, key_findings.title, key_findings.detail, notable_incidents.why_it_matters, notable_source_ips.reason, noise_interpretation, recommended_actions.action, recommended_actions.why, confidence_and_limitations, presentation_takeaway 는 모두 한국어로 작성하라.",
         ],
-        "report_input": report_input,
+        "report_input": llm_report_input,
     }
 
     return [
