@@ -130,6 +130,54 @@ def traversal_finding() -> Dict[str, Any]:
     }
 
 
+def standards_mapping() -> Dict[str, Any]:
+    return {
+        "schema_version": "security_standards_mapping.v1",
+        "source": "deterministic_stage1_enrichment",
+        "observability": "attempt_only",
+        "items": [
+            {
+                "rule_id": "STD-MAP-SQLI-001",
+                "standard": "OWASP_TOP10",
+                "id": "A05:2025",
+                "name": "Injection",
+                "relationship": "direct",
+                "basis": ["stage1_verdict:suspicious_sqli"],
+                "boundary_note": "Apache logs do not confirm DB query execution.",
+            },
+            {
+                "rule_id": "STD-MAP-SQLI-002",
+                "standard": "CWE",
+                "id": "CWE-89",
+                "name": "SQL Injection",
+                "relationship": "direct",
+                "basis": ["stage1_verdict:suspicious_sqli"],
+                "boundary_note": "Apache logs do not confirm DB query execution.",
+            },
+            {
+                "rule_id": "STD-MAP-SQLI-003",
+                "standard": "WSTG",
+                "id": "WSTG-INPV-05",
+                "name": "Testing for SQL Injection",
+                "relationship": "direct",
+                "basis": ["stage1_verdict:suspicious_sqli"],
+                "boundary_note": "Apache logs do not confirm DB query execution.",
+            },
+        ],
+        "unmapped_reason": "",
+    }
+
+
+def empty_standards_mapping() -> Dict[str, Any]:
+    return {
+        "schema_version": "security_standards_mapping.v1",
+        "source": "deterministic_stage1_enrichment",
+        "observability": "not_applicable",
+        "items": [],
+        "unmapped_reason": "non_security_verdict",
+    }
+
+
 def test_minimal_payload_has_required_top_level_keys(tmp_path: Path) -> None:
     payload = run_builder(tmp_path, stage2_report_input=base_stage2_report_input())
     required_keys = {
@@ -450,6 +498,103 @@ def test_handler_and_log_schema_are_preserved_in_findings(tmp_path: Path) -> Non
     finding = payload["findings"][0]
     assert finding["handler"] == "proxy-server"
     assert finding["log_schema"] == "apache_security_io_v1"
+
+
+def test_viewer_payload_preserves_stage2_standards_mapping_exactly(tmp_path: Path) -> None:
+    original_mapping = standards_mapping()
+    finding = auth_finding(["sqli:boolean_true_condition"])
+    finding.update(
+        {
+            "verdict": "suspicious_sqli",
+            "category": "sqli_candidate",
+            "standards_mapping": original_mapping,
+        }
+    )
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [finding]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    assert payload["findings"][0]["standards_mapping"] == original_mapping
+    assert payload["findings"][0]["verdict"] == "suspicious_sqli"
+    assert payload["findings"][0]["severity"] == "low"
+    assert payload["findings"][0]["confidence"] == "low"
+
+
+def test_viewer_payload_falls_back_to_stage1_standards_mapping(tmp_path: Path) -> None:
+    original_mapping = standards_mapping()
+    stage2_finding = auth_finding(["sqli:boolean_true_condition"])
+    stage2_finding.update(
+        {
+            "request_id": "rid-standards-fallback",
+            "verdict": "suspicious_sqli",
+            "category": "sqli_candidate",
+        }
+    )
+    stage1_finding = dict(stage2_finding)
+    stage1_finding["standards_mapping"] = original_mapping
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [stage2_finding]
+    stage1_results = {"results": [stage1_finding]}
+
+    payload = run_builder(
+        tmp_path,
+        stage2_report_input=stage2_report_input,
+        stage1_results=stage1_results,
+    )
+
+    assert payload["findings"][0]["standards_mapping"] == original_mapping
+    assert payload["meta"]["source_of_truth"]["findings"] == "stage2_report_input.top_incidents"
+
+
+def test_viewer_payload_old_artifact_without_standards_mapping(tmp_path: Path) -> None:
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [auth_finding(["error_status:401(+2)"])]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    assert "standards_mapping" not in payload["findings"][0]
+
+
+def test_viewer_payload_preserves_empty_standards_mapping(tmp_path: Path) -> None:
+    original_mapping = empty_standards_mapping()
+    finding = auth_finding(["fp_hint:sql_keyword_without_attack_structure"])
+    finding["standards_mapping"] = original_mapping
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [finding]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    assert payload["findings"][0]["standards_mapping"] == original_mapping
+    assert payload["findings"][0]["standards_mapping"]["items"] == []
+
+
+def test_viewer_payload_malformed_standards_mapping_does_not_crash(tmp_path: Path) -> None:
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [
+        {**auth_finding(["error_status:401(+2)"]), "standards_mapping": None},
+        {**auth_finding(["error_status:401(+2)"]), "standards_mapping": {}},
+        {**auth_finding(["error_status:401(+2)"]), "standards_mapping": {"items": "invalid"}},
+        {
+            **auth_finding(["error_status:401(+2)"]),
+            "standards_mapping": {
+                "schema_version": "future",
+                "observability": "partial",
+                "items": [{"standard": "UNKNOWN", "id": "X-1"}],
+            },
+        },
+    ]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    assert "standards_mapping" not in payload["findings"][0]
+    assert "standards_mapping" not in payload["findings"][1]
+    assert "standards_mapping" not in payload["findings"][2]
+    assert payload["findings"][3]["standards_mapping"] == {
+        "schema_version": "future",
+        "observability": "partial",
+        "items": [{"standard": "UNKNOWN", "id": "X-1"}],
+    }
 
 
 def test_apache_logs_only_guardrail_present(tmp_path: Path) -> None:

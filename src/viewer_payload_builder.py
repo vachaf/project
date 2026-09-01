@@ -114,6 +114,17 @@ def normalize_reason_hints(value: Any) -> List[str]:
     return []
 
 
+def normalize_standards_mapping(value: Any) -> Dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    items = value.get("items")
+    if not isinstance(items, list):
+        return {}
+    normalized = dict(value)
+    normalized["items"] = [dict(item) for item in items if isinstance(item, dict)]
+    return normalized
+
+
 def normalize_path(value: Optional[str]) -> Optional[str]:
     if not value:
         return None
@@ -466,6 +477,9 @@ def build_finding(
         "related_context_ids": [],
         "supporting_event_ids": [],
     }
+    standards_mapping = normalize_standards_mapping(item.get("standards_mapping"))
+    if standards_mapping:
+        finding["standards_mapping"] = standards_mapping
     if raw_match:
         finding["raw_export_match"] = {
             "source_table": normalize_str(first_non_empty(raw_match.get("_source_table"), raw_match.get("source_table"))),

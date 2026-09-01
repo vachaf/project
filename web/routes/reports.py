@@ -730,32 +730,34 @@ def sanitize_payload_findings(rows: Any, fallback_rows: Any = None) -> List[Dict
             request_obj.get("timestamp"),
         ) or "unknown"
 
-        findings.append(
-            {
-                "display_time": _format_payload_display_time(log_time),
-                "log_time": str(log_time),
-                "severity": str(row.get("severity") or "unknown"),
-                "verdict": str(row.get("verdict") or row.get("verdict_hint") or "unknown"),
-                "category": str(row.get("category") or "unknown"),
-                "src_ip": str(row.get("src_ip") or "-"),
-                "method": str(row.get("method") or "-"),
-                "uri": str(row.get("uri") or "-"),
-                "status_code": str(row.get("status_code")) if row.get("status_code") not in (None, "") else "-",
-                "request_id": str(row.get("request_id") or "-"),
-                "confidence": str(row.get("confidence") or "unknown"),
-                "reasoning_summary": str(row.get("reasoning_summary") or "N/A"),
-                "evidence_fields": _normalize_text_list(row.get("evidence_fields")),
-                "reason_hints": _normalize_text_list(row.get("reason_hints")),
-                "recommended_actions": _normalize_text_list(row.get("recommended_actions")),
-                "related_context_ids": _normalize_relation_id_list(row.get("related_context_ids")),
-                "supporting_event_ids": _normalize_relation_id_list(row.get("supporting_event_ids")),
-                "raw_export_match": {
-                    "source_table": str(raw_match_obj.get("source_table") or "N/A"),
-                    "log_id": str(raw_match_obj.get("log_id") or "N/A"),
-                    "request_id": str(raw_match_obj.get("request_id") or "N/A"),
-                },
-            }
-        )
+        finding = {
+            "display_time": _format_payload_display_time(log_time),
+            "log_time": str(log_time),
+            "severity": str(row.get("severity") or "unknown"),
+            "verdict": str(row.get("verdict") or row.get("verdict_hint") or "unknown"),
+            "category": str(row.get("category") or "unknown"),
+            "src_ip": str(row.get("src_ip") or "-"),
+            "method": str(row.get("method") or "-"),
+            "uri": str(row.get("uri") or "-"),
+            "status_code": str(row.get("status_code")) if row.get("status_code") not in (None, "") else "-",
+            "request_id": str(row.get("request_id") or "-"),
+            "confidence": str(row.get("confidence") or "unknown"),
+            "reasoning_summary": str(row.get("reasoning_summary") or "N/A"),
+            "evidence_fields": _normalize_text_list(row.get("evidence_fields")),
+            "reason_hints": _normalize_text_list(row.get("reason_hints")),
+            "recommended_actions": _normalize_text_list(row.get("recommended_actions")),
+            "related_context_ids": _normalize_relation_id_list(row.get("related_context_ids")),
+            "supporting_event_ids": _normalize_relation_id_list(row.get("supporting_event_ids")),
+            "raw_export_match": {
+                "source_table": str(raw_match_obj.get("source_table") or "N/A"),
+                "log_id": str(raw_match_obj.get("log_id") or "N/A"),
+                "request_id": str(raw_match_obj.get("request_id") or "N/A"),
+            },
+        }
+        standards_mapping = _normalize_standards_mapping(row.get("standards_mapping"))
+        if standards_mapping:
+            finding["standards_mapping"] = standards_mapping
+        findings.append(finding)
     return findings
 
 
@@ -771,6 +773,17 @@ def _normalize_relation_id_list(value: Any, limit: int = 50) -> List[str]:
             normalized.append(text)
         if len(normalized) >= limit:
             break
+    return normalized
+
+
+def _normalize_standards_mapping(value: Any) -> Dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    items = value.get("items")
+    if not isinstance(items, list):
+        return {}
+    normalized = dict(value)
+    normalized["items"] = [dict(item) for item in items if isinstance(item, dict)]
     return normalized
 
 

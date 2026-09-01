@@ -729,6 +729,87 @@
   color: #475569;
 }
 
+.payload-standards {
+  overflow-wrap: anywhere;
+}
+
+.payload-standards-scope {
+  margin: 0 0 10px;
+  color: var(--pd-muted);
+  font-size: 13px;
+}
+
+.payload-standards-groups {
+  display: grid;
+  gap: 10px;
+}
+
+.payload-standard-group {
+  padding: 10px 0 0;
+  border-top: 1px solid var(--pd-line-soft);
+}
+
+.payload-standard-group:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.payload-standard-group h5 {
+  margin: 0 0 8px;
+  color: var(--pd-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.payload-standard-item {
+  padding: 8px 0;
+}
+
+.payload-standard-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.payload-standard-id {
+  font-family: var(--pd-font-mono);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--pd-text);
+}
+
+.payload-standard-name {
+  min-width: min(100%, 180px);
+  color: #344258;
+  font-size: 13.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.payload-badge-standard-relationship,
+.payload-badge-standard-scope {
+  background: #f3f6fb;
+  border-color: #d8e1ec;
+  color: #475569;
+}
+
+.payload-standard-boundary-note,
+.payload-standards-boundary {
+  margin-top: 6px;
+  color: var(--pd-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.payload-standards-boundary {
+  padding-top: 8px;
+  border-top: 1px solid var(--pd-line-soft);
+}
+
 .meta-label {
   display: inline-block;
   min-width: 92px;
@@ -1476,6 +1557,7 @@
 /* Keep monospace only for technical IDs/log identifiers. */
 #pd-request-id,
 #pd-log-time,
+.payload-standard-id,
 .payload-supporting-uri {
   font-family: var(--pd-font-mono);
 }

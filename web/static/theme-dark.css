@@ -1146,6 +1146,29 @@
   color: inherit;
 }
 
+[data-theme="dark"] #pd-detail-content .payload-standard-name,
+[data-theme="dark"] #pd-detail-content .payload-standard-id {
+  color: var(--pd-text, #e2e8f0);
+}
+
+[data-theme="dark"] #pd-detail-content .payload-standard-group,
+[data-theme="dark"] #pd-detail-content .payload-standards-boundary {
+  border-color: var(--pd-line-soft, #1e2a42);
+}
+
+[data-theme="dark"] #pd-detail-content .payload-standard-boundary-note,
+[data-theme="dark"] #pd-detail-content .payload-standards-boundary,
+[data-theme="dark"] #pd-detail-content .payload-standards-scope {
+  color: var(--pd-muted, #8899aa);
+}
+
+[data-theme="dark"] #pd-detail-content .payload-badge-standard-relationship,
+[data-theme="dark"] #pd-detail-content .payload-badge-standard-scope {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
 [data-theme="dark"] #pd-detail-content .payload-detail-label,
 [data-theme="dark"] #pd-detail-content .payload-field-label,
 [data-theme="dark"] #pd-detail-content dt {

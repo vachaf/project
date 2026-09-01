@@ -671,6 +671,42 @@ def test_sanitize_payload_findings_preserves_relation_id_lists_only() -> None:
     assert findings[1]["supporting_event_ids"] == []
 
 
+def test_sanitize_payload_findings_preserves_standards_mapping() -> None:
+    mapping = {
+        "schema_version": "security_standards_mapping.v1",
+        "source": "deterministic_stage1_enrichment",
+        "observability": "attempt_only",
+        "items": [
+            {
+                "rule_id": "STD-MAP-SQLI-001",
+                "standard": "OWASP_TOP10",
+                "id": "A05:2025",
+                "name": "Injection",
+                "relationship": "direct",
+                "basis": ["stage1_verdict:suspicious_sqli"],
+                "boundary_note": "Apache logs do not confirm DB query execution.",
+            }
+        ],
+        "unmapped_reason": "",
+    }
+
+    findings = report_routes.sanitize_payload_findings(
+        [
+            {
+                "request_id": "rid-1",
+                "standards_mapping": mapping,
+            },
+            {
+                "request_id": "rid-2",
+                "standards_mapping": {"items": "invalid"},
+            },
+        ]
+    )
+
+    assert findings[0]["standards_mapping"] == mapping
+    assert "standards_mapping" not in findings[1]
+
+
 def test_job_viewer_route_renders_explicit_relation_contract_without_heuristic_text(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -719,3 +755,70 @@ def test_job_viewer_route_renders_explicit_relation_contract_without_heuristic_t
     assert "supporting_event_ids" in body
     assert "No explicit related contexts in this viewer payload." in body
     assert "No explicit related supporting events in this viewer payload." in body
+
+
+def test_job_viewer_route_preserves_security_standards_mapping_in_payload_script(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    payload = make_viewer_payload(
+        findings=[
+            {
+                "log_time": "2026-05-30T00:00:01Z",
+                "severity": "medium",
+                "confidence": "medium",
+                "verdict": "suspicious_sqli",
+                "category": "sqli_candidate",
+                "src_ip": "203.0.113.10",
+                "method": "GET",
+                "uri": "/search",
+                "status_code": 403,
+                "request_id": "rid-sqli",
+                "standards_mapping": {
+                    "schema_version": "security_standards_mapping.v1",
+                    "source": "deterministic_stage1_enrichment",
+                    "observability": "attempt_only",
+                    "items": [
+                        {
+                            "standard": "OWASP_TOP10",
+                            "id": "A05:2025",
+                            "name": "Injection",
+                            "relationship": "direct",
+                            "boundary_note": "Apache logs do not confirm DB query execution.",
+                        },
+                        {
+                            "standard": "CWE",
+                            "id": "CWE-89",
+                            "name": "SQL Injection",
+                            "relationship": "direct",
+                            "boundary_note": "Apache logs do not confirm DB query execution.",
+                        },
+                        {
+                            "standard": "WSTG",
+                            "id": "WSTG-INPV-05",
+                            "name": "Testing for SQL Injection",
+                            "relationship": "direct",
+                            "boundary_note": "Apache logs do not confirm DB query execution.",
+                        },
+                    ],
+                    "unmapped_reason": "",
+                },
+            }
+        ]
+    )
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+
+    assert "Security Standards" in body
+    assert "Evidence Scope" in body
+    assert "Observed attack patterns and standards mappings do not confirm" in body
+    assert "A05:2025" in body
+    assert "Injection" in body
+    assert "CWE-89" in body
+    assert "SQL Injection" in body
+    assert "WSTG-INPV-05" in body
+    assert "Testing for SQL Injection" in body
+    assert "Direct" in body
+    assert "standards_mapping" in body

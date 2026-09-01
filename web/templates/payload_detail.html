@@ -419,6 +419,13 @@
           <ul id="pd-interpretation-notes" class="payload-detail-list payload-interpretation-notes"></ul>
         </section>
 
+        <section class="payload-detail-section payload-standards is-hidden" id="pd-standards-section">
+          <h4>Security Standards</h4>
+          <div id="pd-standards-scope" class="payload-standards-scope"></div>
+          <div id="pd-standards-groups" class="payload-standards-groups"></div>
+          <p class="payload-standards-boundary">Observed attack patterns and standards mappings do not confirm a vulnerability or successful exploitation.</p>
+        </section>
+
         <section class="payload-detail-section">
           <h4>Evidence</h4>
           <ul id="pd-evidence-fields" class="payload-detail-list"></ul>
@@ -859,6 +866,147 @@
       }
     }
 
+    function standardsMappingItems(finding) {
+      const mapping = finding && typeof finding === "object" ? finding.standards_mapping : null;
+      if (!mapping || typeof mapping !== "object" || !Array.isArray(mapping.items)) return [];
+      return mapping.items.filter((item) => item && typeof item === "object");
+    }
+
+    function standardsMappingObservability(finding) {
+      const mapping = finding && typeof finding === "object" ? finding.standards_mapping : null;
+      if (!mapping || typeof mapping !== "object") return "";
+      return asLowerText(mapping.observability);
+    }
+
+    function standardGroupLabel(value) {
+      const standard = String(value || "").trim().toUpperCase();
+      if (standard === "OWASP_TOP10") return "OWASP Top 10";
+      if (standard === "CWE") return "CWE";
+      if (standard === "WSTG") return "Related WSTG Tests";
+      return standard || "Other";
+    }
+
+    function standardGroupOrder(value) {
+      const standard = String(value || "").trim().toUpperCase();
+      if (standard === "OWASP_TOP10") return 1;
+      if (standard === "CWE") return 2;
+      if (standard === "WSTG") return 3;
+      return 9;
+    }
+
+    function relationshipLabel(value) {
+      const text = asLowerText(value);
+      if (text === "direct") return "Direct";
+      if (text === "conditional") return "Conditional";
+      if (text === "related") return "Related";
+      return asText(value, "Related");
+    }
+
+    function evidenceScopeLabel(value) {
+      const text = asLowerText(value);
+      if (text === "attempt_only") return "Attempt observed";
+      if (text === "behavior_only") return "Behavior pattern observed";
+      if (text === "partial") return "Partial log evidence";
+      return "";
+    }
+
+    function clearStandardsMapping() {
+      const section = document.getElementById("pd-standards-section");
+      const scopeEl = document.getElementById("pd-standards-scope");
+      const groupsEl = document.getElementById("pd-standards-groups");
+      if (scopeEl) scopeEl.innerHTML = "";
+      if (groupsEl) groupsEl.innerHTML = "";
+      if (section) section.classList.add("is-hidden");
+    }
+
+    function appendStandardItem(container, item, seenBoundaryNotes) {
+      const row = document.createElement("article");
+      row.className = "payload-standard-item";
+
+      const main = document.createElement("div");
+      main.className = "payload-standard-main";
+
+      const code = document.createElement("span");
+      code.className = "payload-standard-id";
+      code.textContent = asText(item.id || item.standard, "Unknown");
+      main.appendChild(code);
+
+      const name = document.createElement("span");
+      name.className = "payload-standard-name";
+      name.textContent = asText(item.name, "Unnamed standard item");
+      main.appendChild(name);
+
+      const relationship = document.createElement("span");
+      relationship.className = "badge payload-badge payload-badge-standard-relationship";
+      relationship.textContent = relationshipLabel(item.relationship);
+      main.appendChild(relationship);
+
+      row.appendChild(main);
+
+      const boundaryNote = asText(item.boundary_note, "");
+      if (boundaryNote && !seenBoundaryNotes.has(boundaryNote)) {
+        seenBoundaryNotes.add(boundaryNote);
+        const note = document.createElement("p");
+        note.className = "payload-standard-boundary-note";
+        note.textContent = boundaryNote;
+        row.appendChild(note);
+      }
+
+      container.appendChild(row);
+    }
+
+    function renderStandardsMapping(finding) {
+      const section = document.getElementById("pd-standards-section");
+      const scopeEl = document.getElementById("pd-standards-scope");
+      const groupsEl = document.getElementById("pd-standards-groups");
+      if (!section || !scopeEl || !groupsEl) return;
+
+      const items = standardsMappingItems(finding);
+      if (!items.length) {
+        clearStandardsMapping();
+        return;
+      }
+
+      section.classList.remove("is-hidden");
+      scopeEl.innerHTML = "";
+      groupsEl.innerHTML = "";
+
+      const scopeLabel = evidenceScopeLabel(standardsMappingObservability(finding));
+      if (scopeLabel) {
+        const label = document.createElement("span");
+        label.className = "meta-label";
+        label.textContent = "Evidence Scope";
+        const value = document.createElement("span");
+        value.className = "badge payload-badge payload-badge-standard-scope";
+        value.textContent = scopeLabel;
+        scopeEl.appendChild(label);
+        scopeEl.appendChild(document.createTextNode(" "));
+        scopeEl.appendChild(value);
+      }
+
+      const grouped = new Map();
+      items.forEach((item) => {
+        const key = String(item.standard || "Other").trim() || "Other";
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(item);
+      });
+
+      const seenBoundaryNotes = new Set();
+      Array.from(grouped.entries())
+        .sort((a, b) => standardGroupOrder(a[0]) - standardGroupOrder(b[0]) || standardGroupLabel(a[0]).localeCompare(standardGroupLabel(b[0])))
+        .forEach(([standard, groupItems]) => {
+          const group = document.createElement("div");
+          group.className = "payload-standard-group";
+
+          const title = document.createElement("h5");
+          title.textContent = standardGroupLabel(standard);
+          group.appendChild(title);
+
+          groupItems.forEach((item) => appendStandardItem(group, item, seenBoundaryNotes));
+          groupsEl.appendChild(group);
+        });
+    }
+
     function relationIds(value) {
       return asList(value).map((item) => asText(item, "")).filter(Boolean);
     }
@@ -1150,6 +1298,7 @@
           row.classList.remove("is-selected");
           row.setAttribute("aria-selected", "false");
         });
+        clearStandardsMapping();
         return;
       }
 
@@ -1178,6 +1327,7 @@
       setText("pd-confidence", finding.confidence);
       setText("pd-reasoning-summary", finding.reasoning_summary);
       renderObservabilityBadges(finding);
+      renderStandardsMapping(finding);
       renderEvidence(asList(finding.evidence_fields));
       renderRelatedContexts(finding);
       renderSupportingEvents(finding);
