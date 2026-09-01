@@ -44,6 +44,7 @@
   - [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md): Web UI/API safety, 보안 결과 해석 read-only, `analysis_jobs` 등록/조회 DB write/read 허용 범위
   - [99_run_analysis_pipeline_user_runner_ux_review.md](./99_run_analysis_pipeline_user_runner_ux_review.md): `run_analysis_pipeline.py` 사용자 실행 UX와 DB-backed job lifecycle 연결 기준
 - 설계/회귀 검증
+  - [101_external_security_benchmark_design.md](./101_external_security_benchmark_design.md): OWASP CRS 930100/930110/930120 기반 외부 security benchmark의 observability, case annotation, fixture/result schema, metric, Level 1/2 상세 설계
   - [99_document_cleanup_plan.md](./99_document_cleanup_plan.md): 문서 정리 계획과 유지/archive/delete 근거
   - [99_lab_runner_migration_plan.md](./99_lab_runner_migration_plan.md): `lab/*_set` runner code를 `scripts/lab_runners/{set}/`로 분리하기 위한 설계와 영향 범위
   - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md): prepare 모듈 분리 계획
