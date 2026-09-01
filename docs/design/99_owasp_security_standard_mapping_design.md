@@ -158,10 +158,11 @@ Rule evaluation은 first-match가 아니라 additive evaluation이다. 단, supp
 2. Suppression: `benign_normal`, `likely_false_positive`, `inconclusive`, unknown verdict는 empty mapping을 반환한다. `fp_hint:*`, `context:educational_*`, `context:natural_language_query`가 있고 final verdict가 `likely_false_positive`이면 모든 mapping을 suppress한다.
 3. Stage1 verdict primary rules: SQLi, XSS, path traversal, command injection, brute force, auth abuse, server error, scan을 verdict 기준으로 평가한다.
 4. `suspicious_file_disclosure` decision tree: explicit traversal -> PHP wrapper/include-like -> direct sensitive file -> weak/ambiguous 순서로 평가한다.
-5. Evidence-combination rules: final verdict가 보안 의심 계열일 때만 `sensitive_path:*`, `dir_probe:*`, `file_probe:*`, `method_probe:*`, `protocol_anomaly:*`, `hpp:*`의 WSTG Related 보조 mapping을 추가할 수 있다.
-6. Duplicate removal: `(standard, id, relationship)` 기준으로 중복 제거한다.
-7. Stable ordering: OWASP_TOP10, CWE, WSTG 순서와 rule id lexical order를 함께 사용한다.
-8. Empty normalization: item이 없으면 `items: []`, `observability: not_applicable` 또는 verdict별 behavior scope, `unmapped_reason`을 채운다.
+5. Evidence-combination rules: final verdict가 보안 의심 계열일 때만 `sensitive_path:*`, `dir_probe:*`, `file_probe:*`, `file_disclosure:sensitive_resource:*`, `method_probe:*`, `protocol_anomaly:*`, `hpp:*`의 보조 mapping을 추가할 수 있다.
+6. Sensitive/admin evidence-combination rules는 raw `uri`, `query_string`, `raw_request_target` 문자열을 새 탐지 근거로 사용하지 않는다. Standards mapping layer는 `secret`, `passwd`, `/admin` 같은 문자열을 직접 검사해 새로운 sensitive-path/admin detector가 되면 안 된다.
+7. Duplicate removal: `(standard, id)` 기준으로 중복 제거한다. 동일 standard/id가 여러 relationship으로 생성되면 `direct > conditional > related` precedence를 적용하고, stronger relationship item의 `rule_id`, `basis`, `boundary_note`를 유지한다.
+8. Stable ordering: OWASP_TOP10, CWE, WSTG 순서와 rule id lexical order를 함께 사용한다.
+9. Empty normalization: item이 없으면 `items: []`, `observability: not_applicable` 또는 verdict별 behavior scope, `unmapped_reason`을 채운다.
 
 ## 9. Full mapping rule table
 
@@ -182,8 +183,8 @@ Rule evaluation은 first-match가 아니라 additive evaluation이다. 단, supp
 | STD-MAP-BRUTE-001 | `suspicious_bruteforce` | final verdict | no repeated auth behavior and non-bruteforce final verdict | OWASP_TOP10 | `A07:2025` | `direct` | `behavior_only` | Authentication attack behavior observed; login success/lockout absence unknown. |
 | STD-MAP-BRUTE-002 | `suspicious_bruteforce` | final verdict plus `auth_abuse:repeated_*` or `auth_abuse:rapid_fail_burst` preferred | single auth request only | CWE | `CWE-307` | `conditional` | `behavior_only` | Excessive-auth-attempt restriction weakness not confirmed. |
 | STD-MAP-BRUTE-003 | `suspicious_bruteforce` | final verdict plus repeated auth evidence preferred | single auth request only | WSTG | `WSTG-ATHN-03` | `related` | `behavior_only` | Weak lockout test scenario relation; lockout/CAPTCHA/rate limit not observed. |
-| STD-MAP-AUTH-001 | `suspicious_auth_abuse` | final broad auth abuse verdict | final `suspicious_bruteforce` already uses brute rules | OWASP_TOP10 | `A07:2025` | `related` | `behavior_only` | Broad auth abuse, not proof of authentication control failure. |
-| STD-MAP-AUTH-002 | `suspicious_auth_abuse` | `auth_abuse:repeated_*` or `auth_abuse:rapid_fail_burst` | single 200/401 or endpoint touch only | OWASP_TOP10 | `A07:2025` | `conditional` | `behavior_only` | Stronger repeated evidence exists, but credential success/lockout unknown. |
+| STD-MAP-AUTH-001 | `suspicious_auth_abuse` | final broad auth abuse verdict without repeated auth evidence | final `suspicious_bruteforce` already uses brute rules; repeated auth evidence uses STD-MAP-AUTH-002 instead | OWASP_TOP10 | `A07:2025` | `related` | `behavior_only` | Broad auth abuse, not proof of authentication control failure. |
+| STD-MAP-AUTH-002 | `suspicious_auth_abuse` | `auth_abuse:repeated_*` or `auth_abuse:rapid_fail_burst` | single 200/401 or endpoint touch only | OWASP_TOP10 | `A07:2025` | `conditional` | `behavior_only` | Stronger repeated evidence exists, but credential success/lockout unknown. This replaces A07 related in the final artifact. |
 | STD-MAP-AUTH-003 | `suspicious_auth_abuse` | repeated auth evidence | single 200/401 or endpoint touch only | CWE | `CWE-307` | `conditional` | `behavior_only` | Never Direct for current logs-only auth abuse. |
 | STD-MAP-FILE-TRAV-001 | `suspicious_file_disclosure` | `traversal:*` or existing explicit traversal evidence | none | OWASP_TOP10 | `A01:2025` | `direct` | `attempt_only` | File disclosure verdict with directory escape evidence; file read still unknown. |
 | STD-MAP-FILE-TRAV-002 | `suspicious_file_disclosure` | same as above | none | CWE | `CWE-22` | `direct` | `attempt_only` | Only if explicit traversal evidence exists. |
@@ -195,16 +196,16 @@ Rule evaluation은 first-match가 아니라 additive evaluation이다. 단, supp
 | STD-MAP-FILE-DIRECT-002 | `suspicious_file_disclosure` | direct sensitive file/config/backup path | traversal/PHP wrapper branch | CWE | `CWE-552` | `conditional` | `attempt_only` | External accessibility/content exposure not confirmed. |
 | STD-MAP-FILE-DIRECT-003 | `suspicious_file_disclosure` | config extension or backup/unreferenced path evidence | traversal/PHP wrapper branch | WSTG | `WSTG-CONF-04` | `related` | `attempt_only` | Backup/unreferenced sensitive file review scenario. |
 | STD-MAP-FILE-DIRECT-004 | `suspicious_file_disclosure` | extension/config path evidence | traversal/PHP wrapper branch | WSTG | `WSTG-CONF-03` | `related` | `attempt_only` | File extension handling scenario; content exposure unknown. |
-| STD-MAP-SENSITIVE-001 | security suspicious final verdict | `sensitive_path:*` or admin URI evidence | non-security final verdict | OWASP_TOP10 | `A01:2025` | `related` | verdict-derived | Forced browsing/admin enumeration context only. |
-| STD-MAP-SENSITIVE-002 | security suspicious final verdict | admin direct request or `sensitive_path:admin*` | non-security final verdict | CWE | `CWE-425` | `conditional` | verdict-derived | Direct request weakness requires access-control result evidence. |
-| STD-MAP-SENSITIVE-003 | security suspicious final verdict | sensitive file/config/backup direct probe | non-security final verdict | CWE | `CWE-552` | `conditional` | verdict-derived | File accessibility not confirmed. |
-| STD-MAP-SENSITIVE-004 | security suspicious final verdict | admin path enumeration | non-security final verdict | WSTG | `WSTG-CONF-05` | `related` | verdict-derived | Admin interface enumeration test scenario. |
-| STD-MAP-SENSITIVE-005 | security suspicious final verdict | backup/config/direct file evidence | non-security final verdict | WSTG | `WSTG-CONF-04` | `related` | verdict-derived | Backup/unreferenced file review scenario. |
+| STD-MAP-SENSITIVE-001 | security suspicious final verdict | `sensitive_path:admin*`, `dir_probe:admin*`, or `file_probe:admin*` Prepare evidence | non-security final verdict; raw `/admin` string only | OWASP_TOP10 | `A01:2025` | `related` | verdict-derived | Forced browsing/admin enumeration context only. |
+| STD-MAP-SENSITIVE-002 | security suspicious final verdict | `sensitive_path:admin*`, `dir_probe:admin*`, or `file_probe:admin*` Prepare evidence | non-security final verdict; raw `/admin` string only | CWE | `CWE-425` | `conditional` | verdict-derived | Direct request weakness requires access-control result evidence. |
+| STD-MAP-SENSITIVE-003 | security suspicious final verdict | `sensitive_path:*`, `file_probe:*`, or `file_disclosure:sensitive_resource:*` Prepare evidence for sensitive file/config/backup probing | non-security final verdict; raw `secret`/`passwd`/config-like string only | CWE | `CWE-552` | `conditional` | verdict-derived | File accessibility not confirmed. |
+| STD-MAP-SENSITIVE-004 | security suspicious final verdict | `sensitive_path:admin*`, `dir_probe:admin*`, or `file_probe:admin*` Prepare evidence | non-security final verdict; raw `/admin` string only | WSTG | `WSTG-CONF-05` | `related` | verdict-derived | Admin interface enumeration test scenario. |
+| STD-MAP-SENSITIVE-005 | security suspicious final verdict | `sensitive_path:*`, `file_probe:*`, or `file_disclosure:sensitive_resource:*` Prepare evidence for backup/config/direct file probing | non-security final verdict; raw `secret`/`passwd`/config-like string only | WSTG | `WSTG-CONF-04` | `related` | verdict-derived | Backup/unreferenced file review scenario. |
 | STD-MAP-METHOD-001 | security suspicious final verdict | `method_probe:*` | non-security final verdict | WSTG | `WSTG-CONF-06` | `related` | `behavior_only` | Method allowed/state change/bypass unknown. |
 | STD-MAP-PROTOCOL-001 | security suspicious final verdict | `protocol_anomaly:*` | non-security final verdict | WSTG | `WSTG-ERRH-01` | `related` | `behavior_only` | Protocol anomaly may relate to error handling; no A02/A10 by default. |
 | STD-MAP-HPP-001 | security suspicious final verdict | `hpp:duplicate_param_names` | non-security final verdict | WSTG | `WSTG-INPV-04` | `related` | `attempt_only` | App-specific parameter parsing unknown. |
 | STD-MAP-ERROR-001 | `server_error_probe` | final verdict | none | WSTG | `WSTG-ERRH-01` | `related` | `behavior_only` | Error probe is not A10; stack trace/internal state/fail-open unknown. |
-| STD-MAP-SCAN-001 | `suspicious_scan` | admin/sensitive path enumeration evidence | generic scan without specific evidence | WSTG | `WSTG-CONF-05` | `related` | `behavior_only` | Scan behavior itself is not vulnerability category. |
+| STD-MAP-SCAN-001 | `suspicious_scan` | `sensitive_path:admin*`, `dir_probe:admin*`, or `file_probe:admin*` Prepare evidence | generic scan without specific evidence; raw `/admin` string only | WSTG | `WSTG-CONF-05` | `related` | `behavior_only` | Scan behavior itself is not vulnerability category. |
 | STD-MAP-SCAN-002 | `suspicious_scan` | dir/file probing evidence | generic scan without specific evidence | WSTG | `WSTG-INFO-06` | `related` | `behavior_only` | Entry-point discovery scenario, not weakness. |
 | STD-MAP-NONSEC-001 | `benign_normal` | final verdict | none | none | none | `none` | `not_applicable` | Empty mapping. |
 | STD-MAP-NONSEC-002 | `likely_false_positive` | final verdict | none | none | none | `none` | `not_applicable` | Empty mapping, even if raw hints contain attack-looking strings. |
@@ -348,7 +349,14 @@ WSTG-ATHN-03도 실제 weak lockout mechanism 확인이 아니라 관련 테스�
 - `auth_abuse:rapid_fail_burst`
 - short-window auth sequence
 
-이 경우에도 CWE-307은 `conditional`을 유지한다. 단일 200/401 status나 auth endpoint 접근만으로 CWE-307을 생성하지 않는다.
+이 경우 최종 artifact는 다음만 저장한다.
+
+- OWASP_TOP10 `A07:2025`, `conditional`
+- CWE `CWE-307`, `conditional`
+
+이때 A07 `related`와 A07 `conditional`을 동시에 저장하지 않는다. 동일 `(standard, id)`에 여러 relationship이 생성되면 `direct > conditional > related` precedence에 따라 stronger relationship item만 남긴다. 따라서 repeated auth evidence가 있으면 A07 `conditional` item의 `rule_id`, `basis`, `boundary_note`를 유지한다.
+
+CWE-307은 이 경우에도 `conditional`을 유지한다. 단일 200/401 status나 auth endpoint 접근만으로 CWE-307을 생성하지 않는다.
 
 ## 15. File Disclosure decision tree
 
@@ -406,7 +414,7 @@ Required evidence:
 
 - `file_disclosure:sensitive_resource:*`
 - `sensitive_path:*`
-- `/.env`, `/config.php`, backup file, direct secret/resource path에 해당하는 기존 Prepare evidence
+- backup/config/direct sensitive file probing에 해당하는 기존 Prepare evidence
 
 Mapping:
 
@@ -417,6 +425,12 @@ Mapping:
 - evidence가 file extension/config handling에 가까우면 WSTG `WSTG-CONF-03`, `related`
 
 `CWE-200`은 actual exposure evidence 없이는 생성하지 않는다.
+
+Phase 1.1 보정:
+
+- `suspicious_file_disclosure` Branch C에서도 raw `uri`, `query_string`, `raw_request_target` 문자열 fallback을 우선하지 않는다.
+- 실제 pipeline에서는 Prepare가 `file_disclosure:sensitive_resource:*` 또는 `sensitive_path:*` reason hint를 전달하므로, mapping layer는 그 evidence를 신뢰한다.
+- raw `secret`, `passwd`, `/.env`, `/config.php` 같은 문자열 검사는 Prepare의 책임이며 standards mapping layer의 책임이 아니다.
 
 ### Branch D: weak/ambiguous file probe
 
@@ -444,6 +458,25 @@ Stage1 final verdict + Prepare evidence
 - WSTG `WSTG-CONF-05`, `related`
 
 실제 접근 가능/노출 여부는 추론하지 않는다.
+
+Phase 1.1 evidence policy:
+
+- cross-category standards mapping에서는 raw `uri`, `query_string`, `raw_request_target`의 `secret`, `passwd`, `/admin`, `/wp-admin`, `/administrator` 같은 문자열을 새 근거로 사용하지 않는다.
+- 다음 Prepare evidence family가 있을 때만 sensitive/admin related mapping을 추가한다.
+  - `sensitive_path:*`
+  - `dir_probe:*`
+  - `file_probe:*`
+  - `file_disclosure:sensitive_resource:*`
+- 따라서 `suspicious_sqli`의 `q=UNION SELECT secret FROM users` 또는 `q=UNION SELECT passwd FROM users`는 SQLi mapping만 가진다.
+- `suspicious_xss`의 `next=/admin`도 `sensitive_path:*`, `dir_probe:*`, `file_probe:*` evidence가 없으면 admin enumeration mapping을 가지지 않는다.
+
+이 정책의 요약은 다음이다.
+
+```text
+standards mapping != new detector
+```
+
+Standards mapping layer는 Prepare detection logic을 복제하지 않는다.
 
 ## 17. Method/Protocol rules
 
@@ -574,9 +607,16 @@ def build_security_standards_mapping(
 | output | `standards_mapping` dict |
 | invalid input | dict-like가 아니어도 empty mapping 반환. 예외를 pipeline 밖으로 전파하지 않음 |
 | unknown verdict | empty mapping + `unmapped_reason: "unknown_verdict"` |
-| duplicate 제거 | `(standard, id, relationship)` 기준 |
+| duplicate 제거 | `(standard, id)` 기준. relationship precedence는 `direct > conditional > related` |
 | stable ordering | `standard_order`, rule id 순 |
 | raw reason_hints 처리 | exact raw hint는 저장하지 않고 canonical basis token으로 변환 |
+
+동일 `(standard, id)` 충돌 처리:
+
+- 더 강한 relationship item을 유지한다.
+- precedence가 같으면 더 이른 stable rule order의 item을 유지한다.
+- 최종 artifact에는 선택된 item의 `rule_id`, `basis`, `boundary_note`가 그대로 남는다.
+- 예: repeated `suspicious_auth_abuse`는 A07 `related`와 A07 `conditional`을 동시에 저장하지 않고 A07 `conditional`만 저장한다.
 
 권장 helper:
 
@@ -868,13 +908,18 @@ Fail-open/fail-safe:
 | `test_direct_private_secret_is_not_traversal` | `suspicious_scan` or `inconclusive` | `sensitive_path:private_file` | optional WSTG-CONF-04 related only if scan | CWE-22 | `behavior_only` or `not_applicable` | direct path != traversal |
 | `test_direct_env_is_not_cwe22` | `suspicious_file_disclosure` | `sensitive_path:env_file` | CWE-552 conditional, WSTG-CONF-04 related | CWE-22, CWE-200 | `attempt_only` | exposure not confirmed |
 | `test_sqli_maps_injection_direct` | `suspicious_sqli` | `sqli:boolean_true_condition` | A05 direct, CWE-89 direct, WSTG-INPV-05 direct | A01 | `attempt_only` | DB execution/result unknown |
+| `test_sqli_query_secret_string_does_not_add_sensitive_file_mapping` | `suspicious_sqli` | `sqli:union_select`, query contains `secret` | A05 direct, CWE-89 direct, WSTG-INPV-05 direct | CWE-552, WSTG-CONF-04, A01, A02 | `attempt_only` | raw query word is not sensitive-file Prepare evidence |
+| `test_sqli_query_passwd_string_does_not_add_sensitive_file_mapping` | `suspicious_sqli` | `sqli:union_select`, query contains `passwd` | A05 direct, CWE-89 direct, WSTG-INPV-05 direct | CWE-552, WSTG-CONF-04, A01, A02 | `attempt_only` | standards mapping must not become a sensitive-file detector |
 | `test_xss_maps_without_stored_claim` | `suspicious_xss` | `xss:script_tag` | A05 direct, CWE-79 direct, WSTG-INPV-01 related | WSTG-INPV-02 | `attempt_only` | reflection/browser execution unknown |
+| `test_xss_query_admin_string_without_prepare_hint_does_not_add_admin_mapping` | `suspicious_xss` | `xss:script_tag`, query contains `next=/admin` | A05 direct, CWE-79 direct, WSTG-INPV-01 related | WSTG-CONF-05, CWE-425, A01 related | `attempt_only` | raw `/admin` string is not admin enumeration Prepare evidence |
 | `test_location_dash_xss_fp_has_empty_mapping` | `likely_false_positive` | `xss:external_navigation`, `context:educational_xss_search` | empty items | CWE-79, WSTG-INPV-01 | `not_applicable` | final FP suppresses mapping |
 | `test_cmdi_maps_cwe78_not_cwe77` | `suspicious_command_injection` | `cmdi:semicolon` | A05 direct, CWE-78 direct, WSTG-INPV-12 direct | CWE-77 | `attempt_only` | command execution unknown |
 | `test_repeated_bruteforce_cwe307_conditional` | `suspicious_bruteforce` | `auth_abuse:repeated_401`, `auth_abuse:rapid_fail_burst` | A07 direct, CWE-307 conditional, WSTG-ATHN-03 related | CWE-307 direct | `behavior_only` | lockout/rate limit unknown |
 | `test_broad_auth_abuse_no_default_cwe` | `suspicious_auth_abuse` | `login_endpoint(+1)`, `auth_abuse:no_auth_success_inference` | A07 related | CWE-307, WSTG-ATHN-03 | `behavior_only` | single auth access is insufficient |
+| `test_repeated_auth_abuse_adds_conditional_cwe307` | `suspicious_auth_abuse` | `auth_abuse:repeated_auth_endpoint`, `auth_abuse:no_auth_success_inference` | A07 conditional, CWE-307 conditional | A07 related, WSTG-ATHN-03 | `behavior_only` | same standard/id keeps stronger relationship only |
 | `test_generic_scanner_empty_mapping` | `suspicious_scan` | `ua:scanner(+1)` | empty items | OWASP_TOP10, CWE | `behavior_only` | scan is not vulnerability category |
 | `test_admin_path_enumeration_scanner_wstg_related` | `suspicious_scan` | `sensitive_path:admin`, `dir_probe:admin_sequence` | WSTG-CONF-05 related | A01 direct, CWE-425 direct | `behavior_only` | admin existence/access unknown |
+| `test_prepare_admin_enumeration_hint_preserves_cross_category_mapping` | `suspicious_sqli` | `sqli:union_select`, `sensitive_path:admin`, `dir_probe:admin_sequence` | SQLi direct items plus A01 related, CWE-425 conditional, WSTG-CONF-05 related | A01 direct, CWE-425 direct | `attempt_only` | actual Prepare evidence permits related admin mapping |
 | `test_server_error_probe_wstg_only` | `server_error_probe` | `error_status:500(+2)`, `error_table_context(+2)` | WSTG-ERRH-01 related | A10:2025, CWE-209 | `behavior_only` | error != A10 |
 | `test_php_wrapper_file_disclosure_conditional_cwe98` | `suspicious_file_disclosure` | `file_disclosure:php_filter_wrapper`, `file_disclosure:base64_source_intent`, `file_disclosure:resource_parameter` | A05 related, CWE-98 conditional, WSTG-ATHZ-01 related | CWE-22 direct | `attempt_only` | include/require unknown |
 | `test_traversal_based_file_disclosure_uses_traversal_branch` | `suspicious_file_disclosure` | `traversal:dotdot_slash(+4)`, `file_disclosure:sensitive_resource:config_php` | A01 direct, CWE-22 direct, WSTG-ATHZ-01 direct | CWE-98 | `attempt_only` | branch priority traversal first |
