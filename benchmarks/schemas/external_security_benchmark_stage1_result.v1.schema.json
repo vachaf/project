@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "external_security_benchmark_stage1_result.v1.schema.json",
+  "title": "External security benchmark Stage1 result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "benchmark",
+    "source_revision",
+    "run",
+    "counts",
+    "metrics",
+    "diagnostics",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "external_security_benchmark_stage1_result.v1"
+    },
+    "benchmark": {
+      "const": "owasp_crs_path_file_access.v1"
+    },
+    "source_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "level",
+        "stage",
+        "execution_mode",
+        "provider",
+        "model",
+        "complete",
+        "prepare_result_complete",
+        "candidate_input_fidelity"
+      ],
+      "properties": {
+        "level": {"const": "level_1_normalized_row"},
+        "stage": {"const": "stage1"},
+        "execution_mode": {"enum": ["controlled", "replay", "live"]},
+        "provider": {"type": ["string", "null"]},
+        "model": {"type": ["string", "null"]},
+        "complete": {"type": "boolean"},
+        "prepare_result_complete": {"type": "boolean"},
+        "candidate_input_fidelity": {"enum": ["verified", "failed"]}
+      },
+      "additionalProperties": true
+    },
+    "counts": {
+      "type": "object",
+      "required": [
+        "source_cases_total",
+        "directly_eligible_cases",
+        "partial_capability_cases",
+        "out_of_scope_cases",
+        "expected_candidate_cases",
+        "project_negative_cases",
+        "candidate_selected_cases",
+        "stage1_attempted_cases",
+        "stage1_completed_cases",
+        "stage1_failed_cases"
+      ],
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "candidate_recall_on_expected_candidates",
+        "stage1_verdict_compatibility_given_candidate",
+        "end_to_end_positive_verdict_compatibility",
+        "negative_control_pass_rate",
+        "negative_candidate_suppression_rate",
+        "mapping_consistency_given_compatible_classification",
+        "end_to_end_verdict_compatibility"
+      ],
+      "properties": {
+        "candidate_recall_on_expected_candidates": {"$ref": "#/$defs/fraction"},
+        "stage1_verdict_compatibility_given_candidate": {"$ref": "#/$defs/fraction"},
+        "end_to_end_positive_verdict_compatibility": {"$ref": "#/$defs/fraction"},
+        "negative_control_pass_rate": {"$ref": "#/$defs/fraction"},
+        "negative_candidate_suppression_rate": {"$ref": "#/$defs/fraction"},
+        "mapping_consistency_given_compatible_classification": {"$ref": "#/$defs/fraction"},
+        "end_to_end_verdict_compatibility": {"$ref": "#/$defs/fraction"}
+      },
+      "additionalProperties": false
+    },
+    "diagnostics": {"type": "object"},
+    "cases": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/case_result"}
+    }
+  },
+  "$defs": {
+    "fraction": {
+      "type": "object",
+      "required": ["passed", "total", "rate"],
+      "properties": {
+        "passed": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0},
+        "rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "case_result": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "source",
+        "observability",
+        "expected",
+        "request",
+        "prepare",
+        "stage1",
+        "classification",
+        "end_to_end",
+        "mapping",
+        "manual_audit_flags"
+      ],
+      "properties": {
+        "case_id": {"type": "string", "minLength": 1},
+        "source": {"type": "object"},
+        "observability": {"type": "object"},
+        "expected": {"type": "object"},
+        "request": {"type": "object"},
+        "prepare": {"type": "object"},
+        "stage1": {"type": "object"},
+        "classification": {"type": "object"},
+        "end_to_end": {"type": "object"},
+        "mapping": {"type": "object"},
+        "manual_audit_flags": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
