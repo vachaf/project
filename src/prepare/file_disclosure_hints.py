@@ -10,6 +10,14 @@ FILE_DISCLOSURE_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
     ("admin_config_php", re.compile(r"(?i)(?:resource\s*=|resource%3d|resource%253d)admin/config\.php\b"), 2),
     ("config_php", re.compile(r"(?i)(?:resource\s*=|resource%3d|resource%253d)config\.php\b"), 2),
     ("index_php", re.compile(r"(?i)(?:resource\s*=|resource%3d|resource%253d)index\.php\b"), 1),
+    (
+        "os_file",
+        re.compile(
+            r"(?i)(?:/etc/passwd|(?<![\w.-])(?:windows[/\\])?win\.ini)"
+            r"(?=$|%00|[\x00\s?&#/\\])"
+        ),
+        5,
+    ),
 ]
 
 PHP_FILTER_CANONICAL_PATTERN = re.compile(r"(?i)php\s*://\s*filter")
@@ -93,6 +101,9 @@ def detect_file_disclosure_hints(
     if pattern_hits.get("resource_parameter"):
         score_boost += points_by_name["resource_parameter"]
         _append_unique_hint(hints, "file_disclosure:resource_parameter")
+    if pattern_hits.get("os_file"):
+        score_boost += points_by_name["os_file"]
+        _append_unique_hint(hints, "file_disclosure:sensitive_resource:os_file")
 
     if resource_context:
         if pattern_hits.get("admin_config_php"):

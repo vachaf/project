@@ -398,6 +398,22 @@ def test_direct_sensitive_file_disclosure_probe() -> None:
     assert_not_id(mapping, "CWE-200")
 
 
+def test_direct_os_file_disclosure_is_not_traversal() -> None:
+    mapping = build_security_standards_mapping(
+        build_result(
+            "suspicious_file_disclosure",
+            ["file_disclosure:sensitive_resource:os_file"],
+            query_string="?file=News&op=/etc/passwd%00",
+        )
+    )
+
+    assert_has(mapping, "OWASP_TOP10", "A02:2025", "related")
+    assert_has(mapping, "CWE", "CWE-552", "conditional")
+    assert_has(mapping, "WSTG", "WSTG-CONF-04", "related")
+    assert_has(mapping, "WSTG", "WSTG-CONF-03", "related")
+    assert_not_id(mapping, "CWE-22")
+
+
 def test_benign_normal_empty_mapping() -> None:
     mapping = build_security_standards_mapping(
         build_result("benign_normal", ["baseline:static_asset"])

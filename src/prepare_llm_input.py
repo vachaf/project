@@ -4041,6 +4041,9 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     )
     direct_sensitive_config_probe = probe_path in {"/config.php", "/admin/config.php"}
     php_filter_wrapper_detected = "file_disclosure:php_filter_wrapper" in reason_hints
+    direct_sensitive_os_file_detected = (
+        "file_disclosure:sensitive_resource:os_file" in reason_hints
+    )
 
     if is_benign_fallback_html(
         traversal_hits=traversal_hits,
@@ -4072,6 +4075,8 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     elif cmdi_hits > 0 and score >= max(min_score, 6):
         verdict_hint = "command_injection"
     elif php_filter_wrapper_detected and score >= max(min_score, 6):
+        verdict_hint = "suspicious_file_disclosure"
+    elif direct_sensitive_os_file_detected and score >= min_score:
         verdict_hint = "suspicious_file_disclosure"
     elif is_login_success_json_response and score >= min_score:
         verdict_hint = "suspicious_auth_success"

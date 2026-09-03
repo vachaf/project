@@ -29,6 +29,7 @@ from src.external_benchmark_prepare import (
     write_prepare_benchmark_result,
 )
 from src.prepare_llm_input import build_outputs, extract_raw_request_target
+from src.security_standards_mapping import build_security_standards_mapping
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -214,6 +215,57 @@ def test_strict_traversal_runs_through_actual_build_outputs(normalized_cases: li
     assert result["actual"]["candidate_selected"] is True
     assert result["actual"]["candidate_count_for_request"] == 1
     assert result["result"]["candidate_selection"] == "pass"
+
+
+def test_windows_single_backslash_traversal_is_selected(prepare_result: dict) -> None:
+    actual = by_id(prepare_result["cases"], "owasp_crs.930110.8")["actual"]
+
+    assert actual["candidate_selected"] is True
+    assert "traversal:dotdot_slash(+4)" in actual["prepare_reason_hints"]
+
+
+@pytest.mark.parametrize("test_id", [4, 5])
+def test_embedded_dotdot_negative_controls_are_suppressed(
+    prepare_result: dict, test_id: int
+) -> None:
+    actual = by_id(prepare_result["cases"], f"owasp_crs.930110.{test_id}")["actual"]
+
+    assert actual["candidate_selected"] is False
+    assert not any(
+        hint.startswith("traversal:")
+        for hint in actual["filtered_reason_hints"]
+    )
+
+
+@pytest.mark.parametrize("case_id", ["owasp_crs.930100.2", "owasp_crs.930110.9"])
+def test_bounded_triple_dot_benchmark_cases_keep_traversal_evidence(
+    prepare_result: dict, case_id: str
+) -> None:
+    actual = by_id(prepare_result["cases"], case_id)["actual"]
+
+    assert actual["candidate_selected"] is True
+    assert "traversal:triple_dot_slash(+4)" in actual["prepare_reason_hints"]
+
+
+def test_direct_etc_passwd_is_file_disclosure_without_traversal(
+    prepare_result: dict,
+) -> None:
+    actual = by_id(prepare_result["cases"], "owasp_crs.930120.2")["actual"]
+
+    assert actual["candidate_selected"] is True
+    assert actual["prepare_verdict_hint"] == "suspicious_file_disclosure"
+    assert "file_disclosure:sensitive_resource:os_file" in actual["prepare_reason_hints"]
+    assert not any(
+        hint.startswith("traversal:") for hint in actual["prepare_reason_hints"]
+    )
+
+    mapping = build_security_standards_mapping(
+        {"verdict": "suspicious_file_disclosure"},
+        {"reason_hints": actual["prepare_reason_hints"]},
+    )
+    mapped_ids = {item["id"] for item in mapping["items"]}
+    assert {"A02:2025", "CWE-552", "WSTG-CONF-03", "WSTG-CONF-04"} <= mapped_ids
+    assert "CWE-22" not in mapped_ids
 
 
 def test_candidate_matching_uses_request_id_not_list_position(normalized_cases: list[dict]) -> None:

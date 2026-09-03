@@ -86,7 +86,7 @@ def test_apache_location_field_does_not_create_external_navigation_hint() -> Non
     assert candidate.verdict_hint == "path_traversal"
     assert candidate.score == 13
     assert "traversal:dotdot_slash(+4)" in candidate.reason_hints
-    assert "traversal:etc_passwd(+5)" in candidate.reason_hints
+    assert "file_disclosure:sensitive_resource:os_file" in candidate.reason_hints
     assert "xss:external_navigation" not in candidate.reason_hints
 
 

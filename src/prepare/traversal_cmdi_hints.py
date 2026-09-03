@@ -4,8 +4,15 @@ import re
 from typing import List, Tuple
 
 TRAVERSAL_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
-    ("dotdot_slash", re.compile(r"(?i)(?:\.\./|\.\.\\\\|%2e%2e%2f|%2e%2e/|\.\.%2f|%252e%252e%252f)"), 4),
-    ("etc_passwd", re.compile(r"(?i)/etc/passwd|win\.ini"), 5),
+    (
+        "dotdot_slash",
+        re.compile(
+            r"(?i)(?:^|[\s/\\?&=])"
+            r"(?:\.\.(?:/|\\)|%2e%2e%2f|%2e%2e/|\.\.%2f|%252e%252e%252f)"
+        ),
+        4,
+    ),
+    ("triple_dot_slash", re.compile(r"(?i)(?:^|[\s/\\?&=])\.\.\./"), 4),
 ]
 
 CMDI_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
