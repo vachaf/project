@@ -44,6 +44,7 @@
   - [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md): Web UI/API safety, 보안 결과 해석 read-only, `analysis_jobs` 등록/조회 DB write/read 허용 범위
   - [99_run_analysis_pipeline_user_runner_ux_review.md](./99_run_analysis_pipeline_user_runner_ux_review.md): `run_analysis_pipeline.py` 사용자 실행 UX와 DB-backed job lifecycle 연결 기준
 - 설계/회귀 검증
+  - [103_external_benchmark_mapping_boundary_review.md](./103_external_benchmark_mapping_boundary_review.md): traversal + direct-sensitive evidence의 CWE-552/WSTG-CONF-04 boundary, controlled Stage1 4건 conflict, case-specific manifest alignment 결론
   - [102_external_benchmark_prepare_baseline_review.md](./102_external_benchmark_prepare_baseline_review.md): OWASP CRS Prepare-only baseline 27 direct cases의 production path, miss/예상 밖 candidate 원인, P0~P3 우선순위와 Stage1 진입 결정
   - [101_external_security_benchmark_design.md](./101_external_security_benchmark_design.md): OWASP CRS 930100/930110/930120 기반 외부 security benchmark의 observability, case annotation, fixture/result schema, metric, Level 1/2 상세 설계
   - [99_document_cleanup_plan.md](./99_document_cleanup_plan.md): 문서 정리 계획과 유지/archive/delete 근거
