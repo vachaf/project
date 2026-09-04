@@ -7,6 +7,7 @@
 - Scope: `owasp_crs.930100.3` project classification annotation only
 - Change scope: documentation only
 - Final decision: **A. exact `suspicious_path_traversal` 유지**
+- Implementation status (2026-09-04): Phase 5B-3M-F manifest mapping alignment applied; classification decision unchanged
 
 Current manifest의 classification policy는 유지한다.
 

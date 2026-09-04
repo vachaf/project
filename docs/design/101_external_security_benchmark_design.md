@@ -125,7 +125,7 @@ candidate 생성의 주요 현재 특성은 다음과 같다.
 - HTML numeric entity variant를 별도로 추가한다.
 - raw request target 자체는 보존한다.
 
-CRS와 동일한 transform chain은 아니다. 현재 Prepare에는 CRS의 `utf8toUnicode`, `removeNulls`, `cmdLine`, `normalizePathWin`, CRS 전용 `0x2e`/`0x2f` 해석을 그대로 재현하는 contract가 없다. 따라서 encoded case가 observable하더라도 “CRS와 같은 방식으로 decode해야 한다”를 runner 요구사항으로 만들지 않는다. miss가 발생하면 현재 normalization coverage의 평가 결과로 기록한다.
+CRS와 동일한 transform/evaluation contract는 아니다. 특히 pinned CRS 930100은 `t:none` 아래 rule regex로 `0x`/NUL 표기를 포함한 encoded representation을 직접 인식하며, CRS가 먼저 그 값을 decode한다는 뜻이 아니다. Current Prepare에는 이 표기를 traversal evidence로 인식하는 normalization coverage가 없다. 따라서 encoded case가 observable하더라도 CRS 동작을 benchmark adapter에서 합성하지 않고, miss를 현재 project-side normalization/evidence coverage 결과로 기록한다.
 
 ### 3.4 direct sensitive path
 
@@ -169,6 +169,7 @@ severity와 confidence도 output에 있으나 CRS source에는 project severity/
 | Stage1/evidence branch | 현재 핵심 mapping |
 | --- | --- |
 | `suspicious_path_traversal` | `A01:2025` direct, `CWE-22` direct, `WSTG-ATHZ-01` direct |
+| `suspicious_path_traversal` + structured direct-sensitive evidence | primary traversal IDs + `CWE-552` conditional, `WSTG-CONF-04` related |
 | `suspicious_file_disclosure` + traversal hint | traversal과 같은 A01/CWE-22/WSTG-ATHZ-01 branch |
 | `suspicious_file_disclosure` + PHP wrapper | `A05:2025` related, `CWE-98` conditional, `WSTG-ATHZ-01` related |
 | `suspicious_file_disclosure` + direct sensitive evidence | `A02:2025` related, `CWE-552` conditional, `WSTG-CONF-03/04` related |
@@ -259,7 +260,7 @@ Source: pinned upstream `tests/regression/tests/REQUEST-930-APPLICATION-ATTACK-L
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 930100 / 1 | encoded `/../` | GET `/get` | custom `FoobarHeader=0x5c0x2e.%00/` | `expect_ids:[930100]` | `partial`, `header_not_available` | not scored; future header lane에서는 strict traversal | 현재 schema에 arbitrary header value 없음 |
 | 930100 / 2 | triple-dot `/.../` | GET `/get?foo=.../.../WINDOWS/win.ini` | request-target query value | `expect_ids:[930100]` | `direct` | candidate true; exact traversal; `CWE-22` | 첫 positive 후보. triple-dot escape가 raw target에 존재 |
-| 930100 / 3 | encoded triple-dot | GET `/get?foo=0x2e.%000x2f0x2e.%00/WINDOWS/win.ini` | request-target query value | `expect_ids:[930100]` | `direct` | candidate true; exact traversal; `CWE-22` | observable하지만 current URL decoder가 CRS `0x`/NUL transform을 재현하지 않음. normalization coverage test |
+| 930100 / 3 | encoded triple-dot | GET `/get?foo=0x2e.%000x2f0x2e.%00/WINDOWS/win.ini` | request-target query value | `expect_ids:[930100]` | `direct` | candidate true; exact traversal; `CWE-22` | pinned 930100 regex가 `t:none`으로 encoded representation을 직접 인식한다. Current Prepare의 traversal normalization/evidence coverage gap을 측정 |
 | 930100 / 4 | partially encoded backslash traversal | GET `/get` | custom `FoobarHeader=0x5c0x2e./` | `expect_ids:[930100]` | `partial`, `header_not_available` | not scored; future header lane에서는 strict traversal | URI 자체에는 payload 없음 |
 | 930100 / 5 | XML attribute injection | POST `/post` | XML body attribute | `expect_ids:[930100]` | `out_of_scope`, `xml_body_not_logged` | not scored | Content-Type만 보이고 payload body는 보이지 않음 |
 
@@ -375,7 +376,7 @@ source case가 바뀌어 checksum이 달라지면 자동으로 기존 annotation
     "mapping_by_verdict": {
       "suspicious_path_traversal": {
         "required_ids": ["A01:2025", "CWE-22", "WSTG-ATHZ-01"],
-        "forbidden_ids": ["CWE-552"]
+        "forbidden_ids": []
       }
     },
     "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
@@ -387,6 +388,8 @@ source case가 바뀌어 checksum이 달라지면 자동으로 기존 annotation
   }
 }
 ```
+
+이 예시는 sensitive-target traversal이므로 structured OS-file evidence가 함께 있으면 `CWE-552 conditional`과 `WSTG-CONF-04 related`가 additional non-forbidden mapping으로 허용된다. Direct-sensitive evidence가 없는 pure traversal case에서는 `CWE-552`를 forbidden으로 유지할 수 있다.
 
 Schema validation 규칙은 다음과 같다.
 
@@ -559,7 +562,7 @@ mapping_consistency_given_compatible_classification
 | candidate miss | `not_reached` |
 | non-security negative | `not_applicable` |
 
-strict traversal은 A01/CWE-22/WSTG-ATHZ-01을 요구할 수 있다. direct file disclosure는 actual verdict가 `suspicious_file_disclosure`일 때 A02/CWE-552/WSTG-CONF branch를 평가한다. `suspicious_scan`이 compatible한 case는 scan branch에 맞는 별도 expectation을 사용하며 file-disclosure mapping을 강요하지 않는다.
+Strict traversal은 A01/CWE-22/WSTG-ATHZ-01을 primary mapping으로 요구할 수 있다. Direct-sensitive evidence가 없는 pure traversal은 CWE-552를 forbidden으로 유지하지만, structured sensitive-target evidence가 함께 있는 traversal은 CWE-552 conditional과 WSTG-CONF-04 related를 additional non-forbidden enrichment로 허용한다. Direct file disclosure는 actual verdict가 `suspicious_file_disclosure`일 때 A02/CWE-552/WSTG-CONF branch를 평가한다. `suspicious_scan`이 compatible한 case는 scan branch에 맞는 별도 expectation을 사용하며 file-disclosure mapping을 강요하지 않는다.
 
 ## 17. Out-of-scope accounting
 
@@ -1068,4 +1071,3 @@ benchmark는 별도 JSON/Markdown artifact와 별도 count/metric을 가진다. 
 - pinned rule definition: <https://github.com/coreruleset/coreruleset/blob/96d9f99043b89f07fb5a4fdad1d7effbbbbcec1a/rules/REQUEST-930-APPLICATION-ATTACK-LFI.conf>
 - OWASP CRS license: <https://github.com/coreruleset/coreruleset/blob/96d9f99043b89f07fb5a4fdad1d7effbbbbcec1a/LICENSE>
 - ECML/PKDD 2007 Web Traffic Attack Challenge: <https://www.lirmm.fr/pkdd2007-challenge/>
-

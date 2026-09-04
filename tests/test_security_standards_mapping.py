@@ -74,7 +74,28 @@ def test_plain_traversal_maps_direct() -> None:
     assert_has(mapping, "CWE", "CWE-22", "direct")
     assert_has(mapping, "WSTG", "WSTG-ATHZ-01", "direct")
     assert_not_id(mapping, "CWE-552")
+    assert_not_id(mapping, "WSTG-CONF-04")
     assert_no_success_claims(mapping)
+
+
+def test_traversal_with_direct_sensitive_evidence_keeps_orthogonal_enrichment() -> None:
+    mapping = build_security_standards_mapping(
+        build_result(
+            "suspicious_path_traversal",
+            [
+                "traversal:dotdot_slash(+4)",
+                "file_disclosure:sensitive_resource:os_file",
+            ],
+        )
+    )
+
+    assert_has(mapping, "OWASP_TOP10", "A01:2025", "direct")
+    assert_has(mapping, "CWE", "CWE-22", "direct")
+    assert_has(mapping, "WSTG", "WSTG-ATHZ-01", "direct")
+    assert_has(mapping, "CWE", "CWE-552", "conditional")
+    assert_has(mapping, "WSTG", "WSTG-CONF-04", "related")
+    assert_not_id(mapping, "A02:2025")
+    assert_not_id(mapping, "WSTG-CONF-03")
 
 
 def test_url_encoded_traversal_maps_direct() -> None:

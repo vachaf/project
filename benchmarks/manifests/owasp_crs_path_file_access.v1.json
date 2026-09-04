@@ -68,16 +68,14 @@
               "CWE-22",
               "WSTG-ATHZ-01"
             ],
-            "forbidden_ids": [
-              "CWE-552"
-            ]
+            "forbidden_ids": []
           }
         },
         "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
       },
       "review": {
         "status": "approved",
-        "note": "Explicit triple-dot directory escape is a strict traversal case."
+        "note": "Explicit traversal remains primary; structured OS-file evidence may additionally produce CWE-552 conditional."
       }
     },
     {
@@ -113,16 +111,14 @@
               "CWE-22",
               "WSTG-ATHZ-01"
             ],
-            "forbidden_ids": [
-              "CWE-552"
-            ]
+            "forbidden_ids": []
           }
         },
         "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
       },
       "review": {
         "status": "approved",
-        "note": "Strict traversal semantics; current decoder coverage is evaluated later, not emulated here."
+        "note": "Pinned CRS 930100 raw encoded-regex semantics establish traversal; current Prepare's missing traversal evidence is a known normalization coverage gap."
       }
     },
     {
@@ -237,16 +233,14 @@
               "CWE-22",
               "WSTG-ATHZ-01"
             ],
-            "forbidden_ids": [
-              "CWE-552"
-            ]
+            "forbidden_ids": []
           }
         },
         "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
       },
       "review": {
         "status": "approved",
-        "note": "Strong strict traversal positive; source expect_ids is not the project label."
+        "note": "Explicit traversal remains primary; structured OS-file evidence may additionally produce CWE-552 conditional."
       }
     },
     {
@@ -486,16 +480,14 @@
               "CWE-22",
               "WSTG-ATHZ-01"
             ],
-            "forbidden_ids": [
-              "CWE-552"
-            ]
+            "forbidden_ids": []
           }
         },
         "boundary": "attempt_pattern_only_no_file_read_or_exploit_success"
       },
       "review": {
         "status": "approved",
-        "note": "Source provenance keeps this separate from the identical 930100 request."
+        "note": "Source provenance keeps this separate from the identical 930100 request; structured OS-file evidence may additionally produce CWE-552 conditional."
       }
     },
     {

@@ -12,6 +12,10 @@
 
 최소 수정 후보는 (1) single-backslash `..\` escape가 실제로 match하지 않는 regex bug, (2) embedded `foo../`와 `foo.../`를 segment escape로 오인하는 boundary bug, (3) direct `/etc/passwd|win.ini`를 `traversal:*`로 표시해 downstream CWE-22 branch까지 오염할 수 있는 Prepare hint taxonomy debt다. Semicolon traversal, query-value sensitive-resource 일반화, separator 없는 command-looking text는 같은 변경에 섞지 않는다.
 
+### Correction note (2026-09-04)
+
+이 문서의 `930100/3` 관련 “CRS transform/normalization” shorthand는 부정확했다. Pinned CRS 930100은 해당 encoded representation을 `t:none` rule regex로 직접 match한다. Project-side gap은 여전히 current Prepare의 normalization/evidence coverage이며, 아래 historical baseline analysis는 당시 기록으로 유지한다.
+
 11 candidate miss의 분해는 다음과 같다.
 
 | 구분 | 수 | cases |
@@ -342,4 +346,3 @@ Prepare side의 old broad signal만 그대로 남은 semantic debt로 판단한�
 ## 14. 변경 범위와 검증
 
 이 review에서는 production code, tests, manifest, adapter를 수정하지 않았다. 문서와 design index만 변경한다. commit은 만들지 않는다.
-

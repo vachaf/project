@@ -7,6 +7,7 @@
 - Scope: targeted policy review; documentation only
 - Production policy decision: **Policy B — Orthogonal evidence enrichment**
 - Final recommendation: **A. production mapper 유지 + manifest case-specific correction**
+- Follow-up classification resolution: Phase 5B-3C retained exact `suspicious_path_traversal` for `930100/3`
 
 Explicit directory escape와 direct-sensitive resource evidence가 함께 있으면 두 evidence axis를 모두 보존한다.
 
@@ -333,13 +334,13 @@ Evidence orthogonality가 모든 taxonomy를 자동 생성한다는 뜻은 아�
 | Case | Classification | Primary traversal IDs | Extra sensitive IDs | Current manifest | Recommended policy | Expected mapping result after policy |
 | --- | --- | --- | --- | --- | --- | --- |
 | `930100/2` | compatible/pass | A01:2025; CWE-22; WSTG-ATHZ-01 | CWE-552 conditional; WSTG-CONF-04 related | CWE-552 forbidden -> fail | remove CWE-552 from forbidden | pass |
-| `930100/3` | controlled fixture에서는 compatible/pass; production evidence classification은 별도 문제 | A01:2025; CWE-22; WSTG-ATHZ-01 (forced verdict) | CWE-552 conditional; WSTG-CONF-04 related | CWE-552 forbidden -> fail | mapping boundary상 CWE-552는 valid; classification annotation을 먼저 재검토 | current forced traversal contract에서 forbidden 제거 시 pass; final result는 classification review contract에 따름 |
+| `930100/3` | exact traversal retained by Phase 5B-3C | A01:2025; CWE-22; WSTG-ATHZ-01 | CWE-552 conditional; WSTG-CONF-04 related | CWE-552 forbidden -> fail | remove CWE-552 from forbidden | pass |
 | `930110/2` | compatible/pass | A01:2025; CWE-22; WSTG-ATHZ-01 | CWE-552 conditional; WSTG-CONF-04 related | CWE-552 forbidden -> fail | remove CWE-552 from forbidden | pass |
 | `930110/9` | compatible/pass | A01:2025; CWE-22; WSTG-ATHZ-01 | CWE-552 conditional; WSTG-CONF-04 related | CWE-552 forbidden -> fail | remove CWE-552 from forbidden | pass |
 
-네 mapping failure는 mapper bug가 아니라 manifest mismatch다. 다만 `930100/3`은 mapping mismatch와 별개로 manifest classification annotation이 current Prepare evidence와 충돌한다.
+네 mapping failure는 mapper bug가 아니라 manifest mismatch다. `930100/3`의 current Prepare evidence gap은 Phase 5B-3C에서 classification ambiguity가 아니라 measurable normalization/evidence coverage gap으로 확정됐다.
 
-## 13. The separate 930100/3 classification issue
+## 13. Resolved 930100/3 classification issue
 
 Current Prepare after Phase 5B-2F:
 
@@ -357,14 +358,7 @@ traversal evidence:
   none
 ```
 
-Manifest는 이 case를 exact `suspicious_path_traversal`로 고정한다. Controlled fixture는 allowed verdict 첫 값을 의도적으로 사용하므로 classification-compatible이지만, 이는 current production evidence가 traversal을 지지한다는 증거가 아니다.
-
-따라서 다음을 분리한다.
-
-- Mapping boundary: forced traversal verdict + direct-sensitive evidence에서도 CWE-552 conditional은 valid다.
-- Classification boundary: current decoder/evidence contract에서 이 encoding을 traversal로 볼 수 있는지는 별도 annotation review가 필요하다.
-
-이 review는 `930100/3`을 억지로 traversal 또는 file disclosure로 재분류하지 않는다. 후속 review에서는 source transform semantics, current decoder scope와 exact/compatible policy를 다시 판단해야 한다. Current evidence만 보면 `suspicious_file_disclosure`가 더 잘 정렬되지만, 이는 이 문서의 manifest change 결정으로 확정하지 않는다.
+Manifest는 이 case를 exact `suspicious_path_traversal`로 계속 고정한다. Phase 5B-3C는 pinned CRS 930100이 `t:none` raw regex로 encoded representation을 직접 인식하므로 external semantic ground truth가 traversal이라고 확정했다. Current Prepare가 traversal hint를 내지 않는 사실은 classification ambiguity가 아니라 알려진 project-side normalization/evidence coverage gap이다. Mapping boundary에서는 exact traversal verdict와 direct-sensitive evidence가 결합하므로 CWE-552 conditional과 WSTG-CONF-04 related가 valid optional enrichment다.
 
 ## 14. Recommended follow-up
 
@@ -373,8 +367,8 @@ Manifest는 이 case를 exact `suspicious_path_traversal`로 고정한다. Contr
 Production mapper는 유지한다. Case-specific manifest policy를 적용한다.
 
 - `930100/2`, `930110/2`, `930110/9`: traversal required IDs 유지, CWE-552를 forbidden에서 제거한다.
-- `930100/3`: classification review 결과와 함께 mapping contract를 갱신한다. Exact traversal을 유지한다면 CWE-552 forbidden을 제거한다. File disclosure로 바꾸면 해당 verdict의 direct-sensitive mapping contract를 사용한다.
-- Pure traversal controls (`930110/8`, `930110/12`, `930120/1`, `930120/3`, `930120/15`): CWE-552 forbidden을 유지한다. 필요하면 WSTG-CONF-04도 함께 forbidden으로 추가해 no-sensitive-evidence boundary를 대칭적으로 고정한다.
+- `930100/3`: Phase 5B-3C의 exact traversal 결정을 유지하고 CWE-552를 forbidden에서 제거한다.
+- Pure traversal controls (`930110/8`, `930110/12`, `930120/1`, `930120/3`, `930120/15`): CWE-552 forbidden을 유지한다. WSTG-CONF-04 forbidden 추가는 별도 policy expansion이며 이번 phase에는 포함하지 않는다.
 
 Expected files:
 
@@ -386,9 +380,9 @@ Expected files:
 
 `src/security_standards_mapping.py`, Stage1 evaluator와 schemas는 변경하지 않는다.
 
-### 14.2 Separate 930100/3 classification annotation review
+### 14.2 Resolved 930100/3 classification annotation review
 
-Mapping alignment와 논리적으로 분리된 작은 follow-up으로 처리한다. 같은 manifest/test 파일을 만질 수 있어 implementation 순서는 classification review를 먼저 끝내고 Phase 5B-3M-F를 한 번에 적용하는 편이 churn이 적다.
+Phase 5B-3C review가 완료됐으며 exact `suspicious_path_traversal`을 유지한다. Phase 5B-3M-F는 이 frozen classification을 넓히지 않고 mapping forbidden만 정렬한다.
 
 ### 14.3 No schema expansion
 
@@ -435,20 +429,20 @@ CWE-552 conditional과 WSTG-CONF-04 related counts가 줄어들며 detection ver
 5. **Current mapper cross-category rule은 intentional인가 accidental인가?** Intentional이다. Implementation 전 design, implementation commit과 cross-category policy가 이를 명시한다. Traversal-sensitive 전용 unit test가 없었던 것은 coverage gap이다.
 6. **Current manifest의 CWE-552 forbidden은 너무 강한가?** Direct-sensitive evidence가 있는 case에서는 yes. Pure traversal에서는 유지 가능하다.
 7. **Pure traversal과 sensitive-target traversal의 forbidden policy를 다르게 해야 하는가?** Yes. Case-specific policy가 evidence contract와 일치한다.
-8. **4 controlled mapping failures는 mapper bug인가 manifest mismatch인가?** Manifest mismatch다. `930100/3`에는 별도의 classification annotation 문제도 있다.
-9. **930100/3 classification problem은 별도 review로 분리해야 하는가?** Yes. Mapping policy를 classification annotation에 끌려가게 해서는 안 된다.
-10. **Live Stage1 baseline 전에 무엇을 수정해야 하는가?** Phase 5B-3M-F manifest/test/docs alignment와 `930100/3` classification annotation review를 먼저 완료해야 한다.
+8. **4 controlled mapping failures는 mapper bug인가 manifest mismatch인가?** Manifest mismatch다. `930100/3` classification은 후속 Phase 5B-3C에서 exact traversal로 해결됐다.
+9. **930100/3 classification problem은 어떻게 해결됐는가?** Pinned 930100 raw-regex semantics에 따라 exact traversal을 유지하며, current Prepare 차이는 normalization/evidence coverage gap으로 남긴다.
+10. **Live Stage1 baseline 전에 무엇을 수정해야 하는가?** Phase 5B-3M-F manifest/test/docs alignment를 완료하고 controlled mapping `9/9`를 확인해야 한다.
 
 ## 17. Live baseline go/no-go
 
-**Current state: no-go for a publishable single live baseline.**
+**Current state: Phase 5B-3M-F alignment와 controlled validation 완료 후 single live baseline 진행 가능.**
 
-Runner를 기술적으로 실행할 수는 있지만, known manifest contradiction 때문에 mapping metric이 오염되고 `930100/3` exact annotation도 current Prepare evidence와 충돌한다. 다음 순서가 맞다.
+Frozen review 결론을 live output에 맞춰 바꾸지 않는다. 다음 순서가 맞다.
 
-1. `930100/3` classification annotation review를 완료한다.
+1. Phase 5B-3C의 exact traversal 결정을 유지한다.
 2. Phase 5B-3M-F에서 case-specific mapping forbidden을 정렬한다.
-3. Controlled fixture가 compatible cases의 mapping contract를 모두 만족하는지 확인한다.
-4. 그 다음 single live Stage1 baseline을 실행한다.
+3. Controlled fixture가 compatible cases의 mapping contract를 `9/9`로 만족하는지 확인한다.
+4. 그 다음 single live Stage1 baseline을 별도 change set/result로 실행한다.
 
 이 alignment가 끝나면 production mapper/Stage1 code 변경 없이 single live baseline으로 진행할 수 있다.
 

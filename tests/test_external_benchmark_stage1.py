@@ -509,7 +509,7 @@ def test_930120_2_exact_file_disclosure_and_cwe22_forbidden_regression(
     assert case["classification"]["status"] == case["mapping"]["status"] == "pass"
 
 
-def test_930100_3_frozen_exact_expectation_is_preserved(
+def test_930100_3_reviewed_exact_expectation_is_preserved(
     normalized_cases: list[dict], prepare_result: dict
 ) -> None:
     case = evaluate_one(
@@ -521,6 +521,23 @@ def test_930100_3_frozen_exact_expectation_is_preserved(
     assert case["prepare"]["prepare_verdict_hint"] == "suspicious_file_disclosure"
     assert case["expected"]["allowed_stage1_verdicts"] == [
         "suspicious_path_traversal"
+    ]
+    assert case["expected"]["classification_policy"] == "exact"
+    assert case["expected"]["candidate_expected"] is True
+    assert case["observability"] == {
+        "eligible": True,
+        "status": "direct",
+        "surface": "request_target.query_value",
+        "required_capabilities": [
+            "raw_request",
+            "raw_request_target",
+            "query_string",
+        ],
+        "exclusion_reason": None,
+        "note": "Encoded triple-dot payload is preserved verbatim in the raw target.",
+    }
+    assert "suspicious_file_disclosure" in case["expected"][
+        "forbidden_stage1_verdicts"
     ]
     assert case["classification"]["status"] == "fail"
 
@@ -605,6 +622,11 @@ def test_manifest_candidate_denominators_are_used(controlled_full_result: dict) 
 
 def test_positive_and_negative_headlines_are_separate(controlled_full_result: dict) -> None:
     metrics = controlled_full_result["metrics"]
+    assert metrics["stage1_verdict_compatibility_given_candidate"] == {
+        "passed": 9,
+        "total": 9,
+        "rate": 1.0,
+    }
     assert metrics["end_to_end_positive_verdict_compatibility"] == {
         "passed": 9,
         "total": 19,
@@ -679,13 +701,45 @@ def test_mapping_metric_counts_only_compatible_cases_with_contract(
     metric = controlled_full_result["metrics"][
         "mapping_consistency_given_compatible_classification"
     ]
-    # The controlled verdicts are all compatible, but current production
-    # mapping also attaches CWE-552 to four traversal cases carrying a direct
-    # sensitive-resource hint.  The frozen manifest forbids that extra ID.
-    assert metric == {"passed": 5, "total": 9, "rate": 5 / 9}
+    assert metric == {"passed": 9, "total": 9, "rate": 1.0}
     assert controlled_full_result["diagnostics"][
         "mapping_not_scored_due_to_classification_cases"
     ] == []
+
+
+def test_controlled_sensitive_traversal_cases_keep_production_mapping_ids(
+    controlled_full_result: dict,
+) -> None:
+    expected_ids = {
+        "A01:2025",
+        "CWE-22",
+        "CWE-552",
+        "WSTG-ATHZ-01",
+        "WSTG-CONF-04",
+    }
+    for case_id in {
+        "owasp_crs.930100.2",
+        "owasp_crs.930100.3",
+        "owasp_crs.930110.2",
+        "owasp_crs.930110.9",
+    }:
+        case = by_id(controlled_full_result["cases"], case_id)
+        assert case["classification"]["status"] == "pass"
+        assert case["mapping"]["status"] == "pass"
+        assert set(case["mapping"]["actual_ids"]) == expected_ids
+
+
+def test_controlled_930110_8_keeps_pure_traversal_mapping(
+    controlled_full_result: dict,
+) -> None:
+    case = by_id(controlled_full_result["cases"], "owasp_crs.930110.8")
+    assert case["classification"]["status"] == "pass"
+    assert case["mapping"]["status"] == "pass"
+    assert set(case["mapping"]["actual_ids"]) == {
+        "A01:2025",
+        "CWE-22",
+        "WSTG-ATHZ-01",
+    }
 
 
 def test_manual_success_overclaim_audit_is_diagnostic_only(

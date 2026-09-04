@@ -30,6 +30,20 @@ SOURCE_DIR = ROOT / "benchmarks" / "sources" / "owasp_crs" / PINNED_REVISION
 MANIFEST_PATH = ROOT / "benchmarks" / "manifests" / "owasp_crs_path_file_access.v1.json"
 SCHEMA_DIR = ROOT / "benchmarks" / "schemas"
 
+SENSITIVE_TARGET_TRAVERSAL_CASES = {
+    "owasp_crs.930100.2",
+    "owasp_crs.930100.3",
+    "owasp_crs.930110.2",
+    "owasp_crs.930110.9",
+}
+PURE_TRAVERSAL_CASES = {
+    "owasp_crs.930110.8",
+    "owasp_crs.930110.12",
+    "owasp_crs.930120.1",
+    "owasp_crs.930120.3",
+    "owasp_crs.930120.15",
+}
+
 
 @pytest.fixture(scope="module")
 def source_cases() -> list[dict]:
@@ -281,18 +295,7 @@ def test_manifest_classification_policy_counts(manifest: dict) -> None:
 
 
 def test_strict_traversal_cases_are_exact_with_mapping(manifest: dict) -> None:
-    strict_ids = {
-        "owasp_crs.930100.2",
-        "owasp_crs.930100.3",
-        "owasp_crs.930110.2",
-        "owasp_crs.930110.8",
-        "owasp_crs.930110.9",
-        "owasp_crs.930110.12",
-        "owasp_crs.930120.1",
-        "owasp_crs.930120.3",
-        "owasp_crs.930120.15",
-    }
-    for case_id in strict_ids:
+    for case_id in SENSITIVE_TARGET_TRAVERSAL_CASES | PURE_TRAVERSAL_CASES:
         expected = by_id(manifest["cases"], case_id)["expected"]
         assert expected["classification_policy"] == "exact"
         assert expected["candidate_expected"] is True
@@ -302,6 +305,39 @@ def test_strict_traversal_cases_are_exact_with_mapping(manifest: dict) -> None:
             "CWE-22",
             "WSTG-ATHZ-01",
         ]
+
+
+def test_sensitive_target_traversal_allows_optional_cwe_552(manifest: dict) -> None:
+    for case_id in SENSITIVE_TARGET_TRAVERSAL_CASES:
+        expected = by_id(manifest["cases"], case_id)["expected"]
+        mapping = expected["mapping_by_verdict"]["suspicious_path_traversal"]
+        assert expected["classification_policy"] == "exact"
+        assert expected["allowed_stage1_verdicts"] == ["suspicious_path_traversal"]
+        assert mapping["required_ids"] == ["A01:2025", "CWE-22", "WSTG-ATHZ-01"]
+        assert mapping["forbidden_ids"] == []
+
+
+def test_pure_traversal_keeps_cwe_552_forbidden(manifest: dict) -> None:
+    for case_id in PURE_TRAVERSAL_CASES:
+        mapping = by_id(manifest["cases"], case_id)["expected"]["mapping_by_verdict"]
+        assert "CWE-552" in mapping["suspicious_path_traversal"]["forbidden_ids"]
+
+
+def test_930100_3_exact_classification_and_observability_are_frozen(manifest: dict) -> None:
+    case = by_id(manifest["cases"], "owasp_crs.930100.3")
+    assert case["observability"]["eligible"] is True
+    assert case["observability"]["status"] == "direct"
+    assert case["expected"]["project_ground_truth"] == "attack_positive"
+    assert case["expected"]["candidate_expected"] is True
+    assert case["expected"]["classification_policy"] == "exact"
+    assert case["expected"]["allowed_stage1_verdicts"] == [
+        "suspicious_path_traversal"
+    ]
+    assert case["expected"]["forbidden_stage1_verdicts"] == [
+        "suspicious_sqli",
+        "suspicious_xss",
+        "suspicious_file_disclosure",
+    ]
 
 
 def test_direct_etc_passwd_guardrail_matches_current_hint_boundary(manifest: dict) -> None:
