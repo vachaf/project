@@ -29,7 +29,9 @@ from src.security_standards_mapping import KNOWN_VERDICTS, build_security_standa
 
 RESULT_SCHEMA_VERSION = "external_security_benchmark_multifamily_stage1_result.v1"
 REPLAY_SCHEMA_VERSION = "external_security_benchmark_multifamily_stage1_replay.v1"
-EXECUTION_MODES = frozenset({"controlled", "replay"})
+# ``live`` still consumes the same normalized-record contract.  Provider
+# orchestration deliberately remains in external_benchmark_stage1_multifamily_live.
+EXECUTION_MODES = frozenset({"controlled", "replay", "live"})
 EXACT_LABELS = (
     "suspicious_path_traversal",
     "suspicious_command_injection",
@@ -282,6 +284,19 @@ def _prf(matrix: Mapping[str, Any]) -> dict[str, Any]:
     return {"per_class": per, "macro": {"precision": macro("precision"), "recall": macro("recall"), "f1": macro("f1")}}
 
 
+def _unavailable_prf(prf: Mapping[str, Any]) -> dict[str, Any]:
+    """Retain diagnostic counts but never publish partial-run score rates."""
+    out = copy.deepcopy(dict(prf))
+    for values in out.get("per_class", {}).values():
+        if isinstance(values, Mapping):
+            for name in ("precision", "recall", "f1"):
+                values[name] = None
+    if isinstance(out.get("macro"), Mapping):
+        for name in ("precision", "recall", "f1"):
+            out["macro"][name] = None
+    return out
+
+
 def controlled_records(resolved_suite: Mapping[str, Any], prepare_result: Mapping[str, Any]) -> list[dict[str, Any]]:
     """Create deterministic approved-verdict records; this is not model output."""
     prepares = {x["case_id"]: x for x in prepare_result["cases"]}
@@ -302,7 +317,7 @@ def controlled_records(resolved_suite: Mapping[str, Any], prepare_result: Mappin
 
 
 def evaluate_multifamily_stage1(resolved_suite: Mapping[str, Any], prepare_result: Mapping[str, Any], stage1_records: Sequence[Mapping[str, Any]], *, execution_mode: str, prepare_path: str | None = None) -> dict[str, Any]:
-    if execution_mode not in EXECUTION_MODES: raise MultiFamilyStage1ContractError("execution_mode must be controlled or replay")
+    if execution_mode not in EXECUTION_MODES: raise MultiFamilyStage1ContractError("execution_mode must be controlled, replay, or live")
     errors = validate_multifamily_prepare_result(prepare_result)
     if errors: raise MultiFamilyStage1ContractError("invalid Prepare result: " + "; ".join(errors))
     if prepare_result.get("complete") is not True: raise MultiFamilyStage1ContractError("Prepare artifact must be complete")
@@ -371,6 +386,8 @@ def evaluate_multifamily_stage1(resolved_suite: Mapping[str, Any], prepare_resul
     mapping_scored = [x for x in results if x["mapping"]["result"] in {"pass", "fail"}]
     stage_matrix, e2e_matrix = _matrix(conditioned, e2e=False), _matrix(e2e, e2e=True)
     stage_prf, e2e_prf = _prf(stage_matrix), _prf(e2e_matrix)
+    if not complete:
+        stage_prf, e2e_prf = _unavailable_prf(stage_prf), _unavailable_prf(e2e_prf)
     cross = sum(row["prediction"] in EXACT_LABELS and row["prediction"] != row["expected"] for row in conditioned)
     candidate_recall_by_class = {}
     compatibility_by_class = {}

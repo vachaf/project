@@ -7,7 +7,7 @@
     "schema_version": {"const": "external_security_benchmark_multifamily_stage1_result.v1"},
     "suite": {"const": "owasp_crs_multi_family.v1"},
     "source_revision": {"type": "string", "minLength": 1},
-    "execution_mode": {"enum": ["controlled", "replay"]},
+    "execution_mode": {"enum": ["controlled", "replay", "live"]},
     "complete": {"type": "boolean"},
     "prepare_artifact": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": ["string", "null"]}, "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}}, "additionalProperties": false},
     "counts": {"type": "object", "required": ["reviewed_cases", "direct_cases", "not_scored_cases", "attack_positive", "project_negative", "candidate_selected_positive", "candidate_missed_positive", "stage1_expected", "stage1_completed", "stage1_missing", "stage1_error", "exact_core_cases", "exact_core_selected"], "additionalProperties": {"type": "integer", "minimum": 0}},
