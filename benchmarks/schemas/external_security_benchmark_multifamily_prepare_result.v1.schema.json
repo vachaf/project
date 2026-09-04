@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "external_security_benchmark_multifamily_prepare_result.v1.schema.json",
+  "title": "OWASP CRS multi-family Prepare-only result v1",
+  "type": "object",
+  "required": ["schema_version", "suite", "source_revision", "stage", "complete", "run", "counts", "component_counts", "metrics", "diagnostics", "cases"],
+  "properties": {
+    "schema_version": {"const": "external_security_benchmark_multifamily_prepare_result.v1"},
+    "suite": {"const": "owasp_crs_multi_family.v1"},
+    "source_revision": {"type": "string", "minLength": 1},
+    "stage": {"const": "prepare_only"},
+    "complete": {"type": "boolean"},
+    "run": {"type": "object"},
+    "counts": {"type": "object"},
+    "component_counts": {"type": "object"},
+    "metrics": {"type": "object"},
+    "diagnostics": {"type": "object"},
+    "cases": {"type": "array", "items": {"type": "object"}}
+  },
+  "additionalProperties": false
+}

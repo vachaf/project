@@ -91,7 +91,14 @@ the four-class macro core.  913 scanner and 933 PHP are deliberately deferred.
 
 Source facts, project annotations, and suite composition remain separate.
 Neither source family/rule nor expected project verdict is a Stage1 candidate
-field.  This phase contains no Prepare/Stage1 runner or network behavior.
+field.
+
+Phase 6B-2 adds `src/external_benchmark_prepare_multifamily.py`. It takes the
+suite as its entry point, resolves the component manifests locally, runs every
+direct reviewed case in a separate production Prepare invocation, and writes
+the `external_security_benchmark_multifamily_prepare_result.v1` artifact. It
+keeps the 930 evaluator frozen and uses the same neutral Apache `security` row
+contract for the new families. It performs no LLM, database, or network call.
 
 For a future CRS revision, create a new revision directory or bundle; retrieve
 raw YAML bytes; calculate and review SHA-256/count/provenance; review source
