@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "External security benchmark multi-family Stage1 result v1",
+  "type": "object",
+  "required": ["schema_version", "suite", "source_revision", "execution_mode", "complete", "prepare_artifact", "counts", "metrics", "confusion_matrices", "cases"],
+  "properties": {
+    "schema_version": {"const": "external_security_benchmark_multifamily_stage1_result.v1"},
+    "suite": {"const": "owasp_crs_multi_family.v1"},
+    "source_revision": {"type": "string"},
+    "execution_mode": {"enum": ["controlled", "replay"]},
+    "complete": {"type": "boolean"},
+    "prepare_artifact": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": ["string", "null"]}, "sha256": {"type": ["string", "null"]}}},
+    "counts": {"type": "object"},
+    "metrics": {"type": "object"},
+    "confusion_matrices": {"type": "object", "required": ["stage1_conditioned_exact_core", "end_to_end_exact_core"]},
+    "path_file_boundary_addendum": {"type": "array"},
+    "cases": {"type": "array", "items": {"type": "object", "required": ["case_id", "prepare", "stage1", "classification", "mapping"]}}
+  },
+  "additionalProperties": true
+}
