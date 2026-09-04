@@ -38,6 +38,7 @@ EXACT_LABELS = (
 )
 GROUP_TO_LABEL = dict(zip(("traversal", "cmdi", "xss", "sqli"), EXACT_LABELS))
 ERROR_STATUSES = frozenset({"stage1_api_error", "stage1_parse_error", "stage1_validation_error", "stage1_runtime_error"})
+CLASSIFICATION_POLICIES = frozenset({"exact", "compatible_set", "forbidden_only", "not_scored"})
 
 
 class MultiFamilyStage1ContractError(ValueError):
@@ -56,6 +57,121 @@ def _case_key(case: Mapping[str, Any]) -> tuple[int, int, str]:
 def _direct(case: Mapping[str, Any]) -> bool:
     obs = case.get("observability", {})
     return isinstance(obs, Mapping) and obs.get("eligible") is True and obs.get("status") == "direct"
+
+
+def _raw_request_target(case: Mapping[str, Any]) -> Any:
+    """Read the normalized legacy or family-joined request target."""
+
+    request = case.get("request")
+    if isinstance(request, Mapping):
+        return request.get("request_target")
+    source = case.get("source")
+    if isinstance(source, Mapping) and isinstance(source.get("request"), Mapping):
+        return source["request"].get("request_target")
+    return None
+
+
+def _validate_case_contract(case: Mapping[str, Any]) -> None:
+    """Validate the evaluator-relevant, manifest-owned part of one case.
+
+    The suite loader validates its own schema, but this evaluator must not turn
+    a malformed policy into a score.  In particular, exact-core class labels
+    are derived from the suite, never from a provider record.
+    """
+
+    case_id = case.get("case_id")
+    if not isinstance(case_id, str) or not case_id:
+        raise MultiFamilyStage1ContractError("resolved case needs a non-empty case_id")
+    expected = case.get("expected")
+    if not isinstance(expected, Mapping):
+        raise MultiFamilyStage1ContractError(f"{case_id}: expected must be an object")
+    policy = expected.get("classification_policy")
+    allowed = expected.get("allowed_stage1_verdicts")
+    forbidden = expected.get("forbidden_stage1_verdicts")
+    if policy not in CLASSIFICATION_POLICIES:
+        raise MultiFamilyStage1ContractError(f"{case_id}: unsupported classification policy: {policy!r}")
+    if not isinstance(allowed, list) or not all(isinstance(value, str) for value in allowed):
+        raise MultiFamilyStage1ContractError(f"{case_id}: allowed_stage1_verdicts must be a string array")
+    if not isinstance(forbidden, list) or not all(isinstance(value, str) for value in forbidden):
+        raise MultiFamilyStage1ContractError(f"{case_id}: forbidden_stage1_verdicts must be a string array")
+    if len(allowed) != len(set(allowed)) or len(forbidden) != len(set(forbidden)):
+        raise MultiFamilyStage1ContractError(f"{case_id}: Stage1 verdict lists must be unique")
+    if set(allowed) & set(forbidden):
+        raise MultiFamilyStage1ContractError(f"{case_id}: allowed and forbidden Stage1 verdicts overlap")
+    unknown = sorted((set(allowed) | set(forbidden)) - KNOWN_VERDICTS)
+    if unknown:
+        raise MultiFamilyStage1ContractError(f"{case_id}: unknown Stage1 verdicts: {unknown!r}")
+    if policy == "exact" and len(allowed) != 1:
+        raise MultiFamilyStage1ContractError(f"{case_id}: exact policy requires one allowed verdict")
+    if policy == "compatible_set" and not allowed:
+        raise MultiFamilyStage1ContractError(f"{case_id}: compatible_set policy requires allowed verdicts")
+    # Frozen 930 negative controls retain informative allowed benign verdicts,
+    # but forbidden_only scoring is intentionally governed only by its
+    # forbidden set.
+    if policy == "forbidden_only" and not forbidden:
+        raise MultiFamilyStage1ContractError(f"{case_id}: forbidden_only policy requires at least one forbidden verdict")
+    if policy == "not_scored" and (allowed or forbidden):
+        raise MultiFamilyStage1ContractError(f"{case_id}: not_scored policy requires empty verdict lists")
+    mappings = expected.get("mapping_by_verdict")
+    if not isinstance(mappings, Mapping) or any(key not in allowed for key in mappings):
+        raise MultiFamilyStage1ContractError(f"{case_id}: invalid mapping_by_verdict contract")
+    for verdict, contract in mappings.items():
+        if not isinstance(contract, Mapping):
+            raise MultiFamilyStage1ContractError(f"{case_id}: mapping contract for {verdict} must be an object")
+        required, forbidden_ids = contract.get("required_ids"), contract.get("forbidden_ids")
+        if not isinstance(required, list) or not all(isinstance(value, str) for value in required):
+            raise MultiFamilyStage1ContractError(f"{case_id}: mapping required_ids must be a string array")
+        if not isinstance(forbidden_ids, list) or not all(isinstance(value, str) for value in forbidden_ids):
+            raise MultiFamilyStage1ContractError(f"{case_id}: mapping forbidden_ids must be a string array")
+        if set(required) & set(forbidden_ids):
+            raise MultiFamilyStage1ContractError(f"{case_id}: mapping required and forbidden IDs overlap")
+
+
+def _exact_core_labels(resolved_suite: Mapping[str, Any], cases: Mapping[str, Mapping[str, Any]]) -> dict[str, str]:
+    """Return the fixed-order exact-core rows after checking their invariants."""
+
+    suite = resolved_suite.get("suite_manifest")
+    groups = suite.get("groups") if isinstance(suite, Mapping) else None
+    exact_core = groups.get("exact_core") if isinstance(groups, Mapping) else None
+    if not isinstance(exact_core, Mapping) or set(exact_core) != set(GROUP_TO_LABEL):
+        raise MultiFamilyStage1ContractError("suite exact_core must contain traversal, cmdi, xss, and sqli")
+    labels: dict[str, str] = {}
+    for group, label in GROUP_TO_LABEL.items():
+        ids = exact_core.get(group)
+        if not isinstance(ids, list):
+            raise MultiFamilyStage1ContractError(f"suite exact_core.{group} must be an array")
+        for case_id in ids:
+            if not isinstance(case_id, str) or case_id in labels or case_id not in cases:
+                raise MultiFamilyStage1ContractError("suite exact_core case IDs must be known and unique")
+            case, expected = cases[case_id], cases[case_id].get("expected", {})
+            if (not _direct(case) or expected.get("project_ground_truth") != "attack_positive"
+                    or expected.get("classification_policy") != "exact"
+                    or expected.get("allowed_stage1_verdicts") != [label]):
+                raise MultiFamilyStage1ContractError(f"{case_id}: exact_core membership does not match its strict class contract")
+            labels[case_id] = label
+    return labels
+
+
+def _validate_prepare_case_fidelity(cases: Mapping[str, Mapping[str, Any]], prepares: Mapping[str, Mapping[str, Any]]) -> None:
+    """Ensure the saved Prepare observation belongs to the resolved request."""
+
+    for case_id, case in cases.items():
+        prepare = prepares[case_id]
+        actual = prepare.get("actual")
+        if not isinstance(actual, Mapping):
+            raise MultiFamilyStage1ContractError(f"{case_id}: Prepare actual must be an object")
+        if not _direct(case):
+            if actual.get("candidate_selected") is not None:
+                raise MultiFamilyStage1ContractError(f"{case_id}: not-scored case has a Prepare candidate state")
+            continue
+        expected_request_id = benchmark_request_id(case_id)
+        target = _raw_request_target(case)
+        if actual.get("request_id") != expected_request_id:
+            raise MultiFamilyStage1ContractError(f"{case_id}: Prepare request ID mismatch")
+        if actual.get("raw_request_target") != target:
+            raise MultiFamilyStage1ContractError(f"{case_id}: Prepare raw request target mismatch")
+        if actual.get("candidate_selected") is not True and actual.get("candidate_selected") is not False:
+            raise MultiFamilyStage1ContractError(f"{case_id}: Prepare candidate_selected must be boolean")
 
 
 def _policy(expected: Mapping[str, Any], verdict: str) -> dict[str, Any]:
@@ -206,8 +322,10 @@ def evaluate_multifamily_stage1(resolved_suite: Mapping[str, Any], prepare_resul
     if not isinstance(prepare_counts, Mapping) or any(prepare_counts.get(key) != value for key, value in required_prepare_counts.items()):
         raise MultiFamilyStage1ContractError("Prepare artifact accounting does not match resolved suite")
     records = _record_index(stage1_records, cases, prepares)
-    suite = resolved_suite["suite_manifest"]
-    exact_ids = {case_id: GROUP_TO_LABEL[group] for group, ids in suite["groups"]["exact_core"].items() for case_id in ids}
+    for case in cases.values():
+        _validate_case_contract(case)
+    _validate_prepare_case_fidelity(cases, prepares)
+    exact_ids = _exact_core_labels(resolved_suite, cases)
     results, conditioned, e2e = [], [], []
     complete = True
     for case in sorted(cases.values(), key=_case_key):
@@ -235,7 +353,10 @@ def evaluate_multifamily_stage1(resolved_suite: Mapping[str, Any], prepare_resul
             if classification["compatible"]:
                 mapping = _mapping_result(expected, verdict, build_security_standards_mapping(stage1, _candidate(case, prep)))
             else:
-                mapping = {"execution_status": "not_scored_due_to_classification", "actual_ids": _ids(build_security_standards_mapping(stage1, _candidate(case, prep))), "result": "not_scored_due_to_classification"}
+                # Classification is the mapping gate.  Do not call the
+                # production mapper for an incompatible verdict and then make
+                # its output look like a mapping failure.
+                mapping = {"execution_status": "not_scored_due_to_classification", "actual_ids": [], "result": "not_scored_due_to_classification"}
             out.update(stage1=stage1, classification=classification, mapping=mapping, end_to_end={"result": "pass" if classification["compatible"] else "failed_by_stage1_classification"})
             if case_id in exact_ids:
                 e2e.append({"expected": exact_ids[case_id], "prediction": verdict})
@@ -251,31 +372,83 @@ def evaluate_multifamily_stage1(resolved_suite: Mapping[str, Any], prepare_resul
     stage_matrix, e2e_matrix = _matrix(conditioned, e2e=False), _matrix(e2e, e2e=True)
     stage_prf, e2e_prf = _prf(stage_matrix), _prf(e2e_matrix)
     cross = sum(row["prediction"] in EXACT_LABELS and row["prediction"] != row["expected"] for row in conditioned)
-    by_class = {}
+    candidate_recall_by_class = {}
+    compatibility_by_class = {}
+    end_to_end_by_class = {}
     mapping_by_class = {}
     for label in EXACT_LABELS:
         cp = [x for x in completed_positive if x["expected"].get("allowed_stage1_verdicts") == [label]]
         allp = [x for x in positives if x["expected"].get("allowed_stage1_verdicts") == [label]]
-        by_class[label] = {"stage1_compatibility_given_candidate": _fraction(sum(x["classification"]["compatible"] is True for x in cp), len(cp), complete), "positive_end_to_end_compatibility": _fraction(sum(x["end_to_end"]["result"] == "pass" for x in allp), len(allp), complete)}
+        selected = [x for x in allp if x["prepare"]["candidate_selected"] is True]
+        candidate_recall_by_class[label] = _fraction(len(selected), len(allp), complete)
+        compatibility_by_class[label] = _fraction(sum(x["classification"]["compatible"] is True for x in cp), len(cp), complete)
+        end_to_end_by_class[label] = _fraction(sum(x["end_to_end"]["result"] == "pass" for x in allp), len(allp), complete)
         mapped = [x for x in results if x["classification"].get("compatible") is True and x["expected"].get("allowed_stage1_verdicts") == [label] and x["mapping"]["result"] in {"pass", "fail"}]
         mapping_by_class[label] = _fraction(sum(x["mapping"]["result"] == "pass" for x in mapped), len(mapped), complete)
     counts = {"reviewed_cases": len(results), "direct_cases": len(direct), "not_scored_cases": len(results)-len(direct), "attack_positive": len(positives), "project_negative": len(negatives), "candidate_selected_positive": len(selected_positive), "candidate_missed_positive": len(positives)-len(selected_positive), "stage1_expected": sum(x["prepare"]["candidate_selected"] is True for x in direct), "stage1_completed": sum(x["stage1"]["execution_status"] == "completed" for x in direct), "stage1_missing": sum(x["stage1"]["execution_status"] == "stage1_missing_result" for x in direct), "stage1_error": sum(x["stage1"]["execution_status"] in ERROR_STATUSES for x in direct), "exact_core_cases": len(exact_ids), "exact_core_selected": sum(x["prepare"]["candidate_selected"] is True for x in results if x["case_id"] in exact_ids)}
-    metrics = {"candidate_recall": _fraction(len(selected_positive), len(positives)), "stage1_compatibility_given_candidate": _fraction(len(compatible_positive), len(completed_positive), complete), "positive_end_to_end_compatibility": _fraction(sum(x["end_to_end"]["result"] == "pass" for x in positives), len(positives), complete), "negative_candidate_suppression": _fraction(sum(x["prepare"]["candidate_selected"] is False for x in negatives), len(negatives)), "negative_control_pass": _fraction(sum(x["end_to_end"]["result"] == "passed_by_prepare_suppression" or x["end_to_end"]["result"] == "pass" for x in negatives), len(negatives), complete), "mapping_consistency_given_compatible_classification": _fraction(sum(x["mapping"]["result"] == "pass" for x in mapping_scored), len(mapping_scored), complete), "mapping_consistency_by_class": mapping_by_class, "stage1_compatibility_by_class": by_class, "positive_end_to_end_by_class": by_class, "cross_family_confusion_rate": _fraction(cross, len(conditioned), complete), "other_classification_failure_rate": _fraction(sum(r["prediction"] not in EXACT_LABELS for r in conditioned), len(conditioned), complete), "exact_core_stage1": {"compatibility": _fraction(sum(r["prediction"] == r["expected"] for r in conditioned), len(conditioned), complete), **stage_prf}, "exact_core_end_to_end": {"compatibility": _fraction(sum(r["prediction"] == r["expected"] for r in e2e), len(e2e), complete), **e2e_prf}, "stage1_conditioned_macro": stage_prf["macro"], "end_to_end_macro": e2e_prf["macro"]}
+    metrics = {"candidate_recall": _fraction(len(selected_positive), len(positives)), "candidate_recall_by_class": candidate_recall_by_class, "stage1_compatibility_given_candidate": _fraction(len(compatible_positive), len(completed_positive), complete), "stage1_compatibility_by_class": compatibility_by_class, "positive_end_to_end_compatibility": _fraction(sum(x["end_to_end"]["result"] == "pass" for x in positives), len(positives), complete), "positive_end_to_end_by_class": end_to_end_by_class, "negative_candidate_suppression": _fraction(sum(x["prepare"]["candidate_selected"] is False for x in negatives), len(negatives)), "negative_control_pass": _fraction(sum(x["end_to_end"]["result"] == "passed_by_prepare_suppression" or x["end_to_end"]["result"] == "pass" for x in negatives), len(negatives), complete), "mapping_consistency_given_compatible_classification": _fraction(sum(x["mapping"]["result"] == "pass" for x in mapping_scored), len(mapping_scored), complete), "mapping_consistency_by_class": mapping_by_class, "cross_family_confusion_rate": _fraction(cross, len(conditioned), complete), "other_classification_failure_rate": _fraction(sum(r["prediction"] not in EXACT_LABELS for r in conditioned), len(conditioned), complete), "exact_core_stage1": {"compatibility": _fraction(sum(r["prediction"] == r["expected"] for r in conditioned), len(conditioned), complete), **stage_prf}, "exact_core_end_to_end": {"compatibility": _fraction(sum(r["prediction"] == r["expected"] for r in e2e), len(e2e), complete), **e2e_prf}, "stage1_conditioned_macro": stage_prf["macro"], "end_to_end_macro": e2e_prf["macro"]}
     provenance = {"path": prepare_path, "sha256": hashlib.sha256(Path(prepare_path).read_bytes()).hexdigest() if prepare_path else None}
-    return {"schema_version": RESULT_SCHEMA_VERSION, "suite": SUITE_NAME, "source_revision": PINNED_REVISION, "execution_mode": execution_mode, "complete": complete, "prepare_artifact": provenance, "counts": counts, "metrics": metrics, "confusion_matrices": {"stage1_conditioned_exact_core": stage_matrix, "end_to_end_exact_core": e2e_matrix}, "path_file_boundary_addendum": [x for x in results if x["case_id"] == "owasp_crs.930120.2"], "cases": results}
+    addendum_ids = resolved_suite["suite_manifest"]["groups"].get("path_file_boundary_addendum", [])
+    result_by_id = {item["case_id"]: item for item in results}
+    addendum = [result_by_id[case_id] for case_id in addendum_ids if case_id in result_by_id]
+    return {"schema_version": RESULT_SCHEMA_VERSION, "suite": SUITE_NAME, "source_revision": PINNED_REVISION, "execution_mode": execution_mode, "complete": complete, "prepare_artifact": provenance, "counts": counts, "metrics": metrics, "confusion_matrices": {"stage1_conditioned_exact_core": stage_matrix, "end_to_end_exact_core": e2e_matrix}, "path_file_boundary_addendum": addendum, "cases": results}
 
 
 def validate_multifamily_stage1_result(result: Mapping[str, Any]) -> list[str]:
+    """Perform lightweight semantic validation without a jsonschema runtime.
+
+    The checked-in JSON schema describes the portable wire format.  These
+    checks additionally protect the arithmetic and fixed strict-label contract
+    when an evaluator result is written or consumed by tests.
+    """
+
     errors = []
     if result.get("schema_version") != RESULT_SCHEMA_VERSION: errors.append("invalid schema_version")
     if result.get("suite") != SUITE_NAME: errors.append("invalid suite")
     if result.get("execution_mode") not in EXECUTION_MODES: errors.append("invalid execution_mode")
+    if not isinstance(result.get("complete"), bool): errors.append("complete must be boolean")
+    provenance = result.get("prepare_artifact")
+    if not isinstance(provenance, Mapping):
+        errors.append("prepare_artifact must be an object")
+    elif not isinstance(provenance.get("path"), (str, type(None))) or not isinstance(provenance.get("sha256"), (str, type(None))):
+        errors.append("prepare_artifact path and sha256 must be string or null")
+    counts = result.get("counts")
+    required_counts = ("reviewed_cases", "direct_cases", "not_scored_cases", "attack_positive", "project_negative", "candidate_selected_positive", "candidate_missed_positive", "stage1_expected", "stage1_completed", "stage1_missing", "stage1_error", "exact_core_cases", "exact_core_selected")
+    if not isinstance(counts, Mapping):
+        errors.append("counts must be an object")
+        counts = {}
+    else:
+        for name in required_counts:
+            if isinstance(counts.get(name), bool) or not isinstance(counts.get(name), int) or counts[name] < 0:
+                errors.append(f"counts.{name} must be a non-negative integer")
     cases = result.get("cases")
     if not isinstance(cases, list): errors.append("cases must be an array")
-    elif result.get("counts", {}).get("reviewed_cases") != len(cases): errors.append("reviewed_cases mismatch")
+    else:
+        ids = [item.get("case_id") for item in cases if isinstance(item, Mapping)]
+        if len(ids) != len(cases) or any(not isinstance(case_id, str) for case_id in ids) or len(set(ids)) != len(ids):
+            errors.append("cases must have unique string case IDs")
+        if counts.get("reviewed_cases") != len(cases): errors.append("reviewed_cases mismatch")
     for name in ("stage1_conditioned_exact_core", "end_to_end_exact_core"):
         matrix = result.get("confusion_matrices", {}).get(name, {})
         if matrix.get("row_labels") != list(EXACT_LABELS): errors.append(f"{name} has invalid row labels")
+        columns, rows = matrix.get("column_labels"), matrix.get("rows")
+        if not isinstance(columns, list) or columns[:len(EXACT_LABELS)] != list(EXACT_LABELS) or len(columns) != len(set(columns)):
+            errors.append(f"{name} has invalid column labels")
+            continue
+        if not isinstance(rows, Mapping):
+            errors.append(f"{name} rows must be an object")
+            continue
+        total = 0
+        for label in EXACT_LABELS:
+            row = rows.get(label)
+            if not isinstance(row, Mapping) or set(row) != set(columns):
+                errors.append(f"{name}.{label} does not match column labels")
+                continue
+            if any(isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in row.values()):
+                errors.append(f"{name}.{label} cells must be non-negative integers")
+            total += sum(value for value in row.values() if isinstance(value, int) and not isinstance(value, bool))
+        if matrix.get("denominator") != total:
+            errors.append(f"{name} denominator mismatch")
     return errors
 
 

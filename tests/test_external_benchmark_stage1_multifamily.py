@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+import src.external_benchmark_stage1_multifamily as stage1_multifamily
 from src.external_benchmark_prepare import benchmark_request_id
 from src.external_benchmark_prepare_multifamily import load_resolved_suite
 from src.external_benchmark_stage1_multifamily import (
@@ -81,6 +82,11 @@ def test_cross_family_and_other_verdict_columns(controlled: tuple[dict, dict, li
     matrix = result["confusion_matrices"]["stage1_conditioned_exact_core"]
     assert matrix["rows"]["suspicious_sqli"]["suspicious_xss"] == 1
     assert result["metrics"]["cross_family_confusion_rate"]["passed"] == 1
+    sql["verdict"] = "suspicious_command_injection"
+    result = evaluate_multifamily_stage1(suite, prepare, records, execution_mode="controlled")
+    matrix = result["confusion_matrices"]["stage1_conditioned_exact_core"]
+    assert matrix["rows"]["suspicious_sqli"]["suspicious_command_injection"] == 1
+    assert result["metrics"]["cross_family_confusion_rate"]["passed"] == 1
     xss = next(record for record in records if record["case_id"] == "owasp_crs.941110.2")
     xss["verdict"] = "inconclusive"
     result = evaluate_multifamily_stage1(suite, prepare, records, execution_mode="controlled")
@@ -124,7 +130,8 @@ def test_contract_errors_and_immutability(controlled: tuple[dict, dict, list[dic
 def test_compatible_and_file_disclosure_excluded_from_strict_matrix(controlled: tuple[dict, dict, list[dict], dict]) -> None:
     suite, prepare, records, result = controlled
     assert "owasp_crs.930120.2" not in {case["case_id"] for case in result["cases"] if case["case_id"] in suite["suite_manifest"]["groups"]["exact_core"]["traversal"]}
-    addendum = result["path_file_boundary_addendum"][0]
+    assert len(result["path_file_boundary_addendum"]) == 10
+    addendum = by_id(result["path_file_boundary_addendum"], "owasp_crs.930120.2")
     assert addendum["stage1"]["verdict"] == "suspicious_file_disclosure"
     assert addendum["mapping"]["result"] == "pass"
     # A selected compatible-set record contributes to compatibility, but cannot alter a strict exact matrix.
@@ -139,6 +146,38 @@ def test_compatible_and_file_disclosure_excluded_from_strict_matrix(controlled: 
     assert result["confusion_matrices"]["stage1_conditioned_exact_core"]["denominator"] == 29
 
 
+def test_candidate_miss_record_is_unexpected_and_prepare_fidelity_is_checked(controlled: tuple[dict, dict, list[dict], dict]) -> None:
+    suite, prepare, records, _ = controlled
+    missed = next(item for item in prepare["cases"] if item["actual"]["candidate_selected"] is False)
+    records.append({"case_id": missed["case_id"], "request_id": missed["actual"]["request_id"], "execution_status": "completed", "verdict": "inconclusive"})
+    with pytest.raises(MultiFamilyStage1ContractError, match="unexpected_stage1_result"):
+        evaluate_multifamily_stage1(suite, prepare, records, execution_mode="replay")
+    prepare = copy.deepcopy(prepare)
+    prepare["cases"][0]["actual"]["candidate_selected"] = True
+    with pytest.raises(MultiFamilyStage1ContractError, match="not-scored"):
+        evaluate_multifamily_stage1(suite, prepare, controlled_records(suite, prepare), execution_mode="controlled")
+
+
+def test_mapping_is_not_called_for_incompatible_classification(monkeypatch: pytest.MonkeyPatch, controlled: tuple[dict, dict, list[dict], dict]) -> None:
+    suite, prepare, records, _ = controlled
+    record = next(item for item in records if item["case_id"] == "owasp_crs.932125.1")
+    record["verdict"] = "suspicious_sqli"
+
+    def must_not_map(*_args: object, **_kwargs: object) -> dict:
+        raise AssertionError("classification-gated mapper was called")
+
+    monkeypatch.setattr(stage1_multifamily, "build_security_standards_mapping", must_not_map)
+    # The test record is only selected for this CMDi case; all other records
+    # remain compatible and therefore need a mapper.  Remove them so the gate
+    # itself is isolated, producing an incomplete but valid diagnostic run.
+    records[:] = [record]
+    result = evaluate_multifamily_stage1(suite, prepare, records, execution_mode="replay")
+    failed = by_id(result["cases"], "owasp_crs.932125.1")
+    assert failed["classification"]["compatible"] is False
+    assert failed["mapping"]["result"] == "not_scored_due_to_classification"
+
+
+
 def test_mapping_contract_required_forbidden_and_extra() -> None:
     expected = {"mapping_by_verdict": {"suspicious_xss": {"required_ids": ["A05:2025", "CWE-79"], "forbidden_ids": ["CWE-89"]}}}
     def mapping(*ids: str) -> dict: return {"items": [{"id": item} for item in ids]}
@@ -146,10 +185,60 @@ def test_mapping_contract_required_forbidden_and_extra() -> None:
     assert _mapping_result(expected, "suspicious_xss", mapping("A05:2025", "CWE-79", "CWE-89"))["result"] == "fail"
 
 
+def test_primary_mapping_contracts_and_file_disclosure_addendum(controlled: tuple[dict, dict, list[dict], dict]) -> None:
+    _, _, _, result = controlled
+    expected_ids = {
+        "owasp_crs.930100.2": {"A01:2025", "CWE-22", "WSTG-ATHZ-01"},
+        "owasp_crs.932125.1": {"A05:2025", "CWE-78", "WSTG-INPV-12"},
+        "owasp_crs.941110.2": {"A05:2025", "CWE-79", "WSTG-INPV-01"},
+        "owasp_crs.942160.1": {"A05:2025", "CWE-89", "WSTG-INPV-05"},
+        "owasp_crs.930120.2": {"A02:2025", "CWE-552", "WSTG-CONF-03", "WSTG-CONF-04"},
+    }
+    for case_id, required in expected_ids.items():
+        mapping = by_id(result["cases"], case_id)["mapping"]
+        assert mapping["result"] == "pass"
+        assert required <= set(mapping["actual_ids"])
+    assert "CWE-22" not in set(by_id(result["cases"], "owasp_crs.930120.2")["mapping"]["actual_ids"])
+
+
 def test_prepare_hash_is_recorded(controlled: tuple[dict, dict, list[dict], dict]) -> None:
     suite, prepare, records, _ = controlled
     result = evaluate_multifamily_stage1(suite, prepare, records, execution_mode="controlled", prepare_path=str(PREPARE))
     assert result["prepare_artifact"]["sha256"] == hashlib.sha256(PREPARE.read_bytes()).hexdigest()
+
+
+def test_full_family_and_exact_core_metrics_are_separate(controlled: tuple[dict, dict, list[dict], dict]) -> None:
+    _, _, _, result = controlled
+    metrics = result["metrics"]
+    assert metrics["stage1_compatibility_given_candidate"] == {"passed": 36, "total": 36, "rate": 1.0}
+    assert metrics["positive_end_to_end_compatibility"] == {"passed": 36, "total": 55, "rate": 36 / 55}
+    assert metrics["candidate_recall_by_class"]["suspicious_path_traversal"] == {"passed": 8, "total": 9, "rate": 8 / 9}
+    assert metrics["exact_core_end_to_end"]["per_class"]["suspicious_xss"]["recall"] == 5 / 9
+    assert metrics["end_to_end_macro"]["recall"] == 29 / 36
+    for label in EXACT_LABELS:
+        assert metrics["mapping_consistency_by_class"][label]["rate"] == 1.0
+
+
+def test_shuffled_inputs_have_identical_serialization(controlled: tuple[dict, dict, list[dict], dict]) -> None:
+    suite, prepare, records, result = controlled
+    suite = copy.deepcopy(suite)
+    prepare = copy.deepcopy(prepare)
+    suite["cases"].reverse()
+    prepare["cases"].reverse()
+    shuffled = evaluate_multifamily_stage1(suite, prepare, list(reversed(records)), execution_mode="controlled")
+    assert shuffled == result
+
+
+def test_replay_and_zero_support_contracts(controlled: tuple[dict, dict, list[dict], dict]) -> None:
+    suite, prepare, records, _ = controlled
+    replay = evaluate_multifamily_stage1(suite, prepare, records, execution_mode="replay")
+    assert replay["execution_mode"] == "replay"
+    suite = copy.deepcopy(suite)
+    suite["suite_manifest"]["groups"]["exact_core"]["xss"] = []
+    zero_support = evaluate_multifamily_stage1(suite, prepare, records, execution_mode="controlled")
+    xss = zero_support["metrics"]["exact_core_stage1"]["per_class"]["suspicious_xss"]
+    assert xss["support"] == 0
+    assert xss["precision"] is None and xss["recall"] is None and xss["f1"] is None
 
 
 def test_result_schema_parses_and_declares_result_contract() -> None:

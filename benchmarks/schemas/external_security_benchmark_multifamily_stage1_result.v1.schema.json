@@ -6,15 +6,18 @@
   "properties": {
     "schema_version": {"const": "external_security_benchmark_multifamily_stage1_result.v1"},
     "suite": {"const": "owasp_crs_multi_family.v1"},
-    "source_revision": {"type": "string"},
+    "source_revision": {"type": "string", "minLength": 1},
     "execution_mode": {"enum": ["controlled", "replay"]},
     "complete": {"type": "boolean"},
-    "prepare_artifact": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": ["string", "null"]}, "sha256": {"type": ["string", "null"]}}},
-    "counts": {"type": "object"},
-    "metrics": {"type": "object"},
-    "confusion_matrices": {"type": "object", "required": ["stage1_conditioned_exact_core", "end_to_end_exact_core"]},
+    "prepare_artifact": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": ["string", "null"]}, "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}}, "additionalProperties": false},
+    "counts": {"type": "object", "required": ["reviewed_cases", "direct_cases", "not_scored_cases", "attack_positive", "project_negative", "candidate_selected_positive", "candidate_missed_positive", "stage1_expected", "stage1_completed", "stage1_missing", "stage1_error", "exact_core_cases", "exact_core_selected"], "additionalProperties": {"type": "integer", "minimum": 0}},
+    "metrics": {"type": "object", "required": ["candidate_recall", "candidate_recall_by_class", "stage1_compatibility_given_candidate", "stage1_compatibility_by_class", "positive_end_to_end_compatibility", "positive_end_to_end_by_class", "negative_candidate_suppression", "negative_control_pass", "cross_family_confusion_rate", "mapping_consistency_given_compatible_classification", "mapping_consistency_by_class", "exact_core_stage1", "exact_core_end_to_end", "stage1_conditioned_macro", "end_to_end_macro"]},
+    "confusion_matrices": {"type": "object", "required": ["stage1_conditioned_exact_core", "end_to_end_exact_core"], "properties": {"stage1_conditioned_exact_core": {"$ref": "#/$defs/matrix"}, "end_to_end_exact_core": {"$ref": "#/$defs/matrix"}}},
     "path_file_boundary_addendum": {"type": "array"},
     "cases": {"type": "array", "items": {"type": "object", "required": ["case_id", "prepare", "stage1", "classification", "mapping"]}}
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "$defs": {
+    "matrix": {"type": "object", "required": ["row_labels", "column_labels", "rows", "denominator", "kind"], "properties": {"row_labels": {"const": ["suspicious_path_traversal", "suspicious_command_injection", "suspicious_xss", "suspicious_sqli"]}, "column_labels": {"type": "array", "minItems": 4, "uniqueItems": true}, "rows": {"type": "object"}, "denominator": {"type": "integer", "minimum": 0}, "kind": {"enum": ["stage1_conditioned", "end_to_end"]}}}
+  }
 }
