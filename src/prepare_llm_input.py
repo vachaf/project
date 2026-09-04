@@ -4056,6 +4056,33 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         return None, filtered_noise_category
 
     # 3) 최종 판정 힌트
+    # Context scores (HPP, length, punctuation, status, timing, and similar
+    # observability signals) support a detected security semantic.  They do
+    # not independently make an otherwise generic request a candidate.
+    substantive_security_signal = any(
+        (
+            sqli_hits,
+            xss_hits,
+            traversal_hits,
+            cmdi_hits,
+            decoded_score_boost,
+            file_disclosure_score_boost,
+            log4shell_score_boost,
+            ssrf_score_boost,
+            open_redirect_score_boost,
+            ssti_score_boost,
+            graphql_score_boost,
+            xxe_score_boost,
+            webshell_score_boost,
+        )
+    )
+    # This existing upload branch intentionally retains a multipart request
+    # with a SQL-comment signal for review without classifying it as SQLi.
+    # It is an explicit semantic policy, not generic-score accumulation.
+    substantive_security_signal = substantive_security_signal or (
+        "sqli:sql_comment_upload_context_weak_signal" in reason_hints
+        and "upload:multipart_or_upload_like_context" in reason_hints
+    )
     if educational_sql_context and sqli_hits > 0 and not strong_sqli_structure:
         if score >= min_score:
             verdict_hint = "possible_false_positive_sql_keyword_search"
@@ -4080,7 +4107,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         verdict_hint = "suspicious_file_disclosure"
     elif is_login_success_json_response and score >= min_score:
         verdict_hint = "suspicious_auth_success"
-    elif score >= min_score:
+    elif score >= min_score and substantive_security_signal:
         if direct_sensitive_config_probe and not php_filter_wrapper_detected:
             return None, filtered_noise_category
         verdict_hint = "suspicious"

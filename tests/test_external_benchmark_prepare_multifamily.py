@@ -162,16 +162,16 @@ def test_runner_isolates_all_direct_cases_and_never_executes_out_of_scope(resolv
     assert result["complete"] is True
 
 
-def test_production_baseline_metrics_and_legacy_930_compatibility(production_result: dict) -> None:
+def test_production_phase_6b2f_metrics_and_legacy_930_compatibility(production_result: dict) -> None:
     assert production_result["complete"] is True
     assert production_result["counts"] == {"reviewed_cases_total": 93, "direct_cases": 83, "not_scored_cases": 10, "attack_positive_cases": 55, "project_negative_cases": 28, "exact_core_cases": 36, "evaluated_direct_cases": 83}
     metrics = production_result["metrics"]
-    assert metrics["candidate_recall_on_expected_candidates"] == {"passed": 27, "total": 55, "rate": 27 / 55}
-    assert metrics["negative_candidate_suppression_rate"] == {"passed": 24, "total": 28, "rate": 24 / 28}
-    assert metrics["candidate_recall_by_class"] == {"Traversal": {"passed": 9, "total": 19, "rate": 9 / 19}, "CMDi": {"passed": 3, "total": 12, "rate": 3 / 12}, "XSS": {"passed": 7, "total": 12, "rate": 7 / 12}, "SQLi": {"passed": 8, "total": 12, "rate": 8 / 12}}
-    assert metrics["exact_core_candidate_recall_by_class"] == {"Traversal": {"passed": 8, "total": 9, "rate": 8 / 9}, "CMDi": {"passed": 2, "total": 9, "rate": 2 / 9}, "XSS": {"passed": 5, "total": 9, "rate": 5 / 9}, "SQLi": {"passed": 7, "total": 9, "rate": 7 / 9}}
-    assert metrics["exact_core_macro_candidate_recall"] == {"class_count": 4, "rate": (8 / 9 + 2 / 9 + 5 / 9 + 7 / 9) / 4}
-    assert metrics["negative_suppression_by_family"] == {"path_file_negative": {"passed": 8, "total": 8, "rate": 1.0}, "cmdi_negative": {"passed": 5, "total": 6, "rate": 5 / 6}, "xss_negative": {"passed": 3, "total": 6, "rate": 0.5}, "sqli_negative": {"passed": 8, "total": 8, "rate": 1.0}}
+    assert metrics["candidate_recall_on_expected_candidates"] == {"passed": 36, "total": 55, "rate": 36 / 55}
+    assert metrics["negative_candidate_suppression_rate"] == {"passed": 28, "total": 28, "rate": 1.0}
+    assert metrics["candidate_recall_by_class"] == {"Traversal": {"passed": 9, "total": 19, "rate": 9 / 19}, "CMDi": {"passed": 12, "total": 12, "rate": 1.0}, "XSS": {"passed": 7, "total": 12, "rate": 7 / 12}, "SQLi": {"passed": 8, "total": 12, "rate": 8 / 12}}
+    assert metrics["exact_core_candidate_recall_by_class"] == {"Traversal": {"passed": 8, "total": 9, "rate": 8 / 9}, "CMDi": {"passed": 9, "total": 9, "rate": 1.0}, "XSS": {"passed": 5, "total": 9, "rate": 5 / 9}, "SQLi": {"passed": 7, "total": 9, "rate": 7 / 9}}
+    assert metrics["exact_core_macro_candidate_recall"] == {"class_count": 4, "rate": (8 / 9 + 9 / 9 + 5 / 9 + 7 / 9) / 4}
+    assert metrics["negative_suppression_by_family"] == {"path_file_negative": {"passed": 8, "total": 8, "rate": 1.0}, "cmdi_negative": {"passed": 6, "total": 6, "rate": 1.0}, "xss_negative": {"passed": 6, "total": 6, "rate": 1.0}, "sqli_negative": {"passed": 8, "total": 8, "rate": 1.0}}
     path = production_result["component_counts"]["owasp_crs_path_file_access.v1"]
     assert path["candidate_selected"] == 9 and path["positive"] == 19 and path["negative"] == 8
     cases = {case["case_id"]: case for case in production_result["cases"]}
@@ -180,6 +180,15 @@ def test_production_baseline_metrics_and_legacy_930_compatibility(production_res
     assert cases["owasp_crs.930110.8"]["actual"]["candidate_selected"] is True
     assert cases["owasp_crs.930120.2"]["actual"]["prepare_verdict_hint"] == "suspicious_file_disclosure"
     assert cases["owasp_crs.930100.3"]["actual"]["candidate_selected"] is True
+    for case_id in ("owasp_crs.932125.1", "owasp_crs.932125.2", "owasp_crs.932130.1", "owasp_crs.932230.31", "owasp_crs.932230.36", "owasp_crs.932340.1", "owasp_crs.932340.21", "owasp_crs.932370.3", "owasp_crs.932380.21"):
+        assert cases[case_id]["actual"]["candidate_selected"] is True
+        assert any(hint.startswith("cmdi:") for hint in cases[case_id]["actual"]["prepare_reason_hints"])
+    for case_id in ("owasp_crs.932380.5", "owasp_crs.941120.9", "owasp_crs.941140.14", "owasp_crs.941180.7"):
+        assert cases[case_id]["actual"]["candidate_selected"] is False
+    for case_id in ("owasp_crs.941120.6", "owasp_crs.941140.5", "owasp_crs.941110.2", "owasp_crs.941100.1"):
+        assert cases[case_id]["actual"]["candidate_selected"] is True
+    for case_id in ("owasp_crs.932130.10", "owasp_crs.932230.30", "owasp_crs.932230.47", "owasp_crs.932340.19", "owasp_crs.932370.2"):
+        assert cases[case_id]["actual"]["candidate_selected"] is False
 
 
 def test_metrics_zero_denominator_and_input_immutability(resolved: dict) -> None:
