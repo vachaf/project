@@ -84,6 +84,21 @@ def test_fake_perfect_run_uses_only_selected_positive_and_same_evaluator(inputs:
     assert all("case_id" not in candidate for candidate in captured)
 
 
+def test_classifier_sanitization_removes_only_fixture_metadata() -> None:
+    base = {"request_id": "bench-owasp-crs-942280-4", "incident_group_key": "rid:bench-owasp-crs-942280-4"}
+    ordinary = {**base, "user_agent": "ExampleBrowser/1.0"}
+    attack_bearing = {**base, "user_agent": "OWASP CRS test agent Mozilla/5.0 -1 waitfor delay '0:0:15' --"}
+
+    ordinary_clean = live._stage1_candidate(ordinary, 1)
+    attack_clean = live._stage1_candidate(attack_bearing, 2)
+
+    assert ordinary_clean["request_id"] == "live-row-001"
+    assert ordinary_clean["incident_group_key"] == "rid:live-row-001"
+    assert ordinary_clean["user_agent"] == ordinary["user_agent"]
+    assert attack_clean["user_agent"] == "Mozilla/5.0 Mozilla/5.0 -1 waitfor delay '0:0:15' --"
+    assert "waitfor delay '0:0:15' --" in attack_clean["user_agent"]
+
+
 @pytest.mark.parametrize("field, changed", [
     ("request_id", "wrong-request-id"),
     ("raw_request_target", "/wrong-target"),

@@ -146,8 +146,14 @@ def _stage1_candidate(candidate: Mapping[str, Any], ordinal: int) -> dict[str, A
     clean = copy.deepcopy(dict(candidate))
     clean["request_id"] = f"live-row-{ordinal:03d}"
     clean["incident_group_key"] = f"rid:live-row-{ordinal:03d}"
-    if "crs" in str(clean.get("user_agent", "")).casefold():
-        clean["user_agent"] = ""
+    # The pinned source fixture prefixes its synthetic UA with this exact
+    # marker.  Remove only that fixture metadata: a suffix can itself contain
+    # decisive SQLi/CMDi/XSS syntax and must reach the production classifier
+    # unchanged.  Ordinary upstream User-Agents are left byte-for-byte intact.
+    user_agent = clean.get("user_agent")
+    marker = "OWASP CRS test agent"
+    if isinstance(user_agent, str) and user_agent.startswith(marker):
+        clean["user_agent"] = "Mozilla/5.0" + user_agent[len(marker):]
     return clean
 
 
