@@ -1,0 +1,203 @@
+{
+  "source": "owasp_crs",
+  "repository": "https://github.com/coreruleset/coreruleset",
+  "revision": "96d9f99043b89f07fb5a4fdad1d7effbbbbcec1a",
+  "retrieved_at": "2026-09-04",
+  "license": "Apache-2.0",
+  "bundle": "multi_family",
+  "notice_files": [],
+  "files": [
+    {
+      "name": "932/932125.yaml",
+      "family": "932",
+      "rule_id": 932125,
+      "upstream_path": "tests/regression/tests/REQUEST-932-APPLICATION-ATTACK-RCE/932125.yaml",
+      "sha256": "df417538a5d3587c8bd0674eff67f84c21dcaeea5538abb8613e1641e6aa38f9",
+      "case_count": 7
+    },
+    {
+      "name": "932/932130.yaml",
+      "family": "932",
+      "rule_id": 932130,
+      "upstream_path": "tests/regression/tests/REQUEST-932-APPLICATION-ATTACK-RCE/932130.yaml",
+      "sha256": "a5ea0e6627ed8f286ecb8c46afe502cd7f4ed9d5c81c69e9517698526b93f40d",
+      "case_count": 41
+    },
+    {
+      "name": "932/932230.yaml",
+      "family": "932",
+      "rule_id": 932230,
+      "upstream_path": "tests/regression/tests/REQUEST-932-APPLICATION-ATTACK-RCE/932230.yaml",
+      "sha256": "e1140034a7040aa310f62c50507d03e5832609b9bd45a0dda6ae890f8fa864d4",
+      "case_count": 67
+    },
+    {
+      "name": "932/932340.yaml",
+      "family": "932",
+      "rule_id": 932340,
+      "upstream_path": "tests/regression/tests/REQUEST-932-APPLICATION-ATTACK-RCE/932340.yaml",
+      "sha256": "3627e7588983b6b78037f0c896d7adc13b028ec0c5f38cda1cee23e4305308ad",
+      "case_count": 29
+    },
+    {
+      "name": "932/932370.yaml",
+      "family": "932",
+      "rule_id": 932370,
+      "upstream_path": "tests/regression/tests/REQUEST-932-APPLICATION-ATTACK-RCE/932370.yaml",
+      "sha256": "1a7abd2b20e77cc229cd1d72afde6a807a31f18d549aab6ef09fc46c5600263e",
+      "case_count": 8
+    },
+    {
+      "name": "932/932380.yaml",
+      "family": "932",
+      "rule_id": 932380,
+      "upstream_path": "tests/regression/tests/REQUEST-932-APPLICATION-ATTACK-RCE/932380.yaml",
+      "sha256": "ed5ef150ccd0de8bdacf458ac69006cd554defbd2553b7629e077b5037755901",
+      "case_count": 27
+    },
+    {
+      "name": "941/941100.yaml",
+      "family": "941",
+      "rule_id": 941100,
+      "upstream_path": "tests/regression/tests/REQUEST-941-APPLICATION-ATTACK-XSS/941100.yaml",
+      "sha256": "81f35e7346b9992a73ddd79ab703cbc34c2ecf41842206a65592277abd8975bf",
+      "case_count": 9
+    },
+    {
+      "name": "941/941110.yaml",
+      "family": "941",
+      "rule_id": 941110,
+      "upstream_path": "tests/regression/tests/REQUEST-941-APPLICATION-ATTACK-XSS/941110.yaml",
+      "sha256": "f0dd2bddea90d29453a10c6ce07129db0bc3e91bb15d24c2161b788b75eabb5e",
+      "case_count": 13
+    },
+    {
+      "name": "941/941120.yaml",
+      "family": "941",
+      "rule_id": 941120,
+      "upstream_path": "tests/regression/tests/REQUEST-941-APPLICATION-ATTACK-XSS/941120.yaml",
+      "sha256": "4e2b1c3656cbb7347f1680e82142a87fcd163e8d3401815b95a6181df88f3aed",
+      "case_count": 52
+    },
+    {
+      "name": "941/941140.yaml",
+      "family": "941",
+      "rule_id": 941140,
+      "upstream_path": "tests/regression/tests/REQUEST-941-APPLICATION-ATTACK-XSS/941140.yaml",
+      "sha256": "c011fad3e385b95baa919eec5a4cd5b64e97d6f5af5ef56064e1cfc77a3332b7",
+      "case_count": 15
+    },
+    {
+      "name": "941/941160.yaml",
+      "family": "941",
+      "rule_id": 941160,
+      "upstream_path": "tests/regression/tests/REQUEST-941-APPLICATION-ATTACK-XSS/941160.yaml",
+      "sha256": "5f6d9d76b965e61e87827e1e20e6fe9c94a13a68db1a35fd04b4a7bc14c6bab0",
+      "case_count": 18
+    },
+    {
+      "name": "941/941170.yaml",
+      "family": "941",
+      "rule_id": 941170,
+      "upstream_path": "tests/regression/tests/REQUEST-941-APPLICATION-ATTACK-XSS/941170.yaml",
+      "sha256": "d057a2a48f64f506be834b9dc43db3c2352e4820bda2efbc4c7072b52de7fbd2",
+      "case_count": 8
+    },
+    {
+      "name": "941/941180.yaml",
+      "family": "941",
+      "rule_id": 941180,
+      "upstream_path": "tests/regression/tests/REQUEST-941-APPLICATION-ATTACK-XSS/941180.yaml",
+      "sha256": "aea55da17851dad5a2e7c63e5788805e14292a76cd582e4a7f4f41ab02a59746",
+      "case_count": 10
+    },
+    {
+      "name": "941/941390.yaml",
+      "family": "941",
+      "rule_id": 941390,
+      "upstream_path": "tests/regression/tests/REQUEST-941-APPLICATION-ATTACK-XSS/941390.yaml",
+      "sha256": "09cdc3d93575e3a45deb8d1b572e3efbc71ed6aeec5b1bfe0ab9aba8cc477b6f",
+      "case_count": 12
+    },
+    {
+      "name": "941/941400.yaml",
+      "family": "941",
+      "rule_id": 941400,
+      "upstream_path": "tests/regression/tests/REQUEST-941-APPLICATION-ATTACK-XSS/941400.yaml",
+      "sha256": "ceb193107dad237b3041724d28d6209196e475b1f009d8d9675c94c11e382473",
+      "case_count": 8
+    },
+    {
+      "name": "942/942160.yaml",
+      "family": "942",
+      "rule_id": 942160,
+      "upstream_path": "tests/regression/tests/REQUEST-942-APPLICATION-ATTACK-SQLI/942160.yaml",
+      "sha256": "1ca1e8ab7951f4ff362506fed7b60f10d0645647ca622d788244c4b90a0f2bba",
+      "case_count": 27
+    },
+    {
+      "name": "942/942170.yaml",
+      "family": "942",
+      "rule_id": 942170,
+      "upstream_path": "tests/regression/tests/REQUEST-942-APPLICATION-ATTACK-SQLI/942170.yaml",
+      "sha256": "762be2329555d550b4cbaad75cf6ba13eef120e60b91801f42f55add39deef25",
+      "case_count": 5
+    },
+    {
+      "name": "942/942230.yaml",
+      "family": "942",
+      "rule_id": 942230,
+      "upstream_path": "tests/regression/tests/REQUEST-942-APPLICATION-ATTACK-SQLI/942230.yaml",
+      "sha256": "1a349ccd30f8e814533929b603bb136bf60c2c4dec68f3d02d4e84a132cf592b",
+      "case_count": 13
+    },
+    {
+      "name": "942/942270.yaml",
+      "family": "942",
+      "rule_id": 942270,
+      "upstream_path": "tests/regression/tests/REQUEST-942-APPLICATION-ATTACK-SQLI/942270.yaml",
+      "sha256": "4db3b09e588b7fb0a84265f95bdfa557d4bc68b87a8179c188025605ea7d4e65",
+      "case_count": 3
+    },
+    {
+      "name": "942/942280.yaml",
+      "family": "942",
+      "rule_id": 942280,
+      "upstream_path": "tests/regression/tests/REQUEST-942-APPLICATION-ATTACK-SQLI/942280.yaml",
+      "sha256": "4b970b532f23fe988371ef843c312a62d00b2b6b6b97609fd38cd2193c082c87",
+      "case_count": 5
+    },
+    {
+      "name": "942/942320.yaml",
+      "family": "942",
+      "rule_id": 942320,
+      "upstream_path": "tests/regression/tests/REQUEST-942-APPLICATION-ATTACK-SQLI/942320.yaml",
+      "sha256": "cdb5b46c7a09d2149359887d6622b707479c728d06f16738b5a8974be5c4106e",
+      "case_count": 14
+    },
+    {
+      "name": "942/942350.yaml",
+      "family": "942",
+      "rule_id": 942350,
+      "upstream_path": "tests/regression/tests/REQUEST-942-APPLICATION-ATTACK-SQLI/942350.yaml",
+      "sha256": "5a68113dd7bed02fc7f691f7468e98a8dc5230e14ca8a9f40231505be976c162",
+      "case_count": 10
+    },
+    {
+      "name": "942/942500.yaml",
+      "family": "942",
+      "rule_id": 942500,
+      "upstream_path": "tests/regression/tests/REQUEST-942-APPLICATION-ATTACK-SQLI/942500.yaml",
+      "sha256": "6c22086da1ee694d9515fad3c9144d59027747861d02190eddf874c7c2e237b2",
+      "case_count": 6
+    },
+    {
+      "name": "942/942550.yaml",
+      "family": "942",
+      "rule_id": 942550,
+      "upstream_path": "tests/regression/tests/REQUEST-942-APPLICATION-ATTACK-SQLI/942550.yaml",
+      "sha256": "ba8d0a41f8493bf37e12d2df35a83d0bfca16cfa609ba4e87011ec5bec7827d3",
+      "case_count": 49
+    }
+  ]
+}

@@ -1,0 +1,729 @@
+{
+  "schema_version": "external_security_benchmark_family_manifest.v1",
+  "benchmark": "owasp_crs_xss.v1",
+  "source": {
+    "benchmark_source": "owasp_crs",
+    "revision": "96d9f99043b89f07fb5a4fdad1d7effbbbbcec1a"
+  },
+  "annotation": {
+    "version": "owasp_crs_xss.v1",
+    "source_family": "941"
+  },
+  "cases": [
+    {
+      "case_id": "owasp_crs.941100.1",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941100.8",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941110.2",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941110.3",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request.headers.User-Agent",
+        "required_capabilities": [
+          "user_agent"
+        ],
+        "exclusion_reason": null,
+        "note": "Decisive payload is in preserved User-Agent."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941110.5",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941120.6",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941140.5",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941140.8",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941160.1",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941170.3",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941390.2",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941400.1",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_xss": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-79",
+              "WSTG-INPV-01"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_xss_execution_or_reflection_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear XSS request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941120.3",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed XSS lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941120.9",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed XSS lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941140.11",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed XSS lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941140.12",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed XSS lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941140.14",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed XSS lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941180.7",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed XSS lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.941120.11",
+      "observability": {
+        "eligible": false,
+        "status": "out_of_scope",
+        "surface": "request.body.form",
+        "required_capabilities": [
+          "request_body"
+        ],
+        "exclusion_reason": "post_body_not_logged",
+        "note": "Decisive PayPal verify_sign value is in POST body, unavailable in canonical logs-only row."
+      },
+      "expected": {
+        "project_ground_truth": "not_scored",
+        "candidate_expected": null,
+        "classification_policy": "not_scored",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Retained as source/observability provenance, not as a project negative metric case."
+      }
+    }
+  ]
+}

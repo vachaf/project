@@ -85,6 +85,8 @@ def test_integrity_rejects_metadata_checksum_drift(tmp_path: Path) -> None:
     copied = tmp_path / "source"
     copied.mkdir()
     for path in SOURCE_DIR.iterdir():
+        if not path.is_file():
+            continue
         (copied / path.name).write_bytes(path.read_bytes())
     metadata = json.loads((copied / "SOURCE.json").read_text(encoding="utf-8"))
     metadata["files"][0]["sha256"] = "0" * 64
@@ -219,6 +221,8 @@ def test_unexpected_multistage_source_fails_instead_of_using_first_stage(
     copied = tmp_path / "source"
     copied.mkdir()
     for path in SOURCE_DIR.iterdir():
+        if not path.is_file():
+            continue
         (copied / path.name).write_bytes(path.read_bytes())
     path = copied / "930100.yaml"
     document = yaml.safe_load(path.read_text(encoding="utf-8"))

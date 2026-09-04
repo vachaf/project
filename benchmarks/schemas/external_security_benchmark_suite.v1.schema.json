@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "external_security_benchmark_suite.v1.schema.json",
+  "title": "External security benchmark suite v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "suite", "components", "groups"],
+  "properties": {
+    "schema_version": {"const": "external_security_benchmark_suite.v1"},
+    "suite": {"const": "owasp_crs_multi_family.v1"},
+    "components": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["benchmark", "manifest", "case_ids"],
+        "properties": {
+          "benchmark": {"type": "string", "minLength": 1},
+          "manifest": {"type": "string", "minLength": 1},
+          "case_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^owasp_crs\\.[0-9]+\\.[0-9]+$"}}
+        }
+      }
+    },
+    "groups": {"type": "object"}
+  }
+}

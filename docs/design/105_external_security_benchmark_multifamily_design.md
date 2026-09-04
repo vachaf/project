@@ -116,7 +116,8 @@ These are selected design candidates, not manifest entries. All listed new posit
 | 941100.1/.8 | 941100 | GET Q | exact XSS | T1/T2 positive | script/XML and best-fit encoded script |
 | 941110.2/.3/.5 | 941110 | GET Q, UA/R | exact XSS | T1/T2 positive | script, entity header, path XSS |
 | 941120.6; 941140.5/.8; 941160.1; 941170.3; 941390.2; 941400.1 | 941 | GET Q | exact XSS | T1/T2 positive | SVG/event/JS URI/JS execution |
-| 941120.3/.9/.11; 941140.11/.12/.14; 941180.7 | 941 | GET Q | project-negative forbidden-only | T4 XSS negative | short event/base64/benign CSS/JS text |
+| 941120.3/.9; 941140.11/.12/.14; 941180.7 | 941 | GET Q | project-negative forbidden-only | T4 XSS negative | short event/base64/benign CSS/JS text |
+| 941120.11 | 941 | POST body | not-scored | excluded OOS | pinned-source recheck: decisive PayPal verify_sign is body-only, not a direct negative |
 | 942160.1/.10; 942170.1 | 942160/170 | GET Q/path | exact SQLi | T1 positive | sleep/blind and benchmark query |
 | 942270.1; 942280.1/.4; 942320.6 | 942270/280/320 | GET Q, UA | exact SQLi | T1/T2 positive | union/time/quote boolean |
 | 942350.1/.6/.7; 942500.1/.3 | 942350/500 | GET Q | exact SQLi; CMDi forbidden | T1/T2 positive | stacked SQL, comments/optimizer |
@@ -124,7 +125,7 @@ These are selected design candidates, not manifest entries. All listed new posit
 | 930100.2/.3, 930110.2/.8/.9/.12, 930120.1/.3/.15 | frozen 930 | direct Q/path | exact traversal | T1/T2 positive | existing approved annotations |
 | 930120.2 | frozen 930 | direct Q | exact file disclosure | T1 boundary | one clean support case |
 
-Support is CMDi 12, XSS 12, SQLi 12, traversal 9, file disclosure 1. Named direct negatives are CMDi 6, XSS 7, SQLi 8 plus frozen 930 negatives. Full per-family benchmark means all direct cases approved by case-level review, not every direct CRS positive.
+Support is CMDi 12, XSS 12, SQLi 12, traversal 9, file disclosure 1. Named direct negatives are CMDi 6, XSS 6, SQLi 8 plus frozen 930 negatives; 941120.11 is retained as an approved body-only not-scored provenance record. Full per-family benchmark means all direct cases approved by case-level review, not every direct CRS positive.
 
 ## 9. Balanced suite
 
@@ -133,7 +134,7 @@ Support is CMDi 12, XSS 12, SQLi 12, traversal 9, file disclosure 1. Named direc
 | traversal | 9 | 930 resource cases | 8 | 9 |
 | file disclosure | 1 | file/scan and CMDi/file/scan 930 cases | boundary | no macro row |
 | SQLi | 12 | further direct PL1 review | 8 | 9 |
-| XSS | 12 | further direct PL1 review | 7 | 9 |
+| XSS | 12 | further direct PL1 review; one OOS provenance record | 6 | 9 |
 | CMDi | 12 | broad RCE/command-word Tier 3 | 6 | 9 |
 
 Use a deterministic 36-case core: nine each traversal, SQLi, XSS and CMDi. Keep a ten-case path/file boundary addendum (nine traversal plus one file). The three unselected candidates per new class are a fixed Tier-2 reserve. An expanded chart may show file disclosure n=1 but must label it unsupported and exclude it from macro metrics.
@@ -222,7 +223,7 @@ Safe wording: “On an externally sourced, logs-only eligible OWASP CRS benchmar
 2. PL1 direct positives are 253/84/96; reviewed usable exact pools are 12/12/12.
 3. Body-only rates are 34.5%/43.3%/76.3%; partial rates 8.4%/4.6%/2.2%.
 4. Exact CMDi, XSS and SQLi subsets are the named 12-case groups in section 8.
-5. Credible controls are 6 CMDi, 7 XSS, 8 SQLi plus frozen 930 controls.
+5. Credible direct controls are 6 CMDi, 6 XSS, 8 SQLi plus frozen 930 controls; 941120.11 is body-only and not scored.
 6. File disclosure is insufficient: one clean exact support case.
 7. 913 is separate scanner policy lane.
 8. Family manifests plus suite is recommended.

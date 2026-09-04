@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "external_security_benchmark_family_manifest.v1.schema.json",
+  "title": "Reviewed external security benchmark family manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "benchmark", "source", "annotation", "cases"],
+  "properties": {
+    "schema_version": {"const": "external_security_benchmark_family_manifest.v1"},
+    "benchmark": {"enum": ["owasp_crs_cmdi.v1", "owasp_crs_xss.v1", "owasp_crs_sqli.v1"]},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["benchmark_source", "revision"],
+      "properties": {
+        "benchmark_source": {"const": "owasp_crs"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_family"],
+      "properties": {
+        "version": {"type": "string"},
+        "source_family": {"enum": ["932", "941", "942"]}
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["case_id", "observability", "expected", "review"],
+        "properties": {
+          "case_id": {"type": "string", "pattern": "^owasp_crs\\.(932|941|942)[0-9]{3}\\.[1-9][0-9]*$"},
+          "observability": {"type": "object"},
+          "expected": {"type": "object"},
+          "review": {"type": "object"}
+        }
+      }
+    }
+  }
+}

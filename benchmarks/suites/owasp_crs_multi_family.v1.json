@@ -1,0 +1,237 @@
+{
+  "schema_version": "external_security_benchmark_suite.v1",
+  "suite": "owasp_crs_multi_family.v1",
+  "components": [
+    {
+      "benchmark": "owasp_crs_path_file_access.v1",
+      "manifest": "../manifests/owasp_crs_path_file_access.v1.json",
+      "case_ids": [
+        "owasp_crs.930100.1",
+        "owasp_crs.930100.2",
+        "owasp_crs.930100.3",
+        "owasp_crs.930100.4",
+        "owasp_crs.930100.5",
+        "owasp_crs.930110.1",
+        "owasp_crs.930110.2",
+        "owasp_crs.930110.3",
+        "owasp_crs.930110.4",
+        "owasp_crs.930110.5",
+        "owasp_crs.930110.6",
+        "owasp_crs.930110.7",
+        "owasp_crs.930110.8",
+        "owasp_crs.930110.9",
+        "owasp_crs.930110.10",
+        "owasp_crs.930110.11",
+        "owasp_crs.930110.12",
+        "owasp_crs.930110.13",
+        "owasp_crs.930120.1",
+        "owasp_crs.930120.2",
+        "owasp_crs.930120.3",
+        "owasp_crs.930120.4",
+        "owasp_crs.930120.5",
+        "owasp_crs.930120.6",
+        "owasp_crs.930120.7",
+        "owasp_crs.930120.8",
+        "owasp_crs.930120.9",
+        "owasp_crs.930120.10",
+        "owasp_crs.930120.11",
+        "owasp_crs.930120.12",
+        "owasp_crs.930120.13",
+        "owasp_crs.930120.14",
+        "owasp_crs.930120.15",
+        "owasp_crs.930120.16",
+        "owasp_crs.930120.17",
+        "owasp_crs.930120.18"
+      ]
+    },
+    {
+      "benchmark": "owasp_crs_cmdi.v1",
+      "manifest": "../manifests/owasp_crs_cmdi.v1.json",
+      "case_ids": [
+        "owasp_crs.932125.1",
+        "owasp_crs.932125.2",
+        "owasp_crs.932130.1",
+        "owasp_crs.932130.18",
+        "owasp_crs.932130.26",
+        "owasp_crs.932230.31",
+        "owasp_crs.932230.34",
+        "owasp_crs.932230.36",
+        "owasp_crs.932340.1",
+        "owasp_crs.932340.21",
+        "owasp_crs.932370.3",
+        "owasp_crs.932380.21",
+        "owasp_crs.932130.10",
+        "owasp_crs.932230.30",
+        "owasp_crs.932230.47",
+        "owasp_crs.932340.19",
+        "owasp_crs.932370.2",
+        "owasp_crs.932380.5"
+      ]
+    },
+    {
+      "benchmark": "owasp_crs_xss.v1",
+      "manifest": "../manifests/owasp_crs_xss.v1.json",
+      "case_ids": [
+        "owasp_crs.941100.1",
+        "owasp_crs.941100.8",
+        "owasp_crs.941110.2",
+        "owasp_crs.941110.3",
+        "owasp_crs.941110.5",
+        "owasp_crs.941120.6",
+        "owasp_crs.941140.5",
+        "owasp_crs.941140.8",
+        "owasp_crs.941160.1",
+        "owasp_crs.941170.3",
+        "owasp_crs.941390.2",
+        "owasp_crs.941400.1",
+        "owasp_crs.941120.3",
+        "owasp_crs.941120.9",
+        "owasp_crs.941140.11",
+        "owasp_crs.941140.12",
+        "owasp_crs.941140.14",
+        "owasp_crs.941180.7",
+        "owasp_crs.941120.11"
+      ]
+    },
+    {
+      "benchmark": "owasp_crs_sqli.v1",
+      "manifest": "../manifests/owasp_crs_sqli.v1.json",
+      "case_ids": [
+        "owasp_crs.942160.1",
+        "owasp_crs.942160.10",
+        "owasp_crs.942170.1",
+        "owasp_crs.942270.1",
+        "owasp_crs.942280.1",
+        "owasp_crs.942280.4",
+        "owasp_crs.942320.6",
+        "owasp_crs.942350.1",
+        "owasp_crs.942350.6",
+        "owasp_crs.942350.7",
+        "owasp_crs.942500.1",
+        "owasp_crs.942500.3",
+        "owasp_crs.942170.3",
+        "owasp_crs.942230.3",
+        "owasp_crs.942230.5",
+        "owasp_crs.942230.8",
+        "owasp_crs.942350.2",
+        "owasp_crs.942550.38",
+        "owasp_crs.942550.43",
+        "owasp_crs.942550.44"
+      ]
+    }
+  ],
+  "groups": {
+    "exact_core": {
+      "traversal": [
+        "owasp_crs.930100.2",
+        "owasp_crs.930100.3",
+        "owasp_crs.930110.2",
+        "owasp_crs.930110.8",
+        "owasp_crs.930110.9",
+        "owasp_crs.930110.12",
+        "owasp_crs.930120.1",
+        "owasp_crs.930120.3",
+        "owasp_crs.930120.15"
+      ],
+      "cmdi": [
+        "owasp_crs.932125.1",
+        "owasp_crs.932125.2",
+        "owasp_crs.932130.1",
+        "owasp_crs.932130.18",
+        "owasp_crs.932230.31",
+        "owasp_crs.932230.34",
+        "owasp_crs.932340.1",
+        "owasp_crs.932340.21",
+        "owasp_crs.932370.3"
+      ],
+      "xss": [
+        "owasp_crs.941100.8",
+        "owasp_crs.941110.2",
+        "owasp_crs.941110.3",
+        "owasp_crs.941110.5",
+        "owasp_crs.941120.6",
+        "owasp_crs.941140.5",
+        "owasp_crs.941170.3",
+        "owasp_crs.941390.2",
+        "owasp_crs.941400.1"
+      ],
+      "sqli": [
+        "owasp_crs.942160.1",
+        "owasp_crs.942160.10",
+        "owasp_crs.942170.1",
+        "owasp_crs.942270.1",
+        "owasp_crs.942280.1",
+        "owasp_crs.942280.4",
+        "owasp_crs.942320.6",
+        "owasp_crs.942350.1",
+        "owasp_crs.942500.1"
+      ]
+    },
+    "cmdi_reserve": [
+      "owasp_crs.932130.26",
+      "owasp_crs.932230.36",
+      "owasp_crs.932380.21"
+    ],
+    "xss_reserve": [
+      "owasp_crs.941100.1",
+      "owasp_crs.941140.8",
+      "owasp_crs.941160.1"
+    ],
+    "sqli_reserve": [
+      "owasp_crs.942350.6",
+      "owasp_crs.942350.7",
+      "owasp_crs.942500.3"
+    ],
+    "cmdi_negative": [
+      "owasp_crs.932130.10",
+      "owasp_crs.932230.30",
+      "owasp_crs.932230.47",
+      "owasp_crs.932340.19",
+      "owasp_crs.932370.2",
+      "owasp_crs.932380.5"
+    ],
+    "xss_negative": [
+      "owasp_crs.941120.3",
+      "owasp_crs.941120.9",
+      "owasp_crs.941140.11",
+      "owasp_crs.941140.12",
+      "owasp_crs.941140.14",
+      "owasp_crs.941180.7"
+    ],
+    "xss_out_of_scope": [
+      "owasp_crs.941120.11"
+    ],
+    "sqli_negative": [
+      "owasp_crs.942170.3",
+      "owasp_crs.942230.3",
+      "owasp_crs.942230.5",
+      "owasp_crs.942230.8",
+      "owasp_crs.942350.2",
+      "owasp_crs.942550.38",
+      "owasp_crs.942550.43",
+      "owasp_crs.942550.44"
+    ],
+    "path_file_negative": [
+      "owasp_crs.930110.4",
+      "owasp_crs.930110.5",
+      "owasp_crs.930110.6",
+      "owasp_crs.930110.7",
+      "owasp_crs.930120.10",
+      "owasp_crs.930120.11",
+      "owasp_crs.930120.12",
+      "owasp_crs.930120.16"
+    ],
+    "path_file_boundary_addendum": [
+      "owasp_crs.930100.2",
+      "owasp_crs.930100.3",
+      "owasp_crs.930110.2",
+      "owasp_crs.930110.8",
+      "owasp_crs.930110.9",
+      "owasp_crs.930110.12",
+      "owasp_crs.930120.1",
+      "owasp_crs.930120.3",
+      "owasp_crs.930120.15",
+      "owasp_crs.930120.2"
+    ]
+  }
+}

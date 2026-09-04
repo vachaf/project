@@ -52,3 +52,51 @@ Source updates are manual and review-gated:
    benchmark series.
 
 No benchmark runtime or test fetches data from the network.
+
+## OWASP CRS multi-family source bundle and suite
+
+Phase 6B-1 adds a separate, pinned multi-family bundle below the frozen 930
+source root:
+
+```text
+sources/owasp_crs/<revision>/multi_family/
+  SOURCE.json  LICENSE  932/*.yaml  941/*.yaml  942/*.yaml
+```
+
+The legacy `SOURCE.json`, three root 930 YAML files, and
+`src/external_benchmark_crs.py` remain a frozen full-inventory contract.  The
+multi-family bundle is a raw upstream-source **superset**: its YAML files are
+unmodified and include every test in each reviewed upstream rule file.  Its
+own `SOURCE.json` carries provenance, counts, and SHA-256 values, while the
+separate Python lock in `src/external_benchmark_crs_multifamily.py` prevents a
+YAML and metadata edit from silently changing the pinned source.
+
+The three reviewed family-manifest subsets are:
+
+```text
+manifests/owasp_crs_cmdi.v1.json
+manifests/owasp_crs_xss.v1.json
+manifests/owasp_crs_sqli.v1.json
+```
+
+They contain project observability/taxonomy annotations only for selected
+cases.  Unlike the legacy 930 manifest, they are intentionally not required to
+cover every raw source test.  The suite at
+`suites/owasp_crs_multi_family.v1.json` composes references to those manifests
+and the frozen 930 manifest without copying annotations.  Its exact core is
+36 cases: nine each traversal, command injection, XSS, and SQLi.  File
+disclosure remains a separate path/file boundary addendum because the frozen
+930 source has only one clean exact file-disclosure case; it is not included in
+the four-class macro core.  913 scanner and 933 PHP are deliberately deferred.
+
+Source facts, project annotations, and suite composition remain separate.
+Neither source family/rule nor expected project verdict is a Stage1 candidate
+field.  This phase contains no Prepare/Stage1 runner or network behavior.
+
+For a future CRS revision, create a new revision directory or bundle; retrieve
+raw YAML bytes; calculate and review SHA-256/count/provenance; review source
+inventory; review family annotations; review deterministic suite selection;
+then add regression coverage.  Never overwrite an existing revision's source
+metadata or silently accept an unregistered YAML file.  The pinned revision
+used here has no root `NOTICE`, `NOTICE.txt`, or `NOTICE.md`; the multi-family
+`SOURCE.json` records this as an empty `notice_files` list.

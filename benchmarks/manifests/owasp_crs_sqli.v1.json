@@ -1,0 +1,761 @@
+{
+  "schema_version": "external_security_benchmark_family_manifest.v1",
+  "benchmark": "owasp_crs_sqli.v1",
+  "source": {
+    "benchmark_source": "owasp_crs",
+    "revision": "96d9f99043b89f07fb5a4fdad1d7effbbbbcec1a"
+  },
+  "annotation": {
+    "version": "owasp_crs_sqli.v1",
+    "source_family": "942"
+  },
+  "cases": [
+    {
+      "case_id": "owasp_crs.942160.1",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942160.10",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942170.1",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942270.1",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942280.1",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942280.4",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request.headers.User-Agent",
+        "required_capabilities": [
+          "user_agent"
+        ],
+        "exclusion_reason": null,
+        "note": "Decisive payload is in preserved User-Agent."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942320.6",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942350.1",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942350.6",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942350.7",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942500.1",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942500.3",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Raw request representation is decisive and preserved."
+      },
+      "expected": {
+        "project_ground_truth": "attack_positive",
+        "candidate_expected": true,
+        "classification_policy": "exact",
+        "allowed_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "forbidden_stage1_verdicts": [
+          "suspicious_command_injection",
+          "suspicious_file_disclosure",
+          "suspicious_path_traversal",
+          "suspicious_xss"
+        ],
+        "mapping_by_verdict": {
+          "suspicious_sqli": {
+            "required_ids": [
+              "A05:2025",
+              "CWE-89",
+              "WSTG-INPV-05"
+            ],
+            "forbidden_ids": []
+          }
+        },
+        "boundary": "no_db_execution_or_data_exposure_inference"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed clear SQLI request semantics; no execution or success is inferred."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942170.3",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed SQLI lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942230.3",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed SQLI lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942230.5",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed SQLI lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942230.8",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed SQLI lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942350.2",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed SQLI lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942550.38",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed SQLI lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942550.43",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed SQLI lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    },
+    {
+      "case_id": "owasp_crs.942550.44",
+      "observability": {
+        "eligible": true,
+        "status": "direct",
+        "surface": "request_target.query_or_path",
+        "required_capabilities": [
+          "raw_request",
+          "raw_request_target"
+        ],
+        "exclusion_reason": null,
+        "note": "Direct lookalike control is preserved in raw request target."
+      },
+      "expected": {
+        "project_ground_truth": "project_negative",
+        "candidate_expected": false,
+        "classification_policy": "forbidden_only",
+        "allowed_stage1_verdicts": [],
+        "forbidden_stage1_verdicts": [
+          "suspicious_sqli"
+        ],
+        "mapping_by_verdict": {},
+        "boundary": "request_pattern_only"
+      },
+      "review": {
+        "status": "approved",
+        "note": "Reviewed SQLI lookalike lacks project attack semantics; CRS expectation is provenance only."
+      }
+    }
+  ]
+}
