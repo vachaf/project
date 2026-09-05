@@ -26,6 +26,9 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# Local-only external benchmark source cache; never vendor raw corpora.
+/benchmarks/cache/csic2010/
+
 #tmp_codex
 /file
 

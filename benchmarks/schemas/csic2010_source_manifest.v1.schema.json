@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CSIC 2010 source provenance manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "dataset", "redistribution_status", "raw_files_tracked", "original_description_url", "impact_doi", "source_status", "canonical_acquisition", "comparison_acquisition", "parser_inventory"],
+  "properties": {
+    "schema_version": {"const": "csic2010_source_manifest.v1"},
+    "dataset": {"const": "HTTP DATASET CSIC 2010"},
+    "redistribution_status": {"const": "unclear"},
+    "raw_files_tracked": {"const": false},
+    "original_description_url": {"type": "string", "format": "uri"},
+    "impact_doi": {"const": "10.23721/100/1478804"},
+    "source_status": {"type": "string"},
+    "canonical_acquisition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mirror", "files"],
+      "properties": {
+        "mirror": {"type": "string"},
+        "files": {
+          "type": "array",
+          "minItems": 3,
+          "items": {"$ref": "#/$defs/file"}
+        }
+      }
+    },
+    "comparison_acquisition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mirror", "mirror_consistency"],
+      "properties": {
+        "mirror": {"type": "string"},
+        "mirror_consistency": {"enum": ["verified", "unverified"]}
+      }
+    },
+    "parser_inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["complete", "total_requests", "total_parse_errors", "cross_file_duplicate_raw_requests", "cross_label_identical_requests"],
+      "properties": {
+        "complete": {"type": "boolean"},
+        "total_requests": {"type": "integer", "minimum": 0},
+        "total_parse_errors": {"type": "integer", "minimum": 0},
+        "cross_file_duplicate_raw_requests": {"type": "integer", "minimum": 0},
+        "cross_label_identical_requests": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "source_label", "role", "source_url", "comparison_source_url", "retrieved_at", "comparison_retrieved_at", "http_status", "comparison_http_status", "byte_size", "sha256", "comparison_byte_size", "comparison_sha256", "documented_request_count", "parsed_request_count", "whole_file_matches_comparison"],
+      "properties": {
+        "filename": {"enum": ["normalTrafficTraining.txt", "normalTrafficTest.txt", "anomalousTrafficTest.txt"]},
+        "source_label": {"enum": ["source_normal", "source_anomalous"]},
+        "role": {"enum": ["training", "test"]},
+        "source_url": {"type": "string", "format": "uri"},
+        "comparison_source_url": {"type": "string", "format": "uri"},
+        "retrieved_at": {"type": "string", "format": "date-time"},
+        "comparison_retrieved_at": {"type": "string", "format": "date-time"},
+        "http_status": {"const": 200},
+        "comparison_http_status": {"const": 200},
+        "byte_size": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "comparison_byte_size": {"type": "integer", "minimum": 1},
+        "comparison_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "documented_request_count": {"type": "integer", "minimum": 1},
+        "parsed_request_count": {"type": "integer", "minimum": 0},
+        "whole_file_matches_comparison": {"type": "boolean"}
+      }
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "canonical_acquisition": {
+    "files": [
+      {
+        "byte_size": 20148988,
+        "comparison_byte_size": 20148988,
+        "comparison_http_status": 200,
+        "comparison_retrieved_at": "2026-09-05T01:14:07.415486Z",
+        "comparison_sha256": "d51de812d9201ef2b173b6ae3e3e740c309047ac85545c06c51d6fb1ddbc1e63",
+        "comparison_source_url": "https://raw.githubusercontent.com/sunbeamdotpt/csic-dataset/mainline/normalTrafficTraining.txt",
+        "documented_request_count": 36000,
+        "filename": "normalTrafficTraining.txt",
+        "http_status": 200,
+        "parsed_request_count": 36000,
+        "retrieved_at": "2026-09-05T01:14:05.635481Z",
+        "role": "training",
+        "sha256": "d51de812d9201ef2b173b6ae3e3e740c309047ac85545c06c51d6fb1ddbc1e63",
+        "source_label": "source_normal",
+        "source_url": "https://raw.githubusercontent.com/msudol/Web-Application-Attack-Datasets/master/OriginalDataSets/csic_2010/normalTrafficTraining.txt",
+        "whole_file_matches_comparison": true
+      },
+      {
+        "byte_size": 20151204,
+        "comparison_byte_size": 20151204,
+        "comparison_http_status": 200,
+        "comparison_retrieved_at": "2026-09-05T01:14:09.199491Z",
+        "comparison_sha256": "f05dfc312d5d14fd1ed8371de27a9e4deab3dc09265f5d7f9df2643df8385089",
+        "comparison_source_url": "https://raw.githubusercontent.com/sunbeamdotpt/csic-dataset/mainline/normalTrafficTest.txt",
+        "documented_request_count": 36000,
+        "filename": "normalTrafficTest.txt",
+        "http_status": 200,
+        "parsed_request_count": 36000,
+        "retrieved_at": "2026-09-05T01:14:08.287488Z",
+        "role": "test",
+        "sha256": "f05dfc312d5d14fd1ed8371de27a9e4deab3dc09265f5d7f9df2643df8385089",
+        "source_label": "source_normal",
+        "source_url": "https://raw.githubusercontent.com/msudol/Web-Application-Attack-Datasets/master/OriginalDataSets/csic_2010/normalTrafficTest.txt",
+        "whole_file_matches_comparison": true
+      },
+      {
+        "byte_size": 15734523,
+        "comparison_byte_size": 15734523,
+        "comparison_http_status": 200,
+        "comparison_retrieved_at": "2026-09-05T01:14:10.735492Z",
+        "comparison_sha256": "12fa4f0d496ceb859bb2652abf7f0f0ed8c59e1d9ce501b8a9a0ef38a625c046",
+        "comparison_source_url": "https://raw.githubusercontent.com/sunbeamdotpt/csic-dataset/mainline/anomalousTrafficTest.txt",
+        "documented_request_count": 25065,
+        "filename": "anomalousTrafficTest.txt",
+        "http_status": 200,
+        "parsed_request_count": 25065,
+        "retrieved_at": "2026-09-05T01:14:10.011493Z",
+        "role": "test",
+        "sha256": "12fa4f0d496ceb859bb2652abf7f0f0ed8c59e1d9ce501b8a9a0ef38a625c046",
+        "source_label": "source_anomalous",
+        "source_url": "https://raw.githubusercontent.com/msudol/Web-Application-Attack-Datasets/master/OriginalDataSets/csic_2010/anomalousTrafficTest.txt",
+        "whole_file_matches_comparison": true
+      }
+    ],
+    "mirror": "msudol/Web-Application-Attack-Datasets"
+  },
+  "comparison_acquisition": {
+    "mirror": "sunbeamdotpt/csic-dataset",
+    "mirror_consistency": "verified"
+  },
+  "dataset": "HTTP DATASET CSIC 2010",
+  "impact_doi": "10.23721/100/1478804",
+  "original_description_url": "https://petescully.co.uk/wp-content/uploads/2018/04/http_dataset_csic_2010.pdf",
+  "parser_inventory": {
+    "complete": true,
+    "cross_file_duplicate_raw_requests": 0,
+    "cross_label_identical_requests": 0,
+    "total_parse_errors": 0,
+    "total_requests": 97065
+  },
+  "raw_files_tracked": false,
+  "redistribution_status": "unclear",
+  "schema_version": "csic2010_source_manifest.v1",
+  "source_status": "original_host_unavailable_at_review; acquired_from_public_mirrors"
+}
