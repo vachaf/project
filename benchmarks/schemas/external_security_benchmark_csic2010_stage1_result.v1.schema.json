@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "external_security_benchmark_csic2010_stage1_result.v1.schema.json",
+  "title": "CSIC 2010 reviewed Stage1 controlled/replay result",
+  "type": "object",
+  "required": [
+    "schema_version", "mode", "complete", "git_revision", "source_manifest",
+    "reviewed_manifest", "reviewed_manifest_sha256", "eligibility",
+    "prepare_fidelity", "stage1_accounting", "classification", "e2e",
+    "negative_controls", "mapping", "records"
+  ],
+  "properties": {
+    "schema_version": {"const": "external_security_benchmark_csic2010_stage1_result.v1"},
+    "mode": {"enum": ["controlled", "replay"]},
+    "complete": {"type": "boolean"},
+    "records": {"type": "array"}
+  },
+  "additionalProperties": true
+}
