@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CSIC 2010 isolated Prepare baseline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "complete", "dataset", "source_manifest", "production_revision", "evaluation_mode", "isolation_policy", "projection_policy", "accounting", "groups", "metrics", "breakdowns", "distributions", "review_pools", "artifacts"],
+  "properties": {
+    "schema_version": {"const": "external_security_benchmark_csic2010_prepare_result.v1"},
+    "complete": {"type": "boolean"},
+    "dataset": {"const": "HTTP DATASET CSIC 2010"},
+    "source_manifest": {"type": "object"},
+    "production_revision": {"type": "string"},
+    "evaluation_mode": {"const": "production_prepare_only"},
+    "isolation_policy": {"type": "string"},
+    "projection_policy": {"type": "object"},
+    "accounting": {"type": "object"},
+    "groups": {"type": "object"},
+    "metrics": {"type": "object"},
+    "breakdowns": {"type": "object"},
+    "distributions": {"type": "object"},
+    "review_pools": {"type": "object"},
+    "artifacts": {"type": "object"}
+  }
+}
