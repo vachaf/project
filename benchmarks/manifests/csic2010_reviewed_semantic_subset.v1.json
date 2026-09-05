@@ -1,0 +1,3412 @@
+{
+  "annotation": {
+    "canonicalization": "6C-3C",
+    "version": "csic2010_reviewed_semantic_subset.v1"
+  },
+  "benchmark": "csic2010",
+  "cases": [
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "007aacf9da1c6a4d80b03223c8e9afb49c3133070bae0205fd08e200dc959ddb",
+      "request_index": 18910,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0180ab6dccb9ad912830a9d7a851692df09c54278b8581b5485cdab292fe70fa",
+      "request_index": 5037,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0219a5279dafcba78ed701cf2ae4a441efcd3283434fc2a2694abf15823d5e0f",
+      "request_index": 17445,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "048831a44f6ff10cf9dd2b1de1edc5c3cd2d57b927ceac6cc4715fec5e5ba3c5",
+      "request_index": 20051,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "05a4b208e972b785e747de799873618da866106c0beacef9a7c7a53d8c101f9e",
+      "request_index": 7707,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "05af63d61be6cfbf7d79397c01edf8aa90134271b570bd640261612fc9ed5626",
+      "request_index": 15149,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "05e22c5e6dcf731b9e124eecae85e2c2bc162cf037e87c48225fce3738683e2d",
+      "request_index": 21865,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0604e36e276d10e838d19598dab439d18106d9594acd5cb2d689de1e15249098",
+      "request_index": 4265,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "06b82dcdd25e941058344d8628df7be4810125e848ebc9914ae077b29844beb5",
+      "request_index": 2836,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "06b854a271c238b09b51308be609ac50a87ee56b3163e3a006d2a0673137cfda",
+      "request_index": 8487,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "077e8cf4f071b46cd0e9c6f5c79d660ca7e00f7e52b8d44c6699c8d733d2c60c",
+      "request_index": 22571,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0bae08f83f003e973766bccccecb522796830867987b17131303f9a8fb125883",
+      "request_index": 12483,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0eceddb1cc638a30ddb8b4034b554f0de945d18b720cb1fedcd6c2c25eef6cd3",
+      "request_index": 2976,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0f11af60debe6a9d405da6e11a4b9cb69a5e247f7ab446318896027f201ea7d7",
+      "request_index": 3216,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "025c2e44e26aa2a066217c8a05e9d44bfb9fa0a9d30f861d14ffc6392db2317e",
+      "request_index": 3741,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "08bb118da79f95edce02ebc1e3cad50aac3975ef32acf3236463eefe5a00ce4c",
+      "request_index": 1779,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0bdb55eacebd585e9255711a13d17f3a825f447efb8e6ef298606b034f6911ff",
+      "request_index": 10305,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0cfc4ad5237e4bbf206f3f6b8c0d57491edc101e776414bc29b8068c7d624498",
+      "request_index": 20656,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1058fa650fefebae491385d2564ddc62472e5144c1ab13fe6d2f291a5d194981",
+      "request_index": 19583,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "14bba9ef8129510bb14c151a05a607fe6c5ead3c80cddf3d3bba3a9d6d175c73",
+      "request_index": 21017,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1a12065a9d3b7e5a303211ab556e74ebad68d112da28c399336e8933d20b0da7",
+      "request_index": 16271,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1b12913a4185791ea0112aa2aecf73a345423ec43e3a026e9469d9d153fedf38",
+      "request_index": 6248,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1c91f0b610aec4be3d72d00ff727ecb504cc4abc95fc3924ca7a923b709c609b",
+      "request_index": 20252,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1cea793705f6ac646c26d4295ee71f93ad755aa7b6f4e19938f4da607cafba96",
+      "request_index": 2482,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1eb5eedf05c3e36924a75d0a9ee32dd68b12857c5c7e8090e9bc744c9bbea00f",
+      "request_index": 3323,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "208b553cd417ceffb1be195dc0f618df6be37ba110f5d0f4561b52469e40202f",
+      "request_index": 4393,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "2615597e8f2cb54db211099c9a88b76bb7d2e3c206308df721a3fc50b0ef5b02",
+      "request_index": 21275,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "27c0cb6dc4de7b6b25652a7a63f027ddfa7ea907139080e5b2e803da5c76cf3f",
+      "request_index": 2996,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0072cc1086557f4a8bfef42beee475d136f0637352bb0c91efd7b00fde881db4",
+      "request_index": 5667,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "00ba3475bc8f79f22bc513a1fd7ee05f1ed4f8d7c048a81bc0eaeb652ca450fc",
+      "request_index": 18720,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "01287bd3c2d3eed8c4777d6daf0759699e37335bcfd0cb83ab54168a8d172a22",
+      "request_index": 7212,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "01d19ccb3f5c34cfd63c3f5e538a5f96c79b9837e3ab0b1dbe054f8b6a95360f",
+      "request_index": 17851,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "02f01f181afbb8235857748a43a157a6068ee4bf287e2bfef413acdbfda9d73c",
+      "request_index": 3489,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "032d11bb25dfd3641543b3c3dccbfa8214f8f803294118fdfef6606a40bc6726",
+      "request_index": 9166,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "03479cddd2a8f3914eee6105f407723ad45a03ea9834c53ef4ae5078409856eb",
+      "request_index": 1489,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "03bdfb60e8d2cf3d6c2fa8405ffb6391a58936d6643f02499b1a7b1508956259",
+      "request_index": 13520,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "041d0419a76f5016cc359bb14bf1bfcc1adcec4d1fece94a3b9ff2f7ae72226a",
+      "request_index": 6955,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "04617f7bacfc1ab28f2747bfcda20a566425e09a5f5a3e0eef1ebfb1b98e753c",
+      "request_index": 22951,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "046360774353effc93df0d078a9292fe8681fbd300b05401d7250cc68c08ab14",
+      "request_index": 22206,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "04fbdc196ff8d072e9f1e3573f81b153652279a227ec8e5d616dc97d626a0b52",
+      "request_index": 4202,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "00f5e0fba6f6c78092200cb9796542e8246b797e6ac5905b6747332f6518eec8",
+      "request_index": 11423,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "01c56fe4b6e95759c8d96d92b90db6e1624564da507e7bc0ae1fcaf33e5c508c",
+      "request_index": 16155,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "02bb70199a4263f4d813663d6fb0996e5bb5ba528cd21e84b5b51ad1952baa33",
+      "request_index": 13181,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "adjudicated",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "02dcd51d38bde1c1f8585239fc9c91f656563e1f7aa81bbd6df47189b359630e",
+      "request_index": 17295,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0311f992fc4be53c7f5960d3f9fc614666bd4578c6b033a509c8bd4e56b25f62",
+      "request_index": 21896,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0366f62d2f4e4bffbe160ba7c281e669a9d9471483c58e0f0005d2a0b189a2b8",
+      "request_index": 1322,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "038015d7967af751e1c512b9368ab9722ea793549f2ccc8262ca63af51c38f3d",
+      "request_index": 17100,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "04168674eafdf83f566515a9e49942b75d84b86b59fa3d3f991b0c75c31dbb5b",
+      "request_index": 1982,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_file_disclosure",
+        "suspicious_scan"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: file_disclosure; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0439790d63f64289c2b692713bb61d7cbfae57c2136d1ddc490ba3c14c1f32d7",
+      "request_index": 20226,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": "file_disclosure",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_file_disclosure",
+        "suspicious_scan"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: file_disclosure; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0452d82456d4bed48bd4f3b6ecdd9e613919b5e3fc06dbf65fa4813e2a00a230",
+      "request_index": 402,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": "file_disclosure",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "04a4e10486aa88575429a111076667f003f1744eec1953dd55acc3465d2c519a",
+      "request_index": 3350,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_file_disclosure",
+        "suspicious_scan"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: file_disclosure; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "052d1ff966f33c5f3f38b0848abdb65a00b335b3881ff0d1b16157d5ab85a209",
+      "request_index": 5587,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": "file_disclosure",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_file_disclosure",
+        "suspicious_scan"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: file_disclosure; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "05e48a923d0f3bb179a368f05a27279faeea9280c871c42591a21ffcdd3ea969",
+      "request_index": 22303,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": "file_disclosure",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "06bd9bb108394c315b19e231e9c9545f6d26c414c01ae064860fa017513a09b3",
+      "request_index": 23892,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_file_disclosure",
+        "suspicious_scan"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: file_disclosure; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "070dbbcb5e3371abf7de7add50c819e9b07f3640056827d77c05d2f8aa381d03",
+      "request_index": 3199,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": "file_disclosure",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0769c6491449c295526d68d2692f963328a84db4a335f3d28449fe5b0d1d218c",
+      "request_index": 16332,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "07ad825399ee5e96b6f9c2fa92ac4975d2ed22e0ccc2ce8f07701e83c5a4f5c3",
+      "request_index": 2801,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "087bc3de2ca49173939e8600459c8c665c8f8a031becb52aeae097942aeb4292",
+      "request_index": 7133,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0895f10317428366602f4178635db1917132358b2bc6d5e4d18b0497b48221bf",
+      "request_index": 19671,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "090d1c5119c74035388073b0ad26ee1ef8cf0d9e90ca8f76cbe97a905913c8b7",
+      "request_index": 10497,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0b23af37c4baf9c468b6dbda92bdea1a322401c08ac21ff2ee69a99178a2310b",
+      "request_index": 6521,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0c0b8fd80d8f313962c3f3b0b56e7664d2dd44547c812c4e7703346410c35a6f",
+      "request_index": 15316,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0c1fd1af712a5b3c6ec2af40a43dd3a19bd590f839c37a83d4f5b6d21b11439a",
+      "request_index": 3795,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0c2123d9b9fb81681653bbe683fc7f4cbea2d61075dac9d7de206cd79b34f740",
+      "request_index": 647,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0c92c79e745a78e58ce534be60505d954723a403262b7c32cf10605600ab545c",
+      "request_index": 16825,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0d3088d25aa69e518d8b9fca58618825525604db5029d715693e8d7e1ec02db0",
+      "request_index": 13912,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0d7a5148f5102eddc71e38cfb2c763b0f19011a4ed72fc9062bcd8e681ea8128",
+      "request_index": 14706,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical decision retains ambiguity; no stable security family is asserted.",
+      "classification_policy": "not_scored",
+      "prepare_selected": true,
+      "project_semantic": "ambiguous",
+      "raw_request_sha256": "0dc61716a71813287076946bab75c1e19e740d70a7624cbc40f206fb7c606167",
+      "request_index": 7158,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "adjudicated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0e2d6a3b4201c7e970987615e5d396dbfd4bcd2ec1c286d1b63dee6309bcd52a",
+      "request_index": 9458,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0e3bab068476d029ecce8971fac0b3517a4698eb88648d897b2b464ca17d3299",
+      "request_index": 7367,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0e9004b90ca0c95b5a35d5f63429e1775bdfd173fe117cce96ee03caa5b2edda",
+      "request_index": 23819,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_file_disclosure",
+        "suspicious_scan"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: file_disclosure; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0f3edca480020e583d4c3981d47ac7dfc4439d12d1e94b470edf2e74015738a9",
+      "request_index": 18273,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": "file_disclosure",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0f5900703ec1f112cbe865ad237c9002d384bb9d0081dfb4facd45755c559c21",
+      "request_index": 24017,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0f94ef74e1496b4aae72130c405e43d2e130842c88e43478f021737ede28e8a1",
+      "request_index": 13582,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_command_injection"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: command_injection; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1024aa5d3dd88e465d6bec136e022057134b8eae1c5b14495d0a7ef32eaa5221",
+      "request_index": 17056,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "command_injection",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "103bd64946e4ff81d03f3254e6bb294db463224f14ec27a2f9d5bf112f28dc94",
+      "request_index": 3311,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_file_disclosure",
+        "suspicious_scan"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: file_disclosure; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "107ebaacd88baab250bf84b390249158da2312454c8ccc3cf13c52c0addae5c3",
+      "request_index": 2060,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": "file_disclosure",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_file_disclosure",
+        "suspicious_scan"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: file_disclosure; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "117a6761db0ff492952363258afea660fd16a27d7b2b3580b1b9245a31149d16",
+      "request_index": 11951,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": "file_disclosure",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "12100934b2ea1d4da15fd58b1914325c0373d372b1c9f3a7b61dd729d104001c",
+      "request_index": 6931,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "121aa5a53245c386b8844bec84cc7a7314cd8006269390d32528ad7afe9eb265",
+      "request_index": 2924,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "000ed1fc8abff56a0139aaecf0aaf0c0f7d254d1223e6ebbf70e887d14a88eef",
+      "request_index": 22121,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "007338753609239cb19372fce48f540c0d5a16f1f8631e118d68797bc7bc98c2",
+      "request_index": 13516,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0240a374a01e15f87b2ade73c70f33eb58698218fbd5fe4a94b14c38bc15c13e",
+      "request_index": 14211,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0362486e4b2f7a0523cc091111b3cfe3b46576a84bc208c27cf904a9d05f3ac3",
+      "request_index": 7462,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "043894de09499c266ee52a9a6f13edd357927c053d700291368fb7a78db4344e",
+      "request_index": 11048,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0456bd45009d9911e6341926ba4bf69b581850f2995c8538b91631152d65f114",
+      "request_index": 19757,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "04f624c21f699b6490e3e6051754abe5d2fe84d4c93a65d2f4bd97abc0e894b0",
+      "request_index": 2268,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "090b453757a7ecc3e623d59ff2e4c900ffddae76abb40def82a91345f8b32dae",
+      "request_index": 12049,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "09aadac00d0f020a4dd02f259db725a84a715d2703a090807bbf3b01c95f3d4c",
+      "request_index": 16682,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0a2025eb55e81b2972f816a88a0db65b2f152b89f94f30140b2bd68a29b7ec59",
+      "request_index": 9714,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0af9373704f17f3140cb66e0f90c07adf50a297ea78c9a91fd723c509d61a31c",
+      "request_index": 4296,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0d3e629823806190c3405f432cb1eef590560e0e421d9b0fa0ede09e7813bb91",
+      "request_index": 6224,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0f89bdf5a12de6c1dcbde39307be9939ab3d0d30c3020a57481ff9556856be96",
+      "request_index": 11288,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "12dd332a30cf8f3dce0b92f8a08304414b0504534b4261265d25588a19273e8f",
+      "request_index": 15290,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1532707839ed963b177f416e0fcc7e22d37b90f7d608476a14d49f8b32cf6a1a",
+      "request_index": 20097,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "16cc0f1e46f6a5bc969eba0713143f24b7207eb7515cc16e5e466a5bb58281d5",
+      "request_index": 7009,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1ba93af8faef6f3d83d7d8e7e84eedb33802fc0f4ab62ed6e493488fb8733925",
+      "request_index": 21170,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1d3c86f660c70cfe85c36f693a1598f1338748b88b0019c9153614824b1b1b86",
+      "request_index": 11073,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "1e1c7eb04063cc496363264f361890c132592e9f0c7d62dac57ca0d85a57d6ce",
+      "request_index": 16997,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "212bee76865a71028432d7a84cf1f66874de3ed51cea85551fbc536700cb67bc",
+      "request_index": 4193,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "027daf6d059471e50dfeb087a9f975c769be042193a0502482888f3d893692e1",
+      "request_index": 19868,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "02fd485cdb3dbc92a058c3ddf1642c4d5574548af5aef30e780f06a836f12ea0",
+      "request_index": 23780,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "035b2562b15716e1873a6e286b63d4f280ce0998efc45fc9eb4107eabcfc3b2c",
+      "request_index": 13243,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "03821c066462dab454c4b6655ee69923677386cc5cfbfef2a8c89f72bfa7a4cf",
+      "request_index": 3189,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "03f36ee991807082187175922344b7cecbfbd62d25a50a5604633672540b12ad",
+      "request_index": 19489,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "04531c141333a405e3778f06781e7ba045bcd2fb4d65397e92d988051ba21376",
+      "request_index": 22181,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0482f879ac9231bb46ea13a4d9d2feaec833d187776fdc80d4c8c2ae34abf029",
+      "request_index": 8585,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "04d86258b7ede7d27903f148a86c1d7aaa4d734e44199ec4d96a1e0086c00a9c",
+      "request_index": 17049,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "04df1d63af093a2ec0c1949729642f7eb6aff2d3746a95fd6c5cb8c79e7afae2",
+      "request_index": 9376,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "05051d8c6653f75a075f31dce311a69b728baa250d26734945d22b09b3e1e7bd",
+      "request_index": 21360,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "057a2d24568203c875c5258b8958043251fffe75dea3816cd433de492de4f229",
+      "request_index": 14582,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "057c3ad0214336f324c809b00a3f9ca1edd5a747f60604e2fb70c76bfa8e11eb",
+      "request_index": 20833,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "05ee7694e8290b29fce324058082febcbf188c96e4691ea90eec49d4ca1708b4",
+      "request_index": 10881,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0651ccfdd42ea8fda71c50695cc3b8922f373fe06dffd11e4cccf2ec3758e8c6",
+      "request_index": 20640,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "06da93abee94aa050a3e9a11ad9c059ebb6a6deb0c5d4d0c70b757ed56ea23d9",
+      "request_index": 16113,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "06df4e1eb90f96a373db92fe9d9c97b8ee21da787e3829355e22fe3e25df42ba",
+      "request_index": 7971,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "070685b89840b59f50f27ca024580887de8b5daefcb96bb9ab6465d60e3bb722",
+      "request_index": 4469,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "07a505eff6006dc9efce47d14af90fa6f67364e2f5d1095f17fe24f9f2c4894d",
+      "request_index": 4046,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "07c4bef176840e5e3047f8168ca4639938cbfc3fed6e13146cf2d96f8f01dddf",
+      "request_index": 22632,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_xss"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: xss; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": true,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "07fb068c92a75d24fdd3f53dc2f82697f6df0b1d1c4b519bb6d05f85cd4353d8",
+      "request_index": 19807,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "xss",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": true,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "9c22c7c63116ee0d851dd9dd80ac1ac2d066a11a5c578ea2c77a92537777a7fb",
+      "request_index": 20583,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "normalTrafficTraining.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": true,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "adfc562f15886e6319241bee6c980b6855b05b52f5f502f37e3803bb2dece336",
+      "request_index": 27627,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "normalTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "3f8e09d9dd641ec6a130cd7fe6f3fec10336d673c80e588256fbb997d91e128a",
+      "request_index": 9724,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "adjudicated",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "43383e5c2add6fbed9e32521103c57fec553299322c6f6199e17c707b0ee9fbb",
+      "request_index": 5989,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_sqli"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: sqli; no exploit-success inference.",
+      "classification_policy": "exact",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "bbbd2444f18e6caee8a548e57168ee6b8db7df904a76dd2d09b8e3d71387d112",
+      "request_index": 19852,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "adjudicated",
+      "reviewed_family": "sqli",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00011a5c34c0074e7d05921124f3423825942c40001b5f5523c933fc8c0da941",
+      "request_index": 17580,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "000ec7425dfbd1aa9806933431451792e95fa975c7aac82cf4df7e2d493f8da0",
+      "request_index": 3807,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_scan",
+        "suspicious_file_disclosure"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: information_gathering; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "00173d019373506498d2ba6c4ea54baa2819ee50d3d3d69391bc83ae19ce03d1",
+      "request_index": 18346,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "information_gathering",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "001c79f021565cfaaa1ca5b4b415a3f74d8bd2834790c219b691fb415bf9b391",
+      "request_index": 4586,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "001dd517c867fdc865fc718420c7e0f3d1361ce0b1a21feb4cc7abf2a169ee12",
+      "request_index": 17017,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "001f1a4723007c7f0062aa1336eea3ec890296adc095df16f0a8d9dbbccb8b47",
+      "request_index": 15140,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00327a94404831ac4d597cce7eae97f5b9ec6bc66ace57aee4f2a6077a2f8153",
+      "request_index": 7422,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_scan",
+        "suspicious_file_disclosure"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: information_gathering; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0033ab5ade03fdbaaf10acb30832082b81b6e6e064b7ecdd525ccf15865d560c",
+      "request_index": 20323,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "information_gathering",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical decision retains ambiguity; no stable security family is asserted.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "ambiguous",
+      "raw_request_sha256": "003991ba92464bc3aca86aa9ebdaa0d7e94e60326af904443cfd7490c3368cc8",
+      "request_index": 2300,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "adjudicated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical decision retains ambiguity; no stable security family is asserted.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "ambiguous",
+      "raw_request_sha256": "003f3f9f84b31d1895867cb3c0f0240667f20b429dab441232744a29a93322c3",
+      "request_index": 6874,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "adjudicated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical decision retains ambiguity; no stable security family is asserted.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "ambiguous",
+      "raw_request_sha256": "0043bcd0672ea6ea53a4067cae53cf84257de8773b5117572fbfb56b2475ba9c",
+      "request_index": 15558,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "adjudicated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0044c59d462703670a66e6b6eb9d43782c47aca0c0e1ce627c0031b3d7027d96",
+      "request_index": 9470,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "004839b8fe98ee916aa369894ac005b836ad42bd4a50b179ed948e1ca90f48d3",
+      "request_index": 11481,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "004d1ed297d86b284234b46e756cae06cf2e470d59fa77b2bfc3329f46fc7f34",
+      "request_index": 14682,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "005934d37e462eeada85de04a7bb28d0f2caeec8b9a2fba454889c60fa5cde5c",
+      "request_index": 17112,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_scan",
+        "suspicious_file_disclosure"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: information_gathering; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "005a07b068a01e3aa8a4e43634288587acc8fe224d901f96b1d6139bca5c76db",
+      "request_index": 8725,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "information_gathering",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "005bfb694e2e95da54cb8a2cb55591cbffe15f5a2e996984cc34cc105dbcf776",
+      "request_index": 4066,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_scan",
+        "suspicious_file_disclosure"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: information_gathering; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "00608c29cb4e5a1e7d9708ea8597cff7c508aa3446e44063a86ccdef28176701",
+      "request_index": 2969,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "information_gathering",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_scan",
+        "suspicious_file_disclosure"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: information_gathering; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "006a7dc1d7d8adac367c1033bf5a51b7a4020b20d9c1e235908550abd5de2e0c",
+      "request_index": 1716,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "information_gathering",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_scan",
+        "suspicious_file_disclosure"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: information_gathering; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0075a73ec4aa898a1c58843f84ff1b61ea5a9e4f141a4b10e9692e0c2a4d5024",
+      "request_index": 4613,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "information_gathering",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0078b7532f7d4216520902a5516e54679ee0606cb6850bf114d9e0acf9932955",
+      "request_index": 19161,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0079b5016aafc6cb228cd2c204499c137c4e2a5ba93661a18138eb7d52e9b7cf",
+      "request_index": 10746,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0086d45cb2311384d402592c48b09cd19586a701ff2502cf6093235c524a7b7e",
+      "request_index": 14270,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_scan",
+        "suspicious_file_disclosure"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: information_gathering; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "0087607bfe3d3aef527e2ae8b1e5f7372ae2a76f1f5c566f8b9fdb778a5a93f4",
+      "request_index": 24797,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "information_gathering",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "008c3edbaea5d058242ddb30cf3f7eadaf4f3e28d1011e11a5aa8799585c605d",
+      "request_index": 15879,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "008ce67c932cb3bb819e84ab17c5e013f15504eea837628dd2cdf7d1ad7fe453",
+      "request_index": 13021,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00912b359e4d606a11bf9699e16c8e44e6d14fc2d98cb91e0239f7bc6f7a81ce",
+      "request_index": 3602,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0097a7d5810a9b41372b6045f136d5527729b6cca080d80969b4d62e3af4eff7",
+      "request_index": 15115,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_scan",
+        "suspicious_file_disclosure"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: information_gathering; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "00ad67ee2e21b7d3c13d1eaded2e95857cb6ac29963869d9994710f1454b5997",
+      "request_index": 20757,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "information_gathering",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00b09397cd92c55195c1e2cf2ce8518494e81d652a4491ad93ca0e0f86683122",
+      "request_index": 19352,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00b2173d8b9dfb2b015a76aecd3c3237c0bdd750ae4d7875717b3b6e197e36b6",
+      "request_index": 3480,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00b3f6828290b591152202bfe83809eeba00d0e2e9607c37087d8a5ba70cc5d6",
+      "request_index": 13203,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00bbd8b27e1aee7194f9b215ce649c3403fef8df7bb3ebeff7c3da8457e57a7e",
+      "request_index": 19840,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00c3cdfe4bd56450008b9caeee47b0865e788d324e6291e4bdaf11c909ea7bd3",
+      "request_index": 5959,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_scan",
+        "suspicious_file_disclosure"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: information_gathering; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "00c93c1766225c234146895c08721f7cb3af4729d0bde8545673d01d14caa69c",
+      "request_index": 18832,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "information_gathering",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00cb9bcf04edc93cd67a810ee387ccc3694de8594e2400fa84965664215bfc62",
+      "request_index": 15128,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [
+        "suspicious_scan",
+        "suspicious_file_disclosure"
+      ],
+      "canonical_rationale": "Canonical request-pattern decision: information_gathering; no exploit-success inference.",
+      "classification_policy": "compatible_set",
+      "prepare_selected": false,
+      "project_semantic": "project_attack_positive",
+      "raw_request_sha256": "00cda323bf4e805d5ff3e6b9f2cce1cb5565a4e1364125d4b22b9ea4ea1794c2",
+      "request_index": 18032,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": "information_gathering",
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00030efe2b34e6e443cb6a3477f1ef0cc212e3bdfcb8e83db0c0b3e570c671d6",
+      "request_index": 12839,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "000bd1c7159f516ceacd8be1d5cf0e8aa1fcbb3c07bef6cedba345c6f48d3743",
+      "request_index": 12796,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "000ca71b25a92db7023cbf94e237e035eab8bccdb356cb421eedda81d82244e0",
+      "request_index": 23638,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0016354be79552270ec943ddc06141fa58d58188d0588e8a4d3d10099c1faaa6",
+      "request_index": 24132,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0019e6ebe18b9e28f08a0572b374ee8da834be3e192def8d3fb2d1f273d86a29",
+      "request_index": 22422,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical observability decision: decisive evidence is outside the Apache-observable surface.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "not_scored_observability",
+      "raw_request_sha256": "0023f8b8d60a4d4c9469410cd312654e550ead5e5e0ecc505c6f14428448b1d8",
+      "request_index": 4077,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "002553b115d33c0f3f57c84fd2f2c5fd1323be2b90035d812795e652c01b69d9",
+      "request_index": 13927,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0028a5c30aa3ace93b9a96f71ddf03836f9f2b85f89edf6ccbddae434a80dd9f",
+      "request_index": 19150,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical observability decision: decisive evidence is outside the Apache-observable surface.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "not_scored_observability",
+      "raw_request_sha256": "002b66a9da24d2402ffcf093ee2c768b28ed7520d9fc4c0fe0720b3d39345a18",
+      "request_index": 22738,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "003d5930f04e0499bf932a43d1fa2a5c52ed64b3014a630b47186601c790c94a",
+      "request_index": 9412,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0051d74121b6db74c877c85362df25a52ca5bd3fc61a94035725a813b390b40c",
+      "request_index": 1641,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00557b5a3eca4db2e402294fa0c663ed42c7d2a81d24ed46e54b039bc98bea4b",
+      "request_index": 2651,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0071587330e875a0ad9d89b18760d76a0a6ddc10538f682962cd4da4f0feb8e8",
+      "request_index": 14868,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00730214ceb81671e879493039305f03f4831f63a74cf0f26d9b055adf0d4697",
+      "request_index": 1071,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0076194251025d7c939d4c8761ad27085570391be7cc89ec5f3b7386542fb0b1",
+      "request_index": 1135,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0078a4ad061fce2aced2b692dca232482aefde022e8d1c583e8102d465df6c28",
+      "request_index": 19812,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "007aaa908bec570bc25ab7c37cbf01e39162ca7a03a33c2df06dd491bd82e965",
+      "request_index": 6223,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00a22f897972b43bc6c503444c4cc413b40210fdf97785cb2cf52c115d7b73e5",
+      "request_index": 4718,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00a69dff1086c7405ddb6b27340b957a50dcfbe1c5877b328a80829df410bacb",
+      "request_index": 4334,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical observability decision: decisive evidence is outside the Apache-observable surface.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "not_scored_observability",
+      "raw_request_sha256": "00ab5cae806e23750ce41ff619339de444d60f813d1b65484c421865edbb128f",
+      "request_index": 8586,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00b1100c22c9dafb76c9dbdaf9fa5ee36e72af77781b08825838eaee5e1cbfbe",
+      "request_index": 699,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical observability decision: decisive evidence is outside the Apache-observable surface.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "not_scored_observability",
+      "raw_request_sha256": "00ba33f2647d21d35cffdf4ced2b88d900b86337cbdfae9ee11610210b1c3e07",
+      "request_index": 1030,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00c400968dec548a472651c6e9719a88559884f83f224b8dbc967360d253608e",
+      "request_index": 20639,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical observability decision: decisive evidence is outside the Apache-observable surface.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "not_scored_observability",
+      "raw_request_sha256": "00d0b172c21e88761339ae3e91297292e431735b898499cb1b179424596ee041",
+      "request_index": 17537,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00d47567e01e317e192b0ed7b960d5834414f94e9e475b45ceb1552f8630e95a",
+      "request_index": 18195,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00d53d66bd884a6a596b2fc41a2094df799a3a97b36f01c32e1c9c5acfb7328b",
+      "request_index": 22178,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00d8b6d877f96a6ca6fadde89c846d483fe834ea1d5481f8eff4808ee78ba831",
+      "request_index": 4826,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00e2843434583cdaad0627700a28b39f85f1a33a4bc426a52c2cb476ed28b75d",
+      "request_index": 21346,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical observability decision: decisive evidence is outside the Apache-observable surface.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "not_scored_observability",
+      "raw_request_sha256": "00e7cf9b05ba00bae6e482b056fd90c4f1ce599a8d1b237efbc7fc4543c159cf",
+      "request_index": 23359,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00e9f5b78ae3d93d96e9476d8326963655b317be9783afb52f19a632db6d03bf",
+      "request_index": 23563,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical observability decision: decisive evidence is outside the Apache-observable surface.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "not_scored_observability",
+      "raw_request_sha256": "00e9fc9a7c23360c8b7eaa72e9f1a0e829cf2833bae0cf2a4f8ebce8a5ed0989",
+      "request_index": 7824,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical observability decision: decisive evidence is outside the Apache-observable surface.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "not_scored_observability",
+      "raw_request_sha256": "00eeea2af3e7c157300ac1e4cd83e5a0c6f362f123b8a36e67c4ff146e1c585a",
+      "request_index": 6748,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical observability decision: decisive evidence is outside the Apache-observable surface.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "not_scored_observability",
+      "raw_request_sha256": "00f9ed7f8c08e3b271de7464a9ecbf0f01a88efdef2b3efd7c101d75015b7eca",
+      "request_index": 8887,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00fae74744c4315a8958e0472d36a34db7be617a72bdf9dc3843dd2f498caf63",
+      "request_index": 12512,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00fd59133eb60170991481a0ce6b3308fe6599dd8818fb6021434e6892e7c986",
+      "request_index": 10849,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical observability decision: decisive evidence is outside the Apache-observable surface.",
+      "classification_policy": "not_scored",
+      "prepare_selected": false,
+      "project_semantic": "not_scored_observability",
+      "raw_request_sha256": "0100f2329ee6736dc4500015d261aac39f5b49518e97a2072ad4f4febd9e2496",
+      "request_index": 16761,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "validated_agreement",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": true
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "01045ebbd3cdd1806571a5c68bb4494662a565aa9a86fbff2585a96fb6bf75d3",
+      "request_index": 17652,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "012b38af889bee33d4876da02dfe3932543ffdd365754ac44bf597a06fe77d38",
+      "request_index": 14480,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "012b95f9329c2979619cd3f274afe400720a791935a63b773592b85a39d5baf9",
+      "request_index": 2439,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0139823ba778d98ece05c4f34d81b871a48f3dfb536acf0bcf63414f51373df4",
+      "request_index": 21697,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "003f4732b28f1faf960a2de6299a57c3b6f97477676e858cb7fad1ed67b19614",
+      "request_index": 12831,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "00b4165f4c20890da3748fb8fe8b79cc3d8c5e67a2e308d0e50c0f15d6c71e5d",
+      "request_index": 15942,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0177c24ffaa34b64e57908c4d2f8df216fcf0eb78054b03abb940ec9563181b0",
+      "request_index": 22791,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "027ed4bff353bb9a6b6fdcc18427ff44d745186c2e88a7a2ae0e4eb21307235c",
+      "request_index": 1637,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "02ccb73bdc7cda7fbc0c6e391cfe50020cc773484a947057d559abdd3be4daa1",
+      "request_index": 13468,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "038248cf3cef16fa57ffe32183a7d705321ead7227e787ff36542f86d49b9cec",
+      "request_index": 8752,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "04094775d3d710b8558e5c0834842d518cd7d4b6da379fe6f0febc626a5fd2f2",
+      "request_index": 24610,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "048a2c2fc57b7e9f02633db7299456c0c1e0d2682a14af2b49dbd676d07e2275",
+      "request_index": 23957,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "04b4f41cdf26afb0f0568dc2df5d9056929d23fc611f7fc2e8fc80a8cdbc9951",
+      "request_index": 19763,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "04b902799c44dd8938a145c616830c70eb632da247c3cd44b07f3aec125ca2c8",
+      "request_index": 22974,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "04d028d0353a5fbcaf1d6141bc837483ca0c56bce3b0d1ce46b598b2a3a2f8ea",
+      "request_index": 13769,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "04f92166909fe01ccc56ffba7eb5178b6fcc72ceab991067f6709b1a76ec9629",
+      "request_index": 16635,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "05078e093ea565024dd9bb30af6cae457e36dcdd0e834844e3a82d77681f9b31",
+      "request_index": 15512,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "06c1e421d4c44eafb9dffc63144019f1a05b7446872036785c23132021529ad3",
+      "request_index": 12092,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "06e24ca0a106de52e0d0b4913d8b95914e7d22bfcc0d03cad7a7b4ca684892eb",
+      "request_index": 18905,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "070088b167bac745e778f02b10d5c503656eab56c47748eecb5b11b292bbf538",
+      "request_index": 6136,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "07baf867aa53ccccab33f83ec6b3acad55d3a5cedc6b3a8c7c9c4e30265face0",
+      "request_index": 22120,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "08c67721a6feb4028764ac62418a81d112166b37d161a85340b87c9c33502283",
+      "request_index": 17919,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "099d7c92e6535a55c406e73f1c7b7809466fd3819faa451a8d2168edf3594600",
+      "request_index": 17582,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    },
+    {
+      "allowed_stage1_verdicts": [],
+      "canonical_rationale": "Canonical negative decision: observable request evidence does not establish security attack semantics.",
+      "classification_policy": "forbidden_only",
+      "prepare_selected": false,
+      "project_semantic": "project_negative",
+      "raw_request_sha256": "0a1274595dfa9c52555825366af71aef23a2dc4a0583334a4a7ac3fbc1068b00",
+      "request_index": 11868,
+      "review_method": "llm_assisted_explicit_case_review + blind_second_pass_validation",
+      "review_status": "provisional_unvalidated",
+      "reviewed_family": null,
+      "source_file": "anomalousTrafficTest.txt",
+      "validation_present": false
+    }
+  ],
+  "review_metadata": {
+    "canonical": true,
+    "prepare_not_used_for_semantic_adjudication": true,
+    "review_statuses": [
+      "validated_agreement",
+      "adjudicated",
+      "provisional_unvalidated"
+    ],
+    "stage1_scored_subset_excludes_provisional_unvalidated": true
+  },
+  "schema_version": "csic2010_reviewed_semantic_subset.v1",
+  "source": {
+    "provisional_review_sha256": "aff70378f581045dcd8c314963f11fb5780934e3537d2c6a551cc072dbb5086a",
+    "sample_artifact": "/tmp/csic2010_review_sample.json"
+  }
+}
