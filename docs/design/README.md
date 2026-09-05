@@ -44,6 +44,7 @@
   - [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md): Web UI/API safety, 보안 결과 해석 read-only, `analysis_jobs` 등록/조회 DB write/read 허용 범위
   - [99_run_analysis_pipeline_user_runner_ux_review.md](./99_run_analysis_pipeline_user_runner_ux_review.md): `run_analysis_pipeline.py` 사용자 실행 UX와 DB-backed job lifecycle 연결 기준
 - 설계/회귀 검증
+  - [108_external_benchmark_csic2010_source_observability_design.md](./108_external_benchmark_csic2010_source_observability_design.md): Phase 6C-R CSIC 2010 source, license, Apache logs-only observability, taxonomy, local acquisition과 future benchmark phase 설계
   - [107_external_benchmark_multifamily_live_baseline_review.md](./107_external_benchmark_multifamily_live_baseline_review.md): Phase 6B-4 canonical live baseline의 CRS 930100/3 traversal/file-disclosure boundary documentation-only root-cause review와 6B-5 판단
   - [106_external_benchmark_multifamily_prepare_baseline_review.md](./106_external_benchmark_multifamily_prepare_baseline_review.md): Phase 6B-2R multi-family Prepare baseline의 CMDi/XSS/SQLi root-cause, candidate-boundary, adapter/annotation 검토와 6B-3 진입 권고
   - [105_external_security_benchmark_multifamily_design.md](./105_external_security_benchmark_multifamily_design.md): Phase 6A pinned CRS 932/941/942/913 inventory, logs-only eligibility, multi-family taxonomy/boundary, balanced suite and two-matrix design
