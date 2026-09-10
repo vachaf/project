@@ -1,168 +1,99 @@
-# design
+# Design Documentation Index
 
-## 목적
+## 목적과 해석 원칙
 
-- `design/`은 파이프라인 구조 설계, regression 설계, 모듈 분리 계획을 둔다.
-- 해석 한계, 기능 보류, 분류 기준 검토 같은 설계 판단 문서도 함께 관리한다.
-- 현재 상위 구조와 문서 해석 기준은 [../00_current_architecture.md](../00_current_architecture.md)를 따른다.
+이 문서는 2026년 9월 Final 시점에 docs/design 문서의 현재 권위와 사용 범위를 확인하는 canonical index다. [Documentation Naming & Status Policy v0.2](../final/documentation-naming-status-policy.md)와 [Final Scope v1.0](../final/final-scope.md)를 따른다.
 
-## 빠른 읽기 원칙
+- Active는 Final에서 읽어야 한다는 뜻이며 구현·통합·회귀·E2E 완료를 뜻하지 않는다.
+- Historical은 당시 설계·조사·결정·실행 기록이다. 과거 PASS/baseline은 freeze revision의 현재 PASS가 아니다.
+- Superseded은 후속 문서가 의미·계약을 승계했다는 뜻이며 삭제를 뜻하지 않는다.
+- deferred는 실패나 삭제가 아닌 Post-final 이관이다.
+- runtime은 실제 Job/Worker/Viewer 흐름, verification은 회귀·harness·benchmark, appendix는 provenance, deferred evidence는 Post-final 근거다.
 
-- 전체 현재 구조는 [../00_current_architecture.md](../00_current_architecture.md)를 먼저 본다.
-- Apache logs-only evidence boundary는 [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)를 single source of truth로 둔다.
-- `full_report`는 DB-backed MVP의 direct pipeline mode다.
-- Sliding Window, Rollup, Operator Queue는 `full_report`에 자동 포함되는 단계가 아니라 후속 `windowed_triage` 흐름이다.
-- `analysis_jobs` queue는 DB-backed 분석 실행 queue이고, `operator_queue`는 rollup 결과를 사람이 검토하기 위한 queue다.
+전체 runtime은 [현재 아키텍처](../00_current_architecture.md), Apache logs-only 해석 경계는 [Apache logs-only evidence boundary](../00_apache_logs_only_evidence_boundary.md)를 우선한다.
 
-## 현재 기준 / Canonical
+## Final에서 먼저 읽을 문서
 
-- [../00_current_architecture.md](../00_current_architecture.md): 현재 architecture, DB-backed MVP, mode/queue 경계
-- [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md): Apache logs-only 판정 경계와 금지/권장 표현 기준
-- [99_db_backed_log_collection_and_analysis_job_design.md](./99_db_backed_log_collection_and_analysis_job_design.md): DB-backed log collection과 analysis job 설계
-- [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md): Web UI/API safety와 read-only 해석 기준
-- [99_analysis_job_modes_and_sliding_window_integration.md](./99_analysis_job_modes_and_sliding_window_integration.md): `full_report`와 후속 `windowed_triage` mode 경계
-- [99_observability_run_summary_index.md](./99_observability_run_summary_index.md): observability run summary canonical index
-- [99_apache_app_observability_scenario_catalog.md](./99_apache_app_observability_scenario_catalog.md): Apache app observability scenario catalog docs-side summary
-- [99_apache_app_observability_matrix_template.md](./99_apache_app_observability_matrix_template.md): Apache app observability matrix template docs-side summary
-- [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md): 현재 prepare candidate policy 기준
+1. [현재 아키텍처](../00_current_architecture.md), [Apache logs-only evidence boundary](../00_apache_logs_only_evidence_boundary.md), [Final Scope v1.0](../final/final-scope.md)
+2. [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md), [99_owasp_security_standard_mapping_design.md](./99_owasp_security_standard_mapping_design.md), [100_security_standards_coverage_summary_design.md](./100_security_standards_coverage_summary_design.md)
+3. [99_db_backed_log_collection_and_analysis_job_design.md](./99_db_backed_log_collection_and_analysis_job_design.md), [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md)
+4. Conditional Final 검증은 [114](./114_shared_security_signal_extractor_design.md) → [115](./115_shared_security_signal_extractor_regression_plan.md) → [116](./116_prepare_full_output_comparison_harness_spec.md) 순서다. 패키지와 테스트 구성 요소의 존재는 C/D/E, 변경 전 기준 산출물, 변경 후 비교 또는 compatibility PASS가 아니다.
 
-## 분류 개요
+## 전체 inventory
 
-| 분류 | 우선 문서 | 읽는 목적 |
+한 행에 여러 문서가 있으면 그 행의 모든 분류 축이 각 문서에 동일하게 적용된다. Decision Status의 복수 값은 채택된 계약과 미실행 제안을 분리한 것이다.
+
+| Document | Classification | Authority | Decision Status | Final Role | Successor / Notes |
+| --- | --- | --- | --- | --- | --- |
+| [README.md](./README.md) | Active | canonical | adopted | runtime + verification + appendix + deferred evidence | 이 index. 문서 상태와 구현 완료를 분리한다. |
+| [100_security_standards_coverage_summary_design.md](./100_security_standards_coverage_summary_design.md) | Active | canonical | adopted | runtime | mapping과 다른 deduplicated finding aggregate 계약. 원문 설계 시점의 미구현 표기와 달리 summary module은 존재하나 현재 PASS는 미주장. |
+| [99_owasp_security_standard_mapping_design.md](./99_owasp_security_standard_mapping_design.md) | Active | canonical | adopted | runtime | finding-level deterministic enrichment. 100 summary와 병합하지 않는다. |
+| [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md) | Active | canonical | adopted + proposed | runtime | 실제 narrow guard와 review-only broad demotion을 구분하는 현재 Prepare 정책 기준. |
+| [114_shared_security_signal_extractor_design.md](./114_shared_security_signal_extractor_design.md) | Active | canonical | adopted + deferred | verification + deferred evidence | f25cc0f 기준 최신 design. D2 Live adoption과 D5 성능 수치는 보류, Final Scope상 Conditional Final이다. |
+| [115_shared_security_signal_extractor_regression_plan.md](./115_shared_security_signal_extractor_regression_plan.md) | Active | canonical | adopted + not run | verification + deferred evidence | 최신 regression plan. baseline·실행·compatibility 결과는 NOT RUN이다. |
+| [116_prepare_full_output_comparison_harness_spec.md](./116_prepare_full_output_comparison_harness_spec.md) | Active | supporting | adopted + proposed + not run | verification + deferred evidence | B2-A 명세. 패키지와 테스트 구성 요소는 존재하나 CLI, C/D/E, 변경 전후 capture와 전체 compatibility PASS는 미주장. |
+| [99_db_backed_log_collection_and_analysis_job_design.md](./99_db_backed_log_collection_and_analysis_job_design.md), [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md) | Active | supporting | adopted | runtime | DB-backed collection, full_report Job/Worker, Job 등록·조회와 결과 해석 경계의 세부 설계. 전체 흐름 canonical은 현재 아키텍처다. |
+| [99_analysis_job_modes_and_sliding_window_integration.md](./99_analysis_job_modes_and_sliding_window_integration.md) | Active | supporting | adopted + deferred | runtime + deferred evidence | full_report/후속 windowed_triage, analysis_jobs/operator queue 경계를 고정한다. |
+| [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](./99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md), [99_POST_body_visibility_한계와_해석_기준.md](./99_POST_body_visibility_한계와_해석_기준.md) | Active | supporting | adopted + deferred | runtime + deferred evidence | HTML fallback과 raw POST body blind spot의 Final limitation/운영 문구 근거. |
+| [99_file_disclosure_verdict_taxonomy_검토.md](./99_file_disclosure_verdict_taxonomy_검토.md) | Active | supporting | adopted + deferred | runtime + deferred evidence | file-disclosure taxonomy와 남은 검증 조건. |
+| [99_finding_context_supporting_events_investigation.md](./99_finding_context_supporting_events_investigation.md), [99_llm_token_usage_tracking_investigation.md](./99_llm_token_usage_tracking_investigation.md) | Active | supporting | adopted | runtime | 현재 finding/context/supporting-events 흐름과 token-usage artifact 조사 근거. |
+| [99_prepare_constants_ownership_map.md](./99_prepare_constants_ownership_map.md), [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md), [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md) | Active | supporting | adopted + deferred | runtime + deferred evidence | Prepare 현재 구조·완료 split·의도적 보류 경계. round/plan 원문은 historical evidence다. |
+| [99_stage2_prompt_compaction_plan.md](./99_stage2_prompt_compaction_plan.md) | Active | supporting | adopted + proposed | runtime | Stage2 logs-only guard와 compaction 방향. 후속 변경은 별도 검증 대상이다. |
+| [101_external_security_benchmark_design.md](./101_external_security_benchmark_design.md), [105_external_security_benchmark_multifamily_design.md](./105_external_security_benchmark_multifamily_design.md) | Historical | record only | proposed | verification + appendix | CRS source·annotation·taxonomy 설계 provenance. |
+| [102_external_benchmark_prepare_baseline_review.md](./102_external_benchmark_prepare_baseline_review.md), [103_external_benchmark_mapping_boundary_review.md](./103_external_benchmark_mapping_boundary_review.md), [104_external_benchmark_930100_3_classification_review.md](./104_external_benchmark_930100_3_classification_review.md), [106_external_benchmark_multifamily_prepare_baseline_review.md](./106_external_benchmark_multifamily_prepare_baseline_review.md), [107_external_benchmark_multifamily_live_baseline_review.md](./107_external_benchmark_multifamily_live_baseline_review.md) | Historical | record only | adopted | verification + appendix | CRS 기준 산출물·mapping·semantic boundary review 연쇄. 당시 수치·skip은 현재 freeze PASS가 아니다. |
+| [108_external_benchmark_csic2010_source_observability_design.md](./108_external_benchmark_csic2010_source_observability_design.md) | Historical | record only | adopted + blocked | verification + appendix | CSIC source/license/observability taxonomy. 외부 source 가용성·권리는 당시 기록이다. |
+| [109_external_benchmark_csic2010_source_integrity_review.md](./109_external_benchmark_csic2010_source_integrity_review.md), [110_external_benchmark_csic2010_prepare_baseline_review.md](./110_external_benchmark_csic2010_prepare_baseline_review.md), [112_external_benchmark_csic2010_semantic_validation_review.md](./112_external_benchmark_csic2010_semantic_validation_review.md), [113_external_benchmark_csic2010_stage1_controlled_review.md](./113_external_benchmark_csic2010_stage1_controlled_review.md) | Historical | record only | adopted | verification + appendix | CSIC integrity → projection/기준 산출물 → semantic validation → controlled review provenance 연쇄. historical compatibility는 현재 PASS가 아니다. |
+| [99_analysis_job_stage_events_design.md](./99_analysis_job_stage_events_design.md), [99_analysis_job_stale_running_recovery_policy.md](./99_analysis_job_stale_running_recovery_policy.md) | Historical | supporting | proposed | deferred evidence | stage event/stale RUNNING recovery 확장 초안. |
+| [99_analysis_job_worker_status_investigation.md](./99_analysis_job_worker_status_investigation.md) | Historical | supporting | adopted | appendix | 특정 checkout의 worker/status 조사 기록이며 현재 검증 결과가 아니다. |
+| [99_apache_app_observability_comparison_plan.md](./99_apache_app_observability_comparison_plan.md), [99_apache_log_collection_expansion_plan.md](./99_apache_log_collection_expansion_plan.md), [99_apache_log_collection_expansion_scope_correction.md](./99_apache_log_collection_expansion_scope_correction.md), [99_apache_security_io_v2_candidate.md](./99_apache_security_io_v2_candidate.md) | Historical | record only | proposed | appendix + deferred evidence | topology/수집 확장/v2 후보. capability matrix와 확장은 Post-final이다. |
+| [99_apache_app_observability_matrix_template.md](./99_apache_app_observability_matrix_template.md), [99_apache_app_observability_scenario_catalog.md](./99_apache_app_observability_scenario_catalog.md), [99_observability_run_summary_index.md](./99_observability_run_summary_index.md) | Historical | supporting | adopted | appendix + deferred evidence | scenario·matrix·run 색인. run 기록은 현재 Final PASS가 아니다. |
+| [99_cleanup_outputs_lab_protection_policy_review.md](./99_cleanup_outputs_lab_protection_policy_review.md), [99_lab_runner_migration_plan.md](./99_lab_runner_migration_plan.md), [99_output_cleanup_script_설계.md](./99_output_cleanup_script_설계.md) | Historical | record only | adopted | verification + appendix | cleanup/lab 보호·runner migration·safe cleanup 설계 기록. |
+| [99_document_cleanup_plan.md](./99_document_cleanup_plan.md) | Historical | record only | proposed | appendix | 이전 정리 계획. 현재 상태/권위는 이 README와 v0.2 정책이 승계한다. |
+| [99_external_client_error_heavy_run_plan.md](./99_external_client_error_heavy_run_plan.md), [99_lab_artifact_fixture_selection_plan.md](./99_lab_artifact_fixture_selection_plan.md), [99_prepare_candidate_selection_eval_plan.md](./99_prepare_candidate_selection_eval_plan.md) | Historical | record only | proposed | verification + appendix | run/fixture/evaluation 계획. final demo casebook 후보 근거다. |
+| [99_log_table_retention_partitioning_investigation.md](./99_log_table_retention_partitioning_investigation.md), [99_pipeline_run_dir_phase1b_phase2_candidate_review.md](./99_pipeline_run_dir_phase1b_phase2_candidate_review.md) | Historical | record only | proposed | deferred evidence | retention과 run-dir 후속 후보. |
+| [99_pipeline_run_dir_output_layout_plan.md](./99_pipeline_run_dir_output_layout_plan.md), [99_run_analysis_pipeline_user_runner_ux_review.md](./99_run_analysis_pipeline_user_runner_ux_review.md) | Historical | record only | adopted | appendix | 2026-05 run-dir/legacy runner 기록. run-id·overwrite 등 확장은 Post-final이다. |
+| [99_owasp_security_standard_mapping_investigation.md](./99_owasp_security_standard_mapping_investigation.md) | Historical | record only | adopted | appendix | mapping design의 조사 provenance. 최신 계약은 mapping design이다. |
+| [99_prepare_apache_observability_context_feature_review.md](./99_prepare_apache_observability_context_feature_review.md), [99_prepare_attack_hints_shared_policy_candidate_review.md](./99_prepare_attack_hints_shared_policy_candidate_review.md), [99_prepare_context_summary_split_candidate.md](./99_prepare_context_summary_split_candidate.md), [99_sensitive_path_probe_context_category_검토.md](./99_sensitive_path_probe_context_category_검토.md) | Historical | record only | proposed | deferred evidence | Prepare 후보/분리 review. |
+| [99_prepare_candidate_policy_distribution_history.md](./99_prepare_candidate_policy_distribution_history.md), [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md), [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md), [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md) | Historical | record only | adopted | appendix | policy distribution 및 constants/module split의 과거 완료 기록. |
+| [99_prepare_context_summary_contract.md](./99_prepare_context_summary_contract.md), [99_prepare_llm_input_inventory.md](./99_prepare_llm_input_inventory.md) | Historical | supporting | adopted + proposed | appendix | context contract와 책임 inventory; 현재 해석은 active summary/policy를 우선한다. |
+| [99_prepare_deferred_split_items.md](./99_prepare_deferred_split_items.md), [99_prepare_deferred_split_reentry_review.md](./99_prepare_deferred_split_reentry_review.md), [99_prepare_search_false_positive_policy_reentry_review.md](./99_prepare_search_false_positive_policy_reentry_review.md), [99_prepare_shared_attack_policy_boundary_review.md](./99_prepare_shared_attack_policy_boundary_review.md), [99_prepare_shared_attack_policy_reentry_review.md](./99_prepare_shared_attack_policy_reentry_review.md) | Historical | record only | deferred | deferred evidence | 의도적으로 남긴 Prepare split/policy 경계와 재진입 판단. |
+| [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md) | Historical | record only | adopted | appendix | round별 plan/기록이며 후속 module split summary가 현재 상태를 요약한다. |
+| [99_prepare_new_attack_coverage_candidate_review.md](./99_prepare_new_attack_coverage_candidate_review.md), [99_prepare_new_attack_coverage_round2_candidate_review.md](./99_prepare_new_attack_coverage_round2_candidate_review.md), [99_prepare_p2_attack_coverage_candidate_review.md](./99_prepare_p2_attack_coverage_candidate_review.md) | Historical | record only | deferred | deferred evidence | 신규 attack coverage/round 2/P2 후보는 Final Scope상 Post-final이다. |
+| [99_prepare_new_attack_coverage_round_summary.md](./99_prepare_new_attack_coverage_round_summary.md), [99_prepare_open_redirect_coverage_plan.md](./99_prepare_open_redirect_coverage_plan.md), [99_prepare_open_redirect_fixture_plan.md](./99_prepare_open_redirect_fixture_plan.md), [99_prepare_ssti_coverage_plan.md](./99_prepare_ssti_coverage_plan.md), [99_prepare_ssti_fixture_plan.md](./99_prepare_ssti_fixture_plan.md), [99_prepare_webshell_probe_coverage_plan.md](./99_prepare_webshell_probe_coverage_plan.md), [99_prepare_xxe_coverage_plan.md](./99_prepare_xxe_coverage_plan.md), [99_prepare_xxe_fixture_plan.md](./99_prepare_xxe_fixture_plan.md) | Historical | record only | adopted + deferred | verification + deferred evidence | 1차 coverage/fixture 기록과 후속 보강 후보. 추가 family 승격은 Post-final이다. |
+| [99_prepare_api_key_secret_probe_coverage_plan.md](./99_prepare_api_key_secret_probe_coverage_plan.md), [99_prepare_graphql_introspection_coverage_plan.md](./99_prepare_graphql_introspection_coverage_plan.md), [99_prepare_graphql_introspection_fixture_plan.md](./99_prepare_graphql_introspection_fixture_plan.md), [99_prepare_ssrf_log4shell_coverage_plan.md](./99_prepare_ssrf_log4shell_coverage_plan.md), [99_prepare_ssrf_log4shell_fixture_plan.md](./99_prepare_ssrf_log4shell_fixture_plan.md), [99_prepare_webshell_command_query_coverage_plan.md](./99_prepare_webshell_command_query_coverage_plan.md), [99_prepare_webshell_probe_fixture_plan.md](./99_prepare_webshell_probe_fixture_plan.md) | Historical | record only | deferred | deferred evidence | 신규 family/fixture는 Post-final이다. |
+| [99_prepare_regression_fixture_설계.md](./99_prepare_regression_fixture_설계.md), [99_stage_dryrun_regression_설계.md](./99_stage_dryrun_regression_설계.md) | Historical | record only | adopted | verification | fixture/dry-run 설계 원칙. 실제 freeze 결과는 future verification record가 필요하다. |
+| [99_proxy_error_check_scenario_extension_review.md](./99_proxy_error_check_scenario_extension_review.md) | Historical | record only | deferred | deferred evidence | availability extension 후보이며 attack scenario 승격이 아니다. |
+| [99_sliding_window_adoption_review.md](./99_sliding_window_adoption_review.md), [99_sliding_window_operator_queue_design.md](./99_sliding_window_operator_queue_design.md), [99_sliding_window_operator_queue_item_detail.md](./99_sliding_window_operator_queue_item_detail.md), [99_sliding_window_rollup_implementation_guide.md](./99_sliding_window_rollup_implementation_guide.md) | Historical | supporting | adopted + deferred | deferred evidence | 일부 source/test 자산이 있어도 Final runtime 채택은 아니다. operator queue/rollup은 Post-final이다. |
+| [99_sliding_window_behavior_summary_design.md](./99_sliding_window_behavior_summary_design.md), [99_sliding_window_rollup_input_format.md](./99_sliding_window_rollup_input_format.md), [99_sliding_window_rollup_input_review.md](./99_sliding_window_rollup_input_review.md), [99_sliding_window_rollup_pipeline_integration.md](./99_sliding_window_rollup_pipeline_integration.md), [99_sliding_window_rollup_quick_reference.md](./99_sliding_window_rollup_quick_reference.md), [99_sliding_window_single_rollup_observation_brief.md](./99_sliding_window_single_rollup_observation_brief.md) | Historical | record only | proposed + deferred | deferred evidence | Sliding Window/Rollup 설계·intake·quick reference. Final 본편에서 제외한다. |
+| [99_stage2_report_quality_lint_candidate_review.md](./99_stage2_report_quality_lint_candidate_review.md), [99_web_ui_loader_phase2b_fixture_plan.md](./99_web_ui_loader_phase2b_fixture_plan.md) | Historical | record only | proposed | verification | lint/loader fixture 후보 review. |
+| [99_stage2_report_quality_lint_tuning_plan.md](./99_stage2_report_quality_lint_tuning_plan.md) | Historical | record only | adopted | verification | tuning 완료와 당시 검증 기록이며 current freeze PASS가 아니다. |
+| [99_viewer_payload_human_viewer_consolidation_plan.md](./99_viewer_payload_human_viewer_consolidation_plan.md) | Historical | supporting | adopted | appendix | payload/human viewer consolidation 기록. Final canonical viewer summary가 필요하다. |
+| [99_web_ui_loader_phase2a_input_model_review.md](./99_web_ui_loader_phase2a_input_model_review.md), [99_web_ui_loader_phase2c_test_plan.md](./99_web_ui_loader_phase2c_test_plan.md), [99_web_ui_report_viewer_execution_scope_review.md](./99_web_ui_report_viewer_execution_scope_review.md), [99_web_ui_report_viewer_phase1a_plan.md](./99_web_ui_report_viewer_phase1a_plan.md), [99_web_ui_report_viewer_phase1a_template_contract.md](./99_web_ui_report_viewer_phase1a_template_contract.md), [99_web_ui_report_viewer_phase1b_plan.md](./99_web_ui_report_viewer_phase1b_plan.md), [99_web_ui_report_viewer_plan.md](./99_web_ui_report_viewer_plan.md), [99_web_ui_viewer_payload_display_plan.md](./99_web_ui_viewer_payload_display_plan.md) | Historical | record only | adopted | appendix | Viewer/loader 과거 phase 설계·구현 기록. 현재 canonical viewer architecture는 아직 없다. |
+| [99_web_ui_report_viewer_phase2_candidate_review.md](./99_web_ui_report_viewer_phase2_candidate_review.md), [99_web_ui_report_viewer_phase2a_filter_plan.md](./99_web_ui_report_viewer_phase2a_filter_plan.md), [99_web_ui_report_viewer_ui_polish_plan.md](./99_web_ui_report_viewer_ui_polish_plan.md), [99_web_ui_run_dir_loader_phase2_plan.md](./99_web_ui_run_dir_loader_phase2_plan.md) | Historical | record only | deferred | deferred evidence | viewer compare/history/filter/polish/loader 확장은 Post-final이다. |
+| [xss_external_navigation_followup.md](./xss_external_navigation_followup.md) | Historical | record only | adopted + proposed | appendix | XSS external navigation 수정과 후속 개선 기록. |
+| [103_shared_security_signal_extractor_design.md](./103_shared_security_signal_extractor_design.md) | Superseded | record only | adopted + proposed | deferred evidence | 최신 후속은 [114](./114_shared_security_signal_extractor_design.md). D1~D4/D5 구조 승인 기록이며 성능 수치·구현 완료가 아니다. |
+| [104_shared_security_signal_extractor_regression_plan.md](./104_shared_security_signal_extractor_regression_plan.md) | Superseded | record only | adopted + not run | deferred evidence | 최신 후속은 [115](./115_shared_security_signal_extractor_regression_plan.md)와 [116](./116_prepare_full_output_comparison_harness_spec.md). baseline/실행은 별도 승인·미실행이었다. |
+
+## 향후 canonical summary 필요 영역
+
+이번 작업에서는 새 문서를 만들지 않는다.
+
+| 후보 문서 | 필요성 |
+| --- | --- |
+| final-scope.md | Final/Conditional Final/Deferred의 제출용 단일 참조. |
+| final-status-and-freeze-criteria.md | 구현 자산, 통합, regression, E2E, NOT RUN을 구분한 freeze gate. |
+| final-demo-casebook.md | 대표 fixture의 관찰·판단·비확정 경계를 고정. |
+| final-verification-record.md | freeze revision의 실제 실행 결과를 historical benchmark와 분리. |
+| final-known-limitations.md | POST body, logs-only, HTML fallback, source/observability 한계 요약. |
+| web-report-viewer-architecture.md | Job detail→Viewer, payload, mapping/summary 표시 경계를 현재 흐름으로 요약. |
+| core-current-architecture.md 또는 현재 아키텍처 보강 | Job/Worker 세부 문서를 병합하지 않고 Final runtime을 단일 흐름으로 제시. |
+
+## Rename 제안
+
+실제 rename은 이번 작업 범위가 아니다.
+
+| 등급 | 후보 | 이유 |
 | --- | --- | --- |
-| DB-backed MVP / Web UI / Analysis Agent | `99_db_backed_*`, `99_analysis_job_modes_*` | 현재 job 등록, worker 실행, report/viewer 저장 흐름 |
-| Apache logs-only / observability / candidate policy | `99_observability_run_summary_index.md`, `99_apache_app_observability_scenario_catalog.md`, `99_apache_app_observability_matrix_template.md`, `../reviews/99_observability_run_summaries.md`, `99_prepare_candidate_policy.md`, `99_prepare_candidate_policy_distribution_history.md` | 로그 관찰 한계, 후보 추출 정책, run summary 색인과 docs-side 관찰 요약 |
-| prepare split / constants / hints | `99_prepare_module_split_summary.md`, `99_prepare_constants_ownership_map.md`, `99_prepare_hints_split_summary.md` | prepare 내부 구조와 보수적 분리 기준 |
-| Sliding Window / rollup / operator queue | `99_analysis_job_modes_and_sliding_window_integration.md`, `99_sliding_window_*` | 후속 `windowed_triage`와 operator review queue |
-| Stage2 / report quality | `99_stage2_*` | Stage2 prompt, report lint, wording quality |
-| Historical review / 후보 검토 | `*_review.md`, phase plan, adoption review | 완료 검토, 보류 근거, archive/delete 전 판단 자료 |
-
-## 세부 문서 목록
-
-- 현재 DB-backed MVP / Web UI / Analysis Agent
-  - [99_db_backed_log_collection_and_analysis_job_design.md](./99_db_backed_log_collection_and_analysis_job_design.md): Apache 로그 수집, MariaDB, Web UI `analysis_jobs` 등록, Analysis Agent 실행, 결과 표시까지의 DB-backed MVP 설계
-  - [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md): Web UI/API safety, 보안 결과 해석 read-only, `analysis_jobs` 등록/조회 DB write/read 허용 범위
-  - [99_run_analysis_pipeline_user_runner_ux_review.md](./99_run_analysis_pipeline_user_runner_ux_review.md): `run_analysis_pipeline.py` 사용자 실행 UX와 DB-backed job lifecycle 연결 기준
-- 설계/회귀 검증
-  - [110_external_benchmark_csic2010_prepare_baseline_review.md](./110_external_benchmark_csic2010_prepare_baseline_review.md): Phase 6C-2 Apache-observable projection, isolated production Prepare corpus baseline, selectivity/enrichment metrics, determinism과 6C-3 GO gate
-  - [109_external_benchmark_csic2010_source_integrity_review.md](./109_external_benchmark_csic2010_source_integrity_review.md): Phase 6C-1 local-only CSIC acquisition, whole-file mirror hash, raw HTTP parser/accounting, provenance manifest과 6C-2 GO gate
-  - [108_external_benchmark_csic2010_source_observability_design.md](./108_external_benchmark_csic2010_source_observability_design.md): Phase 6C-R CSIC 2010 source, license, Apache logs-only observability, taxonomy, local acquisition과 future benchmark phase 설계
-  - [107_external_benchmark_multifamily_live_baseline_review.md](./107_external_benchmark_multifamily_live_baseline_review.md): Phase 6B-4 canonical live baseline의 CRS 930100/3 traversal/file-disclosure boundary documentation-only root-cause review와 6B-5 판단
-  - [106_external_benchmark_multifamily_prepare_baseline_review.md](./106_external_benchmark_multifamily_prepare_baseline_review.md): Phase 6B-2R multi-family Prepare baseline의 CMDi/XSS/SQLi root-cause, candidate-boundary, adapter/annotation 검토와 6B-3 진입 권고
-  - [105_external_security_benchmark_multifamily_design.md](./105_external_security_benchmark_multifamily_design.md): Phase 6A pinned CRS 932/941/942/913 inventory, logs-only eligibility, multi-family taxonomy/boundary, balanced suite and two-matrix design
-  - [104_external_benchmark_930100_3_classification_review.md](./104_external_benchmark_930100_3_classification_review.md): CRS 930100/3 raw encoded traversal semantics, current normalization gap, exact traversal annotation 유지 결정
-  - [103_external_benchmark_mapping_boundary_review.md](./103_external_benchmark_mapping_boundary_review.md): traversal + direct-sensitive evidence의 CWE-552/WSTG-CONF-04 boundary, controlled Stage1 4건 conflict, case-specific manifest alignment 결론
-  - [102_external_benchmark_prepare_baseline_review.md](./102_external_benchmark_prepare_baseline_review.md): OWASP CRS Prepare-only baseline 27 direct cases의 production path, miss/예상 밖 candidate 원인, P0~P3 우선순위와 Stage1 진입 결정
-  - [101_external_security_benchmark_design.md](./101_external_security_benchmark_design.md): OWASP CRS 930100/930110/930120 기반 외부 security benchmark의 observability, case annotation, fixture/result schema, metric, Level 1/2 상세 설계
-  - [99_document_cleanup_plan.md](./99_document_cleanup_plan.md): 문서 정리 계획과 유지/archive/delete 근거
-  - [99_lab_runner_migration_plan.md](./99_lab_runner_migration_plan.md): `lab/*_set` runner code를 `scripts/lab_runners/{set}/`로 분리하기 위한 설계와 영향 범위
-  - [99_prepare_module_split_plan.md](./99_prepare_module_split_plan.md): prepare 모듈 분리 계획
-  - [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md): prepare module split 현재 기준 요약
-  - [99_prepare_llm_input_inventory.md](./99_prepare_llm_input_inventory.md): prepare_llm_input.py 책임 영역 inventory와 다음 분리 후보 검토
-  - [99_prepare_context_summary_contract.md](./99_prepare_context_summary_contract.md): context summary builder 분리 전 input/output 불변조건
-  - [99_prepare_context_summary_split_candidate.md](./99_prepare_context_summary_split_candidate.md): context summary builder 후보별 분리 우선순위 검토
-  - [99_prepare_regression_fixture_설계.md](./99_prepare_regression_fixture_설계.md): prepare regression fixture 설계
-  - [99_stage_dryrun_regression_설계.md](./99_stage_dryrun_regression_설계.md): Stage dry-run regression 설계
-  - [99_output_cleanup_script_설계.md](./99_output_cleanup_script_설계.md): output cleanup script 안전 설계 기준
-  - [99_cleanup_outputs_lab_protection_policy_review.md](./99_cleanup_outputs_lab_protection_policy_review.md): runner migration 이후에도 `cleanup_outputs.py`의 `lab` 보호 정책을 유지할지 검토한 문서
-  - [99_lab_artifact_fixture_selection_plan.md](./99_lab_artifact_fixture_selection_plan.md): `lab/*_산출물` 제거 전 보존할 대표 fixture 후보와 이관 기준을 정리한 계획
-- prepare module split
-  - [99_prepare_module_split_round1_summary.md](./99_prepare_module_split_round1_summary.md): round1 prepare 모듈 분리 완료 요약
-  - [99_prepare_module_split_round2_summary.md](./99_prepare_module_split_round2_summary.md): round2 prepare 모듈 분리 완료 요약
-  - method/protocol anomaly/auth/static baseline/crawler baseline summary split 완료: output key와 fixture/contract, Apache logs-only 해석 한계를 유지한 mechanical refactor로 반영
-  - sensitive path probe / ip behavior / probing sequence / mixed baseline scanner 세부 split 기록은 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)에 흡수
-- prepare deferred split / re-entry review
-  - [99_prepare_deferred_split_items.md](./99_prepare_deferred_split_items.md): prepare 분리 이후 의도적으로 남겨둔 보류 항목과 재검토 조건
-  - [99_prepare_deferred_split_reentry_review.md](./99_prepare_deferred_split_reentry_review.md): stable 상태에서 deferred split 재진입 여부를 보수적으로 검토한 문서
-  - [99_prepare_shared_attack_policy_reentry_review.md](./99_prepare_shared_attack_policy_reentry_review.md): shared attack/search policy constants 재진입 검토
-  - [99_prepare_search_false_positive_policy_reentry_review.md](./99_prepare_search_false_positive_policy_reentry_review.md): normal search false-positive handling 재진입 검토
-- prepare constants ownership / mini-move
-  - [99_prepare_constants_ownership_map.md](./99_prepare_constants_ownership_map.md): prepare constants ownership과 이동 가능성 지도
-  - [99_prepare_constants_mini_move_summary.md](./99_prepare_constants_mini_move_summary.md): constants mini-move 완료 요약
-  - protocol anomaly/IP behavior/method behavior 일부/static baseline 일부/auth behavior/crawler baseline constants mini-move 완료
-  - shared attack/search policy, decoded hints, scoring/filtering, supporting_events, `constants.py` 대량 분리는 보류 유지
-  - 완료된 세부 constants move plan 문서는 cleanup review 기준으로 요약 흡수 후 삭제 후보로 관리
-- prepare hints split / evidence boundary
-  - [99_prepare_hints_split_summary.md](./99_prepare_hints_split_summary.md): prepare hint split 완료 요약
-  - SQLi/XSS/file disclosure/traversal-CMDI hints split 완료
-  - SQLi DB 성공 단정 금지, XSS browser execution 단정 금지, file disclosure 실제 노출 단정 금지, CMDI execution/success 단정 금지 원칙 유지
-  - [99_prepare_attack_hints_shared_policy_candidate_review.md](./99_prepare_attack_hints_shared_policy_candidate_review.md): attack hints와 shared policy 후보 비교
-  - [99_prepare_shared_attack_policy_boundary_review.md](./99_prepare_shared_attack_policy_boundary_review.md): automation UA, shared attack/search policy, decoded hints 보류 경계 검토
-  - [99_prepare_new_attack_coverage_candidate_review.md](./99_prepare_new_attack_coverage_candidate_review.md): 새 공격 커버리지 후보와 장기 roadmap 검토
-  - [99_prepare_new_attack_coverage_round_summary.md](./99_prepare_new_attack_coverage_round_summary.md): 신규 공격 coverage 1라운드 완료 요약
-  - [99_prepare_new_attack_coverage_round2_candidate_review.md](./99_prepare_new_attack_coverage_round2_candidate_review.md): 신규 공격 coverage 2라운드 후보 비교
-  - [99_prepare_p2_attack_coverage_candidate_review.md](./99_prepare_p2_attack_coverage_candidate_review.md): P2 공격 커버리지 후보 우선순위와 완료/보류 상태 검토
-  - [99_prepare_graphql_introspection_coverage_plan.md](./99_prepare_graphql_introspection_coverage_plan.md): GraphQL/API introspection 신호의 Apache logs-only 해석 경계와 coverage 계획
-  - [99_prepare_graphql_introspection_fixture_plan.md](./99_prepare_graphql_introspection_fixture_plan.md): GraphQL/API introspection fixture/regression 구성 기준
-  - [99_prepare_open_redirect_coverage_plan.md](./99_prepare_open_redirect_coverage_plan.md): redirect-like external URL parameter의 Apache logs-only 경계와 SSRF 구분 검토
-  - [99_prepare_open_redirect_fixture_plan.md](./99_prepare_open_redirect_fixture_plan.md): `l3_open_redirect_external_url_context` fixture/regression 후보 설계
-  - [99_prepare_api_key_secret_probe_coverage_plan.md](./99_prepare_api_key_secret_probe_coverage_plan.md): API key/secret token probe 신호의 Apache logs-only 경계와 false positive 위험 검토
-  - [99_prepare_webshell_command_query_coverage_plan.md](./99_prepare_webshell_command_query_coverage_plan.md): webshell path + command-like query 결합 신호와 traversal/CMDI 경계 검토
-  - [99_prepare_xxe_coverage_plan.md](./99_prepare_xxe_coverage_plan.md): XML parser abuse/XXE-like marker의 Apache logs-only 경계 검토
-  - [99_prepare_xxe_fixture_plan.md](./99_prepare_xxe_fixture_plan.md): `l3_xxe_external_entity_context` fixture/regression 후보 설계
-  - [99_proxy_error_check_scenario_extension_review.md](./99_proxy_error_check_scenario_extension_review.md): proxy error check를 정규 scenario가 아닌 availability extension 후보로 유지할지 검토
-- prepare candidate policy / distribution
-  - [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md): 현재 실제 prepare 로직에 반영된 candidate policy 기준
-  - [99_prepare_candidate_policy_distribution_history.md](./99_prepare_candidate_policy_distribution_history.md): run 분포/history 정리. 새 policy가 아니라 관찰 기록이다.
-  - [99_prepare_apache_observability_context_feature_review.md](./99_prepare_apache_observability_context_feature_review.md): Apache observability context feature review. 현재는 삭제/통합 대상이 아니라 design review/historical 참고 문서로 둔다.
-  - 세부 review 원문 중 이미 이동된 문서는 `docs/archive/design/` 아래 historical 문서로 관리한다.
-- Stage2 prompt / report quality
-  - [99_stage2_prompt_compaction_plan.md](./99_stage2_prompt_compaction_plan.md): Stage2 report prompt 압축·섹션화 계획/완료 기록
-  - [99_stage2_report_quality_lint_candidate_review.md](./99_stage2_report_quality_lint_candidate_review.md): Stage2 report quality lint 후보 검토와 warning-only 도입 기준
-  - [99_stage2_report_quality_lint_tuning_plan.md](./99_stage2_report_quality_lint_tuning_plan.md): Stage2 report quality lint safe-negation tuning 계획/완료 기록
-- Web UI / report viewer
-  - 현재 기준: Web UI read-only는 보안 결과 해석 read-only를 뜻하며, DB-backed MVP의 `analysis_jobs` 등록/조회 DB write/read는 허용한다.
-  - [99_web_ui_report_viewer_plan.md](./99_web_ui_report_viewer_plan.md): Stage2 report viewer 전체 설계와 phase 개요
-  - [99_web_ui_report_viewer_phase1a_plan.md](./99_web_ui_report_viewer_phase1a_plan.md): Phase 1A report list/detail + Stage2 quality lint display 구현 체크리스트
-  - [99_web_ui_report_viewer_phase1a_template_contract.md](./99_web_ui_report_viewer_phase1a_template_contract.md): Phase 1A 템플릿/뷰 컨텍스트 contract
-  - [99_web_ui_report_viewer_phase1b_plan.md](./99_web_ui_report_viewer_phase1b_plan.md): Phase 1B compare view 설계와 구현 체크리스트
-  - [99_web_ui_report_viewer_phase2_candidate_review.md](./99_web_ui_report_viewer_phase2_candidate_review.md): read-only viewer 확장과 execution console 확장 후보 비교
-  - [99_web_ui_report_viewer_phase2a_filter_plan.md](./99_web_ui_report_viewer_phase2a_filter_plan.md): Phase 2A read-only filter/search/navigation MVP 설계
-  - [99_web_ui_report_viewer_ui_polish_plan.md](./99_web_ui_report_viewer_ui_polish_plan.md): UI polish 우선순위와 프레임워크 보류 기준
-- 설계 결정/해석 한계
-  - [99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md](./99_HTML_fallback_fingerprint_구현_검토와_보류_결정.md): HTML fallback fingerprint 기능 보류 결정
-  - [99_POST_body_visibility_한계와_해석_기준.md](./99_POST_body_visibility_한계와_해석_기준.md): POST body visibility 한계와 해석 기준
-  - [99_owasp_security_standard_mapping_investigation.md](./99_owasp_security_standard_mapping_investigation.md): OWASP Top 10:2025 / CWE / WSTG 매핑 가능성과 Apache logs-only 경계 조사
-  - [99_owasp_security_standard_mapping_design.md](./99_owasp_security_standard_mapping_design.md): OWASP Top 10:2025 / CWE / WSTG deterministic enrichment 상세 설계
-  - [100_security_standards_coverage_summary_design.md](./100_security_standards_coverage_summary_design.md): deduplicated finding 기준 OWASP/CWE/WSTG 관찰 분포 summary semantics, artifact contract, Stage2/Viewer 통합 설계
-  - [99_sensitive_path_probe_context_category_검토.md](./99_sensitive_path_probe_context_category_검토.md): sensitive path probe context category 도입 검토
-  - [99_file_disclosure_verdict_taxonomy_검토.md](./99_file_disclosure_verdict_taxonomy_검토.md): file disclosure verdict taxonomy 상태와 후속 검증 조건 검토
-  - [99_pipeline_run_dir_output_layout_plan.md](./99_pipeline_run_dir_output_layout_plan.md): run dir 검토 문서
-  - [99_proxy_error_check_scenario_extension_review.md](./99_proxy_error_check_scenario_extension_review.md): proxy/backend unavailable 신호를 attack scenario로 승격하지 않기 위한 availability extension 검토
-- observability / external client run
-  - [99_observability_run_summary_index.md](./99_observability_run_summary_index.md): run summary 상위 색인. run별 docs-side 요약은 [../reviews/99_observability_run_summaries.md](../reviews/99_observability_run_summaries.md)를 우선 본다.
-  - [99_apache_app_observability_scenario_catalog.md](./99_apache_app_observability_scenario_catalog.md): S01~S15 logical scenario와 evidence boundary 요약
-  - [99_apache_app_observability_matrix_template.md](./99_apache_app_observability_matrix_template.md): run별 observation matrix 구조와 해석 기준 요약
-  - [../reviews/99_observability_topology_comparison_review.md](../reviews/99_observability_topology_comparison_review.md): PHP sample/OpenCart/Juice Shop topology 비교 review
-  - [99_external_client_error_heavy_run_plan.md](./99_external_client_error_heavy_run_plan.md): external client 기반 error-heavy distribution 비교와 identity/header guardrail 계획
-  - `lab/observability` 원본은 장기 이관 대상이지만 현재 observability scripts input으로 남아 있다.
-- 운영 자동화 / Sliding Window
-  - [99_analysis_job_modes_and_sliding_window_integration.md](./99_analysis_job_modes_and_sliding_window_integration.md): `full_report` direct pipeline과 후속 `windowed_triage` mode 경계
-  - [99_sliding_window_adoption_review.md](./99_sliding_window_adoption_review.md): 팀원 작성 Sliding Window 문서 세트의 repo 수용 범위, CLI 호환성, dry-run 검증 순서 검토
-  - [99_sliding_window_operator_queue_design.md](./99_sliding_window_operator_queue_design.md): rollup 결과를 사람이 검토하기 위한 operator queue 설계
-  - [99_sliding_window_operator_queue_item_detail.md](./99_sliding_window_operator_queue_item_detail.md): operator queue item detail CLI/schema/표시 기준
-  - [99_sliding_window_single_rollup_observation_brief.md](./99_sliding_window_single_rollup_observation_brief.md): 단일 rollup observation brief 후보와 non-conclusion 기준
-  - `analysis_jobs` queue는 DB-backed 실행 queue이고, operator queue는 rollup 결과 검토 queue다. 두 queue를 같은 개념으로 보지 않는다.
-
-## 읽는 순서
-
-1. 현재 상위 구조는 [../00_current_architecture.md](../00_current_architecture.md)
-2. Apache logs-only 경계는 [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)
-3. DB-backed MVP는 [99_db_backed_log_collection_and_analysis_job_design.md](./99_db_backed_log_collection_and_analysis_job_design.md), [99_db_backed_web_ui_api_safety_addendum.md](./99_db_backed_web_ui_api_safety_addendum.md)
-4. runner UX bridge/historical review는 [99_run_analysis_pipeline_user_runner_ux_review.md](./99_run_analysis_pipeline_user_runner_ux_review.md)
-5. observability는 [99_observability_run_summary_index.md](./99_observability_run_summary_index.md), scenario 요약은 [99_apache_app_observability_scenario_catalog.md](./99_apache_app_observability_scenario_catalog.md), matrix 기준은 [99_apache_app_observability_matrix_template.md](./99_apache_app_observability_matrix_template.md), run별 docs-side 요약은 [../reviews/99_observability_run_summaries.md](../reviews/99_observability_run_summaries.md), topology 비교는 [../reviews/99_observability_topology_comparison_review.md](../reviews/99_observability_topology_comparison_review.md)
-6. candidate policy 현재 기준은 [99_prepare_candidate_policy.md](./99_prepare_candidate_policy.md), 분포 이력은 [99_prepare_candidate_policy_distribution_history.md](./99_prepare_candidate_policy_distribution_history.md)
-7. module split 현재 상태는 [99_prepare_module_split_summary.md](./99_prepare_module_split_summary.md)
-8. constants 이동 또는 ownership 판단이면 prepare constants ownership / mini-move 문서
-9. SQLi/XSS/file disclosure 등 hint 계열 분리나 evidence boundary 판단이면 prepare hints split / evidence boundary 문서
-10. operator queue와 장시간 분석 routing은 [99_analysis_job_modes_and_sliding_window_integration.md](./99_analysis_job_modes_and_sliding_window_integration.md), [99_sliding_window_operator_queue_design.md](./99_sliding_window_operator_queue_design.md), [99_sliding_window_operator_queue_item_detail.md](./99_sliding_window_operator_queue_item_detail.md), [99_sliding_window_single_rollup_observation_brief.md](./99_sliding_window_single_rollup_observation_brief.md)
-11. Stage2 prompt 정리나 report quality lint 검토면 Stage2 prompt / report quality 문서
-12. 로그 가시성, 해석 한계, 보류 기능 판단이면 설계 결정/해석 한계 문서
-13. 관련 평가는 [../reviews/README.md](../reviews/README.md)
-14. 후속 작업은 [../planning/README.md](../planning/README.md)
-
-## 관리 원칙
-
-- 구현 여부, 한계, 보류 결정, regression 설계는 `design/`에 둔다.
-- 평가, 품질 검토, 완료 리뷰는 `reviews/`에 둔다.
-- 후속 작업 큐와 TODO는 `planning/`에 둔다.
+| 즉시 권장 | 100_security_standards_coverage_summary_design.md → phase4b-01_security_standards_summary_design.md | Final Active canonical이며 정책의 명시 후보다. |
+| Final 전 선택적 | 114 → phase7-01_shared_security_signal_extractor_design.md, 115 → phase7-02_shared_security_signal_extractor_regression_plan.md, 116 → phase7-03_prepare_full_output_harness_spec.md | Active Conditional Final 문서이나 내부 link·외부 참조 갱신 범위를 먼저 확정해야 한다. |
+| 이번 Final 비추천 | 99_* 전체, 101~113, Superseded 103/104 | 99는 상태 관리 우선, benchmark는 appendix 정책 확정 전, Superseded 원문은 역사적 참조 안정성이 중요하다. |
