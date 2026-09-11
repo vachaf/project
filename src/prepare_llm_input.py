@@ -42,6 +42,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl, unquote_plus
 
 try:
+    from src.prepare.shared_signal_adapter import observe_prepare_security_signals
     from src.prepare.decoders import (
         append_html_entity_variants as _append_html_entity_variants,
         build_decoded_variants as _build_decoded_variants,
@@ -182,6 +183,7 @@ try:
     )
     from src.prepare.models import Candidate, NoiseAggregate
 except ImportError:
+    from prepare.shared_signal_adapter import observe_prepare_security_signals
     from prepare.decoders import (
         append_html_entity_variants as _append_html_entity_variants,
         build_decoded_variants as _build_decoded_variants,
@@ -3670,6 +3672,23 @@ def evaluate_row(
 
     if source_table == "access" and is_static_resource(uri) and status_code == 200:
         return None, "static_asset"
+
+    # Shadow adoption only: legacy detectors below remain authoritative for
+    # every hint, score, candidate, and verdict decision.  The shared result is
+    # read here so compatibility can be tested before any detector replacement.
+    shared_signal_compatibility = observe_prepare_security_signals(
+        row_identity={
+            "source_table": source_table,
+            "id": row.get("id"),
+            "request_id": row.get("request_id"),
+            "error_link_id": row.get("error_link_id"),
+        },
+        combined_text=combined_target,
+        raw_query_string=raw_qs,
+        raw_request_target=raw_request_target,
+        uri=uri,
+    )
+    _ = shared_signal_compatibility.legacy_hint_groups
 
     # 2) 의심 점수 계산
     score = 0
