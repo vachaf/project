@@ -1,0 +1,20 @@
+.live-page { background:#09111b; color:#dce7ef; }
+.live-heading,.live-statusbar,.live-layout { display:grid; gap:1rem; }
+.live-heading { grid-template-columns:2fr 1fr; margin:1.5rem 0; }
+.live-kicker { color:#6dd5fa; font-weight:800; letter-spacing:.12em; }
+.live-boundary,.live-time-note,.live-card { border:1px solid #31465a; background:#111d29; border-radius:.7rem; padding:1rem; }
+.live-statusbar { grid-template-columns:1fr 2fr auto; align-items:center; border-block:1px solid #31465a; padding:1rem 0; }
+.live-facts { display:flex; gap:2rem; margin:0; }.live-facts dt { color:#9eb0bf; font-size:.8rem; }.live-facts dd { margin:0; }
+.live-filter-grid { display:grid; grid-template-columns:repeat(5,minmax(8rem,1fr)) auto; gap:.75rem; align-items:end; }
+.live-filter-grid label { display:grid; gap:.3rem; }.live-filter-grid input,.live-filter-grid select,button { padding:.55rem; }
+.live-layout { grid-template-columns:minmax(0,2fr) minmax(18rem,1fr); margin-top:1rem; }
+.live-table-wrap { overflow:auto; }table { width:100%; border-collapse:collapse; }th,td { border-bottom:1px solid #31465a; padding:.55rem; text-align:left; }
+#liveLogRows tr { cursor:pointer; }#liveLogRows tr:hover,#liveLogRows tr.is-selected { background:#1b3042; }
+.live-status-code { border-radius:1rem; padding:.15rem .5rem; font-weight:800; }
+.live-status-2xx { background:#102b20;color:#76e9ab }.live-status-3xx { background:#10283b;color:#84c8ff }
+.live-status-4xx { background:#302510;color:#ffd47e }.live-status-5xx { background:#36171a;color:#ff9699 }.live-status-none { background:#222d3a;color:#b4c0ca }
+.live-detail-list div { margin-bottom:.8rem; }.live-detail-list dt { color:#9eb0bf; }.live-detail-list dd { margin:.2rem 0; overflow-wrap:anywhere; white-space:pre-wrap; }
+.live-raw-log { max-height:24rem; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:#07101a; padding:.75rem; border-radius:.4rem; }
+.live-pager { display:flex; gap:.7rem; align-items:center; margin-top:1rem; }.live-error { background:#461d22; padding:1rem; margin-top:1rem; }
+.live-footer-note { color:#9eb0bf; }
+@media(max-width:900px){.live-heading,.live-statusbar,.live-layout{grid-template-columns:1fr}.live-filter-grid{grid-template-columns:1fr 1fr}}

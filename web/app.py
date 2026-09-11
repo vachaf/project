@@ -12,6 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from web.config import DEBUG, PROJECT_ROOT
+from web.routes.live import init_templates as init_live_templates
+from web.routes.live import router as live_router
 from web.routes.reports import _apply_src_ip_display_mode
 from web.routes.reports import _is_mask_src_ip_enabled
 from web.routes.reports import init_templates as init_report_templates
@@ -40,7 +42,9 @@ app = FastAPI(title="Security Intelligence Console", debug=DEBUG)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 init_report_templates(templates)
+init_live_templates(templates)
 app.include_router(reports_router)
+app.include_router(live_router)
 job_repository = AnalysisJobRepository()
 
 ARTIFACT_KEY_TO_REPORT_COLUMN = {

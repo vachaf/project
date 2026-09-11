@@ -69,3 +69,18 @@
   - `templates/compare.html`
   - `static/style.css`
 - Python 로직 변경은 필요 최소로 제한
+
+## Live Monitoring
+
+- 화면/API: `GET /live`, `GET /api/live/snapshot`
+- 원문 상세: `GET /api/live/logs/{row_id}/raw`
+- `web_logs.apache_security_logs`를 `LOG_DB_USER=log_reader`로 SELECT만 수행
+- `APP_DB_*` 또는 Analysis Job repository 설정을 사용하지 않음
+- 기본 응답은 기간 제한 없이 `(log_time DESC, id DESC)` 최신 50건
+- 내부적으로 51번째 행을 has-more 판정에만 사용하며 API에는 최대 50건만 반환
+- newer page는 ASC로 인접 행을 조회한 후 API 반환 전에 DESC로 복원
+- period, HTTP `status_class`, method, IP exact, URI/Request Target 필터 제공
+- `raw_log`는 목록 payload에서 제외하고 선택한 한 행만 별도 SELECT하여 원문 그대로 반환
+- 동적 DB 문자열은 JavaScript `textContent`로만 표시
+- DB 최신 로그 시각과 마지막 조회 시각을 분리 표시하며 오래된 로그를 장애로 판정하지 않음
+- Prepare, Stage1, Mapping, Stage2, Worker 또는 Analysis Job을 호출하지 않음
