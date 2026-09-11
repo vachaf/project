@@ -3621,7 +3621,13 @@ def build_filtered_reasons_payload(
 # ----------------------------
 # 규칙 기반 후보 평가
 # ----------------------------
-def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tuple[Optional[Candidate], Optional[str]]:
+def evaluate_row(
+    row: Dict[str, Any],
+    source_table: str,
+    min_score: int,
+    *,
+    allow_repeated_context_candidate: bool = False,
+) -> Tuple[Optional[Candidate], Optional[str]]:
     uri = get_uri(row)
     raw_req_original = "" if row.get("raw_request") is None else str(row.get("raw_request")).strip()
     raw_req = normalize_text(row.get("raw_request"))
@@ -4059,6 +4065,11 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
     # Context scores (HPP, length, punctuation, status, timing, and similar
     # observability signals) support a detected security semantic.  They do
     # not independently make an otherwise generic request a candidate.
+    approved_path_only_webshell_signal = probe_path in {
+        "/wso.php",
+        "/c99.php",
+        "/vendor/phpunit/phpunit/src/util/php/eval-stdin.php",
+    }
     substantive_security_signal = any(
         (
             sqli_hits,
@@ -4074,6 +4085,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
             graphql_score_boost,
             xxe_score_boost,
             webshell_score_boost,
+            approved_path_only_webshell_signal,
         )
     )
     # This existing upload branch intentionally retains a multipart request
@@ -4107,7 +4119,7 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         verdict_hint = "suspicious_file_disclosure"
     elif is_login_success_json_response and score >= min_score:
         verdict_hint = "suspicious_auth_success"
-    elif score >= min_score and substantive_security_signal:
+    elif score >= min_score and (substantive_security_signal or allow_repeated_context_candidate):
         if direct_sensitive_config_probe and not php_filter_wrapper_detected:
             return None, filtered_noise_category
         verdict_hint = "suspicious"
@@ -4146,6 +4158,66 @@ def evaluate_row(row: Dict[str, Any], source_table: str, min_score: int) -> Tupl
         embedded_attack_hint=embedded_attack_hint,
     )
     return candidate, None
+
+
+def restore_repeated_context_candidates(
+    filtered_rows: List[Dict[str, Any]],
+    candidates: List[Candidate],
+    *,
+    auth_behavior_summaries: List[Dict[str, Any]],
+    sensitive_path_probe_summaries: List[Dict[str, Any]],
+    min_score: int,
+) -> List[Dict[str, Any]]:
+    """Restore only approved representative-candidate families backed by repeated context."""
+    auth_contexts = build_auth_behavior_summary_contexts(auth_behavior_summaries)
+    sensitive_contexts = build_sensitive_path_probe_summary_contexts(sensitive_path_probe_summaries)
+    remaining: List[Dict[str, Any]] = []
+
+    for row in filtered_rows:
+        row_dt = parse_flexible_iso_dt(choose_best_time(row) or "")
+        src_ip = get_src_ip(row)
+        promote = False
+
+        if row_dt is not None and get_status_code(row) == 401:
+            endpoint_family = get_auth_endpoint_family(
+                get_method(row),
+                get_uri(row),
+                raw_request_target=extract_raw_request_target(raw_text(row.get("raw_request"))),
+            )
+            promote = any(
+                context["src_ip"] == src_ip
+                and context["endpoint_family"] == endpoint_family
+                and context["start_dt"] <= row_dt <= context["end_dt"]
+                and bool(context["summary"].get("has_repeated_401"))
+                for context in auth_contexts
+            )
+
+        if not promote and row_dt is not None:
+            path = get_effective_request_path(
+                get_uri(row),
+                extract_raw_request_target(raw_text(row.get("raw_request"))),
+            ).lower()
+            if path == "/server-status":
+                promote = any(
+                    context["src_ip"] == src_ip
+                    and context["start_dt"] <= row_dt <= context["end_dt"]
+                    and safe_int(context["summary"].get("path_counts", {}).get("/server-status"), 0) >= 2
+                    for context in sensitive_contexts
+                )
+
+        if promote:
+            candidate, _ = evaluate_row(
+                row,
+                normalize_text(row.get("_source_table")),
+                min_score=min_score,
+                allow_repeated_context_candidate=True,
+            )
+            if candidate is not None:
+                candidates.append(candidate)
+                continue
+        remaining.append(row)
+
+    return remaining
 
 
 # ----------------------------
@@ -4270,12 +4342,22 @@ def build_outputs(
             filtered_out_rows.append(working_row)
         all_rows.append(working_row)
 
-    non_aggregated_filtered, noise_aggregates = aggregate_noise_rows(filtered_out_rows, min_repeat=min_repeat_aggregate)
+    auth_behavior_summaries = build_auth_behavior_summaries(all_rows)
+    sensitive_path_probe_summaries = build_sensitive_path_probe_summaries(all_rows)
+    filtered_out_rows = restore_repeated_context_candidates(
+        filtered_out_rows,
+        candidates,
+        auth_behavior_summaries=auth_behavior_summaries,
+        sensitive_path_probe_summaries=sensitive_path_probe_summaries,
+        min_score=min_score,
+    )
+    non_aggregated_filtered, noise_aggregates = aggregate_noise_rows(
+        filtered_out_rows,
+        min_repeat=min_repeat_aggregate,
+    )
 
     noise_counter = Counter(normalize_text(r.get("_noise_category")) or "unclassified" for r in filtered_out_rows)
 
-    auth_behavior_summaries = build_auth_behavior_summaries(all_rows)
-    sensitive_path_probe_summaries = build_sensitive_path_probe_summaries(all_rows)
     original_candidate_count = len(candidates)
     reduced_candidates, auth_behavior_supporting_events = reduce_repeated_auth_candidates(
         candidates,

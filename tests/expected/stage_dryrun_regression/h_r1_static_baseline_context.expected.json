@@ -73,8 +73,43 @@
       "op": "json_path_contains",
       "file": "stage2_prompt_bundle",
       "path": "system_prompt",
-      "contains": "static file 존재, crawler policy 내용, site structure 노출, JS 실행, file exposure, health 정상 여부를 단정하지 마라",
-      "message": "stage2 prompt includes static baseline no-success-inference rule"
+      "contains": "static file 존재",
+      "message": "stage2 prompt forbids static file existence inference"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "crawler policy 내용",
+      "message": "stage2 prompt forbids crawler-policy inference"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "site structure 노출",
+      "message": "stage2 prompt forbids site structure inference"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "JS 실행",
+      "message": "stage2 prompt forbids JavaScript execution inference"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "file exposure",
+      "message": "stage2 prompt forbids file exposure inference"
+    },
+    {
+      "op": "json_path_contains",
+      "file": "stage2_prompt_bundle",
+      "path": "system_prompt",
+      "contains": "health 상태를 단정하지 마라",
+      "message": "stage2 prompt forbids health-state inference"
     },
     {
       "op": "file_contains",
@@ -135,6 +170,16 @@
         "단정하지 마라"
       ],
       "message": "markdown must not assert file exposure"
+    },
+    {
+      "op": "file_contains_unless_context",
+      "file": "stage2_report_md",
+      "contains": "health 상태",
+      "allowed_context_contains": [
+        "단정하지 않는다",
+        "단정하지 마라"
+      ],
+      "message": "markdown must not assert current health state"
     },
     {
       "op": "file_contains_unless_context",

@@ -1,5 +1,5 @@
 {
-  "description": "Search baseline dry-run should keep benign baseline context separate from attack candidates.",
+  "description": "Search baseline dry-run should keep candidate-excluded baseline-like context separate from attack candidates.",
   "MUST": [
     {
       "op": "json_path_exists",
@@ -12,11 +12,11 @@
       "file": "stage2_report_input",
       "path": "top_filtered_categories",
       "where": {
-        "category": "benign_normal_search"
+        "category": "known_baseline_like_legacy_alias"
       },
       "field": "category",
-      "equals": "benign_normal_search",
-      "message": "benign_normal_search remains a filtered baseline category"
+      "equals": "known_baseline_like_legacy_alias",
+      "message": "legacy Prepare baseline category is normalized for Stage2 reporting"
     },
     {
       "op": "list_any_equals",
@@ -55,20 +55,20 @@
       "op": "json_path_contains",
       "file": "stage2_prompt_bundle",
       "path": "system_prompt",
-      "contains": "benign_normal_search 또는 normal_search_baseline filtered_out category 는 low_signal_fuzzing 과 분리해서 정상 비교군 또는 reference baseline 으로 표현하라.",
+      "contains": "known_baseline_like 또는 known_baseline_like_legacy_alias filtered_out category 는 low_signal_fuzzing 과 분리해서 candidate-excluded baseline-like 또는 reference baseline 으로 표현하라.",
       "message": "stage2 prompt distinguishes baseline from low-signal fuzzing"
     },
     {
       "op": "file_contains",
       "file": "stage2_report_md",
-      "contains": "정상 baseline 정책",
+      "contains": "baseline-like 정책",
       "message": "markdown includes baseline policy note"
     },
     {
       "op": "file_contains",
       "file": "stage2_report_md",
-      "contains": "benign_normal_search",
-      "message": "markdown exposes benign_normal_search as baseline context"
+      "contains": "known_baseline_like_legacy_alias",
+      "message": "markdown exposes the normalized legacy baseline category"
     }
   ],
   "MUST_NOT": [
@@ -77,11 +77,17 @@
       "file": "stage2_report_input",
       "path": "top_out_of_candidate_recon",
       "where": {
-        "category": "benign_normal_search"
+        "category": "known_baseline_like_legacy_alias"
       },
       "field": "category",
-      "equals": "benign_normal_search",
+      "equals": "known_baseline_like_legacy_alias",
       "message": "baseline must not be reclassified as out-of-candidate recon"
+    },
+    {
+      "op": "file_contains",
+      "file": "stage2_report_md",
+      "contains": "benign_normal_search",
+      "message": "markdown must not restore obsolete benign baseline wording"
     },
     {
       "op": "file_contains_unless_context",
