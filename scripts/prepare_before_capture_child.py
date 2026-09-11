@@ -14,6 +14,7 @@ VERIFICATION_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(VERIFICATION_ROOT))
 
 from src.prepare_full_output_harness.capture import encode_typed  # noqa: E402
+from src.prepare_full_output_harness.identity import sha256_bytes, sha256_file  # noqa: E402
 from src.prepare_full_output_harness.isolation import (  # noqa: E402
     FIXED_INSTANT,
     PROCESS_TIMEZONE,
@@ -62,6 +63,18 @@ def execute(request: dict[str, object]) -> dict[str, object]:
     payload = json.loads(input_path.read_text(encoding="utf-8"))
     _require(isinstance(payload, dict), "input payload must be an object")
     input_before = encode_typed(payload)
+    input_identity = {
+        "corpus_id": request["corpus_id"],
+        "case_id": request["case_id"],
+        "source_revision": SUBJECT_REVISION,
+        "source_file_sha256": sha256_file(input_path),
+        "adapter_version": CHILD_PROTOCOL_VERSION,
+        "parameter_id": PARAMETER_ID,
+        "raw_source_hash": sha256_file(input_path),
+        "projected_payload_hash": sha256_bytes(
+            json.dumps(input_before, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        ),
+    }
     call_input = copy.deepcopy(payload)
 
     # -I prevents ambient PYTHONPATH injection.  Put the approved subject first,
@@ -72,15 +85,36 @@ def execute(request: dict[str, object]) -> dict[str, object]:
             del sys.modules[name]
     module = importlib.import_module("src.prepare_llm_input")
     expected_file = subject_root / SOURCE_TREE_FILES[-1]
-    from src.prepare_full_output_harness.identity import sha256_file
     validate_import_origin(module, expected_file=expected_file, expected_sha256=sha256_file(expected_file))
-    with patched_prepare_datetime(module):
-        result = module.build_outputs(
-            call_input,
-            min_score=MIN_SCORE,
-            min_repeat_aggregate=MIN_REPEAT_AGGREGATE,
-            source_tables=list(SOURCE_TABLES),
-        )
+    try:
+        with patched_prepare_datetime(module):
+            result = module.build_outputs(
+                call_input,
+                min_score=MIN_SCORE,
+                min_repeat_aggregate=MIN_REPEAT_AGGREGATE,
+                source_tables=list(SOURCE_TABLES),
+            )
+    except Exception as exc:
+        input_after = encode_typed(call_input)
+        return {
+            "protocol_version": CHILD_PROTOCOL_VERSION,
+            "status": "raised",
+            "run_role": request["run_role"],
+            "corpus_id": request["corpus_id"],
+            "case_id": request["case_id"],
+            "parameter_id": PARAMETER_ID,
+            "identity": identity,
+            "input_identity": input_identity,
+            "parameters": request["parameters"],
+            "clock": request["clock"],
+            "input_before": input_before,
+            "input_after": input_after,
+            "input_mutated": input_before != input_after,
+            "exception": {
+                "qualified_type": f"{type(exc).__module__}.{type(exc).__qualname__}",
+                "message": str(exc),
+            },
+        }
     _require(isinstance(result, tuple) and len(result) == 5, "build_outputs return contract mismatch")
     expected_types = (dict, list, list, dict, list)
     _require(all(type(value) is expected for value, expected in zip(result, expected_types)), "build_outputs slot type mismatch")
@@ -93,6 +127,7 @@ def execute(request: dict[str, object]) -> dict[str, object]:
         "case_id": request["case_id"],
         "parameter_id": PARAMETER_ID,
         "identity": identity,
+        "input_identity": input_identity,
         "parameters": request["parameters"],
         "clock": request["clock"],
         "input_before": input_before,

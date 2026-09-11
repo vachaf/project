@@ -24,7 +24,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def identity() -> StageEIdentity:
-    return StageEIdentity(SUBJECT_REVISION, "1" * 40, "a" * 64, "b" * 64, "c" * 64)
+    return StageEIdentity(
+        SUBJECT_REVISION, "1" * 40, "a" * 64, "d" * 64, "b" * 64, "c" * 64
+    )
 
 
 def test_approved_source_inventory_v1_is_exact() -> None:
