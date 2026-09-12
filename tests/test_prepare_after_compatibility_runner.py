@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from src.prepare_full_output_harness.capture import encode_typed
 from src.prepare_full_output_harness.stage_e_after_adapter import AfterAdapterError, _strict
+from src.prepare_full_output_harness.stage_e_after_contract import AFTER_REVISION, PHASE_A_BEFORE_REVISION
 
 def capture(revision:str,value:object)->dict:
     return {"status":"returned","corpus_id":"prepare_regression","case_id":"case","parameter_id":"p","parameters":{"x":1},"clock":{"x":1},"identity":{"subject_revision":revision},"input_identity":{"corpus_id":"prepare_regression","case_id":"case","source_revision":revision,"source_file_sha256":"a","parameter_id":"p","raw_source_hash":"b","projected_payload_hash":"c"},"input_before":encode_typed({"rows":[]}),"input_after":encode_typed({"rows":[]}),"input_mutated":False,"return_value":encode_typed((value,[],[],{},[]))}
@@ -18,3 +19,7 @@ def test_strict_comparison_does_not_normalize_order_or_duplicates()->None:
 def test_unapproved_cross_revision_is_blocked()->None:
     before=capture("0"*40,{}); after=capture("8ae1cf125c77b58f0f848847f889d92fe9006f52",{})
     with pytest.raises(AfterAdapterError): _strict({"case":before},{"case":after},cross=True)
+def test_phase_a_transition_is_strict_and_approved()->None:
+    before=capture(PHASE_A_BEFORE_REVISION,{"reasons":["same","same"]}); after=capture(AFTER_REVISION,{"reasons":["same","same"]})
+    summary,diffs=_strict({"case":before},{"case":after},cross=True,from_revision=PHASE_A_BEFORE_REVISION)
+    assert summary["mismatch_case_count"]==0 and diffs==[]

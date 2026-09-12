@@ -19,6 +19,8 @@ BEFORE_SOURCE_DIGEST = "d3fe53cf3970d9ea02614d2b7c126adb866ecce0914cb990c187ccb9
 BEFORE_VERIFICATION_REVISION = "7d9a4929939eba037e4a6029862114664b01ca71"
 AFTER_REVISION = "8ae1cf125c77b58f0f848847f889d92fe9006f52"
 AFTER_TREE = "2235ebb8d662a69674ce4fe5a3d6626023b48e19"
+PHASE_A_BEFORE_REVISION = "74b6c2976ecabb9d9d9dd8b70247cc7c2712d576"
+PHASE_A_BEFORE_TREE = "6cfafb3361d4bcca96921af3e1bc8474f1c87a74"
 PARAMETER_ID = "prepare-security-score4-repeat3.v1"
 MIN_SCORE = 4
 MIN_REPEAT_AGGREGATE = 3
@@ -39,14 +41,17 @@ CANONICAL_FIXTURES = (
     "l3_ssti_webshell_context.json", "l3_webshell_admin_tool_probe_context.json",
     "l3_xxe_external_entity_context.json",
 )
-AFTER_SOURCE_FILES = (
+PHASE_A_BEFORE_SOURCE_FILES = (
     "src/prepare/__init__.py", "src/prepare/apache_observability_context.py", "src/prepare/auth_behavior.py",
     "src/prepare/crawler_baseline.py", "src/prepare/decoders.py", "src/prepare/file_disclosure_hints.py",
     "src/prepare/ip_behavior.py", "src/prepare/l3_hints.py", "src/prepare/method_summaries.py",
     "src/prepare/mixed_baseline_scanner.py", "src/prepare/models.py", "src/prepare/probing_sequence.py",
     "src/prepare/protocol_anomalies.py", "src/prepare/sensitive_path_probe.py", "src/prepare/sqli_hints.py",
     "src/prepare/static_baseline.py", "src/prepare/traversal_cmdi_hints.py", "src/prepare/xss_hints.py",
-    "src/prepare_llm_input.py", "src/prepare/shared_signal_adapter.py", "src/security_signals/__init__.py",
+    "src/prepare_llm_input.py",
+)
+AFTER_SOURCE_FILES = PHASE_A_BEFORE_SOURCE_FILES + (
+    "src/prepare/shared_signal_adapter.py", "src/security_signals/__init__.py",
     "src/security_signals/extractor.py",
 )
 
@@ -78,6 +83,16 @@ def digest_files(root: str | Path, names: Iterable[str]) -> str:
 def after_source_digest(root: str | Path) -> str:
     return digest_files(root, AFTER_SOURCE_FILES)
 
+def phase_a_before_source_digest(root: str | Path) -> str:
+    return digest_files(root, PHASE_A_BEFORE_SOURCE_FILES)
+
+def expected_subject(run_role: str) -> tuple[str, str, tuple[str, ...]]:
+    if run_role in {"phase-a-before-1", "phase-a-before-2"}:
+        return PHASE_A_BEFORE_REVISION, PHASE_A_BEFORE_TREE, PHASE_A_BEFORE_SOURCE_FILES
+    if run_role in {"after-1", "after-2"}:
+        return AFTER_REVISION, AFTER_TREE, AFTER_SOURCE_FILES
+    raise AfterContractError("invalid_run_role", "invalid Stage E After verifier role")
+
 @dataclass(frozen=True)
 class AfterIdentity:
     subject_revision: str
@@ -97,14 +112,34 @@ class AfterIdentity:
     def as_dict(self) -> dict[str, str]: return dict(self.__dict__)
 
 @dataclass(frozen=True)
+class PhaseABeforeIdentity:
+    subject_revision: str
+    subject_tree: str
+    verification_revision: str
+    source_tree_digest: str
+    runner_digest: str
+    harness_digest: str
+    adapter_digest: str
+    def __post_init__(self) -> None:
+        if self.subject_revision != PHASE_A_BEFORE_REVISION or self.subject_tree != PHASE_A_BEFORE_TREE:
+            raise AfterContractError("subject_identity_mismatch", "Phase A Before revision or tree is not approved")
+        if not re.fullmatch(r"[0-9a-f]{40}", self.verification_revision):
+            raise AfterContractError("invalid_verification_revision", "verification revision must be a SHA")
+        for name in ("source_tree_digest", "runner_digest", "harness_digest", "adapter_digest"):
+            require_sha256_digest(name, getattr(self, name))
+    def as_dict(self) -> dict[str, str]: return dict(self.__dict__)
+
+@dataclass(frozen=True)
 class AfterCaptureRequest:
     run_role: str
     subject_root: str
     input_path: str
     case_id: str
-    identity: AfterIdentity
+    identity: AfterIdentity | PhaseABeforeIdentity
     def __post_init__(self) -> None:
-        if self.run_role not in {"after-1", "after-2"}: raise AfterContractError("invalid_run_role", "invalid After role")
+        revision, tree, _ = expected_subject(self.run_role)
+        if self.identity.subject_revision != revision or self.identity.subject_tree != tree:
+            raise AfterContractError("role_identity_mismatch", "role and subject identity differ")
         if not self.subject_root or not self.input_path or not self.case_id: raise AfterContractError("invalid_request", "request fields are required")
     def as_dict(self) -> dict[str, object]:
         return {"protocol_version": PROTOCOL_VERSION, "run_role": self.run_role, "subject_root": self.subject_root,

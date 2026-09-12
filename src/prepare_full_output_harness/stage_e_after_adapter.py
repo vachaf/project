@@ -6,7 +6,7 @@ from typing import Any, Callable
 from .artifacts import ArtifactWriter, require_completed_read_only_baseline
 from .compare import compare_typed
 from .isolation import build_isolated_environment
-from .stage_e_after_contract import AFTER_REVISION, BEFORE_REVISION, BEFORE_SOURCE_DIGEST, BEFORE_TREE, BEFORE_VERIFICATION_REVISION, CANONICAL_FIXTURES, CORPUS_ID, OUTPUT_SLOT_NAMES, PROTOCOL_VERSION, AfterCaptureRequest, AfterIdentity
+from .stage_e_after_contract import AFTER_REVISION, BEFORE_REVISION, BEFORE_SOURCE_DIGEST, BEFORE_TREE, BEFORE_VERIFICATION_REVISION, CANONICAL_FIXTURES, CORPUS_ID, OUTPUT_SLOT_NAMES, PHASE_A_BEFORE_REVISION, PROTOCOL_VERSION, AfterCaptureRequest, AfterIdentity, PhaseABeforeIdentity
 
 class AfterAdapterError(RuntimeError):
     def __init__(self, code: str, message: str) -> None: super().__init__(message); self.code = code
@@ -25,7 +25,7 @@ def capture_after(request: AfterCaptureRequest, *, verification_root: str | Path
     if response.get("status") not in {"returned", "raised"}: raise AfterAdapterError("invalid_child_status", "invalid child status")
     return response
 
-def run_after(*, run_role: str, subject_root: str | Path, verification_root: str | Path, output_root: str | Path, identity: AfterIdentity, capture: Callable[..., dict[str, Any]] = capture_after) -> dict[str, Any]:
+def run_after(*, run_role: str, subject_root: str | Path, verification_root: str | Path, output_root: str | Path, identity: AfterIdentity | PhaseABeforeIdentity, capture: Callable[..., dict[str, Any]] = capture_after) -> dict[str, Any]:
     subject = Path(subject_root).resolve(strict=True); output = Path(output_root); cases = output.with_name(output.name + ".cases")
     fixtures = subject / "tests/fixtures/prepare_regression"; names = tuple(sorted(p.name for p in fixtures.glob("*.json") if p.is_file()))
     if names != CANONICAL_FIXTURES: raise AfterAdapterError("inventory_mismatch", "fixture inventory differs")
@@ -52,7 +52,7 @@ def _load(root: str | Path) -> tuple[dict[str,Any],dict[str,dict[str,Any]]]:
     if tuple(captures)!=tuple(Path(n).stem for n in CANONICAL_FIXTURES): raise AfterAdapterError("inventory_mismatch","case inventory differs")
     return summary,captures
 
-def _strict(left: dict[str,dict[str,Any]], right: dict[str,dict[str,Any]], *, cross: bool) -> tuple[dict[str,Any],list[dict[str,str]]]:
+def _strict(left: dict[str,dict[str,Any]], right: dict[str,dict[str,Any]], *, cross: bool, from_revision: str = BEFORE_REVISION, to_revision: str = AFTER_REVISION) -> tuple[dict[str,Any],list[dict[str,str]]]:
     counts={n:0 for n in OUTPUT_SLOT_NAMES}; mismatches=set(); differences=[]; mutations=[]; state=[]; exceptions=[]
     for case_id in left:
         a,b=left[case_id],right[case_id]
@@ -62,7 +62,7 @@ def _strict(left: dict[str,dict[str,Any]], right: dict[str,dict[str,Any]], *, cr
         for key in ("corpus_id","case_id","source_file_sha256","parameter_id","raw_source_hash","projected_payload_hash"):
             if ai.get(key)!=bi.get(key): raise AfterAdapterError("identity_mismatch",f"input identity differs: {case_id}")
         if cross:
-            if ai.get("source_revision")!=BEFORE_REVISION or bi.get("source_revision")!=AFTER_REVISION: raise AfterAdapterError("identity_mismatch","unapproved source transition")
+            if ai.get("source_revision")!=from_revision or bi.get("source_revision")!=to_revision: raise AfterAdapterError("identity_mismatch","unapproved source transition")
         elif a.get("identity")!=b.get("identity"): raise AfterAdapterError("identity_mismatch","After identities differ")
         if a["status"]!=b["status"]: state.append(case_id); mismatches.add(case_id); continue
         if a.get("input_mutated") or b.get("input_mutated") or a.get("input_after")!=b.get("input_after"): mutations.append(case_id); mismatches.add(case_id)
@@ -86,3 +86,16 @@ def compare_cross_revision(*, canonical_before_root: str|Path, after_1_root: str
     before_identity={**b1s["identity"],"subject_tree":BEFORE_TREE}
     transition={"identity_relation":"expected_cross_revision","before":before_identity,"after":a1s["identity"],"approved_transition":{"from":BEFORE_REVISION,"to":AFTER_REVISION}}
     writer=ArtifactWriter.create(output_root); writer.write_json("summary.json",summary); writer.write_json("identity_transition.json",transition); writer.write_json("inventory.json",{"before":list(b1),"after":list(a1)}); writer.write_json("differences.json",diffs1); writer.write_json("replica_differences.json",after_diffs+diffs2); writer.finalize(); require_completed_read_only_baseline(output_root); return summary
+
+def compare_phase_a(*, before_1_root: str|Path, before_2_root: str|Path, after_1_root: str|Path, after_2_root: str|Path, output_root: str|Path) -> dict[str,Any]:
+    b1s,b1=_load(before_1_root); b2s,b2=_load(before_2_root); a1s,a1=_load(after_1_root); a2s,a2=_load(after_2_root)
+    if b1s["identity"] != b2s["identity"] or a1s["identity"] != a2s["identity"]:
+        raise AfterAdapterError("identity_mismatch", "repeated run identities differ")
+    if b1s["identity"].get("subject_revision") != PHASE_A_BEFORE_REVISION or a1s["identity"].get("subject_revision") != AFTER_REVISION:
+        raise AfterAdapterError("identity_mismatch", "Phase A transition is not approved")
+    before_check,before_diffs=_strict(b1,b2,cross=False); after_check,after_diffs=_strict(a1,a2,cross=False)
+    cross1,diffs1=_strict(b1,a1,cross=True,from_revision=PHASE_A_BEFORE_REVISION); cross2,diffs2=_strict(b2,a2,cross=True,from_revision=PHASE_A_BEFORE_REVISION)
+    fail=any(item["mismatch_case_count"] for item in (before_check,after_check,cross1,cross2))
+    summary={"final_verdict":"FAIL" if fail else "PASS","identity_relation":"expected_phase_a_transition","inventory_equal":tuple(b1)==tuple(b2)==tuple(a1)==tuple(a2),**cross1,"before_nondeterminism":"DETECTED" if before_check["mismatch_case_count"] else "NOT DETECTED","after_nondeterminism":"DETECTED" if after_check["mismatch_case_count"] else "NOT DETECTED","replica_cross_check_mismatch_count":cross2["mismatch_case_count"]}
+    transition={"identity_relation":"expected_phase_a_transition","before":b1s["identity"],"after":a1s["identity"],"approved_transition":{"from":PHASE_A_BEFORE_REVISION,"to":AFTER_REVISION}}
+    writer=ArtifactWriter.create(output_root); writer.write_json("summary.json",summary); writer.write_json("identity_transition.json",transition); writer.write_json("inventory.json",{"before":list(b1),"after":list(a1)}); writer.write_json("differences.json",diffs1); writer.write_json("replica_differences.json",before_diffs+after_diffs+diffs2); writer.finalize(); require_completed_read_only_baseline(output_root); return summary
