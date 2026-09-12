@@ -93,6 +93,7 @@ try:
         XSS_TAG_INJECTION_PATTERN,
     )
     from src.prepare.traversal_cmdi_hints import (
+        CMDI_LEGACY_ONLY_PIPE_PATTERN,
         CMDI_PATTERNS,
         TRAVERSAL_PATTERNS,
     )
@@ -234,6 +235,7 @@ except ImportError:
         XSS_TAG_INJECTION_PATTERN,
     )
     from prepare.traversal_cmdi_hints import (
+        CMDI_LEGACY_ONLY_PIPE_PATTERN,
         CMDI_PATTERNS,
         TRAVERSAL_PATTERNS,
     )
@@ -3688,7 +3690,9 @@ def evaluate_row(
         raw_request_target=raw_request_target,
         uri=uri,
     )
-    _ = shared_signal_compatibility.legacy_hint_groups
+    shared_s1_pipe_match = (
+        ("cmdi:pipe_exec",) in shared_signal_compatibility.legacy_hint_groups
+    )
 
     # 2) 의심 점수 계산
     score = 0
@@ -3727,7 +3731,16 @@ def evaluate_row(
             reason_hints.append(f"traversal:{name}(+{points})")
 
     for name, pattern, points in CMDI_PATTERNS:
-        if pattern.search(combined_target):
+        legacy_only_pipe_fallback = (
+            name == "pipe_exec"
+            and CMDI_LEGACY_ONLY_PIPE_PATTERN.search(combined_target) is not None
+        )
+        matched = (
+            shared_s1_pipe_match or legacy_only_pipe_fallback
+            if name == "pipe_exec"
+            else pattern.search(combined_target) is not None
+        )
+        if matched:
             score += points
             cmdi_hits += 1
             reason_hints.append(f"cmdi:{name}(+{points})")
