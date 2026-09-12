@@ -4,6 +4,8 @@ from src.prepare_full_output_harness.stage_e_after_contract import AFTER_REVISIO
 
 def identity()->AfterIdentity: return AfterIdentity(AFTER_REVISION,AFTER_TREE,"7d9a4929939eba037e4a6029862114664b01ca71","a"*64,"b"*64,"c"*64,"d"*64)
 def test_after_identity_is_honest_and_serialized()->None:
+    assert AFTER_REVISION == "0f99059b4831f3b39a7106cfb43702c714ec5fce"
+    assert AFTER_TREE == "3cc97f2bba269cbab735f15354316180e8a88e22"
     value=AfterCaptureRequest("after-1","/subject","/fixture","case",identity()).as_dict()
     assert value["identity"]["subject_revision"]==AFTER_REVISION
     assert value["identity"]["subject_tree"]==AFTER_TREE
