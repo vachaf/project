@@ -39,10 +39,21 @@
   </form>
 </section>
 <div id="liveError" class="live-error" role="alert" hidden></div>
+<section class="live-selection-bar" aria-label="선택 로그 분석 작업">
+  <div>
+    <strong id="liveSelectedCount">선택 0 / 50건</strong>
+    <p>선택은 원천 로그의 exact ID를 분석 입력으로 등록합니다. 이 동작은 공격 성공, 침해 또는 위험도를 확정하지 않습니다.</p>
+  </div>
+  <div class="live-selection-actions">
+    <button id="liveClearSelectionButton" type="button" disabled>선택 모두 해제</button>
+    <button id="liveSubmitSelectionButton" type="button" disabled>선택 로그로 분석 작업 만들기</button>
+  </div>
+</section>
+<div id="liveJobFeedback" class="live-job-feedback" role="status" aria-live="polite" hidden></div>
 <div class="live-layout">
   <section class="live-card"><h2>원천 로그 목록</h2><div class="live-table-wrap"><table>
-    <thead><tr><th>로그 시각</th><th>DB ID</th><th>Request ID</th><th>IP</th><th>Method</th><th>URI</th><th>HTTP status</th><th>관찰</th><th>Bytes</th></tr></thead>
-    <tbody id="liveLogRows"><tr><td colspan="9">불러오는 중입니다.</td></tr></tbody>
+    <thead><tr><th scope="col">분석 입력 선택</th><th>로그 시각</th><th>DB ID</th><th>Request ID</th><th>IP</th><th>Method</th><th>URI</th><th>HTTP status</th><th>관찰</th><th>Bytes</th></tr></thead>
+    <tbody id="liveLogRows"><tr><td colspan="10">불러오는 중입니다.</td></tr></tbody>
   </table></div><nav class="live-pager" aria-label="페이지 이동">
     <button id="liveLatestButton" type="button">최신 50</button>
     <button id="liveOlderButton" type="button" disabled>이전 50</button>

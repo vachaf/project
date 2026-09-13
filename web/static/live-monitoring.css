@@ -8,6 +8,19 @@
 .live-filter-grid { display:grid; grid-template-columns:repeat(5,minmax(8rem,1fr)) auto; gap:.75rem; align-items:end; }
 .live-filter-grid label { display:grid; gap:.3rem; }.live-filter-grid input,.live-filter-grid select,button { padding:.55rem; }
 .live-layout { grid-template-columns:minmax(0,2fr) minmax(18rem,1fr); margin-top:1rem; }
+.live-selection-bar { display:flex; justify-content:space-between; gap:1rem; align-items:center; margin-top:1rem; border:1px solid #31465a; background:#111d29; border-radius:.7rem; padding:1rem; }
+.live-selection-bar p { color:#9eb0bf; margin:.35rem 0 0; max-width:58rem; }
+.live-selection-actions { display:flex; gap:.7rem; flex-wrap:wrap; justify-content:flex-end; }
+.live-selection-actions button:disabled,.live-page button:disabled,.live-page input:disabled,.live-page select:disabled { cursor:not-allowed; opacity:.55; }
+.live-row-select { width:1%; white-space:nowrap; text-align:center; }
+.live-row-select label { display:inline-flex; align-items:center; gap:.35rem; cursor:pointer; }
+.live-row-checkbox { inline-size:1.1rem; block-size:1.1rem; }
+.live-job-feedback { margin-top:1rem; border:1px solid #46647e; background:#102335; border-radius:.7rem; padding:1rem; }
+.live-job-feedback.is-success { border-color:#397557; background:#102b20; }
+.live-job-feedback.is-notice { border-color:#8b7134; background:#302510; }
+.live-job-feedback.is-error { border-color:#8b3a42; background:#36171a; }
+.live-job-feedback h2,.live-job-feedback p { margin:.25rem 0; }
+.live-job-feedback a { display:inline-block; margin-top:.65rem; color:#9ed7ff; font-weight:800; }
 .live-table-wrap { overflow:auto; }table { width:100%; border-collapse:collapse; }th,td { border-bottom:1px solid #31465a; padding:.55rem; text-align:left; }
 #liveLogRows tr { cursor:pointer; }#liveLogRows tr:hover,#liveLogRows tr.is-selected { background:#1b3042; }
 .live-status-code { border-radius:1rem; padding:.15rem .5rem; font-weight:800; }
@@ -25,4 +38,4 @@
 .live-raw-log { max-height:24rem; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:#07101a; padding:.75rem; border-radius:.4rem; }
 .live-pager { display:flex; gap:.7rem; align-items:center; margin-top:1rem; }.live-error { background:#461d22; padding:1rem; margin-top:1rem; }
 .live-footer-note { color:#9eb0bf; }
-@media(max-width:900px){.live-heading,.live-statusbar,.live-layout{grid-template-columns:1fr}.live-filter-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:900px){.live-heading,.live-statusbar,.live-layout{grid-template-columns:1fr}.live-filter-grid{grid-template-columns:1fr 1fr}.live-selection-bar{align-items:stretch;flex-direction:column}.live-selection-actions{justify-content:flex-start}}
