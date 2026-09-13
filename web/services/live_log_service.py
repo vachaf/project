@@ -16,6 +16,7 @@ from web.services.live_log_repository import (
     LiveLogQuery,
     LiveLogRepository,
 )
+from web.services.live_security_observation import observe_live_security_signals
 
 UTC = timezone.utc
 KST = ZoneInfo("Asia/Seoul")
@@ -133,7 +134,7 @@ class LiveLogService:
 
     @staticmethod
     def _serialize(row: Dict[str, Any]) -> Dict[str, Any]:
-        return {
+        serialized = {
             "row_id": int(row["id"]), "request_id": row.get("request_id"),
             "log_time": _kst(row.get("log_time")), "src_ip": row.get("src_ip"),
             "method": row.get("method"), "uri": row.get("uri"),
@@ -143,6 +144,8 @@ class LiveLogService:
             "user_agent": row.get("user_agent"), "client_ip_source": row.get("client_ip_source"),
             "log_schema": row.get("log_schema"),
         }
+        serialized["observation"] = observe_live_security_signals(row)
+        return serialized
 
     @staticmethod
     def _cursor(row: Dict[str, Any], direction: CursorDirection) -> Optional[str]:

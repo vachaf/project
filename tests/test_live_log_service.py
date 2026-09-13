@@ -34,6 +34,23 @@ def test_snapshot_max_50_desc_and_separates_times_and_raw_log():
     assert payload["latest_log_time"] == "2026-09-10T10:00:00.000+09:00"
     assert payload["fetched_at"] == "2026-09-11T10:00:00+09:00"
     assert repo.query.from_time is None
+    item = payload["items"][0]
+    assert item["observation"]["schema_version"] == "live_observation.v1"
+    assert item["observation"]["assessment"] == "no_signal"
+    assert {key: value for key, value in item.items() if key != "observation"} == {
+        "row_id": 50,
+        "request_id": None,
+        "log_time": "2026-09-01T10:01:50.000+09:00",
+        "src_ip": "192.0.2.1",
+        "method": "GET",
+        "uri": "/x",
+        "request_target": "/x?a=1",
+        "status_code": 200,
+        "response_body_bytes": 1,
+        "user_agent": "ua",
+        "client_ip_source": "direct",
+        "log_schema": "v2",
+    }
 
 
 def test_filters_period_cursor_and_validation():

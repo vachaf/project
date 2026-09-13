@@ -20,7 +20,7 @@ def test_live_page_has_contract_and_old_log_is_not_diagnosed_as_failure():
     paths={route.path for route in routes.router.routes}
     assert {"/live","/api/live/snapshot","/api/live/logs/{row_id}/raw"} <= paths
     response=app_module.templates.get_template("live_dashboard.html").render()
-    for text in ("기간 제한 없음 · 최신 50건","HTTP status 색상은 웹 서버 응답 표현","오래되었다는 사실만으로 장애, 지연, 위험 또는 실패로 판단하지 않습니다","분석 Job을 만들지 않습니다"):
+    for text in ("기간 제한 없음 · 최신 50건","HTTP status 색상은 웹 서버 응답 표현","Apache 운영 상태를 설명하지 않습니다","승인된 관찰 구조와 처리 범위만 표시"):
         assert text in response
 
 
@@ -51,3 +51,5 @@ def test_javascript_uses_text_sinks_and_has_no_analysis_pipeline_calls():
         assert forbidden.lower() not in script.lower()
     assert "live-status-2xx" in script and "live-status-5xx" in script
     assert "risk" not in script.lower() and "severity" not in script.lower()
+    for text in ("processing_status", "assessment", "관찰 정보 미제공", "정상 상태를 뜻하지 않습니다"):
+        assert text in script

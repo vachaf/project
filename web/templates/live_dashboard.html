@@ -15,7 +15,7 @@
   <div><span class="live-kicker">LIVE RAW LOG VIEW</span><h1>최근 웹 서버 원천 로그 확인</h1>
     <p>MariaDB의 Apache 원천 로그를 기간 제한 없이 최신 50건부터 조회합니다.</p></div>
   <p class="live-boundary"><strong>HTTP status 색상은 웹 서버 응답 표현입니다.</strong>
-    이 화면은 공격 후보, 위험도, 심각도, verdict 또는 분석 Job을 만들지 않습니다.</p>
+    이 화면은 승인된 관찰 구조와 처리 범위만 표시하며 보안 판정과 분리됩니다.</p>
 </section>
 <section class="live-statusbar" aria-label="원천 로그 조회 상태">
   <div id="liveConnectionState" role="status" aria-live="polite"><span id="liveConnectionText">조회 준비</span></div>
@@ -26,7 +26,7 @@
     <button id="liveRefreshButton" type="button">지금 다시 확인</button></div>
 </section>
 <p class="live-time-note"><strong>운영 안내:</strong> Apache는 프로젝트 작업·시험 때만 켤 수 있습니다.
-  최신 로그가 오래되었다는 사실만으로 장애, 지연, 위험 또는 실패로 판단하지 않습니다.</p>
+  최신 로그가 오래되었다는 사실은 Apache 운영 상태를 설명하지 않습니다.</p>
 <section class="live-card">
   <h2>원천 로그 필터</h2>
   <form id="liveFilterForm" class="live-filter-grid">
@@ -41,8 +41,8 @@
 <div id="liveError" class="live-error" role="alert" hidden></div>
 <div class="live-layout">
   <section class="live-card"><h2>원천 로그 목록</h2><div class="live-table-wrap"><table>
-    <thead><tr><th>로그 시각</th><th>DB ID</th><th>Request ID</th><th>IP</th><th>Method</th><th>URI</th><th>HTTP status</th><th>Bytes</th></tr></thead>
-    <tbody id="liveLogRows"><tr><td colspan="8">불러오는 중입니다.</td></tr></tbody>
+    <thead><tr><th>로그 시각</th><th>DB ID</th><th>Request ID</th><th>IP</th><th>Method</th><th>URI</th><th>HTTP status</th><th>관찰</th><th>Bytes</th></tr></thead>
+    <tbody id="liveLogRows"><tr><td colspan="9">불러오는 중입니다.</td></tr></tbody>
   </table></div><nav class="live-pager" aria-label="페이지 이동">
     <button id="liveLatestButton" type="button">최신 50</button>
     <button id="liveOlderButton" type="button" disabled>이전 50</button>
@@ -51,5 +51,5 @@
   </nav></section>
   <aside class="live-card"><h2>선택 로그 상세</h2><div id="liveDetail"><p>로그를 선택해주세요.</p></div></aside>
 </div>
-<p class="live-footer-note">Prepare·Stage1·Mapping·Stage2·Worker·분석 Job과 독립적인 SELECT-only 원천 로그 보기입니다.</p>
+<p class="live-footer-note">Live 관찰은 Prepare·Stage1·Mapping·Stage2와 의미가 분리된 SELECT-only 표시입니다.</p>
 {% endblock %}

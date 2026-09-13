@@ -14,6 +14,14 @@
 .live-status-2xx { background:#102b20;color:#76e9ab }.live-status-3xx { background:#10283b;color:#84c8ff }
 .live-status-4xx { background:#302510;color:#ffd47e }.live-status-5xx { background:#36171a;color:#ff9699 }.live-status-none { background:#222d3a;color:#b4c0ca }
 .live-detail-list div { margin-bottom:.8rem; }.live-detail-list dt { color:#9eb0bf; }.live-detail-list dd { margin:.2rem 0; overflow-wrap:anywhere; white-space:pre-wrap; }
+.live-observation { border-top:1px solid #31465a; margin-top:1rem; padding-top:.5rem; }
+.live-observation-facts { margin:0; }.live-observation-facts div { margin-bottom:.65rem; }
+.live-observation-facts dt,.live-evidence-source { color:#9eb0bf; font-size:.8rem; }
+.live-observation-facts dd { margin:.15rem 0; overflow-wrap:anywhere; }
+.live-observation-note { border-left:.2rem solid #6dd5fa; padding-left:.65rem; }
+.live-observation-label { min-width:9rem; }.live-signal { border:1px solid #31465a; border-radius:.4rem; margin:.7rem 0; padding:.7rem; }
+.live-signal h4 { overflow-wrap:anywhere; }.live-evidence-list { padding-left:1.2rem; }
+.live-evidence-list li { margin:.5rem 0; }.live-evidence-list span,.live-evidence-list code { display:block; overflow-wrap:anywhere; white-space:pre-wrap; }
 .live-raw-log { max-height:24rem; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:#07101a; padding:.75rem; border-radius:.4rem; }
 .live-pager { display:flex; gap:.7rem; align-items:center; margin-top:1rem; }.live-error { background:#461d22; padding:1rem; margin-top:1rem; }
 .live-footer-note { color:#9eb0bf; }
