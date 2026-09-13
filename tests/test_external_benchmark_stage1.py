@@ -518,7 +518,7 @@ def test_930100_3_reviewed_exact_expectation_is_preserved(
         "owasp_crs.930100.3",
         "suspicious_file_disclosure",
     )
-    assert case["prepare"]["prepare_verdict_hint"] == "suspicious_file_disclosure"
+    assert case["prepare"]["prepare_verdict_hint"] == "path_traversal"
     assert case["expected"]["allowed_stage1_verdicts"] == [
         "suspicious_path_traversal"
     ]

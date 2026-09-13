@@ -13,6 +13,14 @@ TRAVERSAL_PATTERNS: List[Tuple[str, re.Pattern[str], int]] = [
         4,
     ),
     ("triple_dot_slash", re.compile(r"(?i)(?:^|[\s/\\?&=])\.\.\./"), 4),
+    (
+        "encoded_directory_escape",
+        re.compile(
+            r"(?i)(?:^|[\s/\\?&=])"
+            r"0x2e\.(?:%00|\x00)0x2f0x2e\.(?:%00|\x00)/"
+        ),
+        4,
+    ),
 ]
 
 CMDI_UNIX_COMMANDS = (

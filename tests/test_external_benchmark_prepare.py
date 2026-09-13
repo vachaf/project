@@ -247,19 +247,21 @@ def test_bounded_triple_dot_benchmark_cases_keep_traversal_evidence(
     assert "traversal:triple_dot_slash(+4)" in actual["prepare_reason_hints"]
 
 
-def test_930100_3_keeps_current_sensitive_only_prepare_evidence(
+def test_930100_3_uses_corrected_encoded_traversal_prepare_evidence(
     prepare_result: dict,
 ) -> None:
     actual = by_id(prepare_result["cases"], "owasp_crs.930100.3")["actual"]
 
     assert actual["candidate_selected"] is True
-    assert actual["prepare_verdict_hint"] == "suspicious_file_disclosure"
+    assert actual["candidate_score"] == 9
+    assert actual["prepare_verdict_hint"] == "path_traversal"
     assert actual["prepare_reason_hints"] == [
-        "file_disclosure:sensitive_resource:os_file"
+        "traversal:encoded_directory_escape(+4)",
+        "file_disclosure:sensitive_resource:os_file",
     ]
-    assert not any(
-        hint.startswith("traversal:") for hint in actual["prepare_reason_hints"]
-    )
+    assert actual["prepare_reason_hints"].count(
+        "traversal:encoded_directory_escape(+4)"
+    ) == 1
 
 
 def test_direct_etc_passwd_is_file_disclosure_without_traversal(

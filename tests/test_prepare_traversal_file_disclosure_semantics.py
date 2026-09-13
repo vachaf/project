@@ -76,6 +76,31 @@ def test_existing_encoded_dotdot_forms_remain_traversal(text: str) -> None:
 @pytest.mark.parametrize(
     "text",
     [
+        "0x2e.%000x2f0x2e.%00/WINDOWS/win.ini",
+        "foo=0x2e.%000x2f0x2e.%00/WINDOWS/win.ini",
+        "foo=0x2E.\x000X2F0x2e.\x00/WINDOWS/win.ini",
+    ],
+)
+def test_crs_hex_nul_encoded_directory_escape_is_traversal(text: str) -> None:
+    assert traversal_pattern_names(text) == {"encoded_directory_escape"}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "prefix0x2e.%000x2f0x2e.%00/WINDOWS/win.ini",
+        "0x2e.0x2f0x2e.%00/WINDOWS/win.ini",
+        "0x2e.%000x2f0x2e./WINDOWS/win.ini",
+        "0x2e.%000x2f0x2e.%00WINDOWS/win.ini",
+    ],
+)
+def test_incomplete_or_unbounded_crs_hex_nul_form_is_not_traversal(text: str) -> None:
+    assert "encoded_directory_escape" not in traversal_pattern_names(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
         "/etc/passwd",
         "op=/etc/passwd",
         "file=/etc/passwd%00",
@@ -101,5 +126,14 @@ def test_explicit_traversal_and_sensitive_resource_are_orthogonal() -> None:
     score, hints = file_disclosure(text)
 
     assert "dotdot_slash" in traversal_pattern_names(text)
+    assert score == 5
+    assert hints == ["file_disclosure:sensitive_resource:os_file"]
+
+
+def test_encoded_escape_and_sensitive_resource_are_orthogonal() -> None:
+    text = "foo=0x2e.%000x2f0x2e.%00/WINDOWS/win.ini"
+    score, hints = file_disclosure(text)
+
+    assert traversal_pattern_names(text) == {"encoded_directory_escape"}
     assert score == 5
     assert hints == ["file_disclosure:sensitive_resource:os_file"]

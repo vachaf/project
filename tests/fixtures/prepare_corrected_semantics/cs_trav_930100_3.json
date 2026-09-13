@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "database": "web_logs",
+    "exported_at": "2026-09-12T12:00:00.000+09:00",
+    "query_timezone": "Asia/Seoul",
+    "db_timezone": "UTC",
+    "range_mode": "fixture",
+    "start": "2026-09-12T12:00:00.000+09:00",
+    "end_exclusive": "2026-09-12T12:01:00.000+09:00",
+    "start_db_query": "2026-09-12T03:00:00.000+00:00",
+    "end_exclusive_db_query": "2026-09-12T03:01:00.000+00:00",
+    "table_option": "security",
+    "limit_per_table": null,
+    "total_count": 1,
+    "analysis_recommendation": "corrected-semantics-fixture"
+  },
+  "counts": {
+    "access": 0,
+    "security": 1,
+    "error": 0
+  },
+  "data": {
+    "security": [
+      {
+        "id": 930100003,
+        "request_id": "cs-trav-930100-3",
+        "error_link_id": null,
+        "log_time": "2026-09-12T12:00:03.000+09:00",
+        "created_at": "2026-09-12T12:00:03.100+09:00",
+        "src_ip": "198.51.100.93",
+        "peer_ip": "198.51.100.93",
+        "method": "GET",
+        "uri": "/get",
+        "query_string": "?foo=0x2e.%000x2f0x2e.%00/WINDOWS/win.ini",
+        "raw_request": "GET /get?foo=0x2e.%000x2f0x2e.%00/WINDOWS/win.ini HTTP/1.1",
+        "raw_log": "",
+        "status_code": 200,
+        "response_body_bytes": 0,
+        "resp_content_type": "text/html",
+        "duration_us": 0,
+        "ttfb_us": 0,
+        "referer": "",
+        "user_agent": "OWASP CRS test agent",
+        "host": "localhost",
+        "vhost": "localhost",
+        "protocol": "HTTP/1.1",
+        "req_content_type": null
+      }
+    ]
+  }
+}

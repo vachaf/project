@@ -1,0 +1,56 @@
+{
+  "description": "CRS 930100/3 should use corrected Prepare-only encoded directory escape semantics while retaining its OS-resource hint.",
+  "MUST": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "cs-trav-930100-3",
+        "score": 9,
+        "verdict_hint": "path_traversal",
+        "reason_hints": [
+          "traversal:encoded_directory_escape(+4)",
+          "file_disclosure:sensitive_resource:os_file"
+        ]
+      },
+      "message": "corrected score, verdict, and exact reason hints are present"
+    },
+    {
+      "op": "collection_count_by_where_at_least",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "cs-trav-930100-3"
+      },
+      "value": 1,
+      "message": "corrected candidate is selected"
+    },
+    {
+      "op": "collection_count_by_where_at_most",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "cs-trav-930100-3"
+      },
+      "value": 1,
+      "message": "corrected candidate is emitted exactly once"
+    }
+  ],
+  "MUST_NOT": [
+    {
+      "op": "exists",
+      "collection": "analysis_candidates",
+      "where": {
+        "request_id": "cs-trav-930100-3",
+        "verdict_hint": "suspicious_file_disclosure"
+      },
+      "message": "legacy suspicious_file_disclosure verdict is absent"
+    },
+    {
+      "op": "exists",
+      "collection": "filtered_out",
+      "where": {
+        "request_id": "cs-trav-930100-3"
+      },
+      "message": "corrected case is not filtered out"
+    }
+  ]
+}
