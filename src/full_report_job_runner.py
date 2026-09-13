@@ -75,7 +75,11 @@ class FullReportJob:
     input_kind: str = TIME_RANGE_INPUT_KIND
     input_source_table: Optional[str] = None
     input_fingerprint: Optional[str] = None
-    selected_log_ids: tuple[int, ...] = ()
+    selected_input_rows: tuple[Any, ...] = ()
+
+    @property
+    def selected_source_ids(self) -> tuple[int, ...]:
+        return tuple(int(row["source_id"]) for row in self.selected_input_rows)
 
     @classmethod
     def from_mapping(cls, row: Mapping[str, Any]) -> "FullReportJob":
@@ -97,7 +101,7 @@ class FullReportJob:
                 if row.get("input_fingerprint") is not None
                 else None
             ),
-            selected_log_ids=tuple(row.get("selected_log_ids") or ()),
+            selected_input_rows=tuple(row.get("selected_input_rows") or ()),
         )
 
 
@@ -300,8 +304,8 @@ class FullReportJobRunner:
             str(scratch_export_path),
         ]
         if job.input_kind == LIVE_SELECTED_INPUT_KIND:
-            for selected_log_id in job.selected_log_ids:
-                command.extend(["--selected-log-id", str(selected_log_id)])
+            for source_id in job.selected_source_ids:
+                command.extend(["--selected-log-id", str(source_id)])
         return command
 
     def build_pipeline_command(
@@ -429,7 +433,7 @@ class FullReportJobRunner:
         if not job.artifact_root.strip():
             raise ValueError("artifact_root is required")
         if job.input_kind == TIME_RANGE_INPUT_KIND:
-            if job.input_source_table is not None or job.input_fingerprint is not None or job.selected_log_ids:
+            if job.input_source_table is not None or job.input_fingerprint is not None or job.selected_input_rows:
                 raise FullReportRunnerError(
                     "invalid time-range input metadata",
                     failed_at_stage="export",
@@ -445,20 +449,62 @@ class FullReportJobRunner:
                 "invalid selected input_source_table",
                 failed_at_stage="export",
             )
-        if (
-            not job.selected_log_ids
-            or len(job.selected_log_ids) > MAX_SELECTED_LOG_IDS
-            or any(
-                isinstance(value, bool) or not isinstance(value, int) or value <= 0
-                for value in job.selected_log_ids
-            )
-            or len(set(job.selected_log_ids)) != len(job.selected_log_ids)
-        ):
+        if not job.selected_input_rows or len(job.selected_input_rows) > MAX_SELECTED_LOG_IDS:
             raise FullReportRunnerError(
-                "invalid persisted selected log IDs",
+                "invalid persisted selected input rows",
                 failed_at_stage="export",
             )
-        expected_fingerprint = selected_log_fingerprint(job.selected_log_ids)
+
+        source_ids: list[int] = []
+        for expected_index, row in enumerate(job.selected_input_rows):
+            if not isinstance(row, Mapping):
+                raise FullReportRunnerError(
+                    "invalid persisted selected input row",
+                    failed_at_stage="export",
+                )
+            source_id = row.get("source_id")
+            selection_index = row.get("selection_index")
+            found = row.get("found_at_submission")
+            log_time = row.get("log_time_at_submission")
+            created_at = row.get("created_at")
+            if (
+                row.get("job_id") != job.id
+                or isinstance(source_id, bool)
+                or not isinstance(source_id, int)
+                or source_id <= 0
+                or isinstance(selection_index, bool)
+                or selection_index != expected_index
+                or not (
+                    isinstance(found, bool)
+                    or (isinstance(found, int) and found in (0, 1))
+                )
+                or created_at is None
+            ):
+                raise FullReportRunnerError(
+                    "invalid persisted selected input row",
+                    failed_at_stage="export",
+                )
+            try:
+                _coerce_datetime(created_at, "created_at")
+                if bool(found):
+                    if log_time is None:
+                        raise ValueError("found row requires log_time_at_submission")
+                    _coerce_datetime(log_time, "log_time_at_submission")
+                elif log_time is not None:
+                    raise ValueError("missing row requires null log_time_at_submission")
+            except ValueError as exc:
+                raise FullReportRunnerError(
+                    "invalid persisted selected input row",
+                    failed_at_stage="export",
+                ) from exc
+            source_ids.append(source_id)
+
+        if len(set(source_ids)) != len(source_ids):
+            raise FullReportRunnerError(
+                "duplicate persisted selected input source_id",
+                failed_at_stage="export",
+            )
+        expected_fingerprint = selected_log_fingerprint(source_ids)
         if job.input_fingerprint != expected_fingerprint:
             raise FullReportRunnerError(
                 "invalid selected input_fingerprint",

@@ -12,15 +12,22 @@ ALTER TABLE analysis_jobs
         CHAR(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL
         AFTER input_source_table;
 
-CREATE TABLE IF NOT EXISTS analysis_job_selected_logs (
+CREATE TABLE IF NOT EXISTS analysis_job_selected_input_rows (
     job_id BIGINT UNSIGNED NOT NULL,
+    source_id BIGINT UNSIGNED NOT NULL,
     selection_index SMALLINT UNSIGNED NOT NULL,
-    selected_log_id BIGINT UNSIGNED NOT NULL,
+    found_at_submission TINYINT(1) NOT NULL,
+    log_time_at_submission DATETIME(3) DEFAULT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (job_id, selection_index),
-    UNIQUE KEY uk_analysis_job_selected_log (job_id, selected_log_id),
-    KEY idx_analysis_job_selected_log_id (selected_log_id),
-    CONSTRAINT fk_analysis_job_selected_logs_job_id
+    UNIQUE KEY uk_analysis_job_selected_input_source (job_id, source_id),
+    KEY idx_analysis_job_selected_input_source_id (source_id),
+    CONSTRAINT chk_analysis_job_selected_input_found_time CHECK (
+        (found_at_submission = 1 AND log_time_at_submission IS NOT NULL)
+        OR (found_at_submission = 0 AND log_time_at_submission IS NULL)
+    ),
+    CONSTRAINT fk_analysis_job_selected_input_rows_job_id
         FOREIGN KEY (job_id) REFERENCES analysis_jobs(id)
         ON UPDATE RESTRICT
         ON DELETE CASCADE

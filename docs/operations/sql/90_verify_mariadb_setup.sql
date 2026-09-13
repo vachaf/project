@@ -79,13 +79,13 @@ WHERE TABLE_SCHEMA = 'web_logs'
 
 DESCRIBE users;
 DESCRIBE analysis_jobs;
-DESCRIBE analysis_job_selected_logs;
+DESCRIBE analysis_job_selected_input_rows;
 DESCRIBE analysis_reports;
 DESCRIBE job_events;
 
 SHOW INDEX FROM users;
 SHOW INDEX FROM analysis_jobs;
-SHOW INDEX FROM analysis_job_selected_logs;
+SHOW INDEX FROM analysis_job_selected_input_rows;
 SHOW INDEX FROM analysis_reports;
 SHOW INDEX FROM job_events;
 

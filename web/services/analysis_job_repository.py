@@ -298,21 +298,22 @@ class AnalysisJobRepository:
                 )
                 job = cur.fetchone()
                 if job is not None and job.get("input_kind") == LIVE_SELECTED_INPUT_KIND:
-                    job["selected_log_ids"] = self._select_selected_log_ids(cur, int(job["id"]))
+                    job["selected_input_rows"] = self._select_selected_input_rows(cur, int(job["id"]))
                 return job
 
     @staticmethod
-    def _select_selected_log_ids(cur: Any, job_id: int) -> List[int]:
+    def _select_selected_input_rows(cur: Any, job_id: int) -> List[Dict[str, Any]]:
         cur.execute(
             """
-            SELECT selected_log_id
-            FROM analysis_job_selected_logs
+            SELECT job_id, source_id, selection_index, found_at_submission,
+                   log_time_at_submission, created_at
+            FROM analysis_job_selected_input_rows
             WHERE job_id = %s
             ORDER BY selection_index ASC
             """,
             (int(job_id),),
         )
-        return [int(row["selected_log_id"]) for row in cur.fetchall()]
+        return [dict(row) for row in cur.fetchall()]
 
     def claim_next_pending_full_report_job(self, *, worker_id: str) -> Optional[Dict[str, Any]]:
         """Atomically claim one PENDING full_report job for a worker.
@@ -368,7 +369,7 @@ class AnalysisJobRepository:
 
                     claimed = self._select_job_by_id(cur, job_id)
                     if claimed is not None and claimed.get("input_kind") == LIVE_SELECTED_INPUT_KIND:
-                        claimed["selected_log_ids"] = self._select_selected_log_ids(cur, job_id)
+                        claimed["selected_input_rows"] = self._select_selected_input_rows(cur, job_id)
                     cur.execute(
                         """
                         INSERT INTO job_events (
@@ -830,9 +831,9 @@ class AnalysisJobRepository:
         """Create a selected-log job atomically, or return no-data/duplicate.
 
         Source existence, duplicate arbitration, the parent, every selected ID,
-        and JOB_CREATED all use the same APP DB connection. Requested IDs are
-        persisted even when some source rows are already missing; those child
-        rows are the worker's authoritative input.
+        and JOB_CREATED all use the same APP DB connection. Requested IDs,
+        submission-time existence, and submission-time log timestamps are
+        persisted in child rows; those rows are the worker's authoritative input.
         """
 
         if validated_request.input_kind != LIVE_SELECTED_INPUT_KIND:
@@ -861,7 +862,8 @@ class AnalysisJobRepository:
                         tuple(validated_request.selected_log_ids),
                     )
                     source_rows = list(cur.fetchall())
-                    existing_ids = {int(row["id"]) for row in source_rows}
+                    source_rows_by_id = {int(row["id"]): row for row in source_rows}
+                    existing_ids = set(source_rows_by_id)
                     missing_ids = tuple(
                         log_id
                         for log_id in validated_request.selected_log_ids
@@ -934,14 +936,30 @@ class AnalysisJobRepository:
                         "UPDATE analysis_jobs SET artifact_root = %s WHERE id = %s",
                         (artifact_root, job_id),
                     )
-                    for selection_index, selected_log_id in enumerate(validated_request.selected_log_ids):
+                    for selection_index, source_id in enumerate(validated_request.selected_log_ids):
+                        submission_row = source_rows_by_id.get(source_id)
+                        found_at_submission = submission_row is not None
+                        log_time_at_submission = (
+                            to_mariadb_datetime3(
+                                _coerce_source_log_time(submission_row.get("log_time"))
+                            )
+                            if submission_row is not None
+                            else None
+                        )
                         cur.execute(
                             """
-                            INSERT INTO analysis_job_selected_logs (
-                                job_id, selection_index, selected_log_id
-                            ) VALUES (%s, %s, %s)
+                            INSERT INTO analysis_job_selected_input_rows (
+                                job_id, source_id, selection_index,
+                                found_at_submission, log_time_at_submission
+                            ) VALUES (%s, %s, %s, %s, %s)
                             """,
-                            (job_id, selection_index, selected_log_id),
+                            (
+                                job_id,
+                                source_id,
+                                selection_index,
+                                1 if found_at_submission else 0,
+                                log_time_at_submission,
+                            ),
                         )
                     cur.execute(
                         """
@@ -1039,7 +1057,7 @@ def _selected_job_created_detail_json(
     missing_count: int,
 ) -> str:
     # This metadata is deliberately descriptive only. Selected IDs are kept in
-    # analysis_job_selected_logs and never reconstructed from this event.
+    # analysis_job_selected_input_rows and never reconstructed from this event.
     return json.dumps(
         {
             "requested_by": requested_by,

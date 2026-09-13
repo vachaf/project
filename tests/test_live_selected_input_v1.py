@@ -169,6 +169,24 @@ def test_exact_id_empty_export_preserves_existing_json_schema() -> None:
 
 def _selected_job(**overrides: Any) -> dict[str, Any]:
     ids = [30, 10]
+    selected_input_rows = [
+        {
+            "job_id": 8,
+            "source_id": 30,
+            "selection_index": 0,
+            "found_at_submission": 1,
+            "log_time_at_submission": datetime(2026, 1, 1),
+            "created_at": datetime(2026, 1, 1, 0, 0, 1),
+        },
+        {
+            "job_id": 8,
+            "source_id": 10,
+            "selection_index": 1,
+            "found_at_submission": 0,
+            "log_time_at_submission": None,
+            "created_at": datetime(2026, 1, 1, 0, 0, 1),
+        },
+    ]
     job = {
         "id": 8,
         "time_from": datetime(2026, 1, 1),
@@ -179,7 +197,7 @@ def _selected_job(**overrides: Any) -> dict[str, Any]:
         "input_kind": "live_selected_logs",
         "input_source_table": "apache_security_logs",
         "input_fingerprint": selected_log_fingerprint(ids),
-        "selected_log_ids": ids,
+        "selected_input_rows": selected_input_rows,
     }
     job.update(overrides)
     return job
@@ -220,8 +238,16 @@ def test_selected_runner_accepts_over_24h_metadata_and_passes_exact_ids(tmp_path
         {"input_kind": "corrupt"},
         {"input_source_table": "apache_access_logs"},
         {"input_fingerprint": "0" * 64},
-        {"selected_log_ids": []},
-        {"selected_log_ids": [30, 30]},
+        {"selected_input_rows": []},
+        {
+            "selected_input_rows": [
+                {
+                    "job_id": 8, "source_id": 30, "selection_index": 0,
+                    "found_at_submission": 0, "log_time_at_submission": datetime(2026, 1, 1),
+                    "created_at": datetime(2026, 1, 1),
+                }
+            ]
+        },
     ],
 )
 def test_corrupt_selected_metadata_fails_without_time_range_fallback(
@@ -232,6 +258,55 @@ def test_corrupt_selected_metadata_fails_without_time_range_fallback(
         FullReportJobRunner(project_root=tmp_path, subprocess_run=fake).run(_selected_job(**override))
     assert exc.value.failed_at_stage == "export"
     assert fake.calls == []
+
+
+def test_corrupt_selected_row_identity_and_found_flag_never_fall_back(tmp_path: Path) -> None:
+    for mutation in (
+        {"job_id": 99},
+        {"selection_index": 4},
+        {"source_id": "30"},
+        {"found_at_submission": 1.0},
+        {"created_at": None},
+    ):
+        rows = [dict(row) for row in _selected_job()["selected_input_rows"]]
+        rows[0].update(mutation)
+        fake = _EmptyExactSubprocess()
+        with pytest.raises(FullReportRunnerError) as exc:
+            FullReportJobRunner(project_root=tmp_path, subprocess_run=fake).run(
+                _selected_job(selected_input_rows=rows)
+            )
+        assert exc.value.failed_at_stage == "export"
+        assert fake.calls == []
+
+
+def test_selected_child_projection_returns_full_authoritative_rows() -> None:
+    expected = {
+        "job_id": 8,
+        "source_id": 30,
+        "selection_index": 0,
+        "found_at_submission": 1,
+        "log_time_at_submission": datetime(2026, 1, 1),
+        "created_at": datetime(2026, 1, 1, 0, 0, 1),
+    }
+
+    class Cursor:
+        sql = ""
+        params = ()
+        def execute(self, sql, params):
+            self.sql = " ".join(sql.split())
+            self.params = params
+        def fetchall(self): return [expected]
+
+    cursor = Cursor()
+    rows = AnalysisJobRepository._select_selected_input_rows(cursor, 8)
+    assert rows == [expected]
+    assert cursor.params == (8,)
+    assert "FROM analysis_job_selected_input_rows" in cursor.sql
+    for column in (
+        "job_id", "source_id", "selection_index", "found_at_submission",
+        "log_time_at_submission", "created_at",
+    ):
+        assert column in cursor.sql
 
 
 class _CreationState:
@@ -343,11 +418,18 @@ class _CreationCursor:
         elif normalized.startswith("update analysis_jobs set artifact_root"):
             self.connection.pending_jobs[-1]["artifact_root"] = params[0]
             self.rowcount = 1
-        elif normalized.startswith("insert into analysis_job_selected_logs"):
-            if self.state.fail_child_index == params[1]:
+        elif normalized.startswith("insert into analysis_job_selected_input_rows"):
+            if self.state.fail_child_index == params[2]:
                 raise RuntimeError("injected child insert failure")
             self.connection.pending_children.append(
-                {"job_id": params[0], "selection_index": params[1], "selected_log_id": params[2]}
+                {
+                    "job_id": params[0],
+                    "source_id": params[1],
+                    "selection_index": params[2],
+                    "found_at_submission": params[3],
+                    "log_time_at_submission": params[4],
+                    "created_at": datetime(2026, 1, 3),
+                }
             )
             self.rowcount = 1
         elif normalized.startswith("insert into job_events"):
@@ -379,8 +461,16 @@ def test_selected_creation_is_atomic_and_partial_missing_preserves_child_order()
     )
 
     assert result.job_id == 1 and result.missing_log_ids == (99,)
-    assert [(row["selection_index"], row["selected_log_id"]) for row in state.children] == [
-        (0, 5), (1, 99), (2, 1)
+    assert [
+        (
+            row["selection_index"], row["source_id"], row["found_at_submission"],
+            row["log_time_at_submission"],
+        )
+        for row in state.children
+    ] == [
+        (0, 5, 1, "2026-01-03 00:00:00.000"),
+        (1, 99, 0, None),
+        (2, 1, 1, "2026-01-01 00:00:00.000"),
     ]
     assert len(state.jobs) == 1 and len(state.events) == 1
     assert datetime.fromisoformat(state.jobs[0]["time_to"]) - datetime.fromisoformat(state.jobs[0]["time_from"]) > timedelta(hours=24)
@@ -478,7 +568,8 @@ def test_worker_passes_selected_metadata_to_runner_and_keeps_job_no_data_lifecyc
         repo, worker_id="w", run_pipeline=True, runner=runner, heartbeat_interval=0.01
     ) == 0
     assert runner.received["input_kind"] == "live_selected_logs"
-    assert runner.received["selected_log_ids"] == [30, 10]
+    assert [row["source_id"] for row in runner.received["selected_input_rows"]] == [30, 10]
+    assert runner.received["selected_input_rows"][1]["found_at_submission"] == 0
     assert "JOB_NO_DATA" in [event["event_type"] for event in repo.events]
     assert repo.succeeded and not repo.failed
 
@@ -502,10 +593,27 @@ def test_ddl_contains_selected_input_columns_child_constraints_and_read_only_sou
     verification = (root / "docs/operations/sql/90_verify_mariadb_setup.sql").read_text(encoding="utf-8")
     for text in (schema, migration):
         assert "input_kind" in text and "input_source_table" in text and "input_fingerprint" in text
-        assert "analysis_job_selected_logs" in text
+        assert "analysis_job_selected_input_rows" in text
+        assert "analysis_job_selected_logs" not in text
+        for column in (
+            "job_id", "source_id", "selection_index", "found_at_submission",
+            "log_time_at_submission", "created_at",
+        ):
+            assert column in text
         assert "PRIMARY KEY (job_id, selection_index)" in text
-        assert "UNIQUE KEY uk_analysis_job_selected_log (job_id, selected_log_id)" in text
+        assert "UNIQUE KEY uk_analysis_job_selected_input_source (job_id, source_id)" in text
+        assert "found_at_submission = 1 AND log_time_at_submission IS NOT NULL" in text
+        assert "found_at_submission = 0 AND log_time_at_submission IS NULL" in text
+        table_ddl = text.split(
+            "CREATE TABLE IF NOT EXISTS analysis_job_selected_input_rows", 1
+        )[1].split(") ENGINE=InnoDB", 1)[0]
+        for column in (
+            "job_id", "source_id", "selection_index", "found_at_submission",
+            "log_time_at_submission", "created_at",
+        ):
+            assert column in table_ddl
+        assert "selected_log_id" not in table_ddl
     assert "GRANT SELECT ON web_logs.apache_security_logs" in grants
-    assert "GRANT SELECT, INSERT ON web_logs.analysis_job_selected_logs" in grants
-    assert "DESCRIBE analysis_job_selected_logs" in verification
-    assert "SHOW INDEX FROM analysis_job_selected_logs" in verification
+    assert "GRANT SELECT, INSERT ON web_logs.analysis_job_selected_input_rows" in grants
+    assert "DESCRIBE analysis_job_selected_input_rows" in verification
+    assert "SHOW INDEX FROM analysis_job_selected_input_rows" in verification

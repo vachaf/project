@@ -30,7 +30,7 @@ GRANT SELECT, INSERT, UPDATE ON web_logs.analysis_jobs TO 'analysis_app'@'192.16
 -- Live selected-input submission checks exact source IDs using this same APP DB
 -- connection. It never receives INSERT/UPDATE/DELETE on source logs.
 GRANT SELECT ON web_logs.apache_security_logs TO 'analysis_app'@'192.168.56.110';
-GRANT SELECT, INSERT ON web_logs.analysis_job_selected_logs TO 'analysis_app'@'192.168.56.110';
+GRANT SELECT, INSERT ON web_logs.analysis_job_selected_input_rows TO 'analysis_app'@'192.168.56.110';
 
 -- 보고서/산출물 메타데이터 테이블: Analysis Agent는 완료 또는 일부 완료된
 -- 보고서 경로를 등록/갱신하고, Web UI는 이를 조회합니다.
