@@ -140,6 +140,7 @@ def test_exact_export_query_excludes_unselected_middle_row_and_orders_canonicall
     assert exporter.fetch_rows_by_ids("apache_security_logs", [10, 30]) == rows
     assert "WHERE id IN (%s, %s)" in cursor.sql
     assert "log_time >=" not in cursor.sql and "log_time <" not in cursor.sql
+    assert "LIMIT" not in cursor.sql.upper()
     assert "ORDER BY log_time ASC, id ASC" in cursor.sql
     assert cursor.params == [10, 30]
 
@@ -230,6 +231,47 @@ def test_selected_runner_accepts_over_24h_metadata_and_passes_exact_ids(tmp_path
     cmd = fake.calls[0]
     assert [cmd[index + 1] for index, value in enumerate(cmd) if value == "--selected-log-id"] == ["30", "10"]
     assert "--start" in cmd and "--end" in cmd
+
+
+def _command_option(command: list[str], option: str) -> str:
+    return command[command.index(option) + 1]
+
+
+def test_selected_runner_does_not_collapse_one_millisecond_metadata_envelope(
+    tmp_path: Path,
+) -> None:
+    time_from = datetime(2026, 1, 1, 0, 0, 0, 439000)
+    time_to = time_from + timedelta(milliseconds=1)
+    fake = _EmptyExactSubprocess()
+
+    FullReportJobRunner(project_root=tmp_path, subprocess_run=fake).run(
+        _selected_job(time_from=time_from, time_to=time_to)
+    )
+
+    start = _command_option(fake.calls[0], "--start")
+    end = _command_option(fake.calls[0], "--end")
+    assert start == "2026-01-01 09:00:00.439"
+    assert end == "2026-01-01 09:00:00.440"
+    assert datetime.fromisoformat(start) < datetime.fromisoformat(end)
+
+
+def test_time_range_runner_keeps_existing_second_precision_export_command(
+    tmp_path: Path,
+) -> None:
+    fake = _EmptyExactSubprocess()
+    job = _selected_job(
+        input_kind="time_range",
+        input_source_table=None,
+        input_fingerprint=None,
+        selected_input_rows=(),
+        time_from=datetime(2026, 1, 1, 0, 0, 0, 439000),
+        time_to=datetime(2026, 1, 1, 1, 30, 0, 440000),
+    )
+
+    FullReportJobRunner(project_root=tmp_path, subprocess_run=fake).run(job)
+
+    assert _command_option(fake.calls[0], "--start") == "2026-01-01 09:00:00"
+    assert _command_option(fake.calls[0], "--end") == "2026-01-01 10:30:00"
 
 
 @pytest.mark.parametrize(
@@ -475,6 +517,34 @@ def test_selected_creation_is_atomic_and_partial_missing_preserves_child_order()
     assert len(state.jobs) == 1 and len(state.events) == 1
     assert datetime.fromisoformat(state.jobs[0]["time_to"]) - datetime.fromisoformat(state.jobs[0]["time_from"]) > timedelta(hours=24)
     assert state.connections[0].commits == 1
+
+
+def test_same_timestamp_selected_rows_generate_ordered_millisecond_cli_range(
+    tmp_path: Path,
+) -> None:
+    same_timestamp = datetime(2026, 1, 1, 0, 0, 0, 123000)
+    state = _CreationState({30: same_timestamp, 10: same_timestamp})
+    created = AnalysisJobRepository(state.factory).create_live_selected_logs_job(
+        requested_by=None,
+        validated_request=_creation_request([30, 10]),
+    )
+    persisted = state.jobs[0]
+    fake = _EmptyExactSubprocess()
+    job = _selected_job(
+        id=created.job_id,
+        artifact_root=f"runs/jobs/{created.job_id}",
+        time_from=datetime.fromisoformat(persisted["time_from"]),
+        time_to=datetime.fromisoformat(persisted["time_to"]),
+        selected_input_rows=state.children,
+    )
+
+    FullReportJobRunner(project_root=tmp_path, subprocess_run=fake).run(job)
+
+    start = _command_option(fake.calls[0], "--start")
+    end = _command_option(fake.calls[0], "--end")
+    assert start == "2026-01-01 09:00:00.123"
+    assert end == "2026-01-01 09:00:00.124"
+    assert datetime.fromisoformat(start) < datetime.fromisoformat(end)
 
 
 def test_all_missing_returns_no_data_without_job() -> None:

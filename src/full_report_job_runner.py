@@ -290,13 +290,18 @@ class FullReportJobRunner:
         return result
 
     def build_export_command(self, job: FullReportJob, scratch_export_path: Path) -> list[str]:
+        preserve_milliseconds = job.input_kind == LIVE_SELECTED_INPUT_KIND
         command = [
             self.python_executable,
             str(self.project_root / "src" / "export_db_logs_cli.py"),
             "--start",
-            self.utc_naive_to_kst_text(job.time_from),
+            self.utc_naive_to_kst_text(
+                job.time_from, preserve_milliseconds=preserve_milliseconds
+            ),
             "--end",
-            self.utc_naive_to_kst_text(job.time_to),
+            self.utc_naive_to_kst_text(
+                job.time_to, preserve_milliseconds=preserve_milliseconds
+            ),
             "--table",
             self.export_table,
             "--pretty",
@@ -413,10 +418,15 @@ class FullReportJobRunner:
             lint_result_path=None,
         )
 
-    def utc_naive_to_kst_text(self, value: datetime) -> str:
+    def utc_naive_to_kst_text(
+        self, value: datetime, *, preserve_milliseconds: bool = False
+    ) -> str:
         if value.tzinfo is None:
             value = value.replace(tzinfo=UTC)
-        return value.astimezone(KST).strftime("%Y-%m-%d %H:%M:%S")
+        kst_value = value.astimezone(KST)
+        if preserve_milliseconds:
+            return kst_value.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        return kst_value.strftime("%Y-%m-%d %H:%M:%S")
 
     def normalize_relative_path(self, path: Path | str) -> str:
         resolved = Path(path).expanduser().resolve()
