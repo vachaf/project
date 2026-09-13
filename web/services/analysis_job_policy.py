@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -11,6 +13,10 @@ ALLOWED_REQUESTED_TIMEZONE = "Asia/Seoul"
 ALLOWED_ANALYSIS_MODE = "full_report"
 MAX_TIME_RANGE = timedelta(hours=24)
 DEFAULT_ARTIFACT_ROOT_PREFIX = "runs/jobs"
+TIME_RANGE_INPUT_KIND = "time_range"
+LIVE_SELECTED_INPUT_KIND = "live_selected_logs"
+LIVE_SELECTED_SOURCE_TABLE = "apache_security_logs"
+MAX_SELECTED_LOG_IDS = 50
 
 _SECRET_REPLACEMENT = "[REDACTED]"
 _SECRET_PATTERNS = [
@@ -72,6 +78,69 @@ class ValidatedAnalysisJobRequest:
             "analysis_mode": self.analysis_mode,
             "artifact_root": artifact_root,
         }
+
+
+@dataclass(frozen=True)
+class ValidatedSelectedLogRequest:
+    """Canonical Live selection before source-row existence is checked."""
+
+    selected_log_ids: tuple[int, ...]
+    input_kind: str
+    source_table: str
+    input_fingerprint: str
+
+    def duplicate_key(self, requested_by: Optional[int]) -> tuple[Optional[int], str, str, str]:
+        return (
+            requested_by,
+            self.input_kind,
+            self.source_table,
+            self.input_fingerprint,
+        )
+
+
+def selected_log_fingerprint(selected_log_ids: Any) -> str:
+    """Hash the sorted unique requested IDs using a stable JSON representation."""
+
+    canonical = sorted(set(selected_log_ids))
+    encoded = json.dumps(canonical, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def validate_selected_log_request(selected_log_ids: Any) -> ValidatedSelectedLogRequest:
+    if not isinstance(selected_log_ids, list):
+        raise AnalysisJobValidationError(
+            "invalid_selected_log_ids",
+            "selected_log_ids must be a JSON array",
+        )
+    if not selected_log_ids:
+        raise AnalysisJobValidationError(
+            "invalid_selected_log_ids",
+            "selected_log_ids must contain at least one ID",
+        )
+    if len(selected_log_ids) > MAX_SELECTED_LOG_IDS:
+        raise AnalysisJobValidationError(
+            "too_many_selected_log_ids",
+            f"selected_log_ids must contain at most {MAX_SELECTED_LOG_IDS} IDs",
+        )
+
+    stable_unique: list[int] = []
+    seen: set[int] = set()
+    for value in selected_log_ids:
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise AnalysisJobValidationError(
+                "invalid_selected_log_id",
+                "selected_log_ids must contain positive integers only",
+            )
+        if value not in seen:
+            seen.add(value)
+            stable_unique.append(value)
+
+    return ValidatedSelectedLogRequest(
+        selected_log_ids=tuple(stable_unique),
+        input_kind=LIVE_SELECTED_INPUT_KIND,
+        source_table=LIVE_SELECTED_SOURCE_TABLE,
+        input_fingerprint=selected_log_fingerprint(stable_unique),
+    )
 
 
 def _get_zoneinfo(tz_name: str) -> ZoneInfo:

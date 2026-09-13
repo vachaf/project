@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import json
+import hashlib
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -11,9 +12,12 @@ import pymysql
 from pymysql.cursors import DictCursor
 
 from web.services.analysis_job_policy import (
+    LIVE_SELECTED_INPUT_KIND,
     ValidatedAnalysisJobRequest,
+    ValidatedSelectedLogRequest,
     build_job_artifact_root,
     redact_secret_text,
+    to_mariadb_datetime3,
 )
 
 DEFAULT_STATUS_COUNTS = {"PENDING": 0, "RUNNING": 0, "SUCCEEDED": 0, "FAILED": 0}
@@ -77,6 +81,23 @@ class CreatedAnalysisJob:
         return self.duplicate_existing_job_id is None
 
 
+@dataclass(frozen=True)
+class CreatedSelectedAnalysisJob:
+    job_id: Optional[int]
+    artifact_root: str = ""
+    selected_log_ids: tuple[int, ...] = ()
+    missing_log_ids: tuple[int, ...] = ()
+    duplicate_existing_job_id: Optional[int] = None
+
+    @property
+    def created(self) -> bool:
+        return self.job_id is not None and self.duplicate_existing_job_id is None
+
+    @property
+    def no_data(self) -> bool:
+        return self.job_id is None
+
+
 def get_app_db_config() -> Dict[str, Any]:
     """Return MariaDB connection config for the DB-backed Web UI/API.
 
@@ -123,7 +144,8 @@ class AnalysisJobRepository:
             SELECT id, requested_by, time_from, time_to, requested_timezone,
                    status, analysis_mode, created_at, started_at, finished_at,
                    worker_id, heartbeat_at, attempt_count, max_attempts,
-                   error_message, artifact_root
+                   error_message, artifact_root, input_kind,
+                   input_source_table, input_fingerprint
             FROM analysis_jobs
             WHERE id = %s
             """,
@@ -157,7 +179,8 @@ class AnalysisJobRepository:
                     SELECT id, requested_by, time_from, time_to, requested_timezone,
                            status, analysis_mode, created_at, started_at, finished_at,
                            worker_id, heartbeat_at, attempt_count, max_attempts,
-                           error_message, artifact_root
+                           error_message, artifact_root, input_kind,
+                           input_source_table, input_fingerprint
                     FROM analysis_jobs
                     ORDER BY created_at DESC, id DESC
                     LIMIT {safe_limit}
@@ -211,7 +234,8 @@ class AnalysisJobRepository:
                     SELECT id, requested_by, time_from, time_to, requested_timezone,
                            status, analysis_mode, created_at, started_at, finished_at,
                            worker_id, heartbeat_at, attempt_count, max_attempts,
-                           error_message, artifact_root
+                           error_message, artifact_root, input_kind,
+                           input_source_table, input_fingerprint
                     FROM analysis_jobs
                     WHERE {where_clause}
                     ORDER BY created_at DESC, id DESC
@@ -265,13 +289,30 @@ class AnalysisJobRepository:
                     SELECT id, requested_by, time_from, time_to, requested_timezone,
                            status, analysis_mode, created_at, started_at, finished_at,
                            worker_id, heartbeat_at, attempt_count, max_attempts,
-                           error_message, artifact_root
+                           error_message, artifact_root, input_kind,
+                           input_source_table, input_fingerprint
                     FROM analysis_jobs
                     WHERE id = %s
                     """,
                     (job_id,),
                 )
-                return cur.fetchone()
+                job = cur.fetchone()
+                if job is not None and job.get("input_kind") == LIVE_SELECTED_INPUT_KIND:
+                    job["selected_log_ids"] = self._select_selected_log_ids(cur, int(job["id"]))
+                return job
+
+    @staticmethod
+    def _select_selected_log_ids(cur: Any, job_id: int) -> List[int]:
+        cur.execute(
+            """
+            SELECT selected_log_id
+            FROM analysis_job_selected_logs
+            WHERE job_id = %s
+            ORDER BY selection_index ASC
+            """,
+            (int(job_id),),
+        )
+        return [int(row["selected_log_id"]) for row in cur.fetchall()]
 
     def claim_next_pending_full_report_job(self, *, worker_id: str) -> Optional[Dict[str, Any]]:
         """Atomically claim one PENDING full_report job for a worker.
@@ -326,6 +367,8 @@ class AnalysisJobRepository:
                         return None
 
                     claimed = self._select_job_by_id(cur, job_id)
+                    if claimed is not None and claimed.get("input_kind") == LIVE_SELECTED_INPUT_KIND:
+                        claimed["selected_log_ids"] = self._select_selected_log_ids(cur, job_id)
                     cur.execute(
                         """
                         INSERT INTO job_events (
@@ -777,6 +820,170 @@ class AnalysisJobRepository:
                 conn.rollback()
                 raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
 
+    def create_live_selected_logs_job(
+        self,
+        *,
+        requested_by: Optional[int],
+        validated_request: ValidatedSelectedLogRequest,
+        advisory_lock_timeout_seconds: int = 10,
+    ) -> CreatedSelectedAnalysisJob:
+        """Create a selected-log job atomically, or return no-data/duplicate.
+
+        Source existence, duplicate arbitration, the parent, every selected ID,
+        and JOB_CREATED all use the same APP DB connection. Requested IDs are
+        persisted even when some source rows are already missing; those child
+        rows are the worker's authoritative input.
+        """
+
+        if validated_request.input_kind != LIVE_SELECTED_INPUT_KIND:
+            raise AnalysisJobRepositoryError("invalid selected input_kind")
+        lock_name = _selected_duplicate_lock_name(requested_by, validated_request)
+        timeout = max(0, int(advisory_lock_timeout_seconds))
+
+        with self.connection_factory() as conn:
+            lock_acquired = False
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT GET_LOCK(%s, %s) AS acquired", (lock_name, timeout))
+                    lock_row = cur.fetchone() or {}
+                    if int(lock_row.get("acquired") or 0) != 1:
+                        raise AnalysisJobRepositoryError("selected-input duplicate lock unavailable")
+                    lock_acquired = True
+
+                    cur.execute("START TRANSACTION")
+                    placeholders = ", ".join(["%s"] * len(validated_request.selected_log_ids))
+                    cur.execute(
+                        f"""
+                        SELECT id, log_time
+                        FROM apache_security_logs
+                        WHERE id IN ({placeholders})
+                        """,
+                        tuple(validated_request.selected_log_ids),
+                    )
+                    source_rows = list(cur.fetchall())
+                    existing_ids = {int(row["id"]) for row in source_rows}
+                    missing_ids = tuple(
+                        log_id
+                        for log_id in validated_request.selected_log_ids
+                        if log_id not in existing_ids
+                    )
+                    if not source_rows:
+                        conn.rollback()
+                        return CreatedSelectedAnalysisJob(
+                            job_id=None,
+                            selected_log_ids=validated_request.selected_log_ids,
+                            missing_log_ids=missing_ids,
+                        )
+
+                    cur.execute(
+                        """
+                        SELECT id, artifact_root
+                        FROM analysis_jobs
+                        WHERE requested_by <=> %s
+                          AND input_kind = %s
+                          AND input_source_table = %s
+                          AND input_fingerprint = %s
+                          AND status IN ('PENDING', 'RUNNING')
+                        ORDER BY id DESC
+                        LIMIT 1
+                        """,
+                        (
+                            requested_by,
+                            validated_request.input_kind,
+                            validated_request.source_table,
+                            validated_request.input_fingerprint,
+                        ),
+                    )
+                    duplicate = cur.fetchone()
+                    if duplicate:
+                        conn.rollback()
+                        duplicate_id = int(duplicate["id"])
+                        return CreatedSelectedAnalysisJob(
+                            job_id=duplicate_id,
+                            artifact_root=str(duplicate.get("artifact_root") or ""),
+                            selected_log_ids=validated_request.selected_log_ids,
+                            missing_log_ids=missing_ids,
+                            duplicate_existing_job_id=duplicate_id,
+                        )
+
+                    time_from, time_to = _selected_metadata_range(source_rows)
+                    cur.execute(
+                        """
+                        INSERT INTO analysis_jobs (
+                            requested_by, time_from, time_to, requested_timezone,
+                            status, analysis_mode, created_at, artifact_root,
+                            input_kind, input_source_table, input_fingerprint
+                        ) VALUES (
+                            %s, %s, %s, 'Asia/Seoul',
+                            'PENDING', 'full_report', UTC_TIMESTAMP(3), NULL,
+                            %s, %s, %s
+                        )
+                        """,
+                        (
+                            requested_by,
+                            time_from,
+                            time_to,
+                            validated_request.input_kind,
+                            validated_request.source_table,
+                            validated_request.input_fingerprint,
+                        ),
+                    )
+                    job_id = int(cur.lastrowid)
+                    artifact_root = build_job_artifact_root(job_id)
+                    cur.execute(
+                        "UPDATE analysis_jobs SET artifact_root = %s WHERE id = %s",
+                        (artifact_root, job_id),
+                    )
+                    for selection_index, selected_log_id in enumerate(validated_request.selected_log_ids):
+                        cur.execute(
+                            """
+                            INSERT INTO analysis_job_selected_logs (
+                                job_id, selection_index, selected_log_id
+                            ) VALUES (%s, %s, %s)
+                            """,
+                            (job_id, selection_index, selected_log_id),
+                        )
+                    cur.execute(
+                        """
+                        INSERT INTO job_events (
+                            job_id, event_time, event_type, message, detail_json
+                        ) VALUES (
+                            %s, UTC_TIMESTAMP(3), 'JOB_CREATED', %s, %s
+                        )
+                        """,
+                        (
+                            job_id,
+                            "Job created from Live selected logs",
+                            _selected_job_created_detail_json(
+                                requested_by,
+                                validated_request,
+                                missing_count=len(missing_ids),
+                            ),
+                        ),
+                    )
+                conn.commit()
+                return CreatedSelectedAnalysisJob(
+                    job_id=job_id,
+                    artifact_root=artifact_root,
+                    selected_log_ids=validated_request.selected_log_ids,
+                    missing_log_ids=missing_ids,
+                )
+            except AnalysisJobRepositoryError:
+                conn.rollback()
+                raise
+            except Exception as exc:
+                conn.rollback()
+                raise AnalysisJobRepositoryError(redact_secret_text(exc)) from exc
+            finally:
+                if lock_acquired:
+                    try:
+                        with conn.cursor() as release_cur:
+                            release_cur.execute("SELECT RELEASE_LOCK(%s) AS released", (lock_name,))
+                            release_cur.fetchone()
+                    except Exception:
+                        # Closing the same connection also releases its named lock.
+                        pass
+
 
 def _job_created_detail_json(requested_by: Optional[int], request: ValidatedAnalysisJobRequest) -> str:
     import json
@@ -790,6 +997,58 @@ def _job_created_detail_json(requested_by: Optional[int], request: ValidatedAnal
             "time_to_db": request.time_to_db,
             "time_from_local": request.time_from_local.isoformat(),
             "time_to_local": request.time_to_local.isoformat(),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
+def _selected_duplicate_lock_name(
+    requested_by: Optional[int], request: ValidatedSelectedLogRequest
+) -> str:
+    identity = json.dumps(
+        [requested_by, request.input_kind, request.source_table, request.input_fingerprint],
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    digest = hashlib.sha256(identity.encode("ascii")).hexdigest()
+    return f"selected_job:{digest[:48]}"
+
+
+def _coerce_source_log_time(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return value.astimezone(timezone.utc).replace(tzinfo=None) if value.tzinfo is not None else value
+    if isinstance(value, str):
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None) if parsed.tzinfo is not None else parsed
+    raise AnalysisJobRepositoryError("selected source row has invalid log_time")
+
+
+def _selected_metadata_range(source_rows: List[Dict[str, Any]]) -> tuple[str, str]:
+    times = [_coerce_source_log_time(row.get("log_time")) for row in source_rows]
+    time_from = min(times)
+    # DATETIME(3) is millisecond precision; make the display range non-empty.
+    time_to = max(times) + timedelta(milliseconds=1)
+    return to_mariadb_datetime3(time_from), to_mariadb_datetime3(time_to)
+
+
+def _selected_job_created_detail_json(
+    requested_by: Optional[int],
+    request: ValidatedSelectedLogRequest,
+    *,
+    missing_count: int,
+) -> str:
+    # This metadata is deliberately descriptive only. Selected IDs are kept in
+    # analysis_job_selected_logs and never reconstructed from this event.
+    return json.dumps(
+        {
+            "requested_by": requested_by,
+            "analysis_mode": "full_report",
+            "input_kind": request.input_kind,
+            "input_source_table": request.source_table,
+            "input_fingerprint": request.input_fingerprint,
+            "selected_count": len(request.selected_log_ids),
+            "missing_count_at_submission": int(missing_count),
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -912,6 +1171,9 @@ def serialize_job_for_dashboard(row: Dict[str, Any]) -> Dict[str, Any]:
         "time_to": utc_naive_to_kst_text(row.get("time_to")),
         "requested_timezone": str(row.get("requested_timezone") or "Asia/Seoul"),
         "analysis_mode": str(row.get("analysis_mode") or "full_report"),
+        "input_kind": str(row.get("input_kind") or "time_range"),
+        "input_source_table": row.get("input_source_table"),
+        "input_fingerprint": row.get("input_fingerprint"),
         "created_at": utc_naive_to_kst_text(row.get("created_at"), "%m-%d %H:%M"),
         "started_at": utc_naive_to_kst_text(row.get("started_at"), "%m-%d %H:%M"),
         "finished_at": utc_naive_to_kst_text(row.get("finished_at"), "%m-%d %H:%M"),

@@ -13,7 +13,14 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo
 
-from web.services.analysis_job_policy import redact_secret_text
+from web.services.analysis_job_policy import (
+    LIVE_SELECTED_INPUT_KIND,
+    LIVE_SELECTED_SOURCE_TABLE,
+    MAX_SELECTED_LOG_IDS,
+    TIME_RANGE_INPUT_KIND,
+    redact_secret_text,
+    selected_log_fingerprint,
+)
 
 
 KST = ZoneInfo("Asia/Seoul")
@@ -65,6 +72,10 @@ class FullReportJob:
     requested_timezone: str
     artifact_root: str
     analysis_mode: str
+    input_kind: str = TIME_RANGE_INPUT_KIND
+    input_source_table: Optional[str] = None
+    input_fingerprint: Optional[str] = None
+    selected_log_ids: tuple[int, ...] = ()
 
     @classmethod
     def from_mapping(cls, row: Mapping[str, Any]) -> "FullReportJob":
@@ -75,6 +86,18 @@ class FullReportJob:
             requested_timezone=str(row.get("requested_timezone") or ""),
             artifact_root=str(row.get("artifact_root") or ""),
             analysis_mode=str(row.get("analysis_mode") or ""),
+            input_kind=str(row.get("input_kind") or TIME_RANGE_INPUT_KIND),
+            input_source_table=(
+                str(row.get("input_source_table"))
+                if row.get("input_source_table") is not None
+                else None
+            ),
+            input_fingerprint=(
+                str(row.get("input_fingerprint"))
+                if row.get("input_fingerprint") is not None
+                else None
+            ),
+            selected_log_ids=tuple(row.get("selected_log_ids") or ()),
         )
 
 
@@ -263,7 +286,7 @@ class FullReportJobRunner:
         return result
 
     def build_export_command(self, job: FullReportJob, scratch_export_path: Path) -> list[str]:
-        return [
+        command = [
             self.python_executable,
             str(self.project_root / "src" / "export_db_logs_cli.py"),
             "--start",
@@ -276,6 +299,10 @@ class FullReportJobRunner:
             "--out",
             str(scratch_export_path),
         ]
+        if job.input_kind == LIVE_SELECTED_INPUT_KIND:
+            for selected_log_id in job.selected_log_ids:
+                command.extend(["--selected-log-id", str(selected_log_id)])
+        return command
 
     def build_pipeline_command(
         self,
@@ -401,6 +428,42 @@ class FullReportJobRunner:
             raise ValueError(f"unsupported requested_timezone: {job.requested_timezone}")
         if not job.artifact_root.strip():
             raise ValueError("artifact_root is required")
+        if job.input_kind == TIME_RANGE_INPUT_KIND:
+            if job.input_source_table is not None or job.input_fingerprint is not None or job.selected_log_ids:
+                raise FullReportRunnerError(
+                    "invalid time-range input metadata",
+                    failed_at_stage="export",
+                )
+            return
+        if job.input_kind != LIVE_SELECTED_INPUT_KIND:
+            raise FullReportRunnerError(
+                f"unsupported input_kind: {job.input_kind}",
+                failed_at_stage="export",
+            )
+        if job.input_source_table != LIVE_SELECTED_SOURCE_TABLE:
+            raise FullReportRunnerError(
+                "invalid selected input_source_table",
+                failed_at_stage="export",
+            )
+        if (
+            not job.selected_log_ids
+            or len(job.selected_log_ids) > MAX_SELECTED_LOG_IDS
+            or any(
+                isinstance(value, bool) or not isinstance(value, int) or value <= 0
+                for value in job.selected_log_ids
+            )
+            or len(set(job.selected_log_ids)) != len(job.selected_log_ids)
+        ):
+            raise FullReportRunnerError(
+                "invalid persisted selected log IDs",
+                failed_at_stage="export",
+            )
+        expected_fingerprint = selected_log_fingerprint(job.selected_log_ids)
+        if job.input_fingerprint != expected_fingerprint:
+            raise FullReportRunnerError(
+                "invalid selected input_fingerprint",
+                failed_at_stage="export",
+            )
 
     def _resolve_under_project_root(self, path_value: str) -> Path:
         path = Path(path_value).expanduser()

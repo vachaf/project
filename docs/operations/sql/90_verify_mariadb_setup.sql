@@ -7,6 +7,7 @@
 --   00_database_and_log_accounts.sql
 --   01_apache_log_tables.sql
 --   01_analysis_job_tables.sql
+--   02_live_selected_input_v1.sql (existing database migration only)
 --   10_log_source_table_grants.sql
 --   11_analysis_app_grants.sql
 --
@@ -78,11 +79,13 @@ WHERE TABLE_SCHEMA = 'web_logs'
 
 DESCRIBE users;
 DESCRIBE analysis_jobs;
+DESCRIBE analysis_job_selected_logs;
 DESCRIBE analysis_reports;
 DESCRIBE job_events;
 
 SHOW INDEX FROM users;
 SHOW INDEX FROM analysis_jobs;
+SHOW INDEX FROM analysis_job_selected_logs;
 SHOW INDEX FROM analysis_reports;
 SHOW INDEX FROM job_events;
 

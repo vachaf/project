@@ -89,6 +89,7 @@ TABLE_MAP = {
 
 TABLE_ORDER = ["access", "security", "error"]
 DEFAULT_TABLE_OPTION = "security"
+MAX_SELECTED_LOG_IDS = 50
 
 
 @dataclass
@@ -184,6 +185,26 @@ class LogExporter:
 
         with self.conn.cursor() as cur:
             cur.execute(sql, params)
+            rows = cur.fetchall()
+        return rows
+
+    def fetch_rows_by_ids(
+        self,
+        table_name: str,
+        selected_log_ids: List[int],
+    ) -> List[Dict[str, Any]]:
+        """Fetch only exact selected IDs, independent of metadata time bounds."""
+
+        self.connect()
+        placeholders = ", ".join(["%s"] * len(selected_log_ids))
+        sql = f"""
+        SELECT *
+        FROM {table_name}
+        WHERE id IN ({placeholders})
+        ORDER BY log_time ASC, id ASC
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(sql, list(selected_log_ids))
             rows = cur.fetchall()
         return rows
 
@@ -421,6 +442,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--end", help="조회 종료 시각 (exclusive, KST)")
 
     parser.add_argument("--limit", type=int, default=None, help="테이블별 최대 조회 건수")
+    parser.add_argument(
+        "--selected-log-id",
+        action="append",
+        type=int,
+        default=None,
+        help="apache_security_logs exact ID (Live selected input; repeat up to 50 times)",
+    )
     parser.add_argument("--pretty", action="store_true", help="JSON pretty 출력")
     parser.add_argument("--out", help="완전한 출력 파일 경로")
     parser.add_argument("--out-dir", help="자동 파일명은 유지하고 저장 디렉터리만 변경")
@@ -443,6 +471,7 @@ def build_export_payload(
     range_cfg: RangeConfig,
     limit: Optional[int],
     fetched: Dict[str, List[Dict[str, Any]]],
+    selected_log_ids: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
     counts = {name: len(fetched.get(name, [])) for name in TABLE_ORDER}
     payload = {
@@ -472,7 +501,33 @@ def build_export_payload(
             "error": fetched.get("error", []),
         },
     }
+    if selected_log_ids is not None:
+        payload["meta"].update(
+            {
+                "input_kind": "live_selected_logs",
+                "input_source_table": "apache_security_logs",
+                "selected_log_ids": list(selected_log_ids),
+            }
+        )
     return payload
+
+
+def validate_selected_log_ids(values: Optional[List[int]]) -> Optional[List[int]]:
+    if values is None:
+        return None
+    if not values:
+        raise ValueError("--selected-log-id requires at least one ID")
+    if len(values) > MAX_SELECTED_LOG_IDS:
+        raise ValueError(f"--selected-log-id may be repeated at most {MAX_SELECTED_LOG_IDS} times")
+    selected: List[int] = []
+    seen = set()
+    for value in values:
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError("--selected-log-id values must be positive integers")
+        if value not in seen:
+            seen.add(value)
+            selected.append(value)
+    return selected
 
 
 def run_export(args: argparse.Namespace) -> str:
@@ -484,6 +539,13 @@ def run_export(args: argparse.Namespace) -> str:
         args.password = getpass.getpass("DB password: ")
     if not args.password:
         raise ValueError("DB password가 없습니다. --password 또는 LOG_DB_PASSWORD를 지정하세요.")
+
+    selected_log_ids = validate_selected_log_ids(args.selected_log_id)
+    if selected_log_ids is not None:
+        if args.table != "security":
+            raise ValueError("--selected-log-id requires --table security")
+        if args.limit is not None:
+            raise ValueError("--limit cannot be used with --selected-log-id")
 
     range_cfg = resolve_time_range(args)
     out_path = resolve_output_path(args, range_cfg)
@@ -514,12 +576,18 @@ def run_export(args: argparse.Namespace) -> str:
         fetched: Dict[str, List[Dict[str, Any]]] = {"access": [], "security": [], "error": []}
         for short_name in selected_tables(args.table):
             table_name = TABLE_MAP[short_name]
-            rows = exporter.fetch_rows(
-                table_name=table_name,
-                start_dt_db_tz=range_cfg.start_db_tz,
-                end_dt_exclusive_db_tz=range_cfg.end_exclusive_db_tz,
-                limit=args.limit,
-            )
+            if selected_log_ids is not None:
+                rows = exporter.fetch_rows_by_ids(
+                    table_name=table_name,
+                    selected_log_ids=selected_log_ids,
+                )
+            else:
+                rows = exporter.fetch_rows(
+                    table_name=table_name,
+                    start_dt_db_tz=range_cfg.start_db_tz,
+                    end_dt_exclusive_db_tz=range_cfg.end_exclusive_db_tz,
+                    limit=args.limit,
+                )
             fetched[short_name] = [transform_row_datetimes(row) for row in rows]
             print(f"[INFO] {table_name}: {len(rows)} rows")
 
@@ -529,6 +597,7 @@ def run_export(args: argparse.Namespace) -> str:
             range_cfg=range_cfg,
             limit=args.limit,
             fetched=fetched,
+            selected_log_ids=selected_log_ids,
         )
 
         with open(out_path, "w", encoding="utf-8") as f:

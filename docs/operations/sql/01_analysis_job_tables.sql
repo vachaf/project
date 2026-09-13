@@ -88,6 +88,12 @@ CREATE TABLE IF NOT EXISTS analysis_jobs (
     -- (full_report는 export + prepare + Stage1 + Stage2 + viewer_payload 전체 과정을 의미함)
     analysis_mode VARCHAR(64) NOT NULL DEFAULT 'full_report',
 
+    -- Input dispatch metadata. The selected IDs themselves are authoritative
+    -- only in analysis_job_selected_logs; job_events.detail_json is descriptive.
+    input_kind VARCHAR(64) NOT NULL DEFAULT 'time_range',
+    input_source_table VARCHAR(128) DEFAULT NULL,
+    input_fingerprint CHAR(64) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL,
+
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     started_at DATETIME(3) DEFAULT NULL,
     finished_at DATETIME(3) DEFAULT NULL,
@@ -109,11 +115,36 @@ CREATE TABLE IF NOT EXISTS analysis_jobs (
     KEY idx_analysis_jobs_time_range (time_from, time_to),
     KEY idx_analysis_jobs_requested_by (requested_by),
     KEY idx_analysis_jobs_mode_status (analysis_mode, status),
+    KEY idx_analysis_jobs_input_duplicate (
+        input_kind, input_source_table, input_fingerprint, status
+    ),
     KEY idx_analysis_jobs_worker_status (worker_id, status),
     CONSTRAINT fk_analysis_jobs_requested_by
         FOREIGN KEY (requested_by) REFERENCES users(id)
         ON UPDATE RESTRICT
         ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- -----------------------------------------------------------------------------
+-- analysis_job_selected_logs (Live Selected Input Contract v1)
+-- -----------------------------------------------------------------------------
+-- Stable-deduplicated requested IDs are stored in their selection order. A
+-- source-table FK is intentionally not used: retention may remove a selected
+-- source row before the worker exports it, which must enter JOB_NO_DATA rather
+-- than invalidating the persisted job input.
+
+CREATE TABLE IF NOT EXISTS analysis_job_selected_logs (
+    job_id BIGINT UNSIGNED NOT NULL,
+    selection_index SMALLINT UNSIGNED NOT NULL,
+    selected_log_id BIGINT UNSIGNED NOT NULL,
+
+    PRIMARY KEY (job_id, selection_index),
+    UNIQUE KEY uk_analysis_job_selected_log (job_id, selected_log_id),
+    KEY idx_analysis_job_selected_log_id (selected_log_id),
+    CONSTRAINT fk_analysis_job_selected_logs_job_id
+        FOREIGN KEY (job_id) REFERENCES analysis_jobs(id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------------------------
