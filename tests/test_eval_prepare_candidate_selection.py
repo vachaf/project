@@ -172,17 +172,18 @@ def test_filtered_reasons_loader_supports_excluded_wrapper(tmp_path: Path) -> No
     }
 
 
-def test_jobs12_labelset_matches_actual_artifact_request_ids() -> None:
+def test_jobs12_labelset_matches_tracked_fixture_request_ids() -> None:
     module = load_module()
     labels_path = PROJECT_ROOT / "data" / "eval" / "prepare_candidate_selection_jobs12.json"
-    candidates_path = PROJECT_ROOT / "runs" / "jobs" / "12" / "analysis_candidates.json"
-    filtered_path = PROJECT_ROOT / "runs" / "jobs" / "12" / "filtered_reasons.json"
+    fixture_path = PROJECT_ROOT / "data" / "eval" / "prepare_candidate_selection_jobs12_fixture.json"
 
     label_items = module.load_label_items(labels_path)
-    candidate_ids, warnings = module.load_candidate_request_ids(candidates_path)
-    filtered_reason_map = module.load_filtered_reason_map(filtered_path)
+    fixture_payload = module.load_json(fixture_path)
+    candidate_ids, warnings = module.load_candidate_request_ids(fixture_path)
+    filtered_reason_map = module.load_filtered_reason_map(fixture_path)
     label_ids = {item["request_id"] for item in label_items}
 
+    assert fixture_payload["provenance"]["job_id"] == 12
     assert len(label_items) == 14
     assert warnings == []
     assert label_ids == candidate_ids | set(filtered_reason_map)

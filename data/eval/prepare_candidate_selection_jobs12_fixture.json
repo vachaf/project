@@ -1,0 +1,29 @@
+{
+  "schema_version": "prepare_candidate_selection_eval_fixture.v1",
+  "provenance": {
+    "job_id": 12,
+    "source_artifacts": [
+      "runs/jobs/12/analysis_candidates.json",
+      "runs/jobs/12/filtered_reasons.json"
+    ],
+    "purpose": "Hermetic regression projection of the Job 12 candidate-selection evidence"
+  },
+  "analysis_candidates": [
+    {"request_id": "ahHdrAnjIi69un7cHKfB-AAAAAI"},
+    {"request_id": "ahHdyM7YFVDaJnBoRkExtAAAAAQ"},
+    {"request_id": "ahHdwc7YFVDaJnBoRkExsgAAAAQ"},
+    {"request_id": "ahHdvB5LF9NaBEDjFml1pwAAAAM"},
+    {"request_id": "ahHduAnjIi69un7cHKfB-wAAAAI"}
+  ],
+  "filtered_reasons": [
+    {"request_id": "ahHdnOn_IYKI7bMYR_TtAwAAAAY", "reason": "crawler_or_baseline_like"},
+    {"request_id": "ahHdn-n_IYKI7bMYR_TtBAAAAAY", "reason": "crawler_or_baseline_like"},
+    {"request_id": "ahHdoen_IYKI7bMYR_TtBQAAAAY", "reason": "crawler_or_baseline_like"},
+    {"request_id": "ahHdqAnjIi69un7cHKfB9wAAAAI", "reason": "crawler_or_baseline_like"},
+    {"request_id": "ahHdsAnjIi69un7cHKfB-QAAAAI", "reason": "crawler_or_baseline_like"},
+    {"request_id": "ahHdtAnjIi69un7cHKfB-gAAAAI", "reason": "crawler_or_baseline_like"},
+    {"request_id": "ahHduh5LF9NaBEDjFml1pgAAAAM", "reason": "crawler_or_baseline_like"},
+    {"request_id": "ahHdxM7YFVDaJnBoRkExswAAAAQ", "reason": "crawler_or_baseline_like"},
+    {"request_id": "ahHdy87YFVDaJnBoRkExtQAAAAQ", "reason": "insufficient_log_evidence"}
+  ]
+}
