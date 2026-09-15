@@ -280,7 +280,7 @@ def test_job_viewer_route_renders_payload_dashboard(monkeypatch: pytest.MonkeyPa
     body = render_response_body(response)
 
     assert response.status_code == 200
-    assert "Viewer Payload Dashboard" in body
+    assert "분석 보고서 보기" in body
     assert "payload-dashboard.css" in body
     assert "DB backed payload" in body
     assert "custom_payload_category" in body
@@ -307,14 +307,14 @@ def test_job_viewer_route_renders_report_level_human_sections(
     assert "Notable Source IPs" in body
     assert "203.0.113.88" in body
     assert "Candidate-Excluded / Context Notes" in body
-    assert "Candidate-excluded rows are context for review, not safety verdicts." in body
+    assert "후보 제외 행은 검토를 위한 Context이며 안전 판정이 아닙니다." in body
     assert "Baseline-like candidate-excluded context" in body
     assert "Baseline-like legacy context" in body
     assert "Low-signal request pattern" in body
     assert "Benign normal search" not in body
     assert "benign_normal_search" not in body
     assert "known_baseline_like_legacy_alias" not in body
-    assert "Report-Level Recommended Actions" in body
+    assert "보고서 권고 조치" in body
     assert "Review matching application logs." in body
     assert "Confidence and Limitations" in body
     assert "Apache logs-only boundary applies." in body
@@ -437,7 +437,7 @@ def test_sanitize_security_standards_summary_bounds_display_without_changing_sou
     assert len(summary["standards"]["CWE"]) == report_routes.SECURITY_STANDARDS_MAX_ROWS_PER_GROUP + 1
 
 
-def test_job_viewer_renders_security_standards_summary_before_report_and_uses_full_scope(
+def test_job_viewer_renders_report_and_timeline_before_security_standards_and_uses_full_scope(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -449,15 +449,17 @@ def test_job_viewer_renders_security_standards_summary_before_report_and_uses_fu
 
     body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
 
-    assert body.index("Security Standards Summary") < body.index("Report Summary")
+    assert body.index("Report Summary") < body.index("Event Timeline")
+    assert body.index("Event Timeline") < body.index("Security Standards Summary")
     assert "Mapped findings" in body
     assert "9 / 25" in body
-    assert "Summary covers all 25 deduplicated findings" in body
-    assert "timeline currently contains 12 selected findings" in body
+    assert "중복 제거된 전체 Finding 25건" in body
+    assert "선택된 Finding 12건" in body
     assert "OWASP-related Observed Categories" in body
     assert "A05:2025" in body
     assert "Injection" in body
-    assert "Direct 6" in body
+    assert "직접 6" in body
+    assert "Direct" in body
     assert "CWE Mapping Breakdown" in body
     assert "CWE-89" in body
     assert "Related WSTG Test Scenarios" in body
@@ -467,8 +469,8 @@ def test_job_viewer_renders_security_standards_summary_before_report_and_uses_fu
     assert "Evidence Scope" in body
     assert "Attempt observed" in body
     assert "Relationship meanings" in body
-    assert "do not confirm vulnerabilities, weaknesses, compliance, or successful exploitation" in body
-    assert "does not mean the finding or target is safe" in body
+    assert "취약점·약점·컴플라이언스 충족이나 성공적인 악용을 입증하지 않습니다" in body
+    assert "Finding이나 대상이 안전하다는 뜻이 아닙니다" in body
 
 
 def test_job_viewer_multi_category_summary_does_not_sum_categories_as_incidents(
@@ -500,7 +502,7 @@ def test_job_viewer_multi_category_summary_does_not_sum_categories_as_incidents(
     assert "1 / 1" in body
     assert "A01:2025" in body
     assert "A05:2025" in body
-    assert "Category counts should not be summed as a total incident count" in body
+    assert "분류별 건수를 전체 incident 수로 합산하지 않습니다" in body
     assert "2 incidents" not in body
 
 
@@ -519,7 +521,7 @@ def test_job_viewer_mapped_zero_uses_enrichment_empty_state_not_safety_claim(
 
     assert "Security Standards Summary" in body
     assert "0 / 5" in body
-    assert "No standards mappings were assigned by this enrichment layer" in body
+    assert "이 보강 계층이 연결한 보안 표준 매핑이 없습니다" in body
     assert "No vulnerabilities found" not in body
 
 
@@ -534,7 +536,7 @@ def test_job_viewer_old_artifact_hides_summary_and_keeps_existing_viewer(
 
     assert "Security Standards Summary" not in body
     assert "Event Timeline" in body
-    assert "Selected Event Detail" in body
+    assert "선택한 탐지 요청 상세" in body
 
 
 def test_job_viewer_escapes_html_looking_standard_text(
@@ -782,7 +784,7 @@ def test_job_viewer_route_uses_job_back_link(monkeypatch: pytest.MonkeyPatch, tm
     body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
 
     assert 'href="/job/123"' in body
-    assert "Back To Job Detail" in body
+    assert "분석 작업 상세로 돌아가기" in body
     assert 'href="/report/job-123"' not in body
 
 
@@ -934,7 +936,7 @@ def test_context_only_items_are_not_promoted_to_findings(monkeypatch: pytest.Mon
 
     body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
 
-    assert "No findings in viewer payload." in body
+    assert "Viewer payload에 주요 탐지 요청이 없습니다." in body
     assert "context_should_remain_context" in body
     assert 'class="payload-finding-row' not in body
 
@@ -1043,8 +1045,8 @@ def test_job_viewer_route_renders_explicit_relation_contract_without_heuristic_t
 
     assert "related_context_ids" in body
     assert "supporting_event_ids" in body
-    assert "No explicit related contexts in this viewer payload." in body
-    assert "No explicit related supporting events in this viewer payload." in body
+    assert "이 Viewer payload에 명시적으로 연결된 해석 정보가 없습니다." in body
+    assert "이 Viewer payload에 명시적으로 연결된 주변 참고 요청이 없습니다." in body
 
 
 def test_job_viewer_route_preserves_security_standards_mapping_in_payload_script(
@@ -1103,7 +1105,7 @@ def test_job_viewer_route_preserves_security_standards_mapping_in_payload_script
 
     assert "Security Standards" in body
     assert "Evidence Scope" in body
-    assert "Observed attack patterns and standards mappings do not confirm" in body
+    assert "관찰된 패턴과 보안 표준 매핑은 취약점이나 성공적인 악용을 입증하지 않습니다" in body
     assert "A05:2025" in body
     assert "Injection" in body
     assert "CWE-89" in body

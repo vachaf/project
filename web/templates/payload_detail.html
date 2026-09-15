@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ report.filename }} | Viewer Payload Dashboard{% endblock %}
+{% block title %}{{ report.filename }} | 분석 보고서 보기{% endblock %}
 
 {% block body_class %}payload-page{% endblock %}
 {% block app_header %}{% endblock %}
@@ -94,23 +94,23 @@
   {% macro display_taxonomy_label(value) -%}
     {% set text = value|string %}
     {% if text == 'benign_normal_search' %}
-      Baseline-like candidate-excluded context
+      후보 제외 기준선 유사 Context (Baseline-like candidate-excluded context)
     {% elif text == 'normal_search_baseline' %}
-      Baseline-like candidate-excluded context
+      후보 제외 기준선 유사 Context (Baseline-like candidate-excluded context)
     {% elif text == 'known_baseline_like_legacy_alias' %}
-      Baseline-like legacy context
+      기존 기준선 유사 Context (Baseline-like legacy context)
     {% elif text == 'known_baseline_like' %}
-      Baseline-like context
+      기준선 유사 Context (Baseline-like context)
     {% elif text == 'candidate_excluded' %}
-      Candidate-excluded rows
+      후보 제외 행 (Candidate-excluded rows)
     {% elif text == 'low_signal_request' %}
-      Low-signal request pattern
+      저신호 요청 패턴 (Low-signal request pattern)
     {% elif text == 'crawler_or_bot_like' %}
-      Crawler/bot-like context
+      Crawler/bot 유사 Context
     {% elif text == 'static_asset_like' %}
-      Static asset-like request
+      정적 자산 유사 요청 (Static asset-like request)
     {% else %}
-      Additional candidate-excluded context
+      추가 후보 제외 Context
     {% endif %}
   {%- endmacro %}
   {% macro render_standard_summary_rows(rows) -%}
@@ -121,12 +121,12 @@
         <div class="security-standard-row-main">
           <code class="security-standard-row-id">{{ item.get('id') }}</code>
           <strong class="security-standard-row-name">{{ item.get('name') }}</strong>
-          <span class="security-standard-row-count">{{ item.get('finding_count') }} finding{% if item.get('finding_count') != 1 %}s{% endif %}</span>
+          <span class="security-standard-row-count">Finding {{ item.get('finding_count') }}건</span>
         </div>
-        <div class="security-standard-relationships" aria-label="Relationship counts">
-          {% if relationship_counts.get('direct') %}<span class="badge payload-badge security-standard-relationship">Direct {{ relationship_counts.get('direct') }}</span>{% endif %}
-          {% if relationship_counts.get('conditional') %}<span class="badge payload-badge security-standard-relationship">Conditional {{ relationship_counts.get('conditional') }}</span>{% endif %}
-          {% if relationship_counts.get('related') %}<span class="badge payload-badge security-standard-relationship">Related {{ relationship_counts.get('related') }}</span>{% endif %}
+        <div class="security-standard-relationships" aria-label="연계 관계 건수">
+          {% if relationship_counts.get('direct') %}<span class="badge payload-badge security-standard-relationship">직접 {{ relationship_counts.get('direct') }} <span class="payload-badge-secondary">Direct</span></span>{% endif %}
+          {% if relationship_counts.get('conditional') %}<span class="badge payload-badge security-standard-relationship">조건부 {{ relationship_counts.get('conditional') }} <span class="payload-badge-secondary">Conditional</span></span>{% endif %}
+          {% if relationship_counts.get('related') %}<span class="badge payload-badge security-standard-relationship">관련 {{ relationship_counts.get('related') }} <span class="payload-badge-secondary">Related</span></span>{% endif %}
         </div>
       </article>
       {% endfor %}
@@ -135,121 +135,405 @@
 
   <header class="payload-dashboard-header card">
     <div class="payload-dashboard-title-block">
-      <h2>Apache Log Intrusion Report Viewer</h2>
-      <p class="payload-subtitle">Viewer Payload Dashboard</p>
-      <p class="payload-source is-muted">report: {{ report.filename }}</p>
-      {% if report.run_id %}
-        <p class="payload-source is-muted">run: {{ report.run_id }}</p>
-      {% endif %}
-      {% if report.storage_type and report.storage_type != 'unknown' %}
-        <p class="payload-source is-muted">storage: {{ report.storage_type }}</p>
-      {% endif %}
-      {% if report.viewer_payload_path %}
-        <p class="payload-source is-muted">source: {{ report.viewer_payload_path }}</p>
-      {% endif %}
+      <h2>Apache 로그 기반 보안 분석 보고서</h2>
+      <p class="payload-subtitle">분석 보고서 보기 <span class="payload-label-secondary">Analysis Report Viewer</span></p>
     </div>
     <div class="payload-dashboard-badges">
       <span class="badge payload-badge payload-badge-version">{{ schema_version }}</span>
-      <span class="badge payload-badge payload-badge-readonly">read-only</span>
-      <span class="badge payload-badge payload-badge-context">context-only guardrail</span>
+      <span class="badge payload-badge payload-badge-readonly">읽기 전용 <span class="payload-badge-secondary">read-only</span></span>
+      <span class="badge payload-badge payload-badge-context">해석 전용 원칙 <span class="payload-badge-secondary">context-only</span></span>
       {% if qa_result and qa_result.verdict %}
         <span class="badge payload-badge payload-badge-default">lint {{ qa_result.verdict }}</span>
       {% endif %}
       {% if src_ip_mask_enabled %}
-        <a href="{{ request.url.path }}?mask_src_ip=0" class="action-link">Show full source IP</a>
+        <a href="{{ request.url.path }}?mask_src_ip=0" class="action-link">출발지 IP 전체 보기</a>
       {% else %}
-        <a href="{{ request.url.path }}?mask_src_ip=1" class="action-link">Mask source IP</a>
+        <a href="{{ request.url.path }}?mask_src_ip=1" class="action-link">출발지 IP 가리기</a>
       {% endif %}
       <button type="button" class="theme-toggle payload-theme-toggle" onclick="toggleTheme()" aria-label="테마 전환">☾</button>
-      <a href="{{ back_url|default('/report/' ~ report.report_id) }}" class="action-link">{{ back_label|default('Back To Stage2 Detail') }}</a>
+      <a href="{{ back_url|default('/report/' ~ report.report_id) }}" class="action-link">
+        {% if is_legacy_report|default(false) %}Stage2 상세로 돌아가기{% else %}분석 작업 상세로 돌아가기{% endif %}
+      </a>
     </div>
+    <dl class="payload-identity-meta" aria-label="보고서 식별 정보">
+      <div><dt>report</dt><dd>{{ report.filename }}</dd></div>
+      {% if report.run_id %}<div><dt>run</dt><dd>{{ report.run_id }}</dd></div>{% endif %}
+      {% if report.storage_type and report.storage_type != 'unknown' %}<div><dt>storage</dt><dd>{{ report.storage_type }}</dd></div>{% endif %}
+      {% if report.viewer_payload_path %}<div><dt>source</dt><dd>{{ report.viewer_payload_path }}</dd></div>{% endif %}
+    </dl>
   </header>
 
   {% if is_legacy_report|default(false) %}
   <section class="section card payload-inline-warning">
-    <p class="is-muted">Legacy run-dir report viewer. For DB-backed analysis jobs, use Job Dashboard and /job/{id}/viewer.</p>
+    <p class="is-muted">기존 run-dir 보고서 Viewer입니다. DB 기반 분석 작업은 작업 대시보드의 /job/{id}/viewer를 사용하세요.</p>
   </section>
   {% endif %}
 
   {% if payload_error %}
   <section class="section card payload-inline-warning">
-    <p class="is-muted">Viewer payload load note: {{ payload_error }}</p>
+    <p class="is-muted">Viewer payload 불러오기 참고: {{ payload_error }}</p>
+  </section>
+  {% endif %}
+
+  {% if report_title or overall_assessment or executive_summary or presentation_takeaway %}
+  <section class="section card payload-report-overview" aria-labelledby="payload-report-title">
+    <div class="payload-report-overview-head">
+      <div>
+        <p class="payload-section-kicker">보고서 요약 <span class="payload-label-secondary">Report Summary</span></p>
+        <h3 id="payload-report-title">{{ report_title or 'Stage2 report summary' }}</h3>
+      </div>
+      <span class="badge payload-badge payload-badge-readonly">아티팩트 원문</span>
+    </div>
+
+    <div class="payload-report-lead-grid">
+      {% if overall_assessment and overall_assessment != 'N/A' %}
+      <div class="payload-report-overall">
+        <h4>종합 평가 <span class="payload-label-secondary">Overall Assessment</span></h4>
+        <p>{{ overall_assessment }}</p>
+      </div>
+      {% endif %}
+
+      {% if presentation_takeaway %}
+      <div class="payload-report-takeaway">
+        <h4>핵심 결론 <span class="payload-label-secondary">Presentation Takeaway</span></h4>
+        <p>{{ presentation_takeaway }}</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="payload-evidence-boundary" role="note" aria-label="Apache logs-only evidence boundary">
+      <strong>Apache 로그 근거 범위 <span class="payload-label-secondary">Apache logs-only evidence boundary</span></strong>
+      <p>HTTP status, content type, 응답 크기, URI, 반복 요청은 관찰 근거 필드이며 성공적인 악용이나 침해의 증거가 아닙니다.</p>
+    </div>
+
+    {% if executive_summary %}
+    <div class="payload-report-block">
+      <h4>한눈에 보는 요약 <span class="payload-label-secondary">Executive Summary</span></h4>
+      <ul class="payload-report-list">
+        {% for item in executive_summary %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
   </section>
   {% endif %}
 
   <section class="payload-summary-cards">
     <article class="payload-summary-card">
-      <p class="payload-summary-label">Total Requests</p>
+      <p class="payload-summary-label">전체 요청</p>
       <p class="payload-summary-value">{{ total_requests }}</p>
-      <p class="payload-summary-meta">source-of-truth summary</p>
+      <p class="payload-summary-meta">원천 요약 기준</p>
     </article>
     <article class="payload-summary-card">
-      <p class="payload-summary-label">Findings</p>
+      <p class="payload-summary-label">주요 탐지 요청 <span class="payload-label-secondary">Findings</span></p>
       <p class="payload-summary-value">{{ summary.get('finding_count') if summary.get('finding_count') is not none else findings|length }}</p>
-      <p class="payload-summary-meta">incident candidates</p>
+      <p class="payload-summary-meta">직접 검토 대상</p>
     </article>
     <article class="payload-summary-card">
-      <p class="payload-summary-label">Contexts</p>
+      <p class="payload-summary-label">해석 정보 <span class="payload-label-secondary">Contexts</span></p>
       <p class="payload-summary-value">{{ summary.get('context_count') if summary.get('context_count') is not none else contexts_preview|length }}</p>
-      <p class="payload-summary-meta">context-only signals</p>
+      <p class="payload-summary-meta">해석 전용 정보</p>
     </article>
     <article class="payload-summary-card">
-      <p class="payload-summary-label">Supporting Events</p>
+      <p class="payload-summary-label">주변 참고 요청 <span class="payload-label-secondary">Supporting Events</span></p>
       <p class="payload-summary-value">{{ summary.get('supporting_event_count') if summary.get('supporting_event_count') is not none else supporting_events|length }}</p>
-      <p class="payload-summary-meta">drill-down follow-up</p>
+      <p class="payload-summary-meta">표시·참고용 연계</p>
     </article>
     <article class="payload-summary-card">
-      <p class="payload-summary-label">Generated At</p>
+      <p class="payload-summary-label">생성 시각</p>
       <p class="payload-summary-value payload-summary-time">{{ summary.get('generated_at') or 'unknown' }}</p>
       <p class="payload-summary-meta">{{ summary.get('report_title') or 'N/A' }}</p>
     </article>
+  </section>
+
+  <section class="section card payload-role-guide" aria-labelledby="payload-role-guide-title">
+    <div class="payload-role-guide-head">
+      <p class="payload-section-kicker">정보 역할 안내 <span class="payload-label-secondary">Information Roles</span></p>
+      <h3 id="payload-role-guide-title">주요 탐지 요청, 해석 정보, 주변 참고 요청은 서로 다른 역할입니다</h3>
+    </div>
+    <div class="payload-role-grid">
+      <article class="payload-role-card payload-role-finding">
+        <span class="badge payload-badge payload-badge-severity payload-badge-severity-medium">주요 탐지 요청 <span class="payload-badge-secondary">Finding</span></span>
+        <strong>개별 요청 직접 검토</strong>
+        <p>기존 분석 파이프라인이 직접 검토 대상으로 선택한 개별 요청이며, 성공적인 악용을 입증하지 않습니다.</p>
+      </article>
+      <article class="payload-role-card">
+        <span class="badge payload-badge payload-badge-context-only">해석 정보 <span class="payload-badge-secondary">Context</span></span>
+        <strong>해석 전용 <span class="payload-label-secondary">context-only</span></strong>
+        <p>Finding을 이해하는 데 사용하는 맥락·집계 정보이며, 새로 확인된 incident로 표시하지 않습니다.</p>
+      </article>
+      <article class="payload-role-card">
+        <span class="badge payload-badge payload-badge-context-only">주변 참고 요청 <span class="payload-badge-secondary">Supporting Event</span></span>
+        <strong>표시·참고 전용</strong>
+        <p>Finding 해석에 사용하는 주변·참조 요청이며, Finding으로 승격하여 표시하지 않습니다.</p>
+      </article>
+    </div>
+  </section>
+
+  {% if key_findings %}
+  <section class="section card payload-key-findings" aria-labelledby="payload-key-findings-title">
+    <details class="payload-report-details pd-details-group" open>
+      <summary class="pd-summary-header" id="payload-key-findings-title">핵심 발견사항 ({{ key_findings|length }}) <span class="payload-label-secondary">Key Findings</span></summary>
+      <div class="pd-details-content payload-report-card-list">
+        {% for item in key_findings %}
+        {% if item is mapping %}
+        <article class="payload-report-mini-card">
+          <div class="payload-report-mini-card-head">
+            <strong>{{ item.get('title') or '제목 없는 Finding' }}</strong>
+            {% if item.get('severity') %}
+            <span class="badge payload-badge payload-badge-severity payload-badge-severity-{{ (item.get('severity') or 'unknown')|lower }}">{{ item.get('severity') }}</span>
+            {% endif %}
+          </div>
+          {% if item.get('detail') %}
+          <p>{{ item.get('detail') }}</p>
+          {% endif %}
+        </article>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </details>
+  </section>
+  {% endif %}
+
+  <section class="section payload-main-grid">
+    <section class="card payload-event-panel">
+      <div class="payload-event-panel-header">
+        <div>
+          <h3>분석 요청 흐름 <span class="payload-label-secondary">Event Timeline</span></h3>
+          <p class="payload-panel-subtitle">기존 Viewer payload가 Finding으로 제공한 주요 탐지 요청입니다.</p>
+        </div>
+        <button
+          type="button"
+          id="payload-event-collapse-toggle"
+          class="payload-event-collapse-toggle"
+          aria-expanded="true"
+          aria-controls="payload-event-table-wrap"
+        >
+          선택 항목만 보기
+        </button>
+      </div>
+      <div class="table-wrapper payload-event-table-wrap" id="payload-event-table-wrap">
+        <table class="table table-compact payload-event-table">
+          <thead>
+            <tr>
+              <th class="col-time">시각 <span class="payload-table-secondary">time</span></th>
+              <th class="col-source-ip">출발지 IP <span class="payload-table-secondary">source_ip</span></th>
+              <th class="col-method">HTTP Method</th>
+              <th class="col-uri">URI</th>
+              <th class="col-status">HTTP status</th>
+              <th class="col-category">탐지 유형 <span class="payload-table-secondary">Category</span></th>
+              <th class="col-severity">중요도 <span class="payload-table-secondary">Severity</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if findings_display %}
+              {% for finding in findings_display %}
+              {% set severity_token = (finding.severity or 'unknown')|lower %}
+              <tr
+                class="payload-finding-row{% if loop.first %} is-selected{% endif %}"
+                data-finding-index="{{ loop.index0 }}"
+                tabindex="0"
+                role="button"
+                aria-label="주요 탐지 요청 {{ loop.index }} 선택"
+                aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
+              >
+                <td data-label="시각" class="payload-time col-time"><span title="{{ finding.log_time or 'unknown' }}">{{ finding.display_time or finding.log_time or 'unknown' }}</span></td>
+                <td data-label="출발지 IP" class="col-source-ip">{{ finding.src_ip or '-' }}</td>
+                <td data-label="HTTP Method" class="col-method"><span class="badge payload-badge payload-badge-method">{{ finding.method or '-' }}</span></td>
+                <td data-label="URI" class="payload-uri col-uri" title="{{ finding.uri or '-' }}">{{ finding.uri or '-' }}</td>
+                <td data-label="HTTP status" class="col-status"><span class="badge payload-badge payload-badge-status">{{ finding.status_code or '-' }}</span></td>
+                <td data-label="탐지 유형" class="col-category"><span class="badge payload-badge payload-badge-default payload-category-badge">{{ finding.category or 'unknown' }}</span></td>
+                <td data-label="중요도" class="col-severity"><span class="badge payload-badge payload-badge-severity payload-badge-severity-{{ severity_token }}">{{ finding.severity or 'unknown' }}</span></td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="7" class="is-empty">Viewer payload에 주요 탐지 요청이 없습니다.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="card payload-detail-panel" id="payload-detail-panel">
+      <div class="payload-detail-empty" id="pd-detail-empty">선택한 주요 탐지 요청이 없습니다.</div>
+      <div class="payload-detail-content is-hidden" id="pd-detail-content">
+        <header class="payload-detail-header">
+          <p class="payload-section-kicker">선택한 탐지 요청 상세 <span class="payload-label-secondary">Finding Detail</span></p>
+          <h3 id="pd-detail-title">선택한 탐지 요청 상세</h3>
+          <div class="payload-detail-status-grid">
+            <div class="payload-detail-status-item">
+              <span class="meta-label">중요도 <span class="payload-label-secondary">Severity</span></span>
+              <span id="pd-badge-severity" class="badge payload-badge payload-badge-severity payload-badge-severity-unknown">unknown</span>
+            </div>
+            <div class="payload-detail-status-item">
+              <span class="meta-label">신뢰도 <span class="payload-label-secondary">Confidence</span></span>
+              <strong id="pd-confidence">N/A</strong>
+            </div>
+            <div class="payload-detail-status-item">
+              <span class="meta-label">분석 판정 <span class="payload-label-secondary">Verdict</span></span>
+              <span id="pd-badge-verdict" class="badge payload-badge payload-badge-default">unknown</span>
+            </div>
+            <div class="payload-detail-status-item">
+              <span class="meta-label">탐지 유형 <span class="payload-label-secondary">Category</span></span>
+              <span id="pd-badge-category" class="badge payload-badge payload-badge-default">unknown</span>
+            </div>
+          </div>
+          <div class="payload-detail-badges payload-detail-guardrail-badges">
+            <span class="badge payload-badge payload-badge-readonly">읽기 전용 <span class="payload-badge-secondary">read-only</span></span>
+            <span class="badge payload-badge payload-badge-context">성공 여부 추론 안 함 <span class="payload-badge-secondary">no success inferred</span></span>
+          </div>
+        </header>
+
+        <section class="payload-detail-section payload-request-section">
+          <h4>요청 정보</h4>
+          <div class="payload-request-grid">
+            <p><span class="meta-label">시각</span> <span id="pd-display-time">N/A</span></p>
+            <p><span class="meta-label">출발지 IP</span> <span id="pd-source-ip">N/A</span></p>
+            <p><span class="meta-label">HTTP Method</span> <span id="pd-method">N/A</span></p>
+            <p><span class="meta-label">HTTP status</span> <span id="pd-status-code">N/A</span></p>
+            <p class="payload-request-uri"><span class="meta-label">URI</span> <span id="pd-uri">N/A</span></p>
+          </div>
+        </section>
+
+        <section class="payload-detail-section payload-analysis-section">
+          <h4>분석 요약 <span class="payload-label-secondary">Analysis Note</span></h4>
+          <p id="pd-reasoning-summary">N/A</p>
+        </section>
+
+        <section class="payload-detail-section payload-interpretation-aid">
+          <h4>해석 안내 <span class="payload-label-secondary">Interpretation Aid</span></h4>
+          <div id="pd-observability-badges" class="payload-detail-badges payload-observability-badges"></div>
+          <ul id="pd-interpretation-notes" class="payload-detail-list payload-interpretation-notes"></ul>
+        </section>
+
+        <section class="payload-detail-section payload-standards is-hidden" id="pd-standards-section">
+          <h4>보안 표준 연계 <span class="payload-label-secondary">Security Standards</span></h4>
+          <div id="pd-standards-scope" class="payload-standards-scope"></div>
+          <div id="pd-standards-groups" class="payload-standards-groups"></div>
+          <p class="payload-standards-boundary">관찰된 패턴과 보안 표준 매핑은 취약점이나 성공적인 악용을 입증하지 않습니다.</p>
+        </section>
+
+        <section class="payload-detail-section payload-evidence-section">
+          <h4>관찰 근거 <span class="payload-label-secondary">Evidence</span></h4>
+          <ul id="pd-evidence-fields" class="payload-detail-list"></ul>
+          <p id="pd-evidence-more" class="payload-detail-more is-hidden"></p>
+        </section>
+
+        <section class="payload-detail-section payload-related-contexts">
+          <h4>
+            관련 해석 정보 <span class="payload-label-secondary">Contexts</span>
+            <span id="pd-contexts-related-badge" class="badge payload-badge payload-badge-default">관련 0건</span>
+            <span class="badge payload-badge payload-badge-context-only">해석 전용 <span class="payload-badge-secondary">context-only</span></span>
+          </h4>
+          <details class="payload-related-contexts-summary pd-details-group">
+            <summary id="pd-contexts-summary" class="pd-summary-header">관련 해석 정보 (0)</summary>
+            <p id="pd-contexts-empty" class="payload-context-empty is-hidden">이 Finding과 연결된 해석 정보가 없습니다.</p>
+            <div id="pd-contexts-list" class="payload-related-contexts-list pd-details-content is-hidden"></div>
+            <p id="pd-contexts-more" class="payload-context-note is-hidden"></p>
+            <p class="payload-match-note">표시용 연계이며, Context를 Finding으로 승격하지 않습니다.</p>
+          </details>
+        </section>
+
+        <section class="payload-detail-section payload-supporting-events">
+          <h4>
+            관련 참고 요청 <span class="payload-label-secondary">Supporting Events</span>
+            <span id="pd-supporting-related-badge" class="badge payload-badge payload-badge-default">관련 0건</span>
+            <span class="badge payload-badge payload-badge-context-only">해석 전용 <span class="payload-badge-secondary">context-only</span></span>
+          </h4>
+          <details class="payload-supporting-events-summary pd-details-group">
+            <summary id="pd-supporting-summary" class="pd-summary-header">관련 참고 요청 (0)</summary>
+            <p id="pd-supporting-events-empty" class="payload-supporting-events-empty is-hidden">Viewer payload에 관련 참고 요청이 없습니다.</p>
+            <div id="pd-supporting-events-table-wrap" class="table-wrapper pd-details-content is-hidden">
+              <table class="table table-compact payload-supporting-events-table">
+                <thead>
+                  <tr>
+                    <th>시각 <span class="payload-table-secondary">time</span></th>
+                    <th>역할 <span class="payload-table-secondary">role</span></th>
+                    <th>HTTP Method</th>
+                    <th>URI</th>
+                    <th>HTTP status</th>
+                    <th>Request ID</th>
+                  </tr>
+                </thead>
+                <tbody id="pd-supporting-events-body"></tbody>
+              </table>
+            </div>
+            <p id="pd-supporting-events-more" class="payload-supporting-events-note is-hidden"></p>
+            <p class="payload-match-note">표시·참고용 연계이며, Supporting Event를 Finding으로 승격하지 않습니다.</p>
+          </details>
+        </section>
+
+        <section class="payload-detail-section payload-technical-section">
+          <details class="payload-technical-details pd-details-group">
+            <summary class="pd-summary-header">기술 상세 <span class="payload-label-secondary">Technical details</span></summary>
+            <div class="payload-technical-body pd-details-content">
+              <p><span class="meta-label">request_id</span> <span id="pd-request-id">N/A</span></p>
+              <p><span class="meta-label">log_time (raw)</span> <span id="pd-log-time">N/A</span></p>
+              <p class="meta-label">reason_hints</p>
+              <ul id="pd-reason-hints" class="payload-detail-list"></ul>
+              <p class="meta-label">recommended_actions</p>
+              <ul id="pd-recommended-actions" class="payload-detail-list"></ul>
+              <p class="meta-label">raw_export_match</p>
+              <ul class="payload-detail-list">
+                <li>source_table: <span id="pd-raw-source-table">N/A</span></li>
+                <li>log_id: <span id="pd-raw-log-id">N/A</span></li>
+                <li>request_id: <span id="pd-raw-request-id">N/A</span></li>
+              </ul>
+            </div>
+          </details>
+        </section>
+      </div>
+    </aside>
   </section>
 
   {% if standards_summary and standards_summary.get('total_finding_count', 0) > 0 %}
   <section class="section card security-standards-summary" id="security-standards-summary" aria-labelledby="security-standards-summary-title">
     <div class="security-standards-summary-head">
       <div>
-        <p class="payload-section-kicker">Deterministic artifact metadata</p>
-        <h3 id="security-standards-summary-title">Security Standards Summary</h3>
+        <p class="payload-section-kicker">분류 체계 및 시험 시나리오 연계 <span class="payload-label-secondary">Taxonomy and test-scenario relationships</span></p>
+        <h3 id="security-standards-summary-title">보안 표준 연계 요약 <span class="payload-label-secondary">Security Standards Summary</span></h3>
       </div>
       <div class="security-standards-metric" aria-label="Mapped findings {{ standards_summary.get('mapped_finding_count') }} of {{ standards_summary.get('total_finding_count') }}">
-        <span class="security-standards-metric-label">Mapped findings</span>
+        <span class="security-standards-metric-label">표준 연계 Finding <span class="payload-label-secondary">Mapped findings</span></span>
         <strong class="security-standards-metric-value">{{ standards_summary.get('mapped_finding_count') }} / {{ standards_summary.get('total_finding_count') }}</strong>
-        <span class="security-standards-metric-meta">{{ standards_summary.get('unmapped_finding_count') }} without a valid standards mapping</span>
+        <span class="security-standards-metric-meta">유효한 표준 매핑 없음 {{ standards_summary.get('unmapped_finding_count') }}건</span>
       </div>
     </div>
 
     {% if findings|length != standards_summary.get('total_finding_count') %}
     <p class="security-standards-scope-note">
-      Summary covers all {{ standards_summary.get('total_finding_count') }} deduplicated findings. The timeline currently contains {{ findings|length }} selected findings.
+      이 요약은 중복 제거된 전체 Finding {{ standards_summary.get('total_finding_count') }}건을 다룹니다. 현재 분석 요청 흐름에는 선택된 Finding {{ findings|length }}건이 표시됩니다.
     </p>
     {% endif %}
 
     <div class="security-standards-boundary" role="note">
-      <p>Mappings describe relationships between observed patterns and standards taxonomies or test scenarios. They do not confirm vulnerabilities, weaknesses, compliance, or successful exploitation.</p>
-      <p>Unmapped means this enrichment layer assigned no valid standards item. It does not mean the finding or target is safe.</p>
+      <p>매핑은 관찰된 패턴과 보안 표준 분류 체계 또는 시험 시나리오의 관계를 설명합니다. 취약점·약점·컴플라이언스 충족이나 성공적인 악용을 입증하지 않습니다.</p>
+      <p>매핑 없음은 이 보강 계층이 유효한 표준 항목을 연결하지 않았다는 뜻이며, Finding이나 대상이 안전하다는 뜻이 아닙니다.</p>
     </div>
 
     <section class="security-standards-primary" aria-labelledby="security-standards-owasp-title">
       <div class="security-standards-subhead">
-        <h4 id="security-standards-owasp-title">OWASP-related Observed Categories</h4>
-        <p>A single finding may map to more than one standards category. Category counts should not be summed as a total incident count.</p>
+        <h4 id="security-standards-owasp-title">OWASP 관련 관찰 분류 <span class="payload-label-secondary">OWASP-related Observed Categories</span></h4>
+        <p>하나의 Finding이 여러 표준 분류에 연결될 수 있으므로 분류별 건수를 전체 incident 수로 합산하지 않습니다.</p>
       </div>
       {% if owasp_standard_rows %}
         {{ render_standard_summary_rows(owasp_standard_rows) }}
       {% elif standards_summary.get('mapped_finding_count') == 0 %}
-        <p class="security-standards-empty">No standards mappings were assigned by this enrichment layer.</p>
+        <p class="security-standards-empty">이 보강 계층이 연결한 보안 표준 매핑이 없습니다.</p>
       {% else %}
-        <p class="security-standards-empty">No OWASP-related category mappings are present in this summary.</p>
+        <p class="security-standards-empty">이 요약에 OWASP 관련 분류 매핑이 없습니다.</p>
       {% endif %}
     </section>
 
     <div class="security-standards-secondary">
       {% if cwe_standard_rows %}
       <details class="security-standards-details pd-details-group">
-        <summary class="pd-summary-header">CWE Mapping Breakdown</summary>
+        <summary class="pd-summary-header">CWE 매핑 상세 <span class="payload-label-secondary">CWE Mapping Breakdown</span></summary>
         <div class="pd-details-content">
-          <p class="security-standards-detail-note">CWE mappings are taxonomy relationships to observed patterns, not confirmed weaknesses in the target application.</p>
+          <p class="security-standards-detail-note">CWE 매핑은 관찰된 패턴과 분류 체계의 관계이며, 대상 애플리케이션의 약점을 입증하지 않습니다.</p>
           {{ render_standard_summary_rows(cwe_standard_rows) }}
         </div>
       </details>
@@ -257,9 +541,9 @@
 
       {% if wstg_standard_rows %}
       <details class="security-standards-details pd-details-group">
-        <summary class="pd-summary-header">Related WSTG Test Scenarios</summary>
+        <summary class="pd-summary-header">관련 WSTG 시험 시나리오 <span class="payload-label-secondary">Related WSTG Test Scenarios</span></summary>
         <div class="pd-details-content">
-          <p class="security-standards-detail-note">WSTG entries identify related security test scenarios; they are not vulnerability identifiers.</p>
+          <p class="security-standards-detail-note">WSTG 항목은 관련 보안 시험 시나리오를 나타내며 취약점 식별자가 아닙니다.</p>
           {{ render_standard_summary_rows(wstg_standard_rows) }}
         </div>
       </details>
@@ -271,7 +555,7 @@
       {% endfor %}
       {% if other_group_namespace.has_groups %}
       <details class="security-standards-details pd-details-group">
-        <summary class="pd-summary-header">Other Standards Mappings</summary>
+        <summary class="pd-summary-header">기타 보안 표준 매핑 <span class="payload-label-secondary">Other Standards Mappings</span></summary>
         <div class="pd-details-content security-standards-other-groups">
           {% for group_name, rows in standards_groups.items() %}
           {% if group_name not in ['OWASP_TOP10', 'CWE', 'WSTG'] and rows %}
@@ -286,93 +570,88 @@
       {% endif %}
 
       <details class="security-standards-details pd-details-group">
-        <summary class="pd-summary-header">Evidence Scope</summary>
+        <summary class="pd-summary-header">관찰 근거 범위 <span class="payload-label-secondary">Evidence Scope</span></summary>
         <div class="pd-details-content security-standards-evidence-grid">
-          {% if standards_observability.get('attempt_only') %}<p><span>Attempt observed</span><strong>{{ standards_observability.get('attempt_only') }}</strong></p>{% endif %}
-          {% if standards_observability.get('behavior_only') %}<p><span>Behavior pattern observed</span><strong>{{ standards_observability.get('behavior_only') }}</strong></p>{% endif %}
-          {% if standards_observability.get('partial') %}<p><span>Partial log evidence</span><strong>{{ standards_observability.get('partial') }}</strong></p>{% endif %}
-          {% if standards_observability.get('not_applicable') %}<p><span>Not applicable to this enrichment</span><strong>{{ standards_observability.get('not_applicable') }}</strong></p>{% endif %}
+          {% if standards_observability.get('attempt_only') %}<p><span>시도 관찰 <span class="payload-label-secondary">Attempt observed</span></span><strong>{{ standards_observability.get('attempt_only') }}</strong></p>{% endif %}
+          {% if standards_observability.get('behavior_only') %}<p><span>행동 패턴 관찰 <span class="payload-label-secondary">Behavior pattern observed</span></span><strong>{{ standards_observability.get('behavior_only') }}</strong></p>{% endif %}
+          {% if standards_observability.get('partial') %}<p><span>부분 로그 근거 <span class="payload-label-secondary">Partial log evidence</span></span><strong>{{ standards_observability.get('partial') }}</strong></p>{% endif %}
+          {% if standards_observability.get('not_applicable') %}<p><span>이 보강 계층에 해당 없음 <span class="payload-label-secondary">Not applicable</span></span><strong>{{ standards_observability.get('not_applicable') }}</strong></p>{% endif %}
         </div>
       </details>
 
       <details class="security-standards-details pd-details-group">
-        <summary class="pd-summary-header">Relationship meanings</summary>
+        <summary class="pd-summary-header">연계 관계 의미 <span class="payload-label-secondary">Relationship meanings</span></summary>
         <div class="pd-details-content security-standards-legend">
-          <p><strong>Direct</strong><span>Direct taxonomy or test-scenario relationship to the observed pattern; not a confirmed vulnerability.</span></p>
-          <p><strong>Conditional</strong><span>The relationship depends on additional evidence.</span></p>
-          <p><strong>Related</strong><span>Related category or test-scenario context; not direct vulnerability attribution.</span></p>
+          <p><strong>직접 <span class="payload-label-secondary">Direct</span></strong><span>관찰 패턴과 분류 체계 또는 시험 시나리오가 직접 연계되며, 취약점을 입증하는 의미는 아닙니다.</span></p>
+          <p><strong>조건부 <span class="payload-label-secondary">Conditional</span></strong><span>추가 근거가 있어야 관계를 해석할 수 있습니다.</span></p>
+          <p><strong>관련 <span class="payload-label-secondary">Related</span></strong><span>관련 분류 또는 시험 시나리오 맥락이며 직접적인 취약점 귀속이 아닙니다.</span></p>
         </div>
       </details>
     </div>
 
     {% if standards_summary.get('display_truncated') %}
-    <p class="security-standards-truncation-note">Display limits were applied to unusually large standards metadata. The source artifact remains unchanged.</p>
+    <p class="security-standards-truncation-note">매우 큰 표준 메타데이터에는 표시 한도를 적용했습니다. 원본 아티팩트는 변경하지 않았습니다.</p>
     {% endif %}
   </section>
   {% endif %}
 
-  {% if report_title or overall_assessment or executive_summary or presentation_takeaway or key_findings or report_source_ips_display or noise_interpretation or filtered_out_breakdown or report_actions or confidence_limitations_list %}
-  <section class="section card payload-report-overview">
-    <div class="payload-report-overview-head">
-      <div>
-        <p class="payload-section-kicker">Report Summary</p>
-        <h3>{{ safe_report_text(report_title or 'Stage2 report summary') }}</h3>
-      </div>
-      <span class="badge payload-badge payload-badge-readonly">artifact text</span>
-    </div>
-
-    {% if overall_assessment and overall_assessment != 'N/A' %}
-    <div class="payload-report-overall">
-      <h4>Overall Assessment</h4>
-      <p>{{ safe_report_text(overall_assessment) }}</p>
-    </div>
-    {% endif %}
-
-    {% if executive_summary %}
-    <div class="payload-report-block">
-      <h4>Executive Summary</h4>
-      <ul class="payload-report-list">
-        {% for item in executive_summary %}
-        <li>{{ safe_report_text(item) }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-
-    {% if presentation_takeaway %}
-    <div class="payload-report-takeaway">
-      <h4>Presentation Takeaway</h4>
-      <p>{{ safe_report_text(presentation_takeaway) }}</p>
-    </div>
-    {% endif %}
-
-    {% if key_findings %}
-    <details class="payload-report-details pd-details-group" open>
-      <summary class="pd-summary-header">Key Findings ({{ key_findings|length }})</summary>
-      <div class="pd-details-content payload-report-card-list">
-        {% for item in key_findings %}
-        {% if item is mapping %}
-        <article class="payload-report-mini-card">
-          <div class="payload-report-mini-card-head">
-            <strong>{{ safe_report_text(item.get('title') or 'Untitled finding') }}</strong>
-            {% if item.get('severity') %}
-            <span class="badge payload-badge payload-badge-severity payload-badge-severity-{{ (item.get('severity') or 'unknown')|lower }}">{{ item.get('severity') }}</span>
-            {% endif %}
-          </div>
-          {% if item.get('detail') %}
-          <p>{{ safe_report_text(item.get('detail')) }}</p>
+  <section class="section card payload-contexts">
+    <h3>해석 정보 미리보기 <span class="payload-label-secondary">Contexts</span> <span class="badge payload-badge payload-badge-context-only">해석 전용 <span class="payload-badge-secondary">context-only</span></span></h3>
+    <div class="table-wrapper payload-contexts-table-wrapper">
+      <table class="table table-compact payload-contexts-table">
+        <thead>
+          <tr>
+            <th>유형 <span class="payload-table-secondary">type</span></th>
+            <th>출발지 IP <span class="payload-table-secondary">source_ip</span></th>
+            <th>요청 수 <span class="payload-table-secondary">request_count</span></th>
+            <th>해석 전용 <span class="payload-table-secondary">context_only</span></th>
+            <th>후보 승격 여부 <span class="payload-table-secondary">should_promote_to_candidate</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if contexts_preview_display %}
+            {% for context in contexts_preview_display %}
+            <tr>
+              <td data-label="유형"><span class="badge payload-badge payload-badge-context-only">{{ context.context_type or 'unknown' }}</span></td>
+              <td data-label="출발지 IP">{{ context.src_ip or '-' }}</td>
+              <td data-label="요청 수">{{ context.request_count or '-' }}</td>
+              <td data-label="해석 전용">
+                {% if context.context_only %}
+                <span class="badge payload-badge payload-badge-context-only">true</span>
+                {% else %}
+                <span class="badge payload-badge payload-badge-default">false</span>
+                {% endif %}
+              </td>
+              <td data-label="후보 승격 여부">
+                {% if context.should_promote_to_candidate %}
+                <span class="badge payload-badge payload-badge-verdict-warn">true</span>
+                {% else %}
+                <span class="badge payload-badge payload-badge-default">false</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="5" class="is-empty">미리 볼 해석 정보가 없습니다.</td>
+            </tr>
           {% endif %}
-        </article>
-        {% endif %}
-        {% endfor %}
-      </div>
-    </details>
-    {% endif %}
+        </tbody>
+      </table>
+    </div>
+    <p class="payload-contexts-boundary">Context 행은 해석 전용으로 유지되며 Viewer가 Finding으로 승격하지 않습니다.</p>
+  </section>
 
+  {% if report_source_ips_display or noise_interpretation or filtered_out_breakdown or report_actions or confidence_limitations_list %}
+  <section class="section card payload-report-supporting" aria-labelledby="payload-report-supporting-title">
+    <div class="payload-report-supporting-head">
+      <p class="payload-section-kicker">보고서 참고 정보 <span class="payload-label-secondary">Supporting report information</span></p>
+      <h3 id="payload-report-supporting-title">권고 조치 · 분석 한계 · 관련 정보</h3>
+    </div>
     <div class="payload-report-details-grid">
       {% if report_source_ips_display %}
       <details class="payload-report-details pd-details-group">
-        <summary class="pd-summary-header">Notable Source IPs ({{ report_source_ips_display|length }})</summary>
+        <summary class="pd-summary-header">주요 출발지 IP ({{ report_source_ips_display|length }}) <span class="payload-label-secondary">Notable Source IPs</span></summary>
         <div class="pd-details-content payload-report-table-wrap">
           <table class="table table-compact payload-report-table">
             <thead>
@@ -396,13 +675,13 @@
 
       {% if noise_interpretation or filtered_out_breakdown %}
       <details class="payload-report-details pd-details-group">
-        <summary class="pd-summary-header">Candidate-Excluded / Context Notes</summary>
+        <summary class="pd-summary-header">후보 제외 · Context 참고 사항 <span class="payload-label-secondary">Candidate-Excluded / Context Notes</span></summary>
         <div class="pd-details-content">
           {% if noise_interpretation %}
           <p class="payload-report-paragraph">{{ safe_report_text(noise_interpretation) }}</p>
           {% endif %}
           {% if filtered_out_breakdown %}
-          <p class="payload-report-muted">Candidate-excluded rows are context for review, not safety verdicts.</p>
+          <p class="payload-report-muted">후보 제외 행은 검토를 위한 Context이며 안전 판정이 아닙니다.</p>
           <ul class="payload-report-list payload-report-breakdown">
             {% for key, value in filtered_out_breakdown.items() %}
             <li><span>{{ display_taxonomy_label(key) }}</span><span>{{ value }}</span></li>
@@ -415,13 +694,13 @@
 
       {% if report_actions %}
       <details class="payload-report-details pd-details-group">
-        <summary class="pd-summary-header">Report-Level Recommended Actions ({{ report_actions|length }})</summary>
+        <summary class="pd-summary-header">보고서 권고 조치 ({{ report_actions|length }}) <span class="payload-label-secondary">Recommended Actions</span></summary>
         <div class="pd-details-content payload-report-card-list">
           {% for item in report_actions %}
           {% if item is mapping %}
           <article class="payload-report-mini-card">
             <div class="payload-report-mini-card-head">
-              <strong>{{ item.get('priority') or 'Action' }}</strong>
+              <strong>{{ item.get('priority') or '조치' }}</strong>
             </div>
             {% if item.get('action') %}
             <p>{{ safe_report_text(item.get('action')) }}</p>
@@ -440,7 +719,7 @@
 
       {% if confidence_limitations_list %}
       <details class="payload-report-details pd-details-group">
-        <summary class="pd-summary-header">Confidence and Limitations</summary>
+        <summary class="pd-summary-header">신뢰도 및 분석 한계 <span class="payload-label-secondary">Confidence and Limitations</span></summary>
         <div class="pd-details-content">
           <ul class="payload-report-list">
             {% for item in confidence_limitations_list %}
@@ -454,232 +733,9 @@
   </section>
   {% endif %}
 
-  <section class="section payload-main-grid">
-    <section class="card payload-event-panel">
-      <div class="payload-event-panel-header">
-        <div>
-          <h3>Event Timeline</h3>
-          <p class="payload-panel-subtitle">Grouped suspicious request patterns</p>
-        </div>
-        <button
-          type="button"
-          id="payload-event-collapse-toggle"
-          class="payload-event-collapse-toggle"
-          aria-expanded="true"
-          aria-controls="payload-event-table-wrap"
-        >
-          선택 항목만 보기
-        </button>
-      </div>
-      <div class="table-wrapper payload-event-table-wrap" id="payload-event-table-wrap">
-        <table class="table table-compact payload-event-table">
-          <thead>
-            <tr>
-              <th class="col-time">time</th>
-              <th class="col-source-ip">source_ip</th>
-              <th class="col-method">method</th>
-              <th class="col-uri">uri</th>
-              <th class="col-status">status</th>
-              <th class="col-category">category</th>
-              <th class="col-severity">severity</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% if findings_display %}
-              {% for finding in findings_display %}
-              {% set severity_token = (finding.severity or 'unknown')|lower %}
-              <tr
-                class="payload-finding-row{% if loop.first %} is-selected{% endif %}"
-                data-finding-index="{{ loop.index0 }}"
-                tabindex="0"
-                role="button"
-                aria-label="Select finding {{ loop.index }}"
-                aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
-              >
-                <td data-label="time" class="payload-time col-time"><span title="{{ finding.log_time or 'unknown' }}">{{ finding.display_time or finding.log_time or 'unknown' }}</span></td>
-                <td data-label="source_ip" class="col-source-ip">{{ finding.src_ip or '-' }}</td>
-                <td data-label="method" class="col-method"><span class="badge payload-badge payload-badge-method">{{ finding.method or '-' }}</span></td>
-                <td data-label="uri" class="payload-uri col-uri" title="{{ finding.uri or '-' }}">{{ finding.uri or '-' }}</td>
-                <td data-label="status" class="col-status"><span class="badge payload-badge payload-badge-status">{{ finding.status_code or '-' }}</span></td>
-                <td data-label="category" class="col-category"><span class="badge payload-badge payload-badge-default payload-category-badge">{{ finding.category or 'unknown' }}</span></td>
-                <td data-label="severity" class="col-severity"><span class="badge payload-badge payload-badge-severity payload-badge-severity-{{ severity_token }}">{{ finding.severity or 'unknown' }}</span></td>
-              </tr>
-              {% endfor %}
-            {% else %}
-              <tr>
-                <td colspan="7" class="is-empty">No findings in viewer payload.</td>
-              </tr>
-            {% endif %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <aside class="card payload-detail-panel" id="payload-detail-panel">
-      <div class="payload-detail-empty" id="pd-detail-empty">No finding selected.</div>
-      <div class="payload-detail-content is-hidden" id="pd-detail-content">
-        <header class="payload-detail-header">
-          <h3 id="pd-detail-title">Selected Event Detail</h3>
-          <div class="payload-detail-badges">
-            <span id="pd-badge-severity" class="badge payload-badge payload-badge-severity payload-badge-severity-unknown">unknown</span>
-            <span id="pd-badge-verdict" class="badge payload-badge payload-badge-default">unknown</span>
-            <span id="pd-badge-category" class="badge payload-badge payload-badge-default">unknown</span>
-            <span class="badge payload-badge payload-badge-readonly">read-only</span>
-            <span class="badge payload-badge payload-badge-context">no success inferred</span>
-          </div>
-        </header>
-
-        <section class="payload-detail-section">
-          <h4>Request</h4>
-          <p><span class="meta-label">Time</span> <span id="pd-display-time">N/A</span></p>
-          <p><span class="meta-label">Source IP</span> <span id="pd-source-ip">N/A</span></p>
-          <p><span class="meta-label">Method</span> <span id="pd-method">N/A</span></p>
-          <p><span class="meta-label">URI</span> <span id="pd-uri">N/A</span></p>
-          <p><span class="meta-label">Status</span> <span id="pd-status-code">N/A</span></p>
-          <p><span class="meta-label">Confidence</span> <span id="pd-confidence">N/A</span></p>
-        </section>
-
-        <section class="payload-detail-section">
-          <h4>Analysis Note</h4>
-          <p id="pd-reasoning-summary">N/A</p>
-        </section>
-
-        <section class="payload-detail-section payload-interpretation-aid">
-          <h4>Interpretation Aid</h4>
-          <div id="pd-observability-badges" class="payload-detail-badges payload-observability-badges"></div>
-          <ul id="pd-interpretation-notes" class="payload-detail-list payload-interpretation-notes"></ul>
-        </section>
-
-        <section class="payload-detail-section payload-standards is-hidden" id="pd-standards-section">
-          <h4>Security Standards</h4>
-          <div id="pd-standards-scope" class="payload-standards-scope"></div>
-          <div id="pd-standards-groups" class="payload-standards-groups"></div>
-          <p class="payload-standards-boundary">Observed attack patterns and standards mappings do not confirm a vulnerability or successful exploitation.</p>
-        </section>
-
-        <section class="payload-detail-section">
-          <h4>Evidence</h4>
-          <ul id="pd-evidence-fields" class="payload-detail-list"></ul>
-          <p id="pd-evidence-more" class="payload-detail-more is-hidden"></p>
-        </section>
-
-        <section class="payload-detail-section payload-related-contexts">
-          <h4>
-            Related Contexts
-            <span id="pd-contexts-related-badge" class="badge payload-badge payload-badge-default">0 related</span>
-            <span class="badge payload-badge payload-badge-context-only">context-only</span>
-          </h4>
-          <details class="payload-related-contexts-summary pd-details-group">
-            <summary id="pd-contexts-summary" class="pd-summary-header">Related Contexts (0)</summary>
-            <p id="pd-contexts-empty" class="payload-context-empty is-hidden">No related contexts for this finding.</p>
-            <div id="pd-contexts-list" class="payload-related-contexts-list pd-details-content is-hidden"></div>
-            <p id="pd-contexts-more" class="payload-context-note is-hidden"></p>
-            <p class="payload-match-note">Display-only association; do not promote contexts into findings.</p>
-          </details>
-        </section>
-
-        <section class="payload-detail-section payload-supporting-events">
-          <h4>
-            Related Supporting Events
-            <span id="pd-supporting-related-badge" class="badge payload-badge payload-badge-default">0 related</span>
-            <span class="badge payload-badge payload-badge-context-only">context-only</span>
-          </h4>
-          <details class="payload-supporting-events-summary pd-details-group">
-            <summary id="pd-supporting-summary" class="pd-summary-header">Related Supporting Events (0)</summary>
-            <p id="pd-supporting-events-empty" class="payload-supporting-events-empty is-hidden">No related supporting events in payload.</p>
-            <div id="pd-supporting-events-table-wrap" class="table-wrapper pd-details-content is-hidden">
-              <table class="table table-compact payload-supporting-events-table">
-                <thead>
-                  <tr>
-                    <th>time</th>
-                    <th>role</th>
-                    <th>method</th>
-                    <th>uri</th>
-                    <th>status</th>
-                    <th>request_id</th>
-                  </tr>
-                </thead>
-                <tbody id="pd-supporting-events-body"></tbody>
-              </table>
-            </div>
-            <p id="pd-supporting-events-more" class="payload-supporting-events-note is-hidden"></p>
-            <p class="payload-match-note">Display-only association; do not promote supporting events into findings.</p>
-          </details>
-        </section>
-
-        <section class="payload-detail-section">
-          <details class="payload-technical-details pd-details-group">
-            <summary class="pd-summary-header">Technical details</summary>
-            <div class="payload-technical-body pd-details-content">
-              <p><span class="meta-label">request_id</span> <span id="pd-request-id">N/A</span></p>
-              <p><span class="meta-label">log_time (raw)</span> <span id="pd-log-time">N/A</span></p>
-              <p class="meta-label">reason_hints</p>
-              <ul id="pd-reason-hints" class="payload-detail-list"></ul>
-              <p class="meta-label">recommended_actions</p>
-              <ul id="pd-recommended-actions" class="payload-detail-list"></ul>
-              <p class="meta-label">raw_export_match</p>
-              <ul class="payload-detail-list">
-                <li>source_table: <span id="pd-raw-source-table">N/A</span></li>
-                <li>log_id: <span id="pd-raw-log-id">N/A</span></li>
-                <li>request_id: <span id="pd-raw-request-id">N/A</span></li>
-              </ul>
-            </div>
-          </details>
-        </section>
-      </div>
-    </aside>
-  </section>
-
-  <section class="section card payload-contexts">
-    <h3>Contexts Preview <span class="badge payload-badge payload-badge-context-only">context-only</span></h3>
-    <div class="table-wrapper payload-contexts-table-wrapper">
-      <table class="table table-compact payload-contexts-table">
-        <thead>
-          <tr>
-            <th>type</th>
-            <th>source_ip</th>
-            <th>request_count</th>
-            <th>context_only</th>
-            <th>should_promote_to_candidate</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if contexts_preview_display %}
-            {% for context in contexts_preview_display %}
-            <tr>
-              <td data-label="type"><span class="badge payload-badge payload-badge-context-only">{{ context.context_type or 'unknown' }}</span></td>
-              <td data-label="source_ip">{{ context.src_ip or '-' }}</td>
-              <td data-label="request_count">{{ context.request_count or '-' }}</td>
-              <td data-label="context_only">
-                {% if context.context_only %}
-                <span class="badge payload-badge payload-badge-context-only">true</span>
-                {% else %}
-                <span class="badge payload-badge payload-badge-default">false</span>
-                {% endif %}
-              </td>
-              <td data-label="should_promote_to_candidate">
-                {% if context.should_promote_to_candidate %}
-                <span class="badge payload-badge payload-badge-verdict-warn">true</span>
-                {% else %}
-                <span class="badge payload-badge payload-badge-default">false</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="5" class="is-empty">No contexts preview.</td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
-    </div>
-    <p class="is-muted">Supporting events drill-down is follow-up.</p>
-  </section>
-
   <section class="payload-guardrail">
     <p>
-      Guardrail: status_code, content_type, response size, route name, or lab user-agent is not treated as proof of breach or success.
+      해석 원칙: status_code, content_type, response size, route name, lab User-Agent는 침해나 성공 여부의 증거로 취급하지 않습니다.
     </p>
     {% if guardrails %}
       <ul>
@@ -780,7 +836,7 @@
       const more = document.getElementById("pd-evidence-more");
       if (!more) return;
       if (extra > 0) {
-        more.textContent = `+${extra} more`;
+        more.textContent = `관찰 근거 ${extra}건 더 있음`;
         more.classList.remove("is-hidden");
       } else {
         more.textContent = "";
@@ -851,65 +907,65 @@
 
       if (hasHint(finding, "observability:reverse_proxy_candidate") || handler === "proxy-server") {
         badges.push({
-          label: "reverse proxy",
+          label: "리버스 프록시 · reverse proxy",
           kind: "topology",
-          note: "Apache observed this through reverse proxy/backend response metadata.",
+          note: "Apache가 리버스 프록시 또는 backend 응답 메타데이터를 통해 관찰한 요청입니다.",
         });
       }
 
       if (hasHint(finding, "observability:backend_response_candidate")) {
         badges.push({
-          label: "backend response",
+          label: "backend 응답 · backend response",
           kind: "topology",
-          note: "The response came from a backend application via Apache.",
+          note: "Apache를 거쳐 backend 애플리케이션 응답이 관찰되었습니다.",
         });
       }
 
       if (hasHint(finding, "observability:fallback_200_candidate")) {
         badges.push({
-          label: "fallback 200",
+          label: "대체 응답 200 · fallback 200",
           kind: "fallback",
-          note: "A 200 response may be fallback/routed HTML, not proof of successful exploitation.",
+          note: "200 응답은 대체 또는 라우팅된 HTML일 수 있으며 성공적인 악용을 입증하지 않습니다.",
         });
       }
 
       if (hasHint(finding, "observability:backend_fallback_200_candidate")) {
         badges.push({
-          label: "backend fallback 200",
+          label: "backend 대체 응답 200",
           kind: "fallback",
-          note: "The backend may return 200 HTML for unusual paths.",
+          note: "backend가 일반적이지 않은 경로에도 200 HTML을 반환할 수 있습니다.",
         });
       }
 
       if (hasHint(finding, "observability:front_controller_candidate")) {
         badges.push({
-          label: "front-controller",
+          label: "프런트 컨트롤러 · front-controller",
           kind: "topology",
-          note: "The request may have been routed through an application front controller.",
+          note: "요청이 애플리케이션 front controller를 통해 라우팅되었을 수 있습니다.",
         });
       }
 
       if (hasHint(finding, "observability:route_param_present")) {
         badges.push({
-          label: "route param",
+          label: "경로 매개변수 · route param",
           kind: "topology",
-          note: "A route parameter was observed; original path and routed target should be interpreted separately.",
+          note: "경로 매개변수가 관찰되었으며 원래 경로와 라우팅 대상을 구분해 해석해야 합니다.",
         });
       }
 
       if (hasHint(finding, "observability:redirect_candidate") || handler === "redirect-handler") {
         badges.push({
-          label: "redirect candidate",
+          label: "리디렉션 후보 · redirect candidate",
           kind: "topology",
-          note: "A redirect or follow-up request may affect request counts.",
+          note: "리디렉션 또는 후속 요청이 요청 수에 영향을 줄 수 있습니다.",
         });
       }
 
       if (hasHint(finding, "observability:server_status_handler_observed")) {
         badges.push({
-          label: "server-status handler",
+          label: "server-status handler 관찰",
           kind: "boundary",
-          note: "server-status was observed; external exposure must be verified separately.",
+          note: "server-status가 관찰되었으며 외부 노출 여부는 별도로 확인해야 합니다.",
         });
       }
 
@@ -919,24 +975,24 @@
         hasHintPrefix(finding, "traversal:html_fallback")
       ) {
         badges.push({
-          label: "HTML fallback possible",
+          label: "HTML 대체 응답 가능",
           kind: "boundary",
-          note: "HTML response/fallback context is not evidence of file content exposure.",
+          note: "HTML 응답 또는 대체 응답 Context는 파일 내용 노출의 증거가 아닙니다.",
         });
       }
 
       if (statusCode === "200" && respType.includes("text/html")) {
         badges.push({
-          label: "200/html not success proof",
+          label: "200/HTML은 성공 증거 아님",
           kind: "boundary",
-          note: "200/text/html is an observed response, not proof of exploit success.",
+          note: "200/text/html은 관찰된 응답이며 성공적인 악용의 증거가 아닙니다.",
         });
       }
 
       badges.push({
-        label: "Apache logs only",
+        label: "Apache 로그만 관찰",
         kind: "boundary",
-        note: "No request body, response body, DB result, or browser execution evidence is available.",
+        note: "request body, response body, DB 결과 또는 브라우저 실행 근거는 제공되지 않습니다.",
       });
 
       const seen = new Set();
@@ -966,7 +1022,7 @@
       if (!badges.length) {
         const li = document.createElement("li");
         li.className = "is-muted";
-        li.textContent = "No additional interpretation hints.";
+        li.textContent = "추가 해석 안내가 없습니다.";
         notesEl.appendChild(li);
         return;
       }
@@ -992,7 +1048,7 @@
       if (notes.length > 4) {
         const li = document.createElement("li");
         li.className = "is-muted";
-        li.textContent = `+${notes.length - 4} more interpretation notes`;
+        li.textContent = `해석 안내 ${notes.length - 4}건 더 있음`;
         notesEl.appendChild(li);
       }
     }
@@ -1013,8 +1069,8 @@
       const standard = String(value || "").trim().toUpperCase();
       if (standard === "OWASP_TOP10") return "OWASP Top 10";
       if (standard === "CWE") return "CWE";
-      if (standard === "WSTG") return "Related WSTG Tests";
-      return standard || "Other";
+      if (standard === "WSTG") return "관련 WSTG 시험 · Related WSTG Tests";
+      return standard || "기타 · Other";
     }
 
     function standardGroupOrder(value) {
@@ -1027,17 +1083,17 @@
 
     function relationshipLabel(value) {
       const text = asLowerText(value);
-      if (text === "direct") return "Direct";
-      if (text === "conditional") return "Conditional";
-      if (text === "related") return "Related";
-      return asText(value, "Related");
+      if (text === "direct") return "직접 · Direct";
+      if (text === "conditional") return "조건부 · Conditional";
+      if (text === "related") return "관련 · Related";
+      return asText(value, "관련 · Related");
     }
 
     function evidenceScopeLabel(value) {
       const text = asLowerText(value);
-      if (text === "attempt_only") return "Attempt observed";
-      if (text === "behavior_only") return "Behavior pattern observed";
-      if (text === "partial") return "Partial log evidence";
+      if (text === "attempt_only") return "시도 관찰 · Attempt observed";
+      if (text === "behavior_only") return "행동 패턴 관찰 · Behavior pattern observed";
+      if (text === "partial") return "부분 로그 근거 · Partial log evidence";
       return "";
     }
 
@@ -1059,12 +1115,12 @@
 
       const code = document.createElement("span");
       code.className = "payload-standard-id";
-      code.textContent = asText(item.id || item.standard, "Unknown");
+      code.textContent = asText(item.id || item.standard, "알 수 없음");
       main.appendChild(code);
 
       const name = document.createElement("span");
       name.className = "payload-standard-name";
-      name.textContent = asText(item.name, "Unnamed standard item");
+      name.textContent = asText(item.name, "이름 없는 표준 항목");
       main.appendChild(name);
 
       const relationship = document.createElement("span");
@@ -1106,7 +1162,7 @@
       if (scopeLabel) {
         const label = document.createElement("span");
         label.className = "meta-label";
-        label.textContent = "Evidence Scope";
+        label.textContent = "관찰 근거 범위 · Evidence Scope";
         const value = document.createElement("span");
         value.className = "badge payload-badge payload-badge-standard-scope";
         value.textContent = scopeLabel;
@@ -1192,9 +1248,9 @@
       moreEl.textContent = "";
 
       if (!contexts.length) {
-        summaryEl.textContent = "Related Contexts (0)";
-        badgeEl.textContent = "0 related";
-        emptyEl.textContent = "No contexts in this viewer payload.";
+        summaryEl.textContent = "관련 해석 정보 (0)";
+        badgeEl.textContent = "관련 0건";
+        emptyEl.textContent = "이 Viewer payload에 해석 정보가 없습니다.";
         emptyEl.classList.remove("is-hidden");
         listEl.classList.add("is-hidden");
         return;
@@ -1202,9 +1258,9 @@
 
       const explicitIds = relationIds(finding && finding.related_context_ids);
       if (!explicitIds.length) {
-        summaryEl.textContent = "Related Contexts (0)";
-        badgeEl.textContent = "0 related";
-        emptyEl.textContent = "No explicit related contexts in this viewer payload.";
+        summaryEl.textContent = "관련 해석 정보 (0)";
+        badgeEl.textContent = "관련 0건";
+        emptyEl.textContent = "이 Viewer payload에 명시적으로 연결된 해석 정보가 없습니다.";
         emptyEl.classList.remove("is-hidden");
         listEl.classList.add("is-hidden");
         return;
@@ -1215,11 +1271,11 @@
       const preview = matched.slice(0, 6);
       const hidden = Math.max(count - preview.length, 0);
 
-      summaryEl.textContent = `Related Contexts (${count})`;
-      badgeEl.textContent = `${count} related`;
+      summaryEl.textContent = `관련 해석 정보 (${count})`;
+      badgeEl.textContent = `관련 ${count}건`;
 
       if (!preview.length) {
-        emptyEl.textContent = "No explicit related contexts found for this finding.";
+        emptyEl.textContent = "이 Finding과 명시적으로 연결된 해석 정보를 찾지 못했습니다.";
         emptyEl.classList.remove("is-hidden");
         listEl.classList.add("is-hidden");
         return;
@@ -1239,17 +1295,17 @@
         typeBadge.textContent = pickContextType(ctx);
         const contextOnlyBadge = document.createElement("span");
         contextOnlyBadge.className = "badge payload-badge payload-badge-context-only payload-context-badge";
-        contextOnlyBadge.textContent = "context-only";
+        contextOnlyBadge.textContent = "해석 전용 · context-only";
         head.appendChild(typeBadge);
         head.appendChild(contextOnlyBadge);
         card.appendChild(head);
 
-        appendContextMetaLine(card, "source_ip", displaySourceIp(ctx.src_ip));
-        appendContextMetaLine(card, "request_count", ctx.request_count);
-        appendContextMetaLine(card, "window", pickContextWindow(ctx));
-        appendContextMetaLine(card, "promote", ctx.should_promote_to_candidate ? "true" : "false");
-        appendContextMetaLine(card, "context_only", ctx.context_only === false ? "false" : "true");
-        appendContextMetaLine(card, "note", ctx.interpretation_limit || ctx.guardrail_note, "payload-context-note");
+        appendContextMetaLine(card, "출발지 IP · source_ip", displaySourceIp(ctx.src_ip));
+        appendContextMetaLine(card, "요청 수 · request_count", ctx.request_count);
+        appendContextMetaLine(card, "관찰 구간 · window", pickContextWindow(ctx));
+        appendContextMetaLine(card, "후보 승격 · promote", ctx.should_promote_to_candidate ? "true" : "false");
+        appendContextMetaLine(card, "해석 전용 · context_only", ctx.context_only === false ? "false" : "true");
+        appendContextMetaLine(card, "해석 메모 · note", ctx.interpretation_limit || ctx.guardrail_note, "payload-context-note");
 
         const samples = asList(ctx.sample_paths).slice(0, 3);
         const sampleReqIds = asList(ctx.sample_request_ids).slice(0, 3);
@@ -1257,7 +1313,7 @@
         sampleLine.className = "payload-context-sample";
         const sampleLabel = document.createElement("span");
         sampleLabel.className = "meta-label";
-        sampleLabel.textContent = "sample";
+        sampleLabel.textContent = "표본 · sample";
         const sampleValue = document.createElement("span");
         const sampleParts = [];
         if (samples.length) sampleParts.push(`paths: ${samples.join(", ")}`);
@@ -1272,7 +1328,7 @@
       });
 
       if (hidden > 0) {
-        moreEl.textContent = `+${hidden} more contexts not shown`;
+        moreEl.textContent = `표시하지 않은 Context ${hidden}건 더 있음`;
         moreEl.classList.remove("is-hidden");
       }
     }
@@ -1309,9 +1365,9 @@
       moreEl.textContent = "";
 
       if (!supportingEvents.length) {
-        summaryEl.textContent = "Related Supporting Events (0)";
-        badgeEl.textContent = "0 related";
-        emptyEl.textContent = "No supporting events in this viewer payload.";
+        summaryEl.textContent = "관련 참고 요청 (0)";
+        badgeEl.textContent = "관련 0건";
+        emptyEl.textContent = "이 Viewer payload에 주변 참고 요청이 없습니다.";
         emptyEl.classList.remove("is-hidden");
         tableWrapEl.classList.add("is-hidden");
         return;
@@ -1319,9 +1375,9 @@
 
       const explicitIds = relationIds(finding && finding.supporting_event_ids);
       if (!explicitIds.length) {
-        summaryEl.textContent = "Related Supporting Events (0)";
-        badgeEl.textContent = "0 related";
-        emptyEl.textContent = "No explicit related supporting events in this viewer payload.";
+        summaryEl.textContent = "관련 참고 요청 (0)";
+        badgeEl.textContent = "관련 0건";
+        emptyEl.textContent = "이 Viewer payload에 명시적으로 연결된 주변 참고 요청이 없습니다.";
         emptyEl.classList.remove("is-hidden");
         tableWrapEl.classList.add("is-hidden");
         return;
@@ -1332,11 +1388,11 @@
       const preview = matched.slice(0, 10);
       const hiddenCount = Math.max(matchedCount - preview.length, 0);
 
-      summaryEl.textContent = `Related Supporting Events (${matchedCount})`;
-      badgeEl.textContent = `${matchedCount} related`;
+      summaryEl.textContent = `관련 참고 요청 (${matchedCount})`;
+      badgeEl.textContent = `관련 ${matchedCount}건`;
 
       if (!preview.length) {
-        emptyEl.textContent = "No explicit related supporting events found for this finding.";
+        emptyEl.textContent = "이 Finding과 명시적으로 연결된 주변 참고 요청을 찾지 못했습니다.";
         emptyEl.classList.remove("is-hidden");
         tableWrapEl.classList.add("is-hidden");
         return;
@@ -1383,7 +1439,7 @@
       });
 
       if (hiddenCount > 0) {
-        moreEl.textContent = `+${hiddenCount} more not shown`;
+        moreEl.textContent = `표시하지 않은 Supporting Event ${hiddenCount}건 더 있음`;
         moreEl.classList.remove("is-hidden");
       }
     }
@@ -1445,7 +1501,7 @@
         row.setAttribute("aria-selected", selected ? "true" : "false");
       });
 
-      setText("pd-detail-title", asText(finding.category, asText(finding.verdict, "Selected Event Detail")));
+      setText("pd-detail-title", asText(finding.category, asText(finding.verdict, "선택한 탐지 요청 상세")));
       updateSeverityBadge(finding.severity);
       updateVerdictBadge(finding.verdict);
       updateCategoryBadge(finding.category);

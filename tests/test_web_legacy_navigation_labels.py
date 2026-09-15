@@ -12,7 +12,7 @@ import web.routes.reports as report_routes
 from web.services.report_loader import Report
 
 
-LEGACY_NOTICE = "Legacy run-dir report viewer. For DB-backed analysis jobs, use Job Dashboard and /job/{id}/viewer."
+LEGACY_NOTICE = "기존 run-dir 보고서 Viewer입니다. DB 기반 분석 작업은 작업 대시보드의 /job/{id}/viewer를 사용하세요."
 
 
 def make_request(path: str) -> Request:
@@ -160,7 +160,7 @@ def test_legacy_report_payload_route_shows_legacy_notice_and_stage2_back_link(
 
     assert response.status_code == 200
     assert LEGACY_NOTICE in body
-    assert "Back To Stage2 Detail" in body
+    assert "Stage2 상세로 돌아가기" in body
     assert 'href="/report/legacy-report"' in body
 
 
@@ -228,5 +228,5 @@ def test_job_viewer_route_does_not_show_legacy_notice_and_keeps_job_back_link(
 
     assert response.status_code == 200
     assert LEGACY_NOTICE not in body
-    assert "Back To Job Detail" in body
+    assert "분석 작업 상세로 돌아가기" in body
     assert 'href="/job/123"' in body
