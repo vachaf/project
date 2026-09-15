@@ -150,11 +150,16 @@ def test_live_ui_polish_is_korean_first_with_canonical_terms_preserved() -> None
         "새 분석 작업",
         "이전 Stage2 보고서",
         "출발지 IP 정확히 일치",
-        "HTTP Method",
-        "URI / Request Target",
-        "DB ID",
-        "Request ID",
+        "서버 응답 상태",
         "HTTP status",
+        "요청 방식",
+        "HTTP Method",
+        "요청 경로 / 대상",
+        "URI / Request Target",
+        "DB 행 ID",
+        "DB ID",
+        "요청 식별자",
+        "Request ID",
         "응답 크기",
         "Bytes",
     ):
@@ -201,3 +206,37 @@ def test_live_observation_presentation_keeps_processing_and_assessment_distinct(
     assert "안전 상태를 뜻하지도 않습니다" in script
     assert "보안 판정이 아닙니다" in script
     assert "공격 심각도나 공격 성공 여부를 뜻하지 않습니다" in script
+
+def test_live_empty_state_hides_only_presentation_chrome_without_changing_selection_contract() -> None:
+    page = _page()
+    script = _script()
+    assert 'id="liveSelectionBar"' in page and 'aria-label="선택 로그 분석 작업" hidden' in page
+    assert 'id="livePager"' in page and 'aria-label="페이지 이동" hidden' in page
+    assert 'id="liveDetailCard"' in page and 'live-detail-card" hidden' in page
+    assert "function syncPresentationVisibility()" in script
+    assert "const hasRows = state.items.length > 0;" in script
+    assert "const hasSelectedInput = state.selectedOrder.length > 0;" in script
+    assert "state.cursor !== null || Boolean(state.older) || Boolean(state.newer)" in script
+    assert "el.selectionBar.hidden = !hasRows && !hasSelectedInput;" in script
+    assert "el.detailCard.hidden = !hasRows;" in script
+    assert "el.pager.hidden = !hasPageNavigation;" in script
+    assert script.count("state.selectedOrder = [];") == 2
+
+
+def test_live_operator_labels_explain_log_identifiers_without_renaming_values() -> None:
+    page = _page()
+    script = _script()
+    assert "DB ID는 저장 행 식별자" in page
+    assert "Request ID는 원천 로그에 기록된 요청 식별값" in page
+    assert 'title="Apache 원천 로그에 기록된 request_id 값"' in page
+    assert 'title="Apache 원천 로그의 response_body_bytes 값"' in page
+    for label in (
+        "DB 행 ID (DB ID)",
+        "요청 식별자 (Request ID)",
+        "요청 방식 (HTTP Method)",
+        "요청 경로 (URI)",
+        "요청 대상 원문 (Request Target)",
+        "서버 응답 상태 (HTTP status)",
+        "응답 크기 (Bytes)",
+    ):
+        assert label in script

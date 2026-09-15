@@ -20,7 +20,12 @@ def test_live_page_has_contract_and_old_log_is_not_diagnosed_as_failure():
     paths={route.path for route in routes.router.routes}
     assert {"/live","/api/live/snapshot","/api/live/logs/{row_id}/raw"} <= paths
     response=app_module.templates.get_template("live_dashboard.html").render()
-    for text in ("기간 제한 없음 · 최신 50건","HTTP status 색상은 웹 서버 응답 표현","Apache 운영 상태를 설명하지 않습니다","승인된 관찰 구조와 처리 범위만 표시"):
+    for text in (
+        "기간 제한 없음 · 최신 50건",
+        "HTTP status는 웹 서버 응답 상태 코드",
+        "Apache 운영 상태를 설명하지 않습니다",
+        "승인된 관찰 구조·처리 범위와 보안 판정은 서로 분리",
+    ):
         assert text in response
 
 

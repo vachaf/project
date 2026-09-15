@@ -12,6 +12,7 @@
     older: $("#liveOlderButton"), newer: $("#liveNewerButton"), direction: $("#livePageDirection"),
     selectedCount: $("#liveSelectedCount"), clearSelection: $("#liveClearSelectionButton"),
     submitSelection: $("#liveSubmitSelectionButton"), jobFeedback: $("#liveJobFeedback"),
+    selectionBar: $("#liveSelectionBar"), pager: $("#livePager"), detailCard: $("#liveDetailCard"),
   };
   const state = {
     loading: false, submitting: false, auto: true, cursor: null, older: null, newer: null,
@@ -80,9 +81,9 @@
   }
   function fields(item) {
     return [
-      ["로그 시각 (KST)", date(item.log_time)], ["DB ID", item.row_id], ["Request ID", item.request_id],
-      ["출발지 IP 원문", item.src_ip], ["출발지 IP 기준", item.client_ip_source], ["HTTP Method", item.method], ["URI", item.uri],
-      ["Request Target 원문", item.request_target], ["HTTP status", item.status_code], ["응답 크기 (Bytes)", item.response_body_bytes],
+      ["로그 시각 (KST)", date(item.log_time)], ["DB 행 ID (DB ID)", item.row_id], ["요청 식별자 (Request ID)", item.request_id],
+      ["출발지 IP 원문", item.src_ip], ["출발지 IP 기준", item.client_ip_source], ["요청 방식 (HTTP Method)", item.method], ["요청 경로 (URI)", item.uri],
+      ["요청 대상 원문 (Request Target)", item.request_target], ["서버 응답 상태 (HTTP status)", item.status_code], ["응답 크기 (Bytes)", item.response_body_bytes],
       ["User-Agent 원문", item.user_agent], ["로그 스키마", item.log_schema],
     ];
   }
@@ -158,6 +159,14 @@
   }
 
   function hasSelected(rowId) { return state.selectedOrder.includes(rowId); }
+  function syncPresentationVisibility() {
+    const hasRows = state.items.length > 0;
+    const hasSelectedInput = state.selectedOrder.length > 0;
+    const hasPageNavigation = hasRows || state.cursor !== null || Boolean(state.older) || Boolean(state.newer);
+    el.selectionBar.hidden = !hasRows && !hasSelectedInput;
+    el.detailCard.hidden = !hasRows;
+    el.pager.hidden = !hasPageNavigation;
+  }
   function updateSelectionControls() {
     const selectedCount = state.selectedOrder.length;
     el.selectedCount.textContent = `선택 ${selectedCount} / ${MAX_SELECTED_LOGS}건`;
@@ -168,6 +177,7 @@
       checkbox.checked = checked;
       checkbox.disabled = state.submitting || (selectedCount >= MAX_SELECTED_LOGS && !checked);
     });
+    syncPresentationVisibility();
   }
   function selectForAnalysis(rowId) {
     if (state.submitting || hasSelected(rowId)) return;

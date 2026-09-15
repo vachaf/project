@@ -67,6 +67,27 @@ body.live-page {
   text-transform: none;
 }
 
+.live-page [hidden] {
+  display: none !important;
+}
+
+.live-page .live-field-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.live-page .live-table-label,
+.live-page .live-table-tech {
+  display: block;
+}
+
+.live-page .live-table-tech {
+  margin-top: 0.08rem;
+  line-height: 1.2;
+}
+
 .live-page .live-kicker {
   color: var(--live-accent);
   font-weight: 800;

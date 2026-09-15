@@ -17,8 +17,8 @@
     <h1>실시간 로그 모니터링 <span class="live-heading-secondary">Live Monitoring</span></h1>
     <p>MariaDB의 Apache 원천 로그를 기간 제한 없이 최신 50건부터 조회합니다.</p>
   </div>
-  <p class="live-boundary"><strong>HTTP status 색상은 웹 서버 응답 표현입니다.</strong>
-    승인된 관찰 구조와 처리 범위만 표시하며 보안 판정과 분리됩니다.</p>
+  <p class="live-boundary"><strong>HTTP status는 웹 서버 응답 상태 코드입니다.</strong>
+    색상은 응답 범주를 구분하기 위한 표현이며, 승인된 관찰 구조·처리 범위와 보안 판정은 서로 분리됩니다.</p>
 </section>
 <section class="live-statusbar" aria-label="원천 로그 조회 상태">
   <div class="live-connection" id="liveConnectionState" role="status" aria-live="polite">
@@ -41,15 +41,15 @@
   <h2>원천 로그 필터</h2>
   <form id="liveFilterForm" class="live-filter-grid">
     <label>기간<select id="livePeriod"><option value="all">기간 제한 없음 · 최신 50건</option><option value="5m">최근 5분</option><option value="30m">최근 30분</option><option value="1h">최근 1시간</option></select></label>
-    <label>HTTP status<select id="liveStatus"><option value="">전체</option><option value="2xx">2xx</option><option value="3xx">3xx</option><option value="4xx">4xx</option><option value="5xx">5xx</option><option value="none">값 없음</option></select></label>
-    <label>HTTP Method<select id="liveMethod"><option value="">전체</option><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option><option>CONNECT</option><option>TRACE</option></select></label>
-    <label>출발지 IP 정확히 일치<input id="liveSourceIp" autocomplete="off" placeholder="정확한 IP 주소"></label>
-    <label>URI / Request Target<input id="liveKeyword" maxlength="256" autocomplete="off"></label>
+    <label><span class="live-field-label">서버 응답 상태 <span class="live-secondary">HTTP status</span></span><select id="liveStatus" title="웹 서버가 반환한 HTTP 응답 상태 코드 범주"><option value="">전체</option><option value="2xx">2xx</option><option value="3xx">3xx</option><option value="4xx">4xx</option><option value="5xx">5xx</option><option value="none">값 없음</option></select></label>
+    <label><span class="live-field-label">요청 방식 <span class="live-secondary">HTTP Method</span></span><select id="liveMethod" title="GET, POST 등 HTTP 요청 방식"><option value="">전체</option><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option><option>CONNECT</option><option>TRACE</option></select></label>
+    <label><span class="live-field-label">출발지 IP 정확히 일치</span><input id="liveSourceIp" autocomplete="off" placeholder="정확한 IP 주소"></label>
+    <label><span class="live-field-label">요청 경로 / 대상 <span class="live-secondary">URI / Request Target</span></span><input id="liveKeyword" maxlength="256" autocomplete="off" placeholder="URI 또는 Request Target"></label>
     <button type="submit">조건으로 조회</button>
   </form>
 </section>
 <div id="liveError" class="live-error" role="alert" hidden></div>
-<section class="live-selection-bar" aria-label="선택 로그 분석 작업">
+<section id="liveSelectionBar" class="live-selection-bar" aria-label="선택 로그 분석 작업" hidden>
   <div>
     <strong id="liveSelectedCount">선택 0 / 50건</strong>
     <p>선택은 원천 로그의 exact ID를 분석 입력으로 등록하며 DB ID 순서를 그대로 유지합니다. 이 동작은 공격 성공, 침해 또는 위험도를 확정하지 않습니다. exploit 성공 여부 또한 확정하지 않습니다.</p>
@@ -63,7 +63,7 @@
 <div class="live-layout">
   <section class="live-card live-log-card">
     <div class="live-card-heading">
-      <div><h2>원천 로그 목록</h2><p>행 선택은 상세 보기, 체크박스는 분석 입력 선택입니다.</p></div>
+      <div><h2>원천 로그 목록</h2><p>행 선택은 상세 보기, 체크박스는 분석 입력 선택입니다. DB ID는 저장 행 식별자이고 Request ID는 원천 로그에 기록된 요청 식별값입니다.</p></div>
       <span class="live-card-meta">최대 50건 / 페이지</span>
     </div>
     <div class="live-table-wrap">
@@ -72,18 +72,29 @@
           <col class="live-col-select"><col class="live-col-time"><col class="live-col-id"><col class="live-col-request-id"><col class="live-col-ip">
           <col class="live-col-method"><col class="live-col-uri"><col class="live-col-status"><col class="live-col-observation"><col class="live-col-bytes">
         </colgroup>
-        <thead><tr><th scope="col">분석 입력 선택</th><th>로그 시각</th><th>DB ID</th><th>Request ID</th><th>IP</th><th>HTTP Method</th><th>URI</th><th>HTTP status</th><th>보안 관찰</th><th>응답 크기 <span class="live-secondary">Bytes</span></th></tr></thead>
+        <thead><tr>
+          <th scope="col">분석 입력 선택</th>
+          <th>로그 시각</th>
+          <th title="분석 입력에 사용하는 exact DB row ID"><span class="live-table-label">DB 행 ID</span><span class="live-secondary live-table-tech">DB ID</span></th>
+          <th title="Apache 원천 로그에 기록된 request_id 값"><span class="live-table-label">요청 식별자</span><span class="live-secondary live-table-tech">Request ID</span></th>
+          <th>출발지 IP</th>
+          <th title="GET, POST 등 HTTP 요청 방식"><span class="live-table-label">요청 방식</span><span class="live-secondary live-table-tech">HTTP Method</span></th>
+          <th><span class="live-table-label">요청 경로</span><span class="live-secondary live-table-tech">URI</span></th>
+          <th title="웹 서버가 반환한 HTTP 응답 상태 코드"><span class="live-table-label">응답 상태</span><span class="live-secondary live-table-tech">HTTP status</span></th>
+          <th>보안 관찰</th>
+          <th title="Apache 원천 로그의 response_body_bytes 값"><span class="live-table-label">응답 크기</span><span class="live-secondary live-table-tech">Bytes</span></th>
+        </tr></thead>
         <tbody id="liveLogRows"><tr><td colspan="10">불러오는 중입니다.</td></tr></tbody>
       </table>
     </div>
-    <nav class="live-pager" aria-label="페이지 이동">
+    <nav id="livePager" class="live-pager" aria-label="페이지 이동" hidden>
       <button id="liveLatestButton" type="button">최신 50</button>
       <button id="liveOlderButton" type="button" disabled>이전 50</button>
       <span id="livePageDirection">최신순</span>
       <button id="liveNewerButton" type="button" disabled>다음 50</button>
     </nav>
   </section>
-  <aside class="live-card live-detail-card">
+  <aside id="liveDetailCard" class="live-card live-detail-card" hidden>
     <div class="live-card-heading"><div><h2>선택 로그 상세</h2><p>원천 로그 메타데이터와 보안 관찰을 분리해서 표시합니다.</p></div></div>
     <div id="liveDetail"><p>로그를 선택해주세요.</p></div>
   </aside>
