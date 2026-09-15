@@ -784,3 +784,149 @@ html[data-theme="dark"] .job-filter-form input[type="date"]::-webkit-calendar-pi
     opacity: 1 !important;
     cursor: pointer;
 }
+/* Job Dashboard presentation polish: Korean-first labels without changing job semantics. */
+body.job-dashboard-page .job-operator-badge {
+  display: none;
+}
+
+.job-topnav .job-nav-current {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid rgba(0, 255, 136, 0.55);
+  border-radius: 6px;
+  background: rgba(0, 255, 136, 0.09);
+  color: var(--job-text);
+  font-weight: 800;
+  cursor: default;
+}
+
+.job-nav-secondary,
+.job-label-secondary,
+.job-table-label-secondary {
+  color: var(--job-muted);
+  font-size: 0.82em;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.job-topnav a .job-nav-secondary,
+.job-topnav .job-nav-current .job-nav-secondary {
+  opacity: 0.78;
+}
+
+.job-filter-card code,
+.job-card-subtitle code {
+  color: var(--job-text-2);
+}
+
+.job-filter-footnote {
+  margin: 0.75rem 0 0;
+  color: var(--job-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.job-filter-footnote strong {
+  color: var(--job-text-2);
+}
+
+body.job-dashboard-page .job-filter-check {
+  white-space: nowrap;
+}
+
+body.job-dashboard-page .job-dashboard-table {
+  min-width: 1080px;
+}
+
+body.job-dashboard-page .job-dashboard-table th {
+  white-space: nowrap;
+}
+
+.job-table-label-secondary {
+  display: block;
+  margin-top: 0.12rem;
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 10px;
+}
+
+body.job-dashboard-page .job-status-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.38rem;
+}
+
+.job-status-label {
+  font-family: "Segoe UI", "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 800;
+}
+
+.job-status-code-inline {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  opacity: 0.82;
+}
+
+body.job-dashboard-page .job-stale-badge .job-label-secondary {
+  color: inherit;
+  opacity: 0.78;
+}
+
+body.job-dashboard-page .job-muted .job-label-secondary,
+body.job-dashboard-page .job-stale-note .job-label-secondary {
+  margin-left: 0.25rem;
+}
+
+html:not([data-theme="dark"]) .job-topnav .job-nav-current {
+  border-color: #78cdb0;
+  background: #eafaf4;
+  color: #173f34;
+}
+
+html:not([data-theme="dark"]) .job-filter-footnote {
+  color: #5e6e85;
+}
+
+html:not([data-theme="dark"]) .job-filter-footnote strong,
+html:not([data-theme="dark"]) .job-filter-card code,
+html:not([data-theme="dark"]) .job-card-subtitle code {
+  color: #334155;
+}
+
+@media (max-width: 900px) {
+  body.job-dashboard-page .job-filter-check {
+    white-space: normal;
+  }
+}
+
+body.job-dashboard-page .job-dashboard-table th,
+body.job-dashboard-page .job-dashboard-table td {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+body.job-dashboard-page .job-dashboard-table th:nth-child(3),
+body.job-dashboard-page .job-dashboard-table td:nth-child(3) {
+  width: 29%;
+  min-width: 280px;
+}
+
+body.job-dashboard-page .job-dashboard-table .job-table-time-range {
+  min-width: 138px;
+  white-space: nowrap;
+}
+
+body.job-dashboard-page .job-dashboard-table td:nth-child(1),
+body.job-dashboard-page .job-dashboard-table td:nth-child(4),
+body.job-dashboard-page .job-dashboard-table td:nth-child(5),
+body.job-dashboard-page .job-dashboard-table td:nth-child(6),
+body.job-dashboard-page .job-dashboard-table td:nth-child(8),
+body.job-dashboard-page .job-dashboard-table .job-artifact-cell {
+  white-space: nowrap;
+}
+
+body.job-dashboard-page .job-dashboard-table .job-artifact-cell {
+  max-width: none;
+}

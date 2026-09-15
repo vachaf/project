@@ -187,8 +187,18 @@ def test_pending_job_detail_shows_worker_wait_guidance() -> None:
 def test_pending_job_dashboard_shows_waiting_hint() -> None:
     body = render_dashboard([make_job(status="PENDING")])
 
-    assert "PENDING" in body
-    assert "Waiting for worker" in body
+    assert '<span class="job-status-label">대기 중</span>' in body
+    assert "Worker 실행 대기 중" in body
+    assert "Waiting for worker" not in body
+
+
+def test_cancelled_job_dashboard_uses_korean_status_without_unknown_fallback() -> None:
+    body = render_dashboard([make_job(status="CANCELLED")])
+
+    assert '<span class="job-status-label">취소됨</span>' in body
+    assert "CANCELLED CANCELLED" not in body
+    assert "Status unknown" not in body
+    assert "알 수 없는 작업 상태" not in body
 
 
 def test_running_job_detail_shows_worker_and_heartbeat() -> None:
@@ -219,8 +229,10 @@ def test_running_job_dashboard_shows_running_hint_and_heartbeat() -> None:
         ]
     )
 
-    assert "Running by worker-01" in body
-    assert "Last heartbeat:" in body
+    assert "Worker 실행 중" in body
+    assert "worker-01" in body
+    assert "최근 worker heartbeat:" in body
+    assert "Last heartbeat:" not in body
 
 
 def test_job_dashboard_default_route_keeps_recent_full_report_listing(
@@ -239,8 +251,14 @@ def test_job_dashboard_default_route_keeps_recent_full_report_listing(
     assert 'name="stale"' in body
     assert 'class="job-filter-form"' in body
     assert 'class="job-filter-checkbox job-filter-check"' in body
-    assert ">Apply</button>" in body
-    assert 'href="/" class="job-btn">Clear</a>' in body
+    assert ">조회</button>" in body
+    assert 'href="/" class="job-btn">초기화</a>' in body
+    assert "작업 상태" in body
+    assert "대기 중 · PENDING" in body  # filter keeps canonical value visible
+    assert '<span class="job-status-label">대기 중</span>' in body
+    assert 'job-status-code-inline' not in body
+    assert "정체 가능성 작업만" in body
+    assert "실패 확정 상태가 아닙니다." in body
     assert "final verdict" not in body.lower()
     assert "attack success" not in body.lower()
     assert "benign" not in body.lower()
@@ -397,9 +415,9 @@ def test_old_heartbeat_running_job_shows_potentially_stale_guidance() -> None:
     assert job["stale_reason"] == "stale_heartbeat"
     assert job["stale_threshold_minutes"] == 30
     assert "Potentially stale" in detail_body
-    assert "Potentially stale" in dashboard_body
+    assert 'class="job-stale-badge">정체 가능성</span>' in dashboard_body
     assert "Heartbeat is older than the stale threshold. Verify worker status before marking failed." in detail_body
-    assert "Heartbeat is older than the stale threshold. Verify worker status before marking failed." in dashboard_body
+    assert "Worker heartbeat가 정체 기준보다 오래되었습니다. 실패로 표시하기 전에 worker 상태를 확인하세요." in dashboard_body
     assert "python3 src/analysis_job_worker.py --recover-stale --dry-run" in detail_body
     assert "--mark-failed" not in detail_body
 

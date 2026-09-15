@@ -1,26 +1,33 @@
 {% extends "job_base.html" %}
-{% block title %}Security Intelligence Dashboard{% endblock %}
+{% block title %}분석 작업 대시보드 · Security Intelligence{% endblock %}
+{% block job_body_class %}job-dashboard-page{% endblock %}
+{% block job_topnav_items %}
+      <span class="job-nav-current" aria-current="page">작업 대시보드 <span class="job-nav-secondary">Job Dashboard</span></span>
+      <a href="/reports">이전 Stage2 보고서 <span class="job-nav-secondary">Legacy Stage2 Reports</span></a>
+      <a href="/live">실시간 로그 모니터링 <span class="job-nav-secondary">Live Monitoring</span></a>
+{% endblock %}
 {% block content %}
 {% set dashboard_filter_state = filter_state | default({'status': '', 'from': '', 'to': '', 'stale': false}) %}
 {% set dashboard_status_options = status_options | default(['PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED']) %}
 {% set dashboard_filter_warnings = filter_warnings | default([]) %}
 {% set dashboard_active_filter_chips = active_filter_chips | default([]) %}
 {% set dashboard_has_active_filters = has_active_filters | default(false) %}
+{% set dashboard_status_labels = {'PENDING': '대기 중', 'RUNNING': '실행 중', 'SUCCEEDED': '완료', 'FAILED': '실패', 'CANCELLED': '취소됨'} %}
 <div class="job-page-head">
             <div>
-                <div class="job-page-kicker">DB-backed analysis queue</div>
+                <div class="job-page-kicker">DB 기반 분석 작업 큐 <span class="job-label-secondary">DB-backed analysis queue</span></div>
                 <h1 class="job-page-title">분석 작업 대시보드</h1>
-                <p class="job-page-subtitle">작업 큐 상태를 표시합니다. 보안 판정과 보고서 내용은 Web UI에서 재해석하거나 수정하지 않습니다.</p>
+                <p class="job-page-subtitle">작업 큐의 실행 상태를 표시합니다. 보안 판정과 보고서 내용은 Web UI에서 재해석하거나 수정하지 않습니다.</p>
             </div>
             <div class="job-actions">
-                <a href="/new-job" class="job-btn job-btn-primary">+ 새 작업 등록</a>
+                <a href="/new-job" class="job-btn job-btn-primary">+ 새 분석 작업</a>
                 <a href="/" class="job-btn">새로고침</a>
             </div>
         </div>
 
         {% if error %}
         <section class="job-card job-error-card">
-            <h2 class="job-card-title">DB-backed dashboard unavailable</h2>
+            <h2 class="job-card-title">DB 작업 대시보드를 불러올 수 없습니다</h2>
             <p>{{ error }}</p>
             <p>MariaDB 연결, APP_DB_USER 권한, analysis job table 적용 상태를 확인하세요.</p>
         </section>
@@ -38,7 +45,7 @@
                 <div class="job-stat-code">RUNNING</div>
             </div>
             <div class="job-stat-card job-stat-succeeded">
-                <div class="job-stat-label">완료됨</div>
+                <div class="job-stat-label">완료</div>
                 <div class="job-stat-value" id="count-succeeded">{{ status_counts.SUCCEEDED }}</div>
                 <div class="job-stat-code">SUCCEEDED</div>
             </div>
@@ -53,9 +60,9 @@
             <div class="job-card-head">
                 <div>
                     <h2 class="job-card-title">조회 필터</h2>
-                    <p class="job-card-subtitle">Status, KST date range, stale hint 기준으로 full_report 작업을 조회합니다.</p>
+                    <p class="job-card-subtitle">작업 상태, KST 날짜 범위, worker heartbeat 기반 정체 가능성 조건으로 <code>full_report</code> 작업을 조회합니다.</p>
                 </div>
-                <div class="job-filter-result-count">{{ result_count | default(jobs|length) }} results</div>
+                <div class="job-filter-result-count">{{ result_count | default(jobs|length) }}건</div>
             </div>
 
             {% if dashboard_filter_warnings %}
@@ -68,31 +75,32 @@
 
             <form class="job-filter-form" method="get" action="/">
                 <label class="job-filter-group">
-                    <span>Status</span>
+                    <span>작업 상태 <span class="job-label-secondary">Status</span></span>
                     <select class="job-filter-select" name="status">
-                        <option value="">All statuses</option>
+                        <option value="">전체</option>
                         {% for status in dashboard_status_options %}
-                        <option value="{{ status }}" {% if dashboard_filter_state.status == status %}selected{% endif %}>{{ status }}</option>
+                        <option value="{{ status }}" {% if dashboard_filter_state.status == status %}selected{% endif %}>{{ dashboard_status_labels.get(status, status) }} · {{ status }}</option>
                         {% endfor %}
                     </select>
                 </label>
                 <label class="job-filter-group">
-                    <span>From (KST)</span>
+                    <span>시작일 (KST)</span>
                     <input class="job-filter-input" type="date" name="from" value="{{ dashboard_filter_state.from | default('') }}">
                 </label>
                 <label class="job-filter-group">
-                    <span>To (KST)</span>
+                    <span>종료일 (KST)</span>
                     <input class="job-filter-input" type="date" name="to" value="{{ dashboard_filter_state.to | default('') }}">
                 </label>
                 <label class="job-filter-checkbox job-filter-check">
                     <input type="checkbox" name="stale" value="1" {% if dashboard_filter_state.stale %}checked{% endif %}>
-                    <span>Potentially stale only</span>
+                    <span>정체 가능성 작업만 <span class="job-label-secondary">Potentially stale</span></span>
                 </label>
                 <div class="job-filter-actions">
-                    <button type="submit" class="job-btn job-btn-primary">Apply</button>
-                    <a href="/" class="job-btn">Clear</a>
+                    <button type="submit" class="job-btn job-btn-primary">조회</button>
+                    <a href="/" class="job-btn">초기화</a>
                 </div>
             </form>
+            <p class="job-filter-footnote"><strong>정체 가능성</strong>은 RUNNING 작업의 worker heartbeat 또는 시작 시각이 운영 기준을 지난 후보를 뜻합니다. 실패 확정 상태가 아닙니다.</p>
 
             {% if dashboard_active_filter_chips %}
             <div class="job-filter-chip-row" aria-label="active filters">
@@ -109,9 +117,9 @@
                     <h2 class="job-card-title">최근 작업</h2>
                     <p class="job-card-subtitle">
                         {% if dashboard_has_active_filters %}
-                        현재 필터와 일치하는 full_report 작업을 생성 시각 역순으로 표시합니다.
+                        현재 필터와 일치하는 <code>full_report</code> 작업을 생성 시각 역순으로 표시합니다.
                         {% else %}
-                        최근 100개 full_report 작업을 생성 시각 역순으로 표시합니다.
+                        최근 100개 <code>full_report</code> 작업을 생성 시각 역순으로 표시합니다.
                         {% endif %}
                     </p>
                 </div>
@@ -119,17 +127,17 @@
 
             {% if jobs %}
             <div class="job-table-wrap">
-                <table class="job-table">
+                <table class="job-table job-dashboard-table">
                     <thead>
                         <tr>
-                            <th>Job ID</th>
-                            <th>Time Range (KST)</th>
-                            <th>Status</th>
-                            <th>Created</th>
-                            <th>Mode</th>
-                            <th>Attempt</th>
-                            <th>Artifact</th>
-                            <th>Action</th>
+                            <th>작업 ID <span class="job-table-label-secondary">Job ID</span></th>
+                            <th>분석 시간 범위 <span class="job-table-label-secondary">KST</span></th>
+                            <th>작업 상태 <span class="job-table-label-secondary">Status</span></th>
+                            <th>생성 시각 <span class="job-table-label-secondary">KST</span></th>
+                            <th>분석 유형 <span class="job-table-label-secondary">Mode</span></th>
+                            <th>시도 횟수 <span class="job-table-label-secondary">Attempt</span></th>
+                            <th>아티팩트 <span class="job-table-label-secondary">Artifact</span></th>
+                            <th>작업 <span class="job-table-label-secondary">Action</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -138,19 +146,27 @@
                             <td><a href="/job/{{ job.id }}" class="job-id-link">#{{ job.id }}</a></td>
                             <td class="job-table-time-range">{{ job.time_from }}<br><span>~ {{ job.time_to }}</span></td>
                             <td>
-                                <span class="job-status-badge job-status-{{ job.status|lower }}">{{ job.status }}</span>
+                                <span class="job-status-badge job-status-{{ job.status|lower }}">
+                                    <span class="job-status-label">{{ dashboard_status_labels.get(job.status, job.status) }}</span>
+                                </span>
                                 {% if job.is_potentially_stale %}
-                                <span class="job-stale-badge">Potentially stale</span>
+                                <span class="job-stale-badge">정체 가능성</span>
                                 {% endif %}
-                                <div class="job-muted">{{ job.status_hint or 'Status unknown' }}</div>
+                                {% if job.status == 'PENDING' %}
+                                <div class="job-muted">Worker 실행 대기 중</div>
+                                {% elif job.status == 'RUNNING' %}
+                                <div class="job-muted">Worker 실행 중{% if job.worker_id and job.worker_id != '-' %}: <code>{{ job.worker_id }}</code>{% endif %}</div>
+                                {% elif job.status not in ['SUCCEEDED', 'FAILED', 'CANCELLED'] %}
+                                <div class="job-muted">알 수 없는 작업 상태</div>
+                                {% endif %}
                                 {% if job.status == 'RUNNING' %}
                                   {% if job.heartbeat_at and job.heartbeat_at != '-' %}
-                                  <div class="job-muted">Last heartbeat: {{ job.heartbeat_at }}</div>
+                                  <div class="job-muted">최근 worker heartbeat: {{ job.heartbeat_at }}</div>
                                   {% else %}
-                                  <div class="job-muted">Heartbeat not recorded yet.</div>
+                                  <div class="job-muted">아직 기록된 heartbeat가 없습니다.</div>
                                   {% endif %}
                                   {% if job.is_potentially_stale %}
-                                  <div class="job-stale-note">Heartbeat is older than the stale threshold. Verify worker status before marking failed.</div>
+                                  <div class="job-stale-note">Worker heartbeat가 정체 기준보다 오래되었습니다. 실패로 표시하기 전에 worker 상태를 확인하세요.</div>
                                   {% endif %}
                                 {% endif %}
                             </td>
@@ -168,12 +184,12 @@
             <div class="job-empty-state">
                 <div class="job-empty-icon">□</div>
                 {% if dashboard_has_active_filters %}
-                <h3 class="job-empty-title">No jobs match the current filters.</h3>
-                <p class="job-muted">필터 조건을 줄이거나 전체 작업 목록으로 돌아가세요.</p>
-                <a href="/" class="job-btn">Clear filters</a>
+                <h3 class="job-empty-title">현재 필터와 일치하는 작업이 없습니다</h3>
+                <p class="job-muted">필터 조건을 줄이거나 전체 작업 목록으로 돌아가세요. <span class="job-label-secondary">No jobs match the current filters.</span></p>
+                <a href="/" class="job-btn">필터 초기화</a>
                 {% else %}
                 <h3 class="job-empty-title">분석 작업이 없습니다</h3>
-                <p class="job-muted">시간 범위를 지정해 첫 번째 DB-backed full_report 작업을 등록하세요.</p>
+                <p class="job-muted">시간 범위를 지정해 첫 번째 DB-backed <code>full_report</code> 작업을 등록하세요.</p>
                 <a href="/new-job" class="job-btn job-btn-primary">첫 작업 등록</a>
                 {% endif %}
             </div>

@@ -41,8 +41,14 @@ def test_job_dashboard_nav_labels_legacy_reports_without_relabeling_primary_titl
         error="",
     )
 
+    assert "작업 대시보드" in body
     assert "Job Dashboard" in body
+    assert "이전 Stage2 보고서" in body
     assert "Legacy Stage2 Reports" in body
+    assert "실시간 로그 모니터링" in body
+    assert "Live Monitoring" in body
+    assert '<span class="job-nav-current" aria-current="page">' in body
+    assert '<a href="/new-job">New Job</a>' not in body
     assert '<h1 class="job-page-title">분석 작업 대시보드</h1>' in body
     assert "Legacy 분석 작업 대시보드" not in body
 
