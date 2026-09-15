@@ -110,7 +110,7 @@
                 </div>
             </div>
             <div class="job-artifact-panel">
-                <div class="job-detail-label">Artifact Root</div>
+                <div class="job-detail-label">아티팩트 경로 <span class="job-label-secondary">Artifact Root</span></div>
                 <div class="job-detail-value">{{ job.artifact_root or 'N/A' }}</div>
             </div>
             <div class="job-info-box">
@@ -159,8 +159,8 @@
         <section class="job-card">
             <div class="job-card-head">
                 <div>
-                    <h2 class="job-card-title">Artifact Summary</h2>
-                    <p class="job-card-subtitle">기존 run artifact에서 읽은 관찰 정보를 read-only로 요약합니다.</p>
+                    <h2 class="job-card-title">아티팩트 요약 <span class="job-label-secondary">Artifact Summary</span></h2>
+                    <p class="job-card-subtitle">기존 run 아티팩트에서 읽은 LLM 사용량과 필터링 정보를 읽기 전용으로 요약합니다.</p>
                 </div>
             </div>
             {% set summary = artifact_summary %}
@@ -168,31 +168,31 @@
             {% set stage1_usage = summary.stage1_usage|default({}) %}
             {% set stage2_usage = summary.stage2_usage|default({}) %}
             {% set filtered = filtered_summary %}
-            {% macro usage_card(title, usage) -%}
+            {% macro usage_card(title_ko, title_en, usage) -%}
             <div class="job-summary-card">
-                <div class="job-summary-card-title">{{ title }}</div>
+                <div class="job-summary-card-title">{{ title_ko }} <span class="job-label-secondary">{{ title_en }}</span></div>
                 {% if usage.available %}
                 <dl class="job-summary-metrics">
-                    <div><dt>Available</dt><dd>true</dd></div>
-                    <div><dt>Calls</dt><dd>{{ usage.call_count_display }}</dd></div>
-                    <div><dt>Input tokens</dt><dd>{{ usage.input_tokens_display }}</dd></div>
-                    <div><dt>Output tokens</dt><dd>{{ usage.output_tokens_display }}</dd></div>
-                    <div><dt>Total tokens</dt><dd>{{ usage.total_tokens_display }}</dd></div>
+                    <div><dt>사용 가능 <span class="job-label-secondary">Available</span></dt><dd>true</dd></div>
+                    <div><dt>호출 수 <span class="job-label-secondary">Calls</span></dt><dd>{{ usage.call_count_display }}</dd></div>
+                    <div><dt>입력 토큰 <span class="job-label-secondary">Input tokens</span></dt><dd>{{ usage.input_tokens_display }}</dd></div>
+                    <div><dt>출력 토큰 <span class="job-label-secondary">Output tokens</span></dt><dd>{{ usage.output_tokens_display }}</dd></div>
+                    <div><dt>전체 토큰 <span class="job-label-secondary">Total tokens</span></dt><dd>{{ usage.total_tokens_display }}</dd></div>
                     <div><dt>Provider</dt><dd>{{ usage.provider or '-' }}</dd></div>
                     <div><dt>Model</dt><dd>{{ usage.selected_model or '-' }}</dd></div>
                     {% if usage.unavailable_count|default(0) > 0 %}
-                    <div><dt>Unavailable calls</dt><dd>{{ usage.unavailable_count_display }}</dd></div>
+                    <div><dt>사용량 확인 불가 호출 <span class="job-label-secondary">Unavailable calls</span></dt><dd>{{ usage.unavailable_count_display }}</dd></div>
                     {% endif %}
                 </dl>
                 {% else %}
                 <div class="job-summary-unavailable">
-                    <strong>Usage unavailable</strong>
+                    <strong>사용량 정보 없음 <span class="job-label-secondary">Usage unavailable</span></strong>
                     {% if usage.unavailable_reason == 'dry_run_no_provider_call' %}
-                    <span>Dry-run: no provider call.</span>
+                    <span>Dry-run에서는 provider 호출이 없습니다.</span>
                     {% elif usage.unavailable_reason %}
                     <span>{{ usage.unavailable_reason }}</span>
                     {% else %}
-                    <span>Usage totals were not found in this artifact.</span>
+                    <span>이 아티팩트에서 LLM 사용량 합계를 찾지 못했습니다.</span>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -201,11 +201,11 @@
             {% if total_usage.available %}
             <div class="job-summary-total">
                 <div>
-                    <span class="job-summary-total-label">Total LLM tokens</span>
+                    <span class="job-summary-total-label">전체 LLM 토큰 <span class="job-label-secondary">Total LLM tokens</span></span>
                     <strong>{{ total_usage.total_tokens_display }}</strong>
                 </div>
                 <div>
-                    <span class="job-summary-total-label">Calls</span>
+                    <span class="job-summary-total-label">호출 수 <span class="job-label-secondary">Calls</span></span>
                     <strong>{{ total_usage.total_calls_display }}</strong>
                 </div>
                 <div>
@@ -219,28 +219,28 @@
             </div>
             {% endif %}
             <div class="job-summary-grid">
-                {{ usage_card('Stage1 LLM Usage', stage1_usage) }}
-                {{ usage_card('Stage2 LLM Usage', stage2_usage) }}
+                {{ usage_card('Stage1 LLM 사용량', 'Stage1 LLM Usage', stage1_usage) }}
+                {{ usage_card('Stage2 LLM 사용량', 'Stage2 LLM Usage', stage2_usage) }}
                 <div class="job-summary-card">
-                    <div class="job-summary-card-title">Filtered Reasons</div>
+                    <div class="job-summary-card-title">필터링 사유 <span class="job-label-secondary">Filtered Reasons</span></div>
                     {% if filtered.found %}
                     <dl class="job-summary-metrics">
-                        <div><dt>Total rows</dt><dd>{{ filtered.total_rows_display }}</dd></div>
-                        <div><dt>Candidates</dt><dd>{{ filtered.candidate_count_display }}</dd></div>
-                        <div><dt>Candidate-excluded rows</dt><dd>{{ filtered.excluded_count_display }}</dd></div>
+                        <div><dt>전체 행 <span class="job-label-secondary">Total rows</span></dt><dd>{{ filtered.total_rows_display }}</dd></div>
+                        <div><dt>분석 후보 <span class="job-label-secondary">Candidates</span></dt><dd>{{ filtered.candidate_count_display }}</dd></div>
+                        <div><dt>후보 제외 행 <span class="job-label-secondary">Candidate-excluded rows</span></dt><dd>{{ filtered.excluded_count_display }}</dd></div>
                     </dl>
                     {% if filtered.top_reasons %}
-                    <div class="job-summary-list-title">Excluded from candidate analysis</div>
+                    <div class="job-summary-list-title">분석 후보에서 제외된 사유 <span class="job-label-secondary">Excluded from candidate analysis</span></div>
                     <ul class="job-summary-reason-list">
                         {% for reason in filtered.top_reasons %}
                         <li><code>{{ reason.reason }}</code><span>{{ reason.count_display }}</span></li>
                         {% endfor %}
                     </ul>
                     {% endif %}
-                    <div class="job-summary-note">Candidate-excluded rows are not safety verdicts.</div>
+                    <div class="job-summary-note">후보 제외 행은 안전 판정이 아닙니다.</div>
                     {% if filtered.guardrails %}
                     <details class="job-summary-guardrails">
-                        <summary>Guardrails ({{ filtered.guardrail_count_display }})</summary>
+                        <summary>해석 가드레일 <span class="job-label-secondary">Guardrails</span> ({{ filtered.guardrail_count_display }})</summary>
                         <ul class="job-summary-guardrail-list">
                             {% for guardrail in filtered.guardrails %}
                             <li>{{ guardrail.label }}</li>
@@ -249,12 +249,12 @@
                     </details>
                     {% endif %}
                     {% if filtered.artifact_available %}
-                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/filtered_reasons">Open filtered_reasons.json</a>
+                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/filtered_reasons">filtered_reasons.json 열기</a>
                     {% endif %}
                     {% else %}
                     <div class="job-summary-unavailable">
-                        <strong>Filtered reasons artifact not found</strong>
-                        <span>No filtered reasons artifact found under this job artifact root.</span>
+                        <strong>필터링 사유 아티팩트를 찾지 못했습니다</strong>
+                        <span>이 작업의 아티팩트 경로에서 filtered_reasons.json을 찾지 못했습니다.</span>
                     </div>
                     {% endif %}
                 </div>
@@ -264,96 +264,96 @@
         <section class="job-card">
             <div class="job-card-head">
                 <div>
-                    <h2 class="job-card-title">Analysis Report Artifacts</h2>
-                    <p class="job-card-subtitle">Use the analysis viewer for the integrated read-only human view. Raw artifacts are for inspection/debugging.</p>
+                    <h2 class="job-card-title">분석 보고서 산출물 <span class="job-label-secondary">Analysis Report Artifacts</span></h2>
+                    <p class="job-card-subtitle">통합된 읽기 전용 화면은 분석 Viewer를 사용합니다. 원본 산출물은 점검·디버깅용입니다.</p>
                 </div>
             </div>
             {% if report %}
             {% macro artifact_value(job_id, artifact_key, path_value, job_status, no_data_job) -%}
-            <code>{{ path_value or 'not generated' }}</code>
+            <code>{{ path_value or '생성되지 않음' }}</code>
             {% if path_value %}
-            <a class="job-artifact-open-link" href="/job/{{ job_id }}/artifact/{{ artifact_key }}">Open</a>
+            <a class="job-artifact-open-link" href="/job/{{ job_id }}/artifact/{{ artifact_key }}">열기</a>
             {% elif no_data_job %}
-            <span class="job-muted">not generated for no-data job</span>
+            <span class="job-muted">로그 없음 작업에서는 생성되지 않음</span>
             {% elif job_status == 'FAILED' %}
-            <span class="job-muted">not generated due to failure</span>
+            <span class="job-muted">작업 실패로 생성되지 않음</span>
             {% endif %}
             {%- endmacro %}
             <div class="job-viewer-cta">
                 <div>
-                    <div class="job-viewer-cta-kicker">Recommended</div>
-                    <h3>Recommended Analysis Viewer</h3>
-                    <p>Integrated read-only human view for report summary, findings, contexts, and supporting events.</p>
+                    <div class="job-viewer-cta-kicker">권장 <span class="job-label-secondary">Recommended</span></div>
+                    <h3>권장 분석 Viewer <span class="job-label-secondary">Recommended Analysis Viewer</span></h3>
+                    <p>보고서 요약, 주요 탐지 요청, 해석 정보, 근거 이벤트를 통합해 읽기 전용으로 확인합니다.</p>
                 </div>
                 <div class="job-viewer-cta-actions">
                     {% if report.viewer_payload_path %}
-                    <a class="job-artifact-open-link job-artifact-open-link-primary" href="/job/{{ job.id }}/viewer">Open Analysis Viewer</a>
-                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/viewer_payload">Open viewer_payload.json</a>
+                    <a class="job-artifact-open-link job-artifact-open-link-primary" href="/job/{{ job.id }}/viewer">분석 Viewer 열기</a>
+                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/viewer_payload">viewer_payload.json 열기</a>
                     {% elif job.status == 'FAILED' %}
-                    <span class="job-muted">viewer_payload.json not generated due to failure</span>
+                    <span class="job-muted">작업 실패로 viewer_payload.json이 생성되지 않음</span>
                     {% else %}
-                    <span class="job-muted">viewer_payload.json not generated</span>
+                    <span class="job-muted">viewer_payload.json이 생성되지 않음</span>
                     {% endif %}
                 </div>
             </div>
             <div class="job-report-grid">
                 <div class="job-report-item">
-                    <div class="job-detail-label">Summary</div>
-                    <div class="job-detail-value">{{ report.summary or 'not generated' }}</div>
+                    <div class="job-detail-label">요약 <span class="job-label-secondary">Summary</span></div>
+                    <div class="job-detail-value">{{ report.summary or '생성되지 않음' }}</div>
                 </div>
                 <div class="job-report-item">
-                    <div class="job-detail-label">Artifact Root</div>
-                    <code>{{ report.artifact_root or 'not generated' }}</code>
+                    <div class="job-detail-label">아티팩트 경로 <span class="job-label-secondary">Artifact Root</span></div>
+                    <code>{{ report.artifact_root or '생성되지 않음' }}</code>
                 </div>
                 <div class="job-report-item">
-                    <div class="job-detail-label">Export</div>
-                    <span class="job-artifact-kind">Raw artifact</span>
+                    <div class="job-detail-label">Export 산출물</div>
+                    <span class="job-artifact-kind">원본 산출물 <span class="job-label-secondary">Raw artifact</span></span>
                     {{ artifact_value(job.id, 'export', report.export_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
-                    <div class="job-detail-label">LLM Input</div>
-                    <span class="job-artifact-kind">Debug/reference</span>
+                    <div class="job-detail-label">LLM 입력 <span class="job-label-secondary">LLM Input</span></div>
+                    <span class="job-artifact-kind">디버그/참조 <span class="job-label-secondary">Debug/reference</span></span>
                     {{ artifact_value(job.id, 'llm_input', report.llm_input_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
-                    <div class="job-detail-label">Analysis Candidates</div>
-                    <span class="job-artifact-kind">Raw artifact</span>
+                    <div class="job-detail-label">분석 후보 <span class="job-label-secondary">Analysis Candidates</span></div>
+                    <span class="job-artifact-kind">원본 산출물 <span class="job-label-secondary">Raw artifact</span></span>
                     {{ artifact_value(job.id, 'analysis_candidates', report.analysis_candidates_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
-                    <div class="job-detail-label">Noise Summary</div>
-                    <span class="job-artifact-kind">Debug/reference</span>
+                    <div class="job-detail-label">Noise 요약 <span class="job-label-secondary">Noise Summary</span></div>
+                    <span class="job-artifact-kind">디버그/참조 <span class="job-label-secondary">Debug/reference</span></span>
                     {{ artifact_value(job.id, 'noise_summary', report.noise_summary_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
-                    <div class="job-detail-label">Filtered Reasons</div>
-                    <span class="job-artifact-kind">Debug/reference</span>
-                    <code>{{ report.artifact_root ~ '/filtered_reasons.json' if report.artifact_root else 'not generated' }}</code>
+                    <div class="job-detail-label">필터링 사유 <span class="job-label-secondary">Filtered Reasons</span></div>
+                    <span class="job-artifact-kind">디버그/참조 <span class="job-label-secondary">Debug/reference</span></span>
+                    <code>{{ report.artifact_root ~ '/filtered_reasons.json' if report.artifact_root else '생성되지 않음' }}</code>
                     {% if filtered_summary.artifact_available|default(false) %}
-                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/filtered_reasons">Open</a>
+                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/filtered_reasons">열기</a>
                     {% else %}
-                    <span class="job-muted">not generated or not mapped</span>
+                    <span class="job-muted">생성되지 않았거나 매핑되지 않음</span>
                     {% endif %}
                 </div>
                 <div class="job-report-item">
-                    <div class="job-detail-label">Stage1 Result</div>
-                    <span class="job-artifact-kind">Debug/reference</span>
+                    <div class="job-detail-label">Stage1 결과 <span class="job-label-secondary">Stage1 Result</span></div>
+                    <span class="job-artifact-kind">디버그/참조 <span class="job-label-secondary">Debug/reference</span></span>
                     {{ artifact_value(job.id, 'stage1_result', report.stage1_result_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
-                    <div class="job-detail-label">Stage2 Report JSON</div>
-                    <span class="job-artifact-kind">Debug/reference</span>
+                    <div class="job-detail-label">Stage2 보고서 JSON <span class="job-label-secondary">Stage2 Report JSON</span></div>
+                    <span class="job-artifact-kind">디버그/참조 <span class="job-label-secondary">Debug/reference</span></span>
                     {{ artifact_value(job.id, 'stage2_report', report.stage2_report_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 <div class="job-report-item">
-                    <div class="job-detail-label">Stage2 Report Markdown</div>
-                    <span class="job-artifact-kind">Debug/reference</span>
+                    <div class="job-detail-label">Stage2 보고서 Markdown <span class="job-label-secondary">Stage2 Report Markdown</span></div>
+                    <span class="job-artifact-kind">디버그/참조 <span class="job-label-secondary">Debug/reference</span></span>
                     {{ artifact_value(job.id, 'stage2_report_md', report.stage2_report_md_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 {% if report.lint_result_path %}
                 <div class="job-report-item">
-                    <div class="job-detail-label">Lint Result</div>
-                    <span class="job-artifact-kind">Debug/reference</span>
+                    <div class="job-detail-label">Lint 결과 <span class="job-label-secondary">Lint Result</span></div>
+                    <span class="job-artifact-kind">디버그/참조 <span class="job-label-secondary">Debug/reference</span></span>
                     {{ artifact_value(job.id, 'lint_result', report.lint_result_path, job.status, is_no_data_job|default(false)) }}
                 </div>
                 {% endif %}

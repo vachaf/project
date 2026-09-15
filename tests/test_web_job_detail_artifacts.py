@@ -50,18 +50,20 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     body = render_job_detail(make_report())
 
     assert "Analysis Report Artifacts" in body
-    assert "Use the analysis viewer for the integrated read-only human view." in body
-    assert "Raw artifacts are for inspection/debugging." in body
+    assert "통합된 읽기 전용 화면은 분석 Viewer를 사용합니다." in body
+    assert "원본 산출물은 점검·디버깅용입니다." in body
     assert "Recommended Analysis Viewer" in body
-    assert "Integrated read-only human view for report summary, findings, contexts, and supporting events." in body
-    assert "Open Analysis Viewer" in body
-    assert "Open viewer_payload.json" in body
+    assert "보고서 요약, 주요 탐지 요청, 해석 정보, 근거 이벤트를 통합해 읽기 전용으로 확인합니다." in body
+    assert "분석 Viewer 열기" in body
+    assert "viewer_payload.json 열기" in body
     assert "runs/jobs/123/export.json" in body
     assert "runs/jobs/123/analysis_candidates.json" in body
     assert "runs/jobs/123/noise_summary.json" in body
     assert "runs/jobs/123/stage2_report.json" in body
     assert "runs/jobs/123/stage2_report.md" in body
+    assert "원본 산출물" in body
     assert "Raw artifact" in body
+    assert "디버그/참조" in body
     assert "Debug/reference" in body
     assert "Lint Result" not in body
     assert 'href="/job/123/artifact/lint_result"' not in body
@@ -69,6 +71,11 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     assert "job-report-item-recommended" not in body
     assert "job-artifact-open-link-primary" in body
     assert "Open Open Viewer" not in body
+    assert "Stage1 LLM 사용량" in body
+    assert "Stage2 LLM 사용량" in body
+    assert "필터링 사유" in body
+    assert "요약" in body
+    assert "아티팩트 경로" in body
     assert 'href="/job/123/artifact/export"' in body
     assert 'href="/job/123/artifact/stage2_report"' in body
     assert 'href="/job/123/artifact/stage2_report_md"' in body
@@ -111,7 +118,7 @@ def test_job_detail_shows_no_data_report_without_error_state() -> None:
     assert 'href="/job/123/artifact/stage2_report"' not in body
     assert 'href="/job/123/artifact/viewer_payload"' not in body
     assert 'href="/job/123/viewer"' not in body
-    assert body.count("not generated") >= 6
+    assert body.count("생성되지 않음") >= 6
     assert "FAILED" not in body
 
 

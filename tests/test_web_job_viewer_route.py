@@ -656,8 +656,11 @@ def test_job_detail_renders_artifact_usage_and_filtered_reason_summary(
     body = render_response_body(response)
 
     assert response.status_code == 200
+    assert "아티팩트 요약" in body
     assert "Artifact Summary" in body
+    assert "Stage1 LLM 사용량" in body
     assert "Stage1 LLM Usage" in body
+    assert "Stage2 LLM 사용량" in body
     assert "Stage2 LLM Usage" in body
     assert "13,463" in body
     assert "15,674" in body
@@ -666,15 +669,19 @@ def test_job_detail_renders_artifact_usage_and_filtered_reason_summary(
     assert "14,419" in body
     assert ">6<" in body
     assert "gpt-5.4-mini" in body
+    assert "후보 제외 행" in body
     assert "Candidate-excluded rows" in body
     assert "low_signal_request" in body
-    assert "Candidate-excluded rows are not safety verdicts." in body
+    assert "후보 제외 행은 안전 판정이 아닙니다." in body
     assert "Apache logs alone do not prove exploit success." in body
     assert "Status, size, route, or user-agent alone are not proof." in body
-    assert "Guardrails (3)" in body
+    assert "해석 가드레일" in body
+    assert "Guardrails" in body
+    assert "(3)" in body
     assert "candidate_excluded_does_not_mean_benign" not in body
     assert "apache_logs_only_no_success_inference" not in body
     assert "status_code_response_size_route_or_user_agent_do_not_prove_success_or_benign" not in body
+    assert "사용량 확인 불가 호출" not in body
     assert "Unavailable calls" not in body
     assert 'href="/job/123/artifact/filtered_reasons"' in body
     assert "raw_output_text" not in body
@@ -716,6 +723,7 @@ def test_job_detail_renders_positive_unavailable_usage_count(
 
     body = render_response_body(web_app_module.job_detail(make_request(path="/job/123"), 123))
 
+    assert "사용량 확인 불가 호출" in body
     assert "Unavailable calls" in body
     assert "3,000" in body
 
@@ -738,8 +746,8 @@ def test_job_detail_filtered_reasons_missing_is_graceful(
     body = render_response_body(web_app_module.job_detail(make_request(path="/job/123"), 123))
 
     assert "Usage unavailable" in body
-    assert "Dry-run: no provider call." in body
-    assert "Filtered reasons artifact not found" in body
+    assert "Dry-run에서는 provider 호출이 없습니다." in body
+    assert "필터링 사유 아티팩트를 찾지 못했습니다" in body
 
 
 def test_raw_filtered_reasons_artifact_route_is_job_root_scoped(

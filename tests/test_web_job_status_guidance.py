@@ -526,7 +526,7 @@ def test_succeeded_job_with_no_data_event_shows_neutral_no_data_guidance(
     assert "No logs found in requested time range." in body
     assert "선택한 구간에 분석할 로그가 없습니다." in body
     assert "Analysis failed." not in body
-    assert "not generated for no-data job" in body
+    assert "로그 없음 작업에서는 생성되지 않음" in body
 
 
 def test_job_detail_renders_phase1_stage_event_timeline_read_only() -> None:
@@ -644,7 +644,7 @@ def test_failed_job_detail_shows_failure_guidance_error_and_missing_viewer() -> 
     assert "Analysis failed." in body
     assert "Artifacts may not have been generated." in body
     assert "pipeline failed" in body
-    assert "not generated due to failure" in body
+    assert "작업 실패로 viewer_payload.json이 생성되지 않음" in body
     assert 'href="/job/123/viewer"' not in body
 
 
