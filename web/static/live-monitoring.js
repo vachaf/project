@@ -17,7 +17,7 @@
     loading: false, submitting: false, auto: true, cursor: null, older: null, newer: null,
     items: [], selected: null, selectedOrder: [], rawRequest: 0,
   };
-  const processingLabels = { complete: "처리 완료", partial: "부분 관찰", unavailable: "관찰 불가", error: "detector 오류" };
+  const processingLabels = { complete: "처리 완료", partial: "부분 관찰", unavailable: "관찰 불가", error: "탐지기 오류" };
   const assessmentLabels = { review_required: "검토 필요", no_signal: "관찰 신호 없음", undetermined: "확인 미정" };
 
   function value(input) { return input === null || input === undefined || input === "" ? "값 없음" : String(input); }
@@ -50,44 +50,83 @@
     return ({
       "complete:review_required": "검토 필요", "complete:no_signal": "관찰 신호 없음",
       "partial:review_required": "검토 필요 · 부분 관찰", "partial:undetermined": "부분 관찰 · 신호 유무 확인 미완료",
-      "unavailable:undetermined": "관찰 불가", "error:undetermined": "detector 오류",
+      "unavailable:undetermined": "관찰 불가", "error:undetermined": "탐지기 오류",
     })[key] || "관찰 정보 미제공";
+  }
+  function appendLabel(target, primary, secondary = "") {
+    target.append(node("span", "", primary));
+    if (secondary) target.append(document.createTextNode(" "), node("span", "live-secondary", secondary));
+  }
+  function sectionHeading(primary, secondary = "") {
+    const heading = node("h3", "live-section-heading");
+    appendLabel(heading, primary, secondary);
+    return heading;
+  }
+  function stateClass(prefix, input) {
+    return `${prefix}-${String(input || "").replace(/[^a-z0-9_-]/gi, "-")}`;
+  }
+  function observationFact(primary, secondary, content, className = "") {
+    const row = node("div", className);
+    const term = node("dt"); appendLabel(term, primary, secondary);
+    const description = node("dd"); description.append(node("code", "live-tech-code", content));
+    row.append(term, description); return row;
+  }
+  function observationState(primary, secondary, rawValue, labels, classPrefix) {
+    const row = node("div", `live-observation-state-card ${stateClass(classPrefix, rawValue)}`);
+    const term = node("dt"); appendLabel(term, primary, secondary);
+    const description = node("dd");
+    description.append(node("span", "", labels[rawValue] || rawValue), node("code", "live-state-code", rawValue));
+    row.append(term, description); return row;
   }
   function fields(item) {
     return [
       ["로그 시각 (KST)", date(item.log_time)], ["DB ID", item.row_id], ["Request ID", item.request_id],
-      ["IP 원문", item.src_ip], ["IP 기준", item.client_ip_source], ["Method", item.method], ["URI", item.uri],
-      ["Request Target 원문", item.request_target], ["HTTP status", item.status_code], ["응답 bytes", item.response_body_bytes],
-      ["User-Agent 원문", item.user_agent], ["로그 형식", item.log_schema],
+      ["출발지 IP 원문", item.src_ip], ["출발지 IP 기준", item.client_ip_source], ["HTTP Method", item.method], ["URI", item.uri],
+      ["Request Target 원문", item.request_target], ["HTTP status", item.status_code], ["응답 크기 (Bytes)", item.response_body_bytes],
+      ["User-Agent 원문", item.user_agent], ["로그 스키마", item.log_schema],
     ];
   }
   function renderObservation(item) {
     const section = node("section", "live-observation");
-    section.append(node("h3", "", "보안 관찰"));
+    section.append(sectionHeading("보안 관찰", "Security observation"));
     const observation = item.observation;
     if (!observation) { section.append(node("p", "live-observation-note", "관찰 정보 미제공")); return section; }
+
+    const states = node("dl", "live-observation-state-grid");
+    states.append(
+      observationState("처리 상태", "processing_status", observation.processing_status, processingLabels, "live-processing"),
+      observationState("관찰 평가", "Assessment", observation.assessment, assessmentLabels, "live-assessment"),
+    );
+    section.append(states);
+    section.append(node("p", "live-observation-note", "처리 상태는 관찰 처리의 완료·가용 범위를 나타내며 공격 심각도나 공격 성공 여부를 뜻하지 않습니다."));
+
+    section.append(node("div", "live-observation-meta-heading", "관찰 메타데이터"));
     const facts = node("dl", "live-observation-facts");
-    [
-      ["처리 상태", processingLabels[observation.processing_status] || observation.processing_status],
-      ["Assessment", assessmentLabels[observation.assessment] || observation.assessment],
-      ["Schema", observation.schema_version], ["Detector", observation.detector_version],
-      ["Adoption policy", observation.adoption_policy_version],
-    ].forEach(([label, content]) => { const row = node("div"); row.append(node("dt", "", label), node("dd", "", content)); facts.append(row); });
+    facts.append(
+      observationFact("관찰 스키마", "Schema", observation.schema_version),
+      observationFact("탐지기 버전", "Detector", observation.detector_version),
+      observationFact("신호 채택 정책", "Adoption policy", observation.adoption_policy_version),
+    );
     section.append(facts);
+
     const note = observation.assessment === "no_signal"
-      ? "현재 detector·allowlist·관찰 범위에서 채택 신호가 없다는 뜻이며 정상 상태를 뜻하지 않습니다."
+      ? "현재 detector·allowlist·관찰 범위에서 채택 신호가 없다는 뜻이며 정상 상태를 뜻하지 않습니다. 안전 상태를 뜻하지도 않습니다."
       : observation.assessment === "review_required"
         ? "추가 검토가 필요한 관찰 구조이며 보안 판정이 아닙니다."
         : "처리 범위가 불완전하여 신호 유무를 정하지 않습니다.";
     section.append(node("p", "live-observation-note", note));
+
     const signals = Array.isArray(observation.signals) ? observation.signals : [];
+    section.append(node("div", "live-adopted-heading", "채택 신호 (Adopted signals)"));
     if (!signals.length) { section.append(node("p", "", "표시할 채택 신호가 없습니다.")); return section; }
     const list = node("div", "live-signal-list");
     signals.forEach((signal) => {
       const article = node("article", "live-signal"); article.append(node("h4", "", signal.signal_id));
       const meta = node("dl", "live-observation-facts");
-      [["Adoption rule", signal.adoption_rule_id], ["Detector rules", Array.isArray(signal.rule_ids) ? signal.rule_ids.join(", ") : "값 없음"]]
-        .forEach(([label, content]) => { const row = node("div"); row.append(node("dt", "", label), node("dd", "", content)); meta.append(row); });
+      meta.append(
+        observationFact("신호 채택 규칙", "Adoption rule", signal.adoption_rule_id),
+        observationFact("탐지 규칙", "Detector rules", Array.isArray(signal.rule_ids) ? signal.rule_ids.join(", ") : "값 없음"),
+      );
       article.append(meta);
       const evidenceList = node("ul", "live-evidence-list");
       (Array.isArray(signal.evidence) ? signal.evidence : []).forEach((evidence) => {
@@ -104,8 +143,9 @@
     if (!item) { el.detail.append(node("p", "", "로그를 선택해주세요.")); return; }
     const list = node("dl", "live-detail-list");
     fields(item).forEach(([label, content]) => { const row = node("div"); row.append(node("dt", "", label), node("dd", "", content)); list.append(row); });
-    el.detail.append(list, renderObservation(item));
-    const raw = node("pre", "live-raw-log", "원문 조회 중"); el.detail.append(node("h3", "", "raw_log 원문"), raw);
+    el.detail.append(sectionHeading("선택 로그 메타데이터", "Selected log metadata"), list, renderObservation(item));
+    const raw = node("pre", "live-raw-log", "원문 조회 중");
+    el.detail.append(sectionHeading("원천 로그 원문", "raw_log 원문"), raw);
     const request = ++state.rawRequest;
     try {
       const response = await fetch(`/api/live/logs/${item.row_id}/raw`, { headers: { Accept: "application/json" } });

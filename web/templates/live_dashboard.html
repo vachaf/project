@@ -1,39 +1,49 @@
 {% extends "job_base.html" %}
-{% block title %}Live Monitoring · Security Intelligence{% endblock %}
+{% block title %}실시간 로그 모니터링 · Security Intelligence{% endblock %}
 {% block extra_head %}
 <link rel="stylesheet" href="/static/live-monitoring.css">
 <script src="/static/live-monitoring.js" defer></script>
 {% endblock %}
 {% block job_body_class %}live-page{% endblock %}
 {% block job_topnav_items %}
-<a href="/">Job Dashboard</a><a href="/new-job">New Job</a>
-<a href="/reports">Legacy Stage2 Reports</a>
-<a href="/live" class="job-nav-active" aria-current="page">Live Monitoring</a>
+<a href="/">작업 대시보드</a><a href="/new-job">새 분석 작업</a>
+<a href="/reports">이전 Stage2 보고서</a>
+<a href="/live" class="job-nav-active" aria-current="page">실시간 로그 모니터링</a>
 {% endblock %}
 {% block content %}
 <section class="live-heading">
-  <div><span class="live-kicker">LIVE RAW LOG VIEW</span><h1>최근 웹 서버 원천 로그 확인</h1>
-    <p>MariaDB의 Apache 원천 로그를 기간 제한 없이 최신 50건부터 조회합니다.</p></div>
+  <div class="live-heading-copy">
+    <span class="live-kicker">실시간 원천 로그 <span class="live-secondary">Live Raw Log View</span></span>
+    <h1>실시간 로그 모니터링 <span class="live-heading-secondary">Live Monitoring</span></h1>
+    <p>MariaDB의 Apache 원천 로그를 기간 제한 없이 최신 50건부터 조회합니다.</p>
+  </div>
   <p class="live-boundary"><strong>HTTP status 색상은 웹 서버 응답 표현입니다.</strong>
-    이 화면은 승인된 관찰 구조와 처리 범위만 표시하며 보안 판정과 분리됩니다.</p>
+    승인된 관찰 구조와 처리 범위만 표시하며 보안 판정과 분리됩니다.</p>
 </section>
 <section class="live-statusbar" aria-label="원천 로그 조회 상태">
-  <div id="liveConnectionState" role="status" aria-live="polite"><span id="liveConnectionText">조회 준비</span></div>
-  <dl class="live-facts"><div><dt>현재 페이지</dt><dd id="liveRowCount">0건</dd></div>
+  <div class="live-connection" id="liveConnectionState" role="status" aria-live="polite">
+    <span class="live-statusbar-label">DB 조회 상태</span>
+    <strong id="liveConnectionText">조회 준비</strong>
+  </div>
+  <dl class="live-facts">
+    <div><dt>현재 페이지</dt><dd id="liveRowCount">0건</dd></div>
     <div><dt>DB 최신 로그 시각</dt><dd id="liveLatestLog">확인 전</dd></div>
-    <div><dt>마지막 DB 조회 시각</dt><dd id="liveFetchedAt">확인 전</dd></div></dl>
-  <div><button id="liveAutoButton" type="button" aria-pressed="true">자동 확인: 켜짐 (5초)</button>
-    <button id="liveRefreshButton" type="button">지금 다시 확인</button></div>
+    <div><dt>마지막 DB 조회 시각</dt><dd id="liveFetchedAt">확인 전</dd></div>
+  </dl>
+  <div class="live-refresh-actions">
+    <button id="liveAutoButton" type="button" aria-pressed="true">자동 확인: 켜짐 (5초)</button>
+    <button id="liveRefreshButton" type="button">지금 다시 확인</button>
+  </div>
 </section>
 <p class="live-time-note"><strong>운영 안내:</strong> Apache는 프로젝트 작업·시험 때만 켤 수 있습니다.
   최신 로그가 오래되었다는 사실은 Apache 운영 상태를 설명하지 않습니다.</p>
-<section class="live-card">
+<section class="live-card live-filter-card">
   <h2>원천 로그 필터</h2>
   <form id="liveFilterForm" class="live-filter-grid">
     <label>기간<select id="livePeriod"><option value="all">기간 제한 없음 · 최신 50건</option><option value="5m">최근 5분</option><option value="30m">최근 30분</option><option value="1h">최근 1시간</option></select></label>
     <label>HTTP status<select id="liveStatus"><option value="">전체</option><option value="2xx">2xx</option><option value="3xx">3xx</option><option value="4xx">4xx</option><option value="5xx">5xx</option><option value="none">값 없음</option></select></label>
-    <label>Method<select id="liveMethod"><option value="">전체</option><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option><option>CONNECT</option><option>TRACE</option></select></label>
-    <label>IP exact<input id="liveSourceIp" autocomplete="off" placeholder="정확한 IP 주소"></label>
+    <label>HTTP Method<select id="liveMethod"><option value="">전체</option><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option><option>CONNECT</option><option>TRACE</option></select></label>
+    <label>출발지 IP 정확히 일치<input id="liveSourceIp" autocomplete="off" placeholder="정확한 IP 주소"></label>
     <label>URI / Request Target<input id="liveKeyword" maxlength="256" autocomplete="off"></label>
     <button type="submit">조건으로 조회</button>
   </form>
@@ -42,25 +52,41 @@
 <section class="live-selection-bar" aria-label="선택 로그 분석 작업">
   <div>
     <strong id="liveSelectedCount">선택 0 / 50건</strong>
-    <p>선택은 원천 로그의 exact ID를 분석 입력으로 등록합니다. 이 동작은 공격 성공, 침해 또는 위험도를 확정하지 않습니다.</p>
+    <p>선택은 원천 로그의 exact ID를 분석 입력으로 등록하며 DB ID 순서를 그대로 유지합니다. 이 동작은 공격 성공, 침해 또는 위험도를 확정하지 않습니다. exploit 성공 여부 또한 확정하지 않습니다.</p>
   </div>
   <div class="live-selection-actions">
     <button id="liveClearSelectionButton" type="button" disabled>선택 모두 해제</button>
-    <button id="liveSubmitSelectionButton" type="button" disabled>선택 로그로 분석 작업 만들기</button>
+    <button id="liveSubmitSelectionButton" class="live-primary-action" type="button" disabled>선택 로그로 분석 작업 만들기</button>
   </div>
 </section>
 <div id="liveJobFeedback" class="live-job-feedback" role="status" aria-live="polite" hidden></div>
 <div class="live-layout">
-  <section class="live-card"><h2>원천 로그 목록</h2><div class="live-table-wrap"><table>
-    <thead><tr><th scope="col">분석 입력 선택</th><th>로그 시각</th><th>DB ID</th><th>Request ID</th><th>IP</th><th>Method</th><th>URI</th><th>HTTP status</th><th>관찰</th><th>Bytes</th></tr></thead>
-    <tbody id="liveLogRows"><tr><td colspan="10">불러오는 중입니다.</td></tr></tbody>
-  </table></div><nav class="live-pager" aria-label="페이지 이동">
-    <button id="liveLatestButton" type="button">최신 50</button>
-    <button id="liveOlderButton" type="button" disabled>이전 50</button>
-    <span id="livePageDirection">최신순</span>
-    <button id="liveNewerButton" type="button" disabled>다음 50</button>
-  </nav></section>
-  <aside class="live-card"><h2>선택 로그 상세</h2><div id="liveDetail"><p>로그를 선택해주세요.</p></div></aside>
+  <section class="live-card live-log-card">
+    <div class="live-card-heading">
+      <div><h2>원천 로그 목록</h2><p>행 선택은 상세 보기, 체크박스는 분석 입력 선택입니다.</p></div>
+      <span class="live-card-meta">최대 50건 / 페이지</span>
+    </div>
+    <div class="live-table-wrap">
+      <table class="live-log-table">
+        <colgroup>
+          <col class="live-col-select"><col class="live-col-time"><col class="live-col-id"><col class="live-col-request-id"><col class="live-col-ip">
+          <col class="live-col-method"><col class="live-col-uri"><col class="live-col-status"><col class="live-col-observation"><col class="live-col-bytes">
+        </colgroup>
+        <thead><tr><th scope="col">분석 입력 선택</th><th>로그 시각</th><th>DB ID</th><th>Request ID</th><th>IP</th><th>HTTP Method</th><th>URI</th><th>HTTP status</th><th>보안 관찰</th><th>응답 크기 <span class="live-secondary">Bytes</span></th></tr></thead>
+        <tbody id="liveLogRows"><tr><td colspan="10">불러오는 중입니다.</td></tr></tbody>
+      </table>
+    </div>
+    <nav class="live-pager" aria-label="페이지 이동">
+      <button id="liveLatestButton" type="button">최신 50</button>
+      <button id="liveOlderButton" type="button" disabled>이전 50</button>
+      <span id="livePageDirection">최신순</span>
+      <button id="liveNewerButton" type="button" disabled>다음 50</button>
+    </nav>
+  </section>
+  <aside class="live-card live-detail-card">
+    <div class="live-card-heading"><div><h2>선택 로그 상세</h2><p>원천 로그 메타데이터와 보안 관찰을 분리해서 표시합니다.</p></div></div>
+    <div id="liveDetail"><p>로그를 선택해주세요.</p></div>
+  </aside>
 </div>
 <p class="live-footer-note">Live 관찰은 Prepare·Stage1·Mapping·Stage2와 의미가 분리된 SELECT-only 표시입니다.</p>
 {% endblock %}

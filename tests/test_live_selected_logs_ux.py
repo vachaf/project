@@ -137,3 +137,67 @@ def test_existing_live_observation_and_navigation_contract_remains() -> None:
         "이전 목록은 유지합니다",
     ):
         assert required in script
+
+
+def test_live_ui_polish_is_korean_first_with_canonical_terms_preserved() -> None:
+    page = _page()
+    for text in (
+        "실시간 원천 로그",
+        "Live Raw Log View",
+        "실시간 로그 모니터링",
+        "Live Monitoring",
+        "작업 대시보드",
+        "새 분석 작업",
+        "이전 Stage2 보고서",
+        "출발지 IP 정확히 일치",
+        "HTTP Method",
+        "URI / Request Target",
+        "DB ID",
+        "Request ID",
+        "HTTP status",
+        "응답 크기",
+        "Bytes",
+    ):
+        assert text in page
+
+
+def test_live_css_has_scoped_light_mode_table_widths_and_selected_row_state() -> None:
+    css = (Path(app_module.BASE_DIR) / "static" / "live-monitoring.css").read_text(encoding="utf-8")
+    assert 'html:not([data-theme="dark"]) body.live-page' in css
+    assert 'html:not([data-theme="dark"]) .live-page .live-status-2xx' in css
+    assert ".live-page .live-log-table" in css
+    assert "min-width: 1280px" in css
+    assert ".live-page #liveLogRows tr.is-selected > td" in css
+    assert "var(--live-selected-border)" in css
+    assert "inset 4px 0 0 var(--live-selected-border)" in css
+    for broad_selector in ("\ntable {", "\nth,td {", "\nbutton {"):
+        assert broad_selector not in css
+
+
+def test_live_observation_presentation_keeps_processing_and_assessment_distinct() -> None:
+    script = _script()
+    for text in (
+        'observationState("처리 상태", "processing_status", observation.processing_status',
+        'observationState("관찰 평가", "Assessment", observation.assessment',
+        'observationFact("관찰 스키마", "Schema", observation.schema_version)',
+        'observationFact("탐지기 버전", "Detector", observation.detector_version)',
+        'observationFact("신호 채택 정책", "Adoption policy", observation.adoption_policy_version)',
+        'observationFact("신호 채택 규칙", "Adoption rule", signal.adoption_rule_id)',
+        'observationFact("탐지 규칙", "Detector rules"',
+        'sectionHeading("원천 로그 원문", "raw_log 원문")',
+        'sectionHeading("선택 로그 메타데이터", "Selected log metadata")',
+    ):
+        assert text in script
+    for identifier in (
+        "schema_version",
+        "detector_version",
+        "adoption_policy_version",
+        "adoption_rule_id",
+        "rule_ids",
+        "signal_id",
+    ):
+        assert identifier in script
+    assert "정상 상태를 뜻하지 않습니다" in script
+    assert "안전 상태를 뜻하지도 않습니다" in script
+    assert "보안 판정이 아닙니다" in script
+    assert "공격 심각도나 공격 성공 여부를 뜻하지 않습니다" in script
