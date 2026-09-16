@@ -66,7 +66,7 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     assert "디버그/참조" in body
     assert "Debug/reference" in body
     assert "분석 작업 상세" in body
-    assert "Analysis job detail" in body
+    assert "Analysis job detail" not in body
     assert "완료" in body
     assert "SUCCEEDED" in body
     assert "작업 실행자" in body
@@ -75,6 +75,10 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     assert "Heartbeat" in body
     assert "시도 횟수" in body
     assert "Attempt" in body
+    assert '<h1 class="job-page-title">작업 #123</h1>' in body
+    assert "Job #123" not in body
+    assert '<div class="job-detail-type">분석 유형' in body
+    assert "분석 모드" not in body
     assert '<span class="job-artifact-kind-primary">원본 산출물</span>' in body
     assert '<span class="job-artifact-kind-primary">디버그/참조</span>' in body
     assert "Lint Result" not in body
@@ -82,9 +86,12 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     assert "job-viewer-cta" in body
     assert "job-report-item-recommended" not in body
     assert "job-artifact-open-link-primary" in body
+    assert "job-viewer-payload-link" in body
     assert "Open Open Viewer" not in body
     assert "Stage1 LLM 사용량" in body
     assert "Stage2 LLM 사용량" in body
+    assert "STAGE1" not in body
+    assert "STAGE2" not in body
     assert "필터링 사유" in body
     assert "요약" in body
     assert "아티팩트 경로" in body

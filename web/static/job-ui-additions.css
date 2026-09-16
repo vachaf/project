@@ -263,10 +263,9 @@ body.job-page .job-table th {
 }
 
 .job-viewer-cta-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  justify-items: end;
   gap: 0.5rem;
-  justify-content: flex-end;
 }
 
 .job-artifact-kind {
@@ -310,14 +309,75 @@ body.job-page .job-table th {
 }
 
 .job-artifact-open-link-primary {
-  border-color: rgba(0, 212, 255, 0.62);
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.42rem 0.7rem;
+  border: 1px solid rgba(0, 212, 255, 0.62);
+  border-radius: 0.42rem;
   color: var(--job-text);
   background: rgba(0, 212, 255, 0.16);
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .job-artifact-open-link-primary:hover {
   border-color: rgba(0, 212, 255, 0.82);
   background: rgba(0, 212, 255, 0.24);
+}
+
+.job-viewer-payload-link {
+  color: var(--job-muted);
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.job-detail-type {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+  color: var(--job-text-2);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.job-detail-type code {
+  color: var(--job-text);
+  font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+  font-size: 0.95em;
+}
+
+.job-new-job-form {
+  width: min(960px, 100%);
+  padding: 1.5rem 1.75rem;
+}
+
+.job-new-job-form .job-form-section {
+  margin-bottom: 1.35rem;
+}
+
+.job-new-job-form .job-policy-box {
+  margin: 1.25rem 0;
+}
+
+.job-required-mark {
+  color: var(--job-fail);
+}
+
+.job-required-note {
+  margin-left: 0.45rem;
+  color: var(--job-muted);
+  font-size: 0.78em;
+  font-weight: 600;
+}
+
+.job-storage-note {
+  margin: 0.75rem 0 0;
+  color: var(--job-muted);
+  font-size: 0.82rem;
 }
 
 .job-summary-grid {
@@ -692,6 +752,15 @@ body.job-page .job-table th {
 
 .job-theme-toggle:active {
   transform: translateY(0);
+}
+
+body.job-page .job-topnav a:focus-visible,
+body.job-page .job-btn:focus-visible,
+body.job-page .job-back-link:focus-visible,
+body.job-page .job-artifact-open-link:focus-visible,
+body.job-page .job-theme-toggle:focus-visible {
+  outline: 2px solid var(--job-info);
+  outline-offset: 3px;
 }
 
 html:not([data-theme="dark"]) .job-policy-strip,

@@ -209,6 +209,7 @@
     if (!state.items.some((row) => row.row_id === state.selected)) state.selected = state.items[0].row_id;
     state.items.forEach((item) => {
       const row = node("tr"); if (item.row_id === state.selected) row.className = "is-selected"; row.tabIndex = 0;
+      row.setAttribute("aria-selected", String(item.row_id === state.selected));
       row.append(createSelectionCell(item), node("td", "", date(item.log_time)), node("td", "", item.row_id),
         node("td", "", item.request_id), node("td", "", item.src_ip), node("td", "", item.method), node("td", "", item.uri));
       const status = node("td"); status.append(node("span", `live-status-code ${statusClass(item.status_code)}`, item.status_code));

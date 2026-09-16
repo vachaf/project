@@ -6,10 +6,10 @@
 {% endblock %}
 {% block job_body_class %}live-page{% endblock %}
 {% block job_topnav_items %}
-<a href="/">작업 대시보드 <span class="job-nav-secondary">Job Dashboard</span></a>
-<a href="/new-job">새 분석 작업 <span class="job-nav-secondary">New Job</span></a>
+<a href="/">작업 대시보드</a>
+<a href="/new-job">새 분석 작업</a>
 <a href="/reports">이전 Stage2 보고서 <span class="job-nav-secondary">Legacy Stage2 Reports</span></a>
-<span class="job-nav-current" aria-current="page">실시간 로그 모니터링 <span class="job-nav-secondary">Live Monitoring</span></span>
+<span class="job-nav-current" aria-current="page">실시간 로그 모니터링</span>
 {% endblock %}
 {% block content %}
 <section class="live-heading">
@@ -53,7 +53,7 @@
 <section id="liveSelectionBar" class="live-selection-bar" aria-label="선택 로그 분석 작업" hidden>
   <div>
     <strong id="liveSelectedCount">선택 0 / 50건</strong>
-    <p>선택은 원천 로그의 exact ID를 분석 입력으로 등록하며 DB ID 순서를 그대로 유지합니다. 이 동작은 공격 성공, 침해 또는 위험도를 확정하지 않습니다. exploit 성공 여부 또한 확정하지 않습니다.</p>
+    <p>선택은 원천 로그의 정확한 DB 행 ID를 분석 입력으로 등록하며 DB ID 순서를 그대로 유지합니다. 이 동작은 공격 성공, 침해 또는 위험도를 확정하지 않습니다. 성공적인 악용 여부 또한 확정하지 않습니다.</p>
   </div>
   <div class="live-selection-actions">
     <button id="liveClearSelectionButton" type="button" disabled>선택 모두 해제</button>

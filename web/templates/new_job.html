@@ -1,15 +1,15 @@
 {% extends "job_base.html" %}
 {% block title %}새 분석 작업 · Security Intelligence{% endblock %}
 {% block job_topnav_items %}
-      <a href="/">작업 대시보드 <span class="job-nav-secondary">Job Dashboard</span></a>
-      <span class="job-nav-current" aria-current="page">새 분석 작업 <span class="job-nav-secondary">New Job</span></span>
+      <a href="/">작업 대시보드</a>
+      <span class="job-nav-current" aria-current="page">새 분석 작업</span>
       <a href="/reports">이전 Stage2 보고서 <span class="job-nav-secondary">Legacy Stage2 Reports</span></a>
-      <a href="/live">실시간 로그 모니터링 <span class="job-nav-secondary">Live Monitoring</span></a>
+      <a href="/live">실시간 로그 모니터링</a>
 {% endblock %}
 {% block content %}
 <div class="job-page-head">
             <div>
-                <div class="job-page-kicker">분석 작업 만들기 <span class="job-label-secondary">Create analysis job</span></div>
+                <div class="job-page-kicker">분석 작업 만들기</div>
                 <h1 class="job-page-title">새 분석 작업</h1>
                 <p class="job-page-subtitle">분석할 Apache 로그 시간 범위를 Asia/Seoul 기준으로 지정합니다.</p>
             </div>
@@ -22,18 +22,18 @@
         </section>
         {% endif %}
 
-        <section class="job-form-card">
+        <section class="job-form-card job-new-job-form">
             <form method="post" action="/new-job">
                 <div class="job-form-section">
-                    <div class="job-form-section-title">분석 범위</div>
+                    <div class="job-form-section-title">분석 범위 <span class="job-required-note"><span aria-hidden="true">*</span> 필수 입력</span></div>
                     <div class="job-form-row">
                         <div class="job-form-group">
-                            <label for="time_from">시작 시간 (KST)</label>
+                            <label for="time_from">시작 시간 (KST) <span class="job-required-mark" aria-hidden="true">*</span></label>
                             <input type="datetime-local" id="time_from" name="time_from" value="{{ time_from_default }}" required>
                             <p class="job-field-help">Asia/Seoul 기준 입력값으로 처리됩니다.</p>
                         </div>
                         <div class="job-form-group">
-                            <label for="time_to">종료 시간 (KST)</label>
+                            <label for="time_to">종료 시간 (KST) <span class="job-required-mark" aria-hidden="true">*</span></label>
                             <input type="datetime-local" id="time_to" name="time_to" value="{{ time_to_default }}" required>
                             <p class="job-field-help">시작 시간보다 이후여야 합니다.</p>
                         </div>
@@ -50,7 +50,7 @@
                         <div class="job-form-group">
                             <label>타임존</label>
                             <span class="job-fixed-badge">Asia/Seoul</span>
-                            <p class="job-field-help">MVP에서는 Asia/Seoul만 허용합니다.</p>
+                            <p class="job-field-help">현재는 Asia/Seoul만 사용할 수 있습니다.</p>
                         </div>
                         <div class="job-form-group">
                             <label>분석 모드</label>
@@ -60,7 +60,7 @@
                     </div>
                     <input type="hidden" name="requested_timezone" value="Asia/Seoul">
                     <input type="hidden" name="analysis_mode" value="full_report">
-                    <p class="job-muted">저장 시각은 UTC naive DATETIME(3)로 정규화됩니다.</p>
+                    <p class="job-storage-note">입력 시각은 Asia/Seoul 기준으로 처리됩니다. <span class="job-label-secondary">DB storage: UTC DATETIME(3)</span></p>
                 </div>
 
                 <div class="job-policy-box">

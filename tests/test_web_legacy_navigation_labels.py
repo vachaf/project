@@ -42,11 +42,11 @@ def test_job_dashboard_nav_labels_legacy_reports_without_relabeling_primary_titl
     )
 
     assert "작업 대시보드" in body
-    assert "Job Dashboard" in body
+    assert "Job Dashboard" not in body
     assert "이전 Stage2 보고서" in body
     assert "Legacy Stage2 Reports" in body
     assert "실시간 로그 모니터링" in body
-    assert "Live Monitoring" in body
+    assert "Live Monitoring" not in body
     assert '<span class="job-nav-current" aria-current="page">' in body
     assert '<a href="/new-job">New Job</a>' not in body
     assert '<h1 class="job-page-title">분석 작업 대시보드</h1>' in body
@@ -61,16 +61,30 @@ def test_new_job_navigation_is_korean_first_and_marks_the_current_page() -> None
         "새 분석 작업",
         "이전 Stage2 보고서",
         "실시간 로그 모니터링",
-        "Job Dashboard",
-        "New Job",
         "Legacy Stage2 Reports",
-        "Live Monitoring",
         "분석 작업 만들기",
-        "Create analysis job",
     ):
         assert text in body
     assert '<span class="job-nav-current" aria-current="page">새 분석 작업' in body
     assert '<a href="/new-job">' not in body
+
+
+def test_new_job_required_time_fields_are_visibly_marked_without_changing_native_validation() -> None:
+    body = render_template("new_job.html")
+
+    assert "필수 입력" in body
+    assert body.count('class="job-required-mark"') == 2
+    assert 'id="time_from" name="time_from"' in body and 'id="time_to" name="time_to"' in body
+    assert body.count(" required") == 2
+
+
+def test_shared_non_legacy_navigation_and_actions_have_scoped_focus_visibility() -> None:
+    css = (web_app_module.BASE_DIR / "static" / "job-ui-additions.css").read_text(encoding="utf-8")
+
+    assert "body.job-page .job-topnav a:focus-visible" in css
+    assert "body.job-page .job-btn:focus-visible" in css
+    assert "outline: 2px solid var(--job-info)" in css
+    assert "payload-page" not in css.split("body.job-page .job-topnav a:focus-visible", 1)[1].split("}", 1)[0]
 
 
 def test_reports_index_title_and_notice_are_marked_legacy() -> None:

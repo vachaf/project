@@ -27,7 +27,8 @@ def test_live_selected_input_controls_and_boundary_copy_are_rendered() -> None:
         assert f'id="{element_id}"' in page
     assert "선택 0 / 50건" in page
     assert "선택 로그로 분석 작업 만들기" in page
-    assert "exact ID를 분석 입력으로 등록" in page
+    assert "정확한 DB 행 ID를 분석 입력으로 등록" in page
+    assert "성공적인 악용 여부 또한 확정하지 않습니다" in page
     assert "공격 성공, 침해 또는 위험도를 확정하지 않습니다" in page
     assert 'colspan="10"' in page
 
@@ -40,6 +41,7 @@ def test_checkbox_interaction_is_separate_from_detail_row_interaction() -> None:
     assert "if (event.target !== row) return;" in script
     assert 'event.key === "Enter" || event.key === " "' in script
     assert "selectDetail();" in script
+    assert 'row.setAttribute("aria-selected", String(item.row_id === state.selected));' in script
 
 
 def test_ordered_selection_max_and_reselect_policy_are_explicit() -> None:

@@ -7,15 +7,14 @@
 <div class="job-page-head">
             <div>
                 <a href="/" class="job-back-link">← 대시보드로 돌아가기</a>
-                <div class="job-page-kicker">분석 작업 상세 <span class="job-label-secondary">Analysis job detail</span></div>
+                <div class="job-page-kicker">분석 작업 상세</div>
                 <h1 class="job-page-title">작업 #{{ job.id }}</h1>
                 <p class="job-page-subtitle">작업 메타데이터, 실행 타임라인, 보고서 아티팩트 경로를 표시합니다.</p>
             </div>
         </div>
 
         <section class="job-card job-detail-header">
-            <div class="job-detail-kicker">Job #{{ job.id }}</div>
-            <h2 class="job-detail-title">full_report 작업 상세</h2>
+            <div class="job-detail-type">분석 유형 <span class="job-label-secondary">Analysis type</span><code>{{ job.analysis_mode }}</code></div>
             <div class="job-detail-grid">
                 <div>
                     <div class="job-detail-label">상태</div>
@@ -25,10 +24,6 @@
                         <span class="job-stale-badge">Potentially stale</span>
                         {% endif %}
                     </div>
-                </div>
-                <div>
-                    <div class="job-detail-label">분석 모드</div>
-                    <div class="job-detail-value">{{ job.analysis_mode }}</div>
                 </div>
                 <div>
                     <div class="job-detail-label">시작 시간 (KST)</div>
@@ -289,7 +284,7 @@
                 <div class="job-viewer-cta-actions">
                     {% if report.viewer_payload_path %}
                     <a class="job-artifact-open-link job-artifact-open-link-primary" href="/job/{{ job.id }}/viewer">분석 Viewer 열기</a>
-                    <a class="job-artifact-open-link" href="/job/{{ job.id }}/artifact/viewer_payload">viewer_payload.json 열기</a>
+                    <a class="job-artifact-open-link job-viewer-payload-link" href="/job/{{ job.id }}/artifact/viewer_payload">viewer_payload.json 열기</a>
                     {% elif job.status == 'FAILED' %}
                     <span class="job-muted">작업 실패로 viewer_payload.json이 생성되지 않음</span>
                     {% else %}
