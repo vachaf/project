@@ -172,6 +172,11 @@ def test_live_css_has_scoped_light_mode_table_widths_and_selected_row_state() ->
     assert 'html:not([data-theme="dark"]) .live-page .live-status-2xx' in css
     assert ".live-page .live-log-table" in css
     assert "min-width: 1280px" in css
+    assert "max-block-size: min(50vh, 32rem)" in css
+    assert "overflow: auto" in css
+    assert "text-overflow: ellipsis" in css
+    assert "overflow: hidden" in css
+    assert "position: sticky" in css
     assert ".live-page #liveLogRows tr.is-selected > td" in css
     assert "var(--live-selected-border)" in css
     assert "inset 4px 0 0 var(--live-selected-border)" in css

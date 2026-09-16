@@ -1,13 +1,15 @@
 {% extends "job_base.html" %}
-{% block title %}New Analysis Job{% endblock %}
+{% block title %}새 분석 작업 · Security Intelligence{% endblock %}
 {% block job_topnav_items %}
-      <a href="/">Job Dashboard</a>
-      <a href="/reports">Legacy Stage2 Reports</a>
+      <a href="/">작업 대시보드 <span class="job-nav-secondary">Job Dashboard</span></a>
+      <span class="job-nav-current" aria-current="page">새 분석 작업 <span class="job-nav-secondary">New Job</span></span>
+      <a href="/reports">이전 Stage2 보고서 <span class="job-nav-secondary">Legacy Stage2 Reports</span></a>
+      <a href="/live">실시간 로그 모니터링 <span class="job-nav-secondary">Live Monitoring</span></a>
 {% endblock %}
 {% block content %}
 <div class="job-page-head">
             <div>
-                <div class="job-page-kicker">Create analysis job</div>
+                <div class="job-page-kicker">분석 작업 만들기 <span class="job-label-secondary">Create analysis job</span></div>
                 <h1 class="job-page-title">새 분석 작업</h1>
                 <p class="job-page-subtitle">분석할 Apache 로그 시간 범위를 Asia/Seoul 기준으로 지정합니다.</p>
             </div>

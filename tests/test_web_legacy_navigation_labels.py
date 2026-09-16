@@ -53,6 +53,26 @@ def test_job_dashboard_nav_labels_legacy_reports_without_relabeling_primary_titl
     assert "Legacy 분석 작업 대시보드" not in body
 
 
+def test_new_job_navigation_is_korean_first_and_marks_the_current_page() -> None:
+    body = render_template("new_job.html")
+
+    for text in (
+        "작업 대시보드",
+        "새 분석 작업",
+        "이전 Stage2 보고서",
+        "실시간 로그 모니터링",
+        "Job Dashboard",
+        "New Job",
+        "Legacy Stage2 Reports",
+        "Live Monitoring",
+        "분석 작업 만들기",
+        "Create analysis job",
+    ):
+        assert text in body
+    assert '<span class="job-nav-current" aria-current="page">새 분석 작업' in body
+    assert '<a href="/new-job">' not in body
+
+
 def test_reports_index_title_and_notice_are_marked_legacy() -> None:
     body = render_template(
         "index.html",

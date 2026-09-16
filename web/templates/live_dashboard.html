@@ -6,9 +6,10 @@
 {% endblock %}
 {% block job_body_class %}live-page{% endblock %}
 {% block job_topnav_items %}
-<a href="/">작업 대시보드</a><a href="/new-job">새 분석 작업</a>
-<a href="/reports">이전 Stage2 보고서</a>
-<a href="/live" class="job-nav-active" aria-current="page">실시간 로그 모니터링</a>
+<a href="/">작업 대시보드 <span class="job-nav-secondary">Job Dashboard</span></a>
+<a href="/new-job">새 분석 작업 <span class="job-nav-secondary">New Job</span></a>
+<a href="/reports">이전 Stage2 보고서 <span class="job-nav-secondary">Legacy Stage2 Reports</span></a>
+<span class="job-nav-current" aria-current="page">실시간 로그 모니터링 <span class="job-nav-secondary">Live Monitoring</span></span>
 {% endblock %}
 {% block content %}
 <section class="live-heading">

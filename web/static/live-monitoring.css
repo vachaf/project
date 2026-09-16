@@ -359,6 +359,7 @@ body.live-page {
 
 .live-page .live-table-wrap {
   max-width: 100%;
+  max-block-size: min(50vh, 32rem);
   overflow: auto;
   border: 1px solid var(--live-border);
   border-radius: 0.52rem;
@@ -380,6 +381,8 @@ body.live-page {
   border-bottom: 1px solid var(--live-border);
   text-align: left;
   vertical-align: top;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .live-page .live-log-table th {

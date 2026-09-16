@@ -273,6 +273,7 @@ body.job-page .job-table th {
   display: inline-flex;
   width: fit-content;
   align-items: center;
+  gap: 0.35rem;
   margin-top: 0.35rem;
   padding: 0.18rem 0.5rem;
   border: 1px solid var(--job-border);
@@ -285,6 +286,27 @@ body.job-page .job-table th {
 .job-artifact-kind {
   color: var(--job-muted);
   background: rgba(255, 255, 255, 0.035);
+}
+
+.job-artifact-kind-primary {
+  color: var(--job-text-2);
+}
+
+.job-detail-header .job-status-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.38rem;
+}
+
+.job-detail-header .job-status-label {
+  font-family: "Segoe UI", "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 800;
+}
+
+.job-detail-header .job-status-code-inline {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  opacity: 0.82;
 }
 
 .job-artifact-open-link-primary {

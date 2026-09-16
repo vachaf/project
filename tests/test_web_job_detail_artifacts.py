@@ -65,6 +65,18 @@ def test_job_detail_shows_persisted_full_report_artifact_paths() -> None:
     assert "Raw artifact" in body
     assert "디버그/참조" in body
     assert "Debug/reference" in body
+    assert "분석 작업 상세" in body
+    assert "Analysis job detail" in body
+    assert "완료" in body
+    assert "SUCCEEDED" in body
+    assert "작업 실행자" in body
+    assert "Worker" in body
+    assert "최근 상태 확인" in body
+    assert "Heartbeat" in body
+    assert "시도 횟수" in body
+    assert "Attempt" in body
+    assert '<span class="job-artifact-kind-primary">원본 산출물</span>' in body
+    assert '<span class="job-artifact-kind-primary">디버그/참조</span>' in body
     assert "Lint Result" not in body
     assert 'href="/job/123/artifact/lint_result"' not in body
     assert "job-viewer-cta" in body
