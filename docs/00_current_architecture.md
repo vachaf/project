@@ -6,13 +6,10 @@
 - 기준일: 2026-09-19
 - 상태: **Active / current runtime architecture**
 - Evidence Boundary: [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)
-- Final 범위 관리: [final/final-scope.md](./final/final-scope.md)
-- Final 검증 상태: [final/final-verification-record.md](./final/final-verification-record.md)
-- Final 상태·승격 기준: [final/final-status-and-freeze-criteria.md](./final/final-status-and-freeze-criteria.md)
 
 이 문서는 **현재 main source에서 시스템이 어떤 경계와 데이터 흐름으로 연결되어 있는지**를 설명한다.
 
-이 문서가 책임지는 것은 runtime architecture다. Final / Conditional Final / Deferred와 같은 범위 판정, 특정 revision의 PASS / FAIL / BLOCKED / NOT RUN, demo fixture freeze 상태는 각각의 Final 문서에서 관리한다.
+이 문서가 책임지는 것은 현재 runtime architecture다. 과거 설계 후보, 실험 상태, freeze 과정과 revision별 검증 기록은 현재 architecture와 섞지 않으며 필요할 경우 Git history에서 확인한다.
 
 또한 source나 test가 존재한다는 사실은 실제 배포 환경, DB migration, 외부 Provider 호출, 회귀 또는 E2E가 특정 revision에서 PASS했다는 뜻이 아니다.
 
@@ -666,7 +663,7 @@ Separate or post-final paths
 = sliding window / rollup / operator queue / windowed_triage 등
 ~~~
 
-각 항목의 Final 범위 여부는 [final/final-scope.md](./final/final-scope.md), 특정 revision의 실제 검증 결과는 [final/final-verification-record.md](./final/final-verification-record.md)에서 관리한다.
+이 항목들은 source가 존재하더라도 현재 사용자 `full_report` runtime의 실선으로 해석하지 않는다. 과거 도입 검토와 실험 결과가 필요하면 Git history를 확인한다.
 
 ---
 
@@ -697,11 +694,10 @@ Separate or post-final paths
 | [README.md](../README.md) | 프로젝트 목적, 상위 흐름, 처음 읽는 사람을 위한 소개 |
 | **현재 문서** | 현재 runtime의 코드 경계와 데이터 흐름 |
 | [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md) | 로그 기반 해석의 canonical 의미 경계 |
-| [final/final-scope.md](./final/final-scope.md) | Final / Conditional / Deferred 범위 관리 |
-| [final/final-status-and-freeze-criteria.md](./final/final-status-and-freeze-criteria.md) | freeze 및 promotion 판정 규칙 |
-| [final/final-verification-record.md](./final/final-verification-record.md) | revision별 실제 검증 evidence |
-| [docs/README.md](./README.md) | 전체 문서 허브 |
-| [design/README.md](./design/README.md) | 상세 설계 문서 색인 |
-| [operations/README.md](./operations/README.md) | 실행·DB·Worker 운영 문서 색인 |
+| [README.md](./README.md) | docs 최소 문서 구조 |
+| [../src/README.md](../src/README.md) | 분석 runtime / pipeline |
+| [../src/prepare/README.md](../src/prepare/README.md) | Prepare 내부 ownership |
+| [../web/README.md](../web/README.md) | Web/Live/Viewer 계층 |
+| [operations/README.md](./operations/README.md) | DB/환경/Worker runtime support |
 
 Architecture 문서에는 과거 promotion 상태나 테스트 숫자를 고정하지 않는다. 해당 정보는 책임 문서에서 관리하고, 이 문서는 **현재 코드가 실제로 어떻게 연결되어 있는지**를 설명하는 데 집중한다.
