@@ -447,29 +447,18 @@ revision별 최종 검증 결과는 Final verification 문서와 evidence record
 
 ## 13. 문서 안내
 
-Main README는 프로젝트의 현재 목적과 상위 흐름을 설명합니다. 세부 설계와 운영·검증 근거는 docs 아래에서 관리합니다.
+현재 기준 문서는 역할별로 최소화합니다.
 
-### 먼저 볼 문서
+- [Current Architecture](docs/00_current_architecture.md) — 현재 runtime 구조와 데이터 흐름
+- [Apache logs-only Evidence Boundary](docs/00_apache_logs_only_evidence_boundary.md) — 분석 의미 경계
+- [Documentation Hub](docs/README.md) — 현재 문서 구조
+- [Runtime Support](docs/operations/README.md) — DB/환경/Worker 재현
+- [Analysis Runtime](src/README.md) — 분석 코드와 pipeline
+- [Prepare](src/prepare/README.md) — Prepare 내부 ownership
+- [Web](web/README.md) — Web/Live/Viewer 계층
+- [Scripts](scripts/README.md) — regression/lint/lab 도구
 
-- [Architecture Reference](docs/00_current_architecture.md)
-- [Apache logs-only Evidence Boundary](docs/00_apache_logs_only_evidence_boundary.md)
-- [Documentation Hub](docs/README.md)
-- [Final Scope](docs/final/final-scope.md)
-- [Final Status & Freeze Criteria](docs/final/final-status-and-freeze-criteria.md)
-- [Final Demo Casebook](docs/final/final-demo-casebook.md)
-- [Final Known Limitations](docs/final/final-known-limitations.md)
-
-### 영역별 문서
-
-- docs/design/ — 시스템 및 분석 설계
-- docs/operations/ — 실행 환경, DB, Worker 운영
-- docs/reviews/ — 검토 및 검증 기록
-- docs/standards/ — 실험·검증 기준
-- docs/experiments/ — 실험 설계와 결과
-- docs/planning/ — 후속 작업과 계획
-- src/prepare/README.md — Prepare 하위 모듈 구조
-
-전체 문서 색인은 [docs/README.md](docs/README.md)를 참고합니다.
+과거 설계안, 실험 기록, review, TODO는 현재 기준 문서와 분리하며 필요할 경우 Git history에서 확인합니다.
 
 ---
 
