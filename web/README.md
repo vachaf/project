@@ -613,7 +613,6 @@ Web UI는 현재 React/Vue 같은 별도 SPA framework를 요구하지 않는다
 | [../README.md](../README.md) | 프로젝트 전체 소개 |
 | [../docs/00_current_architecture.md](../docs/00_current_architecture.md) | 전체 runtime architecture |
 | [../docs/00_apache_logs_only_evidence_boundary.md](../docs/00_apache_logs_only_evidence_boundary.md) | 보안 결과 해석의 의미 경계 |
-| [../docs/operations/](../docs/operations/) | DB / Worker / 운영 가이드 |
-| [../docs/final/](../docs/final/) | Final scope / verification / freeze 근거 |
+| [../docs/operations/README.md](../docs/operations/README.md) | DB / 환경 / Worker runtime support |
 
 이 문서는 과거 UI phase나 특정 polish 작업의 진행 기록을 관리하지 않는다. 그런 기록은 historical report/review 문서에서 관리하고, 이 문서는 **현재 Web 계층의 실제 책임과 코드 경계**를 설명하는 데 집중한다.
