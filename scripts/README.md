@@ -225,10 +225,10 @@ verdict=PASS
 
 ## 관련 문서
 
-- 현재 상태: `../docs/진행상황.md`
-- 운영 기준 실행 가이드: `../docs/operations/01_운영_기준_실행_가이드.md`
-- prepare regression 설계: `../docs/design/99_prepare_regression_fixture_설계.md`
-- stage dry-run regression 설계: `../docs/design/99_stage_dryrun_regression_설계.md`
-- Stage2 report quality lint 후보 검토: `../docs/design/99_stage2_report_quality_lint_candidate_review.md`
-- Stage2 report quality lint tuning: `../docs/design/99_stage2_report_quality_lint_tuning_plan.md`
-- Stage2 prompt compaction: `../docs/design/99_stage2_prompt_compaction_plan.md`
+- 현재 runtime architecture: `../docs/00_current_architecture.md`
+- Apache logs-only evidence boundary: `../docs/00_apache_logs_only_evidence_boundary.md`
+- runtime support: `../docs/operations/README.md`
+- analysis runtime: `../src/README.md`
+- Prepare 내부 구조: `../src/prepare/README.md`
+
+과거 regression 설계, lint tuning 계획, 실험 기록은 Git history에서 확인한다.
