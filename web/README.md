@@ -286,6 +286,10 @@ Live UI는 polling 기반이다. WebSocket/SSE stream이 아니다.
 
 Live Security Observation은 shared security signal extractor의 결과를 Live용 allowlist/policy로 투영한다.
 
+Live는 `live_target_v1` profile을 사용하며, extractor에 새 signal/rule이 생겼다는 이유만으로 자동 채택하지 않는다. `live_security_observation.py`가 **exact signal/rule allowlist**와 별도 adoption policy version을 소유한다.
+
+현재 Live input surface는 실제 조회 row에서 관찰 가능한 Request Target/URI를 기준으로 하고, request body·response body·임의 header를 합성하지 않는다. 입력/variant/output cap을 넘으면 complete/no-signal로 조용히 치환하지 않고 partial/undetermined 계열 상태로 반영한다.
+
 핵심 상태는 다음 두 축으로 나뉜다.
 
 ~~~text
