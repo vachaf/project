@@ -24,6 +24,8 @@
 
 ## 관련 문서
 
-- 문서 허브: `../docs/README.md`
-- 실험 표준: `../docs/standards/98_비교_실험_요청_세트_표준.md`
-- 실험 문서 인덱스: `../docs/experiments/README.md`
+- 현재 문서 허브: `../docs/README.md`
+- 현재 runtime architecture: `../docs/00_current_architecture.md`
+- 분석 의미 경계: `../docs/00_apache_logs_only_evidence_boundary.md`
+
+과거 A~H 실험 설계와 비교 기준은 해당 lab 산출물 및 Git history에서 확인한다.
