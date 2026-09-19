@@ -1,7 +1,7 @@
 # 00_apache_logs_only_evidence_boundary
 
 - 문서 상태: canonical evidence boundary guide
-- 기준 시점: 2026-05-24
+- 기준일: 2026-09-19
 - 목적: Apache logs-only 분석에서 관찰 가능한 사실과 단정하면 안 되는 보안 판정을 한곳에 고정한다.
 - 범위: prepare, context summary, sliding window summary, rollup, scheduler summary, Stage1/Stage2 report, viewer payload, lint rule, 관련 설계 문서 전반
 
@@ -21,26 +21,11 @@ Apache access/security/error log만으로는 공격 성공, 침해 성공, 노�
 - summary/rollup 단계에서 의미가 승격되는 것을 방지한다.
 - Stage1/Stage2 보고서 wording의 상한선을 고정한다.
 - prepare context가 finding/security verdict로 승격되는 것을 방지한다.
-- docs/design 문서들이 반복하던 evidence boundary를 한 곳에서 참조하게 한다.
+- README와 runtime 계층이 공유하는 evidence boundary를 한 곳에서 참조하게 한다.
 - lint rule과 사람이 읽는 문서의 기준을 맞춘다.
 ```
 
-현재 권장 적용 방식:
 
-```text
-docs/00_apache_logs_only_evidence_boundary.md: CREATE
-
-docs/01_용어_가이드.md: DEFER
-src/GUARDRAILS.md: DEFER
-```
-
-보류 이유:
-
-```text
-- 용어 가이드는 이 문서의 Wording Guide 섹션으로 충분하다.
-- src/GUARDRAILS.md를 별도로 만들면 코드 guardrails와 중복될 수 있다.
-- 지금 필요한 것은 문서 수 증가가 아니라 single source of truth다.
-```
 
 ## 2. 기본 원칙
 
@@ -602,9 +587,7 @@ Viewer는 저장된 payload를 읽고 보여주는 도구다.
 ```text
 - 새로운 금지 표현이 발견되면 이 문서에 먼저 추가한다.
 - lint rule을 강화할 경우 이 문서의 wording guide와 맞춘다.
-- design 문서에는 긴 원칙을 반복하지 말고 이 문서를 참조한다.
-- docs/01_용어_가이드.md는 Wording Guide가 커질 때 분리한다.
-- src/GUARDRAILS.md는 개발자용 체크리스트가 코드와 분리되어 필요해질 때 만든다.
+- 다른 README와 코드 주석에는 긴 원칙을 반복하기보다 이 문서를 참조한다.
 ```
 
 ## 18.1 적용 버전과 확장 가능성
