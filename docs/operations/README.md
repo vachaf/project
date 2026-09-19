@@ -1,202 +1,213 @@
-# operations
+# Runtime Support
 
-## 목적
+`docs/operations/`는 과거 운영 문서를 계속 누적하는 보관소가 아니라, **현재 시스템을 다시 실행하거나 DB를 재현할 때 필요한 최소 절차와 실행 자산**을 관리한다.
 
-- `operations/`는 실행 가이드, 운영 기준, 환경 구축, 로그 구조 문서를 둔다.
-- 현재 상위 운영 기준은 [../00_current_architecture.md](../00_current_architecture.md)의 DB-backed MVP 흐름이다.
-- 기존 `export -> prepare -> stage1 -> stage2 -> viewer_payload` 흐름은 DB-backed MVP의 `full_report` direct path이자 수동 운영/검증 경로로 유지한다.
-- `sliding_window / rollup / operator_queue` 흐름은 후속 `analysis_mode=windowed_triage` 또는 수동/운영 triage 경로로 분리한다.
+전체 구조는 [../00_current_architecture.md](../00_current_architecture.md), 결과 해석 경계는 [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)를 따른다.
 
-## 현재 운영 기준
+## 1. 환경 설정
 
-```text
-Apache logs
-  -> apache_log_shipper.py
-  -> MariaDB web_logs
-  -> Web UI analysis_jobs 등록
-  -> Analysis Job Worker full_report 실행
-  -> export / prepare
-  -> Stage1 / Stage2 / viewer_payload 생성
-  -> analysis_reports / job_events 기록
-  -> Web UI 결과 확인
-```
+기준 예시는 repository의 `config/.env.example`이다.
 
-- `analysis_jobs` queue는 MariaDB table 기반의 분석 실행 queue다.
-- `operator queue`는 sliding window / rollup 결과를 사람이 검토하기 위한 artifact queue다.
-- Web UI read-only 원칙은 보안 결과 해석 read-only를 뜻한다.
-- Web UI는 `analysis_jobs` 등록/조회와 job lifecycle 표시를 위해 DB write/read를 수행할 수 있다.
-- `full_report`의 완료 조건은 Stage1, Stage2, `viewer_payload`, report/artifact 저장 완료다.
-- 2026-05-31 실제 smoke 기준으로 job claim, direct pipeline 호출, `analysis_reports` 저장, SUCCEEDED/FAILED 전이, `/job/{id}/viewer` 표시까지 확인했다.
+~~~bash
+cp config/.env.example config/.env
+chmod 600 config/.env
 
-## 현재 기준 / Canonical
+set -a
+source ./config/.env
+set +a
+~~~
 
-- [../00_current_architecture.md](../00_current_architecture.md): 현재 canonical architecture overview와 DB-backed MVP 운영 흐름
-- [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md): Apache logs-only evidence boundary의 single source of truth
-- [01_프로젝트_방향과_실험대상.md](./01_프로젝트_방향과_실험대상.md): v1.1 상위 방향 문서. PHP sample, OpenCart, Juice Shop의 baseline/주 실험 대상 역할을 분리한다.
-- [analysis_job_worker.md](./analysis_job_worker.md): DB-backed MVP Analysis Job Worker 운영 모델, 실행 모드, env/systemd 운영 기준
-- [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md): DB-backed MVP용 `users`, `analysis_jobs`, `analysis_reports`, `job_events` 적용 절차
-- systemd worker 예시: [../../ops/systemd/web-log-analysis-worker.service.example](../../ops/systemd/web-log-analysis-worker.service.example)
+실제 API key, DB password 등 secret은 Git에 커밋하지 않는다.
 
-## 운영 문서 목록
+주요 역할:
 
-- 전체 흐름/실행
-  - [00_전체_흐름_요약_가이드.md](./00_전체_흐름_요약_가이드.md): 전체 파이프라인 흐름 요약
-  - [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md): 운영 기준과 실행 절차(`export --table`, pipeline auto prepare source table 해석, Web UI run_dir default scan 기준 포함)
-  - [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md): 통합 스크립트 설명(`run_analysis_pipeline.py`, `--run-dir`, run_dir manifest/Web UI 연결 기준 포함)
-- 환경 구축
-  - [02_LLM_환경_구축_및_설치.md](./02_LLM_환경_구축_및_설치.md): LLM 환경 구축과 설치
-  - [02_Juice_shop_환경_구축_및_설치.md](./02_Juice_shop_환경_구축_및_설치.md): Juice Shop 환경 구축과 설치
-  - [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md): MariaDB 환경 구축, SQL 적용 순서, 계정 권한 경계
-  - [02_OpenCart_환경_구축_및_설치.md](./02_OpenCart_환경_구축_및_설치.md): OpenCart 환경 구축과 설치
-- 로그/DB/export
-  - [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md): 로그 표준과 DB 구조
-  - [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md): `apache_log_shipper.py` 기반 로그 적재와 운영
-  - [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md): `export_db_logs_cli.py`와 LLM 분석 전략(`table_option/counts/data` 기반 auto resolution, run_dir 표준 산출물/manifest 중심 흐름 포함)
-  - [99_output_retention_policy.md](./99_output_retention_policy.md): 산출물 보존/정리 기준
-- SQL
-  - [sql/00_database_and_log_accounts.sql](./sql/00_database_and_log_accounts.sql): `web_logs`, `log_writer`, `log_reader` 생성
-  - [sql/01_apache_log_tables.sql](./sql/01_apache_log_tables.sql): Apache source log table DDL
-  - [sql/01_analysis_job_tables.sql](./sql/01_analysis_job_tables.sql): DB-backed MVP operation/control table DDL
-  - [sql/10_log_source_table_grants.sql](./sql/10_log_source_table_grants.sql): source log table 단위 `log_writer`/`log_reader` 권한
-  - [sql/11_analysis_app_grants.sql](./sql/11_analysis_app_grants.sql): DB-backed MVP `analysis_app` 권한
-  - [sql/90_verify_mariadb_setup.sql](./sql/90_verify_mariadb_setup.sql): MariaDB 구축 검증 쿼리
+- `LOG_DB_*`: Apache source log 조회 / export
+- `APP_DB_*`: Analysis Job / report / event metadata
+- `OPENAI_*`, `ANTHROPIC_*`: provider 설정
+- `ARTIFACT_ROOT`: Job artifact root
 
-## 읽는 순서
+배포 환경에 따라 `DB_HOST/DB_PORT/DB_NAME`과 `LOG_DB_*` fallback 관계는 실제 코드와 `config/.env.example`을 함께 확인한다.
 
-1. [../00_current_architecture.md](../00_current_architecture.md)
-2. [../00_apache_logs_only_evidence_boundary.md](../00_apache_logs_only_evidence_boundary.md)
-3. [01_프로젝트_방향과_실험대상.md](./01_프로젝트_방향과_실험대상.md)
-4. [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)
-5. [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md)
-6. [03_로그_표준과_DB_구조.md](./03_로그_표준과_DB_구조.md)
-7. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
-8. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
-9. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
-10. [analysis_job_worker.md](./analysis_job_worker.md)
-11. [99_output_retention_policy.md](./99_output_retention_policy.md)
+## 2. MariaDB 초기화
 
-환경을 처음 구축할 때는 다음 순서로 필요한 문서만 이어서 본다.
+실행 가능한 SQL은 `sql/` 아래에 둔다.
 
-1. [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)
-2. [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md)
-3. 필요한 대상 앱 환경 구축 문서
-4. [04_로그_적재_및_운영.md](./04_로그_적재_및_운영.md)
-5. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
+권장 적용 순서:
 
-기존 수동 full_report 실행/검증은 아래 순서로 본다.
+~~~bash
+sudo mariadb < docs/operations/sql/00_database_and_log_accounts.sql
+sudo mariadb < docs/operations/sql/01_apache_log_tables.sql
+sudo mariadb < docs/operations/sql/01_analysis_job_tables.sql
+sudo mariadb < docs/operations/sql/02_live_selected_input_v1.sql
+sudo mariadb < docs/operations/sql/10_log_source_table_grants.sql
+sudo mariadb < docs/operations/sql/11_analysis_app_grants.sql
+sudo mariadb < docs/operations/sql/90_verify_mariadb_setup.sql
+~~~
 
-1. [01_운영_기준_실행_가이드.md](./01_운영_기준_실행_가이드.md)
-2. [05_Export_LLM_분석_전략.md](./05_Export_LLM_분석_전략.md)
-3. [06_통합_스크립트_설명_정리본.md](./06_통합_스크립트_설명_정리본.md)
+SQL에 포함된 host/IP/password 예시는 실제 환경에 맞게 검토하고, 실제 secret을 repository에 기록하지 않는다.
 
-## 관리 원칙
+권한 경계:
 
-- 실행 방법, 환경 구축, 로그 구조, 운영 절차는 `operations/`에 둔다.
-- 실험 요청 세트는 `experiments/`에 둔다.
-- 실험 결과 산출물은 `lab/`에 둔다.
-- 실행 가능한 MariaDB DDL/DCL/검증 SQL은 `docs/operations/sql/`에 둔다.
-- [02_MariaDB_환경_구축_및_설치.md](./02_MariaDB_환경_구축_및_설치.md)는 SQL 원문 보관 문서가 아니라 적용 순서와 권한 경계 문서다.
-- Apache source log table DDL은 [sql/01_apache_log_tables.sql](./sql/01_apache_log_tables.sql)에 둔다.
-- DB-backed MVP operation/control table DDL은 [sql/01_analysis_job_tables.sql](./sql/01_analysis_job_tables.sql)에 둔다.
+~~~text
+log_writer
+  -> Apache source log 적재
 
-## DB-backed MVP operation/control tables
+log_reader
+  -> Apache source log SELECT
 
-- 적용 문서: [07_DB_backed_analysis_job_tables.md](./07_DB_backed_analysis_job_tables.md)
-- SQL: [sql/01_analysis_job_tables.sql](./sql/01_analysis_job_tables.sql)
-- 포함 table:
-  - `users`
-  - `analysis_jobs`
-  - `analysis_reports`
-  - `job_events`
-- `log_collection_checkpoints`는 현재 `src/apache_log_shipper.py`의 file-state offset tracking과 비교 후 후속 판단한다.
+analysis_app
+  -> analysis_jobs / analysis_reports / job_events
+  -> 필요한 source log SELECT
+~~~
 
-## Web UI run_dir default scan
+일부 테스트는 다음 SQL 파일의 내용을 직접 읽는다.
 
-이 섹션은 기존 run_dir 기반 Web UI loader 운영 기준이다. DB-backed MVP에서는 Web UI job detail이 `analysis_reports`와 job-scoped artifact root를 통해 같은 표준 산출물을 찾는 방향으로 해석한다.
+- `sql/01_analysis_job_tables.sql`
+- `sql/02_live_selected_input_v1.sql`
+- `sql/11_analysis_app_grants.sql`
+- `sql/90_verify_mariadb_setup.sql`
 
-- Web UI 기본 목록은 `runs/*/manifest.json`을 기준으로 구성한다.
-  - `REPORT_GLOBS=["runs/*/manifest.json"]`
-- 기존 flat/lab glob은 호환성 후보로만 보존하며 기본 scan에서 제외한다.
-  - `LEGACY_REPORT_GLOBS=["reports/*_stage2_report.json", "lab/**/reports/*_stage2_report.json"]`
-- 따라서 `reports/` 또는 `lab/**/reports/` 산출물만 있는 경우 Web UI 기본 목록에 나오지 않는 것이 정상이다.
+따라서 이 경로는 현재 test/runtime-support 계약의 일부다.
 
-## Run Directory Output Flow
+## 3. Apache log format
 
-- Web UI 표시를 운영 기본 흐름으로 사용할 때는 pipeline 실행 시 `--run-dir runs/<run_id>`를 지정한다.
-- run_dir 표준 파일은 `manifest.json`, `export.json`, `llm_input.json`, `stage1_results.json`, `stage2_report_input.json`, `stage2_report.json`, `stage2_report.md`, `viewer_payload.json`, `noise_summary.json`이다.
-- `--run-dir` 없이 flat output만 생성하는 실행은 분석 자체는 가능하지만 Web UI 기본 목록 연동 대상이 아니다.
-- DB-backed MVP에서는 job-scoped artifact root 후보로 `runs/jobs/<job_id>/` 또는 `runs/web_job_<job_id>/`를 사용한다.
-- Web UI `full_report` 시간 범위는 코드/UI 기준 최대 24시간까지 허용하지만, 24시간은 권장값이 아니라 허용 상한이다. 운영상 큰 구간은 비용/시간을 보고 후속 `windowed_triage`로 분리 검토한다.
+Apache security log 예시는 `examples/`에 둔다.
 
-## Operational Output Hygiene
+~~~text
+examples/apache_security_logformat_v1.conf
+examples/apache_security_logformat_v2.conf
+~~~
 
-- `data/raw/`, `data/processed/`, `reports/`, `runs/`는 운영 산출물이며 기본적으로 repo에 커밋하지 않는다.
-- `runs/`는 runtime artifact로 관리한다.
-- `.gitignore`에 `/runs/`가 있어야 하며, 실수로 tracked 된 경우 아래처럼 index에서만 제거한다.
+실제 배포에서는 Apache 설정과 `src/apache_log_shipper.py` parser가 같은 log contract를 사용해야 한다.
 
-```bash
-git rm -r --cached runs/
-```
+## 4. Log Shipper
 
-- `pathspec did not match any files`가 나오면 현재 index에 `runs/` tracked 항목이 없다는 의미다.
-- MVP에서는 Web UI destructive cleanup을 제공하지 않는다.
+대표 동작:
 
-## Smoke Check
+~~~text
+Apache access/security/error logs
+  -> src/apache_log_shipper.py
+  -> apache_access_logs
+  -> apache_security_logs
+  -> apache_error_logs
+~~~
 
-- loader 회귀:
-  - `tests/test_web_loader_run_dir_scan.py`: `5 passed`
-  - 관련 묶음: `24 passed`
-- DB-backed full_report MVP real LLM smoke:
-  - Web UI에서 job 등록 후 shell에서 실행:
+대표 점검:
 
-```bash
-python3 src/analysis_job_worker.py --once --worker-id smoke-real --run-pipeline
-```
+~~~bash
+python3 src/apache_log_shipper.py --test-db
+python3 src/apache_log_shipper.py --once
+~~~
 
-  - job_id=5 기준:
-    - `analysis_reports.artifact_root = runs/jobs/5`
-    - `stage2_report_path = runs/jobs/5/stage2_report.json`
-    - `stage2_report_md_path = runs/jobs/5/stage2_report.md`
-    - `viewer_payload_path = runs/jobs/5/viewer_payload.json`
-  - run artifacts:
-    - `analysis_candidates.json`
-    - `export.json`
-    - `llm_input.json`
-    - `manifest.json`
-    - `noise_summary.json`
-    - `stage1_results.json`
-    - `stage2_report.json`
-    - `stage2_report.md`
-    - `stage2_report_input.json`
-    - `viewer_payload.json`
-  - manifest 확인:
-    - `dry_run=false`
-    - `provider=openai`
-    - `run_dir=runs/jobs/5`
-    - `run_dir_collision_policy=fail_fast`
-  - Stage1 확인:
-    - `selected_model=gpt-5.4-mini`
-    - `success_count=5`
-    - `error_count=0`
-  - viewer payload 확인:
-    - `schema_version=viewer_payload.v1`
-    - `finding_count=5`
-    - `context_count=2`
-    - `supporting_event_count=0`
-  - 브라우저 확인:
-    - `/job/5`
-    - `/job/5/viewer`
-    - `/job/5/artifact/viewer_payload`
-    - `/job/5/artifact/stage2_report_md`
-- DB-backed no-data smoke:
-  - empty export job은 `JOB_NO_DATA` event를 기록하고 `SUCCEEDED`로 닫힌다.
-  - `analysis_reports.summary`와 `export_path`만 저장되고 stage/viewer paths는 `NULL`이다.
-  - no-data artifact는 `runs/jobs/<id>/export.json`만 생성된다.
-- actual smoke:
-  - scenario: `Mixed_Context_Heavy`
-  - security export 기준 actual LLM 실행
-  - run_dir: `runs/webui_run_dir_smoke_actual_2026-05-10`
-  - Web UI list/detail/payload 표시 확인
-  - payload 요약: `finding_count=2`, `context_count=3`, `supporting_event_count=0`
-- DB-backed table setup:
-  - `docs/operations/sql/01_analysis_job_tables.sql` 적용 후 `analysis_jobs`, `analysis_reports`, `job_events`, `users` 존재 확인
+`--reset-state`는 offset을 초기화하여 중복 적재 위험이 있으므로 테스트 상황에서만 제한적으로 사용한다.
+
+DB 연결 실패 시에는 DB 접속 정보, 네트워크, 권한, table 존재 여부를 먼저 확인한다. spool이 누적되면 원인 해결 전 spool을 임의 삭제하지 않는다.
+
+## 5. Web 실행
+
+~~~bash
+source .venv/bin/activate
+
+set -a
+source ./config/.env
+set +a
+
+uvicorn web.app:app --host 127.0.0.1 --port 8000
+~~~
+
+개발 시에만 필요하면 `--reload`를 사용한다.
+
+현재 Web 구조는 [../../web/README.md](../../web/README.md)를 따른다.
+
+## 6. Analysis Job Worker
+
+운영 loop 예:
+
+~~~bash
+python3 src/analysis_job_worker.py \
+  --run-pipeline \
+  --worker-id worker-01 \
+  --sleep-seconds 5 \
+  --heartbeat-interval 30
+~~~
+
+개발/점검용 1회 실행:
+
+~~~bash
+python3 src/analysis_job_worker.py \
+  --once \
+  --run-pipeline \
+  --worker-id smoke-local
+~~~
+
+Worker는 Web process와 분리된다. Web에서 Job을 등록하고 Worker가 `PENDING` Job을 claim하여 `full_report` pipeline을 실행한다.
+
+systemd 예시는 repository의 다음 파일을 사용한다.
+
+~~~text
+ops/systemd/web-log-analysis-worker.service.example
+~~~
+
+실제 `User`, `Group`, `WorkingDirectory`, `EnvironmentFile`은 배포 환경에 맞게 수정한다. secret을 unit file에 직접 넣지 않는다.
+
+## 7. Stale RUNNING 점검
+
+stale 후보 조회는 먼저 dry-run으로 확인한다.
+
+~~~bash
+python3 src/analysis_job_worker.py \
+  --recover-stale \
+  --dry-run \
+  --stale-after-minutes 30 \
+  --startup-grace-minutes 5 \
+  --limit 20
+~~~
+
+실제로 실행 중이 아님을 확인한 후에만 명시적 reason과 함께 FAILED 처리한다.
+
+~~~bash
+python3 src/analysis_job_worker.py \
+  --recover-stale \
+  --mark-failed \
+  --reason "worker process stopped; confirmed no active run" \
+  --stale-after-minutes 30 \
+  --startup-grace-minutes 5 \
+  --limit 20
+~~~
+
+stale recovery는 retry/requeue가 아니며 기존 artifact를 삭제하거나 Job을 `PENDING`으로 되돌리지 않는다.
+
+## 8. Job artifacts
+
+기본 Job artifact root는 deployment 설정에 따라 정해지며 대표 구조는 다음과 같다.
+
+~~~text
+runs/jobs/<job_id>/
+  export.json
+  llm_input.json
+  analysis_candidates.json
+  noise_summary.json
+  filtered_reasons.json
+  stage1_results.json
+  stage2_report_input.json
+  stage2_report.json
+  stage2_report.md
+  viewer_payload.json
+  manifest.json
+~~~
+
+no-data 등 실행 경로에 따라 일부 downstream artifact가 생성되지 않을 수 있다.
+
+## 9. 문서 정책
+
+과거 특정 Job ID의 smoke 결과, 오래된 test count, 구현 전 TODO, `windowed_triage` 계획은 이 README에서 current 운영 기준으로 관리하지 않는다.
+
+현재 실행 방식은 코드와 다음 문서를 우선한다.
+
+- [../00_current_architecture.md](../00_current_architecture.md)
+- [../../src/README.md](../../src/README.md)
+- [../../web/README.md](../../web/README.md)
+- `config/.env.example`
+- `ops/systemd/web-log-analysis-worker.service.example`
+
+과거 상세 운영 절차가 필요한 경우 Git history에서 확인한다.
