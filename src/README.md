@@ -268,7 +268,30 @@ Prepare 내부 helper와 policy-adjacent module은 `src/prepare/`에서 관리�
 
 Prepare와 Live가 공통으로 사용할 수 있는 **pure deterministic observation layer**다.
 
-현재 extractor는 caller가 전달한 text surface를 제한된 rule allowlist로 관찰하고 evidence/provenance를 반환한다.
+현재 extractor는 caller가 전달한 **ordered text surface**를 제한된 rule allowlist로 관찰하고 evidence/provenance를 반환한다.
+
+현재 input profile은 caller별 관찰 범위를 분리한다.
+
+~~~text
+prepare_compat_v1
+  -> Prepare compatibility용 surface 조합
+
+live_target_v1
+  -> Live request-target/URI 관찰용 profile
+~~~
+
+profile이 같지 않다고 해서 두 caller의 전체 결과가 동일해야 하는 것은 아니다. 공유되는 것은 승인된 관찰 규칙의 의미와 provenance다.
+
+각 evidence는 가능한 범위에서 다음 provenance를 유지한다.
+
+- source field / surface
+- derived-from surface
+- variant ID / parent variant ID
+- decode type / depth
+- transform chain
+- variant coordinate span
+
+Extractor는 structural cap을 명시적으로 적용할 수 있다. 입력 길이, surface별 variant 수, 전체 variant codepoint, signal/evidence 수가 cap을 넘으면 조용히 정상 처리로 간주하지 않고 reason/status에 반영한다.
 
 주요 경계:
 
@@ -290,6 +313,8 @@ DB/file/network I/O를 수행하지 않으며 Prepare나 Live의 전체 policy�
 - XSS event-handler structure
 - shell separator command structure
 - PHP filter/resource structure
+
+새 extractor rule이 추가됐다는 사실만으로 Prepare 또는 Live가 자동 채택하는 것은 아니다. caller adapter가 adoption/compatibility policy를 별도로 소유한다.
 
 ### 5.2 Prepare adapter
 
@@ -333,6 +358,22 @@ Prepare candidate
 ~~~
 
 Mapping은 Stage1 verdict와 Prepare evidence를 기준으로 관련 taxonomy 정보를 보강한다.
+
+현재 relationship enum은 다음 세 값을 사용한다.
+
+~~~text
+direct
+conditional
+related
+~~~
+
+같은 `(standard, id)`가 여러 relationship으로 생성되면 strongest relationship을 남긴다.
+
+~~~text
+direct > conditional > related
+~~~
+
+동일 identity는 deterministic하게 dedupe되고 stable order로 materialize된다. Mapping layer는 raw URI/query 문자열을 새 detector처럼 다시 스캔하여 새로운 attack evidence를 만들지 않는다. 알 수 없는 verdict는 임의 taxonomy를 생성하지 않고 empty/unmapped mapping으로 fail-open한다.
 
 현재 표준 surface:
 
@@ -387,6 +428,10 @@ Stage1 results
 ~~~
 
 counting unit은 `deduplicated_finding`이다.
+
+각 finding 내부의 standards item은 `(standard, id)` 기준으로 다시 dedupe한 뒤 집계한다. relationship별 count 역시 distinct finding 기준으로 계산한다.
+
+malformed/unknown mapping item은 전체 report를 실패시키기보다 diagnostics에 반영하면서 유효한 item을 계속 집계하는 fail-soft 경계를 유지한다.
 
 ~~~text
 Security Standards Summary
@@ -646,6 +691,7 @@ python3 scripts/check_stage2_report_quality.py \
 | [../README.md](../README.md) | 프로젝트 전체 소개 |
 | [../docs/00_current_architecture.md](../docs/00_current_architecture.md) | 전체 runtime architecture |
 | [prepare/README.md](./prepare/README.md) | Prepare 내부 모듈과 ownership |
+| [prepare_full_output_harness/README.md](./prepare_full_output_harness/README.md) | Prepare full-output compatibility harness contract |
 | [../web/README.md](../web/README.md) | Web 계층 구조와 Viewer 경계 |
 | [../docs/00_apache_logs_only_evidence_boundary.md](../docs/00_apache_logs_only_evidence_boundary.md) | 분석 의미 경계 |
 | [../docs/operations/README.md](../docs/operations/README.md) | DB / 환경 / Worker runtime support |
