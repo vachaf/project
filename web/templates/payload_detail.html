@@ -113,6 +113,13 @@
       추가 후보 제외 Context
     {% endif %}
   {%- endmacro %}
+  {% macro finding_display_label(finding) -%}
+    {%- if finding.verdict == 'suspicious_command_injection' -%}
+      명령 주입 의심 (CMDi-like request pattern)
+    {%- else -%}
+      {{- finding.category or 'unknown' -}}
+    {%- endif -%}
+  {%- endmacro %}
   {% macro render_standard_summary_rows(rows) -%}
     <div class="security-standard-row-list">
       {% for item in rows %}
@@ -337,13 +344,14 @@
                 role="button"
                 aria-label="주요 탐지 요청 {{ loop.index }} 선택"
                 aria-selected="{% if loop.first %}true{% else %}false{% endif %}"
+                data-finding-display-label="{{ finding_display_label(finding) }}"
               >
                 <td data-label="시각" class="payload-time col-time"><span title="{{ finding.log_time or 'unknown' }}">{{ finding.display_time or finding.log_time or 'unknown' }}</span></td>
                 <td data-label="출발지 IP" class="col-source-ip">{{ finding.src_ip or '-' }}</td>
                 <td data-label="HTTP Method" class="col-method"><span class="badge payload-badge payload-badge-method">{{ finding.method or '-' }}</span></td>
                 <td data-label="URI" class="payload-uri col-uri" title="{{ finding.uri or '-' }}">{{ finding.uri or '-' }}</td>
                 <td data-label="HTTP status" class="col-status"><span class="badge payload-badge payload-badge-status">{{ finding.status_code or '-' }}</span></td>
-                <td data-label="탐지 유형" class="col-category"><span class="badge payload-badge payload-badge-default payload-category-badge">{{ finding.category or 'unknown' }}</span></td>
+                <td data-label="탐지 유형" class="col-category"><span class="badge payload-badge payload-badge-default payload-category-badge">{{ finding_display_label(finding) }}</span></td>
                 <td data-label="중요도" class="col-severity"><span class="badge payload-badge payload-badge-severity payload-badge-severity-{{ severity_token }}">{{ finding.severity or 'unknown' }}</span></td>
               </tr>
               {% endfor %}
@@ -1476,6 +1484,12 @@
       el.textContent = asText(text, "unknown");
     }
 
+    function findingDisplayLabel(index, finding) {
+      const row = rowNodes[index];
+      const renderedLabel = row ? row.getAttribute("data-finding-display-label") : "";
+      return asText(renderedLabel, asText(finding.category, "unknown"));
+    }
+
     function renderDetail(index) {
       if (index < 0 || index >= findings.length) {
         if (emptyState) emptyState.classList.remove("is-hidden");
@@ -1491,6 +1505,7 @@
 
       const finding = findings[index] && typeof findings[index] === "object" ? findings[index] : {};
       const raw = finding.raw_export_match && typeof finding.raw_export_match === "object" ? finding.raw_export_match : {};
+      const categoryLabel = findingDisplayLabel(index, finding);
 
       if (emptyState) emptyState.classList.add("is-hidden");
       if (detailContent) detailContent.classList.remove("is-hidden");
@@ -1501,10 +1516,10 @@
         row.setAttribute("aria-selected", selected ? "true" : "false");
       });
 
-      setText("pd-detail-title", asText(finding.category, asText(finding.verdict, "선택한 탐지 요청 상세")));
+      setText("pd-detail-title", categoryLabel);
       updateSeverityBadge(finding.severity);
       updateVerdictBadge(finding.verdict);
-      updateCategoryBadge(finding.category);
+      updateCategoryBadge(categoryLabel);
 
       setText("pd-display-time", finding.display_time || finding.log_time);
       setText("pd-source-ip", displaySourceIp(finding.src_ip));

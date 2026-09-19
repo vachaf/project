@@ -289,6 +289,39 @@ def test_job_viewer_route_renders_payload_dashboard(monkeypatch: pytest.MonkeyPa
     assert "needs_review" in body
 
 
+def test_job_viewer_uses_verdict_aware_finding_label_in_table_and_detail(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    command_injection_label = "명령 주입 의심 (CMDi-like request pattern)"
+    payload = make_viewer_payload(
+        findings=[
+            {
+                "request_id": "rid-cmdi",
+                "category": "path_traversal_candidate",
+                "verdict": "suspicious_command_injection",
+            },
+            {
+                "request_id": "rid-traversal",
+                "category": "path_traversal_candidate",
+                "verdict": "suspicious_path_traversal",
+            },
+        ]
+    )
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+
+    assert f'data-finding-display-label="{command_injection_label}"' in body
+    assert f'payload-category-badge">{command_injection_label}</span>' in body
+    assert 'data-finding-display-label="path_traversal_candidate"' in body
+    assert 'payload-category-badge">path_traversal_candidate</span>' in body
+    assert "const categoryLabel = findingDisplayLabel(index, finding);" in body
+    assert 'setText("pd-detail-title", categoryLabel);' in body
+    assert "updateCategoryBadge(categoryLabel);" in body
+
+
 def test_job_viewer_route_renders_report_level_human_sections(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
