@@ -2,7 +2,7 @@
 
 ## 1. 문서 역할과 기준
 
-- source 기준 revision: `6dbd2980e12ae007905e2bf13a27934a0e605df4`
+- source 기준 revision: `d36a293c4eca9c85fc21165c1e06153bd9e1e26b`
 - 기준일: 2026-09-19
 - 상태: **Active / current runtime architecture**
 - Evidence Boundary: [00_apache_logs_only_evidence_boundary.md](./00_apache_logs_only_evidence_boundary.md)
@@ -71,11 +71,12 @@ access logs  security logs  error logs
                  deterministic
                            |
                            v
-              Stage2 Report Synthesis
+             Stage2 Report Input
+          + Standards Summary
+                 deterministic
                            |
                            v
-          Security Standards Summary
-                 deterministic
+              Stage2 Report Synthesis
                            |
                            v
           viewer_payload / reports /
@@ -316,8 +317,8 @@ Export
   -> Prepare
   -> Stage1
   -> Security Standards Mapping
-  -> Stage2
-  -> Security Standards Summary
+  -> Stage2 Report Input + Security Standards Summary
+  -> Stage2 Report Synthesis
   -> viewer_payload
 ~~~
 
@@ -414,15 +415,18 @@ Security Standards Mapping
 != exploit success confirmation
 ~~~
 
-### 7.6 Stage2
+### 7.6 Stage2 Report Input과 Security Standards Summary
 
-`src/llm_stage2_reporter.py`는 Stage1 결과와 구조화된 문맥을 바탕으로 finding 중심의 최종 report를 합성한다.
+`src/llm_stage2_reporter.py`는 Stage1 결과를 먼저 deduplicate하고 Prepare context와 함께 Stage2 report input을 구성한다.
 
-Stage2는 여러 candidate 결과를 사람이 읽을 수 있는 보고서 관점에서 정리하지만, Apache 로그에서 관찰되지 않은 실행 성공·침해 사실을 새 evidence로 만들지 않는다.
+이 과정에서 `src/security_standards_summary.py`가 deduplicated finding 집합의 standards mapping을 deterministic하게 집계한다.
 
-### 7.7 Security Standards Summary
-
-`src/security_standards_summary.py`는 Stage2에서 사용하는 deduplicated finding 집합의 standards mapping을 deterministic하게 집계한다.
+~~~text
+Stage1 results
+  -> deduplicated findings
+  -> Security Standards Summary
+  -> Stage2 report input
+~~~
 
 ~~~text
 Security Standards Summary
@@ -437,6 +441,14 @@ counting unit
 ~~~
 
 Viewer의 표시용 top-N finding 배열 자체를 전체 Standards Summary 계산 입력으로 사용하지 않는다.
+
+### 7.7 Stage2 Report Synthesis
+
+Stage2 LLM은 이미 구성된 report input을 바탕으로 finding 중심의 최종 report를 합성한다.
+
+즉 Security Standards Summary는 Stage2 LLM 호출 이후의 후처리가 아니라 **Stage2 입력 구성 단계에서 먼저 계산되는 deterministic aggregate**다.
+
+Stage2는 여러 candidate 결과와 구조화된 문맥을 사람이 읽을 수 있는 보고서 관점에서 정리하지만, Apache 로그에서 관찰되지 않은 실행 성공·침해 사실을 새 evidence로 만들지 않는다.
 
 ---
 
