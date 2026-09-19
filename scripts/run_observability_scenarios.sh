@@ -14,7 +14,7 @@ set -euo pipefail
 # Related docs:
 #   - lab/observability/scenario_catalog.md
 #   - lab/observability/observation_matrix_template.md
-#   - docs/design/99_apache_app_observability_comparison_plan.md
+#   - docs/00_current_architecture.md
 
 SCRIPT_NAME="$(basename "$0")"
 
