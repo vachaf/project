@@ -8,7 +8,7 @@ set -euo pipefail
 #   scripts/run_observability_scenarios.sh.
 #
 # Related docs:
-#   - docs/design/99_apache_app_observability_comparison_plan.md
+#   - docs/00_current_architecture.md
 #   - lab/observability/scenario_catalog.md
 #   - lab/observability/observation_matrix_template.md
 
