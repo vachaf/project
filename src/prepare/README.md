@@ -62,6 +62,25 @@ Prepare
 
 따라서 shared observation이 존재한다는 사실만으로 candidate, severity, final verdict가 결정되지 않는다.
 
+### 2.1 Candidate policy의 좁은 예외
+
+현재 Prepare에는 upload-like POST에서 `sqli:sql_comment` 단독 약신호를 strong SQLi로 과분류하지 않기 위한 narrow guard가 존재한다.
+
+핵심 의미는 다음과 같다.
+
+~~~text
+upload-like POST
++ sql_comment 단독 weak signal
++ logged target에 stronger SQLi structure 없음
+  -> weak upload-context signal로 취급 가능
+~~~
+
+반대로 quote termination, boolean/UNION 구조 등 stronger SQLi structure가 관찰되면 이 narrow guard가 strong signal을 숨기지 않는다.
+
+이 예외는 broad candidate demotion 정책이 아니다. status/error/scanner/topology context만으로 candidate를 광범위하게 내리는 정책은 자동 적용하지 않는다.
+
+진단용 helper나 설명 스크립트는 candidate policy의 source of truth가 아니며, 실제 policy owner는 Prepare production code다.
+
 ---
 
 ## 3. Prepare output contract
@@ -325,8 +344,20 @@ Baseline/static/crawler-like 요청과 scanner-like 요청이 섞인 문맥을 �
 현재 adapter는:
 
 - Prepare용 `prepare_compat_v1` input profile 사용
+- ordered Prepare surface를 shared extractor에 전달
 - shared signal을 legacy hint group과 연결
 - observation과 hint 관계를 Prepare에 제공
+
+대표 surface:
+
+~~~text
+combined_text
+query_string
+raw_request_target
+uri
+~~~
+
+Shared extractor의 provenance/variant 결과를 Prepare policy로 투영하되, 기존 hint 순서·candidate/scoring/filtering 의미를 임의로 재정의하지 않는다.
 
 하지만 다음을 직접 수행하지 않는다.
 
