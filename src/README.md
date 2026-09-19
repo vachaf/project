@@ -590,7 +590,7 @@ sliding_window_operator_queue_detail.py
 
 이 경로는 `analysis_jobs` 기반 `full_report` 실행 queue와 동일한 runtime으로 해석하지 않는다.
 
-현재 Final 범위와 상태는 [../docs/final/final-scope.md](../docs/final/final-scope.md)에서 관리한다.
+현재 사용자 runtime에 포함되는 경로는 [../docs/00_current_architecture.md](../docs/00_current_architecture.md)를 기준으로 해석한다.
 
 ---
 
@@ -615,7 +615,7 @@ python3 scripts/check_stage2_report_quality.py \
 
 이 lint는 공격 성공 여부를 판정하는 detector가 아니라 Apache logs-only wording boundary를 점검하는 도구다.
 
-고정 테스트 개수나 과거 spot-check 결과는 이 README에서 current baseline으로 관리하지 않는다. revision별 실제 PASS / FAIL / BLOCKED / NOT RUN은 [../docs/final/final-verification-record.md](../docs/final/final-verification-record.md)에서 관리한다.
+고정 테스트 개수나 과거 spot-check 결과는 이 README에서 current baseline으로 관리하지 않는다. 실제 검증 여부는 해당 revision에서 실행한 regression/pytest/E2E 결과와 Git history를 기준으로 확인한다.
 
 ---
 
@@ -648,7 +648,6 @@ python3 scripts/check_stage2_report_quality.py \
 | [prepare/README.md](./prepare/README.md) | Prepare 내부 모듈과 ownership |
 | [../web/README.md](../web/README.md) | Web 계층 구조와 Viewer 경계 |
 | [../docs/00_apache_logs_only_evidence_boundary.md](../docs/00_apache_logs_only_evidence_boundary.md) | 분석 의미 경계 |
-| [../docs/operations/](../docs/operations/) | DB / Worker / 실행 운영 |
-| [../docs/final/](../docs/final/) | Final scope / verification / freeze evidence |
+| [../docs/operations/README.md](../docs/operations/README.md) | DB / 환경 / Worker runtime support |
 
 이 문서는 과거 refactor round나 특정 fixture 숫자를 현재 구조 설명과 섞지 않는다. `src/` README의 책임은 **현재 분석 runtime 코드가 어떤 단계와 ownership으로 연결되어 있는지 설명하는 것**이다.
