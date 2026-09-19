@@ -67,10 +67,11 @@ Apache access / security / error logs
                          Security Standards Mapping
                                         |
                                         v
-                            Stage2 Report Synthesis
+                           Stage2 Report Input
+                        + Standards Summary
                                         |
                                         v
-                         Security Standards Summary
+                            Stage2 Report Synthesis
                                         |
                                         v
                           Job-scoped Artifacts
@@ -124,8 +125,8 @@ Export
 → Prepare
 → Stage1
 → Security Standards Mapping
-→ Stage2
-→ Security Standards Summary
+→ Stage2 Report Input + Security Standards Summary
+→ Stage2 Report Synthesis
 → Viewer Payload / Artifacts
 ~~~
 
@@ -249,7 +250,7 @@ Worker는 Job을 claim하고 Job별 artifact root를 사용해 Export부터 View
 
 Security Standards Mapping은 Stage1 결과와 Prepare evidence를 바탕으로 OWASP Top 10, CWE, WSTG 관계를 deterministic하게 보강합니다.
 
-Security Standards Summary는 이미 정리된 finding의 mapping을 집계합니다.
+Security Standards Summary는 Stage1 결과를 deduplicate해 Stage2 report input을 구성하는 과정에서 finding별 mapping을 deterministic하게 집계합니다. 즉 Stage2 LLM 호출 이후의 후처리가 아니라 Stage2 입력 구성 단계에 포함됩니다.
 
 ~~~text
 Security Standards Mapping / Summary
