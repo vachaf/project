@@ -489,7 +489,7 @@ python3 -m pytest tests/test_shared_security_signal_extractor.py
 
 변경 범위에 따라 corrected semantics, candidate policy, context summary, external benchmark 관련 focused regression도 추가한다.
 
-고정 fixture 개수나 과거 PASS 숫자는 이 README의 current baseline으로 관리하지 않는다. revision별 실제 검증 상태는 [../../docs/final/final-verification-record.md](../../docs/final/final-verification-record.md)에서 관리한다.
+고정 fixture 개수나 과거 PASS 숫자는 이 README의 current baseline으로 관리하지 않는다. 실제 검증 여부는 해당 revision에서 실행한 regression/pytest 결과와 Git history를 기준으로 확인한다.
 
 ---
 
@@ -500,8 +500,6 @@ python3 -m pytest tests/test_shared_security_signal_extractor.py
 | [../README.md](../README.md) | 전체 분석 runtime / pipeline |
 | [../../docs/00_current_architecture.md](../../docs/00_current_architecture.md) | 전체 시스템 runtime architecture |
 | [../../docs/00_apache_logs_only_evidence_boundary.md](../../docs/00_apache_logs_only_evidence_boundary.md) | 로그 기반 의미 경계 |
-| [../../docs/design/README.md](../../docs/design/README.md) | Prepare 포함 상세 설계 문서 색인 |
-| [../../docs/final/final-verification-record.md](../../docs/final/final-verification-record.md) | revision별 검증 evidence |
 
 과거 module split round, constants mini-move, 특정 refactor 작업 기록은 historical design/review 문서에 남긴다.
 
