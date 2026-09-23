@@ -118,6 +118,8 @@ def test_candidate_f_terminal_fallback_is_neutral_and_not_stage2_recon() -> None
         known_asset_ips=[],
     )
     assert report_input["top_out_of_candidate_recon"] == []
+    assert stage2.is_low_signal_only_neutral_mode(report_input)
+    assert "low_signal_request != reconnaissance" in stage2.build_messages(report_input)[0]["content"]
 
 
 def test_single_neutral_low_signal_aggregate_note_does_not_claim_repetition() -> None:

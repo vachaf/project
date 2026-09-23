@@ -79,6 +79,15 @@ REPORT_TEXT_FIELDS = {
     "confidence_and_limitations",
     "presentation_takeaway",
 }
+LOW_SIGNAL_NEUTRAL_FILTERED_CATEGORIES = {
+    "low_signal_request",
+    *REFERENCE_BASELINE_FILTERED_CATEGORIES,
+}
+LOW_SIGNAL_RECON_WARNING = "semantic_violation:low_signal_request_recon_overreach"
+LOW_SIGNAL_RECON_TERMS = re.compile(
+    r"탐색|정찰|스캔|퍼징|(?<![A-Za-z])(?:recon|reconnaissance|scan|scans|scanner|scanning|probe|probes|probing|fuzz|fuzzing)(?![A-Za-z])",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -915,6 +924,93 @@ def sanitize_report_json_text(payload: Any, *, current_key: str = "") -> Tuple[A
     if isinstance(payload, str) and current_key in REPORT_TEXT_FIELDS:
         return sanitize_report_text(payload)
     return payload, warnings
+
+
+def is_low_signal_only_neutral_mode(report_input: Dict[str, Any]) -> bool:
+    counts = report_input.get("pipeline_counts") or {}
+    breakdown = (report_input.get("distributions") or {}).get("filtered_out_breakdown") or {}
+    if "candidate_rows" not in counts or safe_int(counts.get("candidate_rows"), -1) != 0:
+        return False
+    if safe_int(counts.get("distinct_incident_count"), 0) > 0 or safe_int(counts.get("stage1_success_count"), 0) > 0:
+        return False
+    if safe_int(breakdown.get("low_signal_request"), 0) <= 0:
+        return False
+    if any(
+        safe_int(value, 0) > 0 and category not in LOW_SIGNAL_NEUTRAL_FILTERED_CATEGORIES
+        for category, value in breakdown.items()
+    ):
+        return False
+    # Each of these deterministic collections can independently justify candidate or probing language.
+    evidence_collections = (
+        "top_incidents",
+        "top_out_of_candidate_recon",
+        "probing_sequence_summaries",
+        "sensitive_path_probe_summaries",
+        "mixed_baseline_scanner_summaries",
+        "method_behavior_summaries",
+        "ip_behavior_aggregates",
+    )
+    return not any(report_input.get(key) for key in evidence_collections)
+
+
+def validate_low_signal_report_semantics(
+    report_json: Dict[str, Any], report_input: Dict[str, Any]
+) -> Tuple[Dict[str, Any], List[str]]:
+    if not is_low_signal_only_neutral_mode(report_input):
+        return report_json, []
+
+    count = safe_int(report_input["distributions"]["filtered_out_breakdown"]["low_signal_request"], 0)
+    summary = f"분석 후보로 승격된 요청은 확인되지 않았으며, 후보 기준을 넘지 않은 저신호 요청 {count}건이 제외되었습니다."
+    limitation = "현재 정보만으로 요청의 의도나 공격성을 판단할 수 없습니다."
+    field_fallbacks: Dict[str, Any] = {
+        "report_title": "저신호 요청 분석 요약",
+        "overall_assessment": f"{summary} {limitation}",
+        "executive_summary": [
+            "분석 후보로 승격된 요청은 확인되지 않았습니다.",
+            f"후보 기준을 넘지 않은 저신호 요청 {count}건이 제외되었습니다.",
+            limitation,
+        ],
+        "key_findings": [
+            {"title": "분석 후보 현황", "detail": "분석 후보로 승격된 요청은 확인되지 않았습니다.", "severity": "info"},
+            {"title": "저신호 요청", "detail": f"후보 기준을 넘지 않은 저신호 요청 {count}건이 제외되었습니다.", "severity": "info"},
+            {"title": "해석 한계", "detail": limitation, "severity": "info"},
+        ],
+        "noise_interpretation": f"후보 기준을 넘지 않은 저신호 요청 {count}건이 제외되었습니다. {limitation}",
+        "recommended_actions": [
+            {"priority": "P1", "action": "필요한 경우 해당 요청을 추가 로그와 함께 검토합니다.", "why": limitation},
+            {"priority": "P2", "action": "후보 제외 기준과 요청 수를 확인합니다.", "why": f"저신호 요청 {count}건이 후보에서 제외되었습니다."},
+            {"priority": "P3", "action": "추가 정보가 확보되면 해석을 다시 검토합니다.", "why": limitation},
+        ],
+        "confidence_and_limitations": ["분석 후보로 승격된 요청은 확인되지 않았습니다.", limitation],
+        "presentation_takeaway": f"저신호 요청 {count}건은 후보에서 제외되었으며, {limitation}",
+    }
+    changed = False
+    validated = dict(report_json)
+    for field, fallback in field_fallbacks.items():
+        value = report_json.get(field)
+        field_text = json.dumps(value, ensure_ascii=False) if isinstance(value, (list, dict)) else normalize_str(value)
+        if LOW_SIGNAL_RECON_TERMS.search(field_text):
+            validated[field] = fallback
+            changed = True
+
+    for field, text_key in (("notable_incidents", "why_it_matters"), ("notable_source_ips", "reason")):
+        rows = report_json.get(field) or []
+        clean_rows = []
+        for row in rows:
+            clean_row = dict(row)
+            if LOW_SIGNAL_RECON_TERMS.search(normalize_str(clean_row.get(text_key))):
+                clean_row[text_key] = limitation
+                changed = True
+            clean_rows.append(clean_row)
+        validated[field] = clean_rows
+
+    return validated, [LOW_SIGNAL_RECON_WARNING] if changed else []
+
+
+def postprocess_report_json(parsed_report: Dict[str, Any], report_input: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+    report_json, warnings = sanitize_report_json_text(parsed_report)
+    report_json, semantic_warnings = validate_low_signal_report_semantics(report_json, report_input)
+    return report_json, sorted(set(warnings + semantic_warnings))
 
 
 def build_filtered_category_rows(filtered_out_breakdown: Dict[str, int], total_filtered_out_rows: int, top_n: int) -> List[Dict[str, Any]]:
@@ -1907,7 +2003,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "- Do not call filtered-out or candidate-excluded rows benign or normal. Candidate-excluded means not selected for candidate analysis, not safe.\n"
             "- Use candidate-excluded, baseline-like, known_baseline_like, known_baseline_like_legacy_alias, or context-only baseline-like instead.\n"
             "- Do not infer benign, safe, or normal from status_code, response size, route, User-Agent, or known asset IP.\n"
-            "- low_signal_fuzzing과 low_signal_dir_probe는 기본적으로 incident로 승격하지 말고 '후보 밖 탐색성 요청'으로 표기하라. 단, 동일 IP, 동일 시간대, 후속 고신호 incident와 결합될 때만 승격 검토 대상으로 서술하라.\n"
+            "- low_signal_fuzzing과 low_signal_dir_probe는 기본적으로 incident로 승격하지 마라. top_out_of_candidate_recon에 실제 항목이 있을 때만 '후보 밖 탐색성 요청'으로 표기하라. 동일 IP, 동일 시간대, 후속 고신호 incident와 결합될 때만 승격 검토 대상으로 서술하라.\n"
             "- known_baseline_like 또는 known_baseline_like_legacy_alias filtered_out category 는 low_signal_fuzzing 과 분리해서 candidate-excluded baseline-like 또는 reference baseline 으로 표현하라.\n"
             "- supporting_events는 개별 incident가 아니라 같은 src_ip, uri 또는 endpoint family, 인접 시간대의 보조 문맥이다. 개별 incident로 승격하지 마라.\n"
             "- supporting_role=reference_baseline 또는 supporting_reason=nearby_normal_search_baseline은 같은 endpoint의 baseline-like 또는 reference baseline으로 설명하라.\n"
@@ -1932,6 +2028,19 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         ),
     )
     system_prompt = "\n\n".join(system_prompt_sections)
+    neutral_mode = is_low_signal_only_neutral_mode(report_input)
+    if neutral_mode:
+        system_prompt += (
+            "\n\nK. Low-signal-only neutral mode\n"
+            "- low_signal_request != reconnaissance; low_signal_request != scanning; "
+            "low_signal_request != fuzzing; low_signal_request != benign.\n"
+            "- 이 입력의 low_signal_request에는 탐색, 탐색성, 정찰, recon, reconnaissance, "
+            "scan, scanning, 스캔, probe, probing, fuzzing, fuzz, 퍼징 의미를 부여하지 마라.\n"
+            "- 후보 기준을 넘지 않은 저신호 요청, 분석 후보로 승격되지 않은 요청으로만 설명하라. "
+            "현재 정보만으로 의도 또는 공격성을 판단할 수 없다고 명시하라.\n"
+            "- '후보 밖 탐색성 요청'은 top_out_of_candidate_recon에 실제 항목이 있을 때만 사용하라. "
+            "probing 및 IP behavior 설명은 해당 deterministic context collection에 실제 항목이 있을 때만 적용하라."
+        )
 
     user_payload = {
         "report_goal": {
@@ -2025,7 +2134,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "User-Agent 해석은 비브라우저성 UA, 반복적 UA 패턴, 자동화 또는 테스트성 UA 가능성처럼 일반화하라.",
             "top_incidents.reasoning_summary 또는 evidence_fields 에 lab-* 또는 실험용 User-Agent 관련 표현이 남아 있어도 그것만으로 공격 근거나 severity 상향 근거로 승격하지 말고, query_string, raw_request_target, reason_hints, status_code, response_body_bytes, resp_content_type, timing, sequence context 같은 일반화 가능한 Apache 로그 표면 신호가 있을 때만 보조적으로 취급하라.",
             "known_asset IP 와 결합된 비브라우저성 또는 자동화성 UA 는 내부 테스트 또는 운영 점검 가능성을 함께 병기하라.",
-            "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, 별도 '후보 밖 탐색성 요청' 섹션에서 설명하라.",
+            "low_signal_fuzzing 과 low_signal_dir_probe 는 기본적으로 incident 로 승격하지 말고, top_out_of_candidate_recon 에 실제 항목이 있을 때만 '후보 밖 탐색성 요청'으로 설명하라.",
             "동일 IP, 동일 시간대, 후속 고신호 incident 와 결합될 때만 승격 검토 대상으로 서술하라.",
             "filtered-out 또는 candidate-excluded row를 benign, normal, 정상, 무해로 부르지 마라. candidate-excluded는 candidate 분석 대상으로 선택되지 않았다는 뜻이지 안전하다는 뜻이 아니다.",
             "known_baseline_like 또는 known_baseline_like_legacy_alias filtered_out category 는 low_signal_fuzzing 과 분리해서 candidate-excluded baseline-like 또는 reference baseline 으로 설명하라.",
@@ -2038,6 +2147,15 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         ],
         "report_input": llm_report_input,
     }
+    if neutral_mode:
+        user_payload["instructions"].append(
+            "low-signal-only neutral mode: low_signal_request != reconnaissance, scanning, fuzzing, benign. "
+            "탐색/탐색성/정찰/recon/reconnaissance/scan/scanning/스캔/probe/probing/fuzzing/fuzz/퍼징 의미를 "
+            "low_signal_request에 부여하지 마라. 후보 기준을 넘지 않은 저신호 요청의 실제 건수만 쓰고 "
+            "현재 정보만으로 의도나 공격성을 판단할 수 없다고 설명하라. "
+            "'후보 밖 탐색성 요청'은 top_out_of_candidate_recon에 항목이 있을 때만 쓰고, "
+            "probing/IP behavior 해석은 해당 context collection에 항목이 있을 때만 적용하라."
+        )
 
     return [
         {"role": "system", "content": system_prompt},
@@ -2179,11 +2297,15 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     lines.append(normalize_str(report_json.get("noise_interpretation")))
     lines.append("")
     lines.append("정책:")
-    lines.append("- low_signal_fuzzing / low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않습니다.")
-    lines.append("- low_signal_fuzzing / low_signal_dir_probe 만 후보 밖 탐색성 요청으로 고정 표기합니다.")
+    if top_out_of_candidate_recon:
+        lines.append("- low_signal_fuzzing / low_signal_dir_probe 는 기본적으로 incident 로 승격하지 않습니다.")
+        lines.append("- 실제 집계된 low_signal_fuzzing / low_signal_dir_probe 만 후보 밖 탐색성 요청으로 표기합니다.")
+    elif is_low_signal_only_neutral_mode(report_input):
+        lines.append("- low_signal_request 는 후보 기준을 넘지 않은 저신호 요청이며, 의도나 공격성을 단정할 수 없습니다.")
     lines.append("- known_baseline_like / known_baseline_like_legacy_alias 와 supporting_role=reference_baseline 은 candidate-excluded baseline-like 또는 reference baseline 으로 설명합니다.")
     lines.append("- candidate-excluded 는 candidate 분석 대상으로 선택되지 않았다는 뜻이며 안전 판정이 아닙니다.")
-    lines.append("- 동일 IP·동일 시간대·후속 고신호 incident 와 결합될 때만 승격 검토합니다.")
+    if top_out_of_candidate_recon:
+        lines.append("- 동일 IP·동일 시간대·후속 고신호 incident 와 결합될 때만 승격 검토합니다.")
     if top_out_of_candidate_recon:
         lines.append("")
         lines.append("후보 밖 탐색성 요청 분포:")
@@ -2842,8 +2964,7 @@ def main() -> int:
                 print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
                 return 1
 
-        report_json, guardrail_warnings = sanitize_report_json_text(parse_result.parsed)
-        guardrail_warnings = sorted(set(guardrail_warnings))
+        report_json, guardrail_warnings = postprocess_report_json(parse_result.parsed, report_input)
         print(f"[INFO] stage2 JSON parsed via {parse_result.strategy}")
         if guardrail_warnings:
             print(
