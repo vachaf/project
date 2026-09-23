@@ -19,7 +19,7 @@ MariaDB(web_logs)에서 시간 범위 기준으로 로그를 조회해 JSON 파�
 
   python3 src/export_db_logs_cli.py \
     --host "$LOG_DB_HOST" \
-    --user log_writer \
+    --user log_reader \
     --password "$LOG_DB_PASSWORD" \
     --today \
     --table security \
@@ -27,14 +27,14 @@ MariaDB(web_logs)에서 시간 범위 기준으로 로그를 조회해 JSON 파�
 
   python3 src/export_db_logs_cli.py \
     --host "$LOG_DB_HOST" \
-    --user log_writer \
+    --user log_reader \
     --password "$LOG_DB_PASSWORD" \
     --date 2026-04-02 \
     --table security
 
   python3 src/export_db_logs_cli.py \
     --host "$LOG_DB_HOST" \
-    --user log_writer \
+    --user log_reader \
     --password "$LOG_DB_PASSWORD" \
     --start '2026-04-02 09:00:00' \
     --end   '2026-04-02 12:00:00' \
@@ -71,6 +71,7 @@ from zoneinfo import ZoneInfo
 
 import pymysql
 from pymysql.cursors import DictCursor
+from runtime_config import load_project_env, resolve_log_reader_db_config
 
 DEFAULT_DB_NAME = "web_logs"
 DEFAULT_DB_PORT = 3306
@@ -363,12 +364,13 @@ def ask_input(prompt: str, default: Optional[str] = None, secret: bool = False) 
 
 def build_args_from_interactive() -> argparse.Namespace:
     parser = build_parser()
+    db_config = resolve_log_reader_db_config()
 
-    host = ask_input("DB host", os.getenv("LOG_DB_HOST", "") or None)
-    port = ask_input("DB port", str(DEFAULT_DB_PORT))
-    user = ask_input("DB user", os.getenv("LOG_DB_USER", "log_writer"))
-    password = os.getenv("LOG_DB_PASSWORD", "") or ask_input("DB password", secret=True)
-    database = ask_input("DB name", DEFAULT_DB_NAME)
+    host = ask_input("DB host", db_config.host.value or None)
+    port = ask_input("DB port", db_config.port.value)
+    user = ask_input("DB user", db_config.user.value)
+    password = db_config.password.value or ask_input("DB password", secret=True)
+    database = ask_input("DB name", db_config.database.value)
 
     table = ask_input("table 선택 (access/security/error/all)", DEFAULT_TABLE_OPTION).lower()
 
@@ -414,12 +416,13 @@ def build_args_from_interactive() -> argparse.Namespace:
 # argparse
 # -------------------------
 def build_parser() -> argparse.ArgumentParser:
+    db_config = resolve_log_reader_db_config()
     parser = argparse.ArgumentParser(
         description="MariaDB(web_logs)에서 KST 기준 시간 범위로 로그를 JSON으로 export 합니다.",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=(
             "예시:\n"
-            "  python3 src/export_db_logs_cli.py --host \"$LOG_DB_HOST\" --user log_writer --today --table security\n"
+            "  python3 src/export_db_logs_cli.py --host \"$LOG_DB_HOST\" --user log_reader --today --table security\n"
             "  python3 src/export_db_logs_cli.py --date 2026-04-02 --table security --pretty\n"
             "  python3 src/export_db_logs_cli.py --start '2026-04-02 09:00:00' --end '2026-04-02 12:00:00' --table security\n"
             "  python3 src/export_db_logs_cli.py --start '2026-05-02 17:14:00' --end '2026-05-02 17:18:00' --table security --pretty --out-dir lab/05-02_F세트R2A_산출물/data/raw\n"
@@ -428,11 +431,11 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
-    parser.add_argument("--host", default=os.getenv("LOG_DB_HOST", ""), help="MariaDB host")
-    parser.add_argument("--port", type=int, default=int(os.getenv("LOG_DB_PORT", str(DEFAULT_DB_PORT))), help="MariaDB port")
-    parser.add_argument("--user", default=os.getenv("LOG_DB_USER", "log_writer"), help="MariaDB user")
-    parser.add_argument("--password", default=os.getenv("LOG_DB_PASSWORD", ""), help="MariaDB password")
-    parser.add_argument("--database", default=os.getenv("LOG_DB_NAME", DEFAULT_DB_NAME), help="DB name")
+    parser.add_argument("--host", default=db_config.host.value, help="MariaDB host")
+    parser.add_argument("--port", type=int, default=int(db_config.port.value), help="MariaDB port")
+    parser.add_argument("--user", default=db_config.user.value, help="MariaDB user")
+    parser.add_argument("--password", default=db_config.password.value, help="MariaDB password")
+    parser.add_argument("--database", default=db_config.database.value, help="DB name")
 
     parser.add_argument("--table", choices=["access", "security", "error", "all"], default=DEFAULT_TABLE_OPTION, help="조회할 테이블 (기본값: security)")
 
@@ -619,9 +622,9 @@ def run_export(args: argparse.Namespace) -> str:
 
 
 def main() -> int:
-    parser = build_parser()
-
     try:
+        load_project_env()
+        parser = build_parser()
         if len(sys.argv) == 1:
             parser.print_help()
             print("\n인자 없이 실행했습니다. interactive 모드를 쓰려면: --interactive")

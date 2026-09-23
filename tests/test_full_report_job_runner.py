@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -332,6 +333,30 @@ def test_env_and_timeout_are_passed_to_subprocess(tmp_path: Path) -> None:
         assert kwargs["text"] is True
         assert kwargs["check"] is False
         assert kwargs["env"]["RUNNER_TEST_VALUE"] == "yes"
+
+
+def test_default_subprocess_environment_is_inherited_from_parent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    class InheritanceProbe(FakeSubprocess):
+        def __call__(self, command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+            probe = subprocess.run(
+                [sys.executable, "-c", "import os; print(os.environ['LOG_DB_HOST'])"],
+                capture_output=True,
+                check=True,
+                text=True,
+                env=kwargs["env"],
+            )
+            assert probe.stdout.strip() == "parent-log-host"
+            return super().__call__(command, **kwargs)
+
+    fake = InheritanceProbe()
+    monkeypatch.setenv("LOG_DB_HOST", "parent-log-host")
+    runner = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake)
+
+    runner.run(make_job())
+
+    # subprocess.run(env=None) is the Python contract for inheriting the
+    # Worker process environment; Runner must not build a reduced env dict.
+    assert all(kwargs["env"] is None for _, kwargs in fake.calls)
 
 
 def test_success_emits_export_and_pipeline_stage_events(tmp_path: Path) -> None:

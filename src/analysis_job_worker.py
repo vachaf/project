@@ -11,6 +11,8 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, TextIO
 
+import pymysql
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -18,12 +20,148 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from web.services.analysis_job_repository import AnalysisJobRepository  # noqa: E402
 from full_report_job_runner import FullReportJobRunner  # noqa: E402
+from runtime_config import (  # noqa: E402
+    DatabaseRuntimeConfig,
+    RuntimeConfigError,
+    db_config_diagnostic_lines,
+    db_override_warnings,
+    load_project_env,
+    positive_int_env,
+    resolve_app_db_config,
+    resolve_log_reader_db_config,
+    validate_database_config,
+)
+
+
+EX_CONFIG = getattr(os, "EX_CONFIG", 78)
+EX_TEMPFAIL = getattr(os, "EX_TEMPFAIL", 75)
 
 
 SECRET_PATTERNS = [
     re.compile(r"(?i)(password|passwd|pwd|token|secret|api[_-]?key)=([^\s]+)"),
     re.compile(r"(?i)(bearer)\s+([A-Za-z0-9._\-]+)"),
 ]
+
+
+class WorkerConfigurationError(RuntimeError):
+    exit_code = EX_CONFIG
+
+
+class WorkerDependencyError(RuntimeError):
+    exit_code = EX_TEMPFAIL
+
+
+class WorkerDependencyChecker:
+    """Read-only checks for dependencies required before a claim is attempted."""
+
+    def check_app_db(self, config: DatabaseRuntimeConfig) -> None:
+        self._query(config, "SELECT id FROM analysis_jobs LIMIT 1")
+
+    def check_source_log_db(self, config: DatabaseRuntimeConfig) -> None:
+        self._query(
+            config,
+            "SELECT id FROM apache_security_logs ORDER BY id DESC LIMIT 1",
+        )
+
+    @staticmethod
+    def _query(config: DatabaseRuntimeConfig, sql: str) -> None:
+        connection = None
+        try:
+            connection = pymysql.connect(
+                **config.connection_kwargs(autocommit=True),
+                connect_timeout=5,
+                read_timeout=10,
+                write_timeout=10,
+            )
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+                cursor.fetchone()
+        except Exception as exc:
+            raise WorkerDependencyError(f"{config.role} dependency health check failed: {exc}") from exc
+        finally:
+            if connection is not None:
+                connection.close()
+
+
+class WorkerRuntimePreflight:
+    """Static and DB checks which must complete before worker polling starts."""
+
+    def __init__(
+        self,
+        *,
+        project_root: Path = PROJECT_ROOT,
+        python_executable: str = sys.executable,
+        dependency_checker: Optional[WorkerDependencyChecker] = None,
+        clock: Callable[[], float] = time.monotonic,
+        health_ttl_seconds: Optional[int] = None,
+    ) -> None:
+        self.project_root = Path(project_root).expanduser().resolve()
+        self.python_executable = python_executable
+        self.dependency_checker = dependency_checker or WorkerDependencyChecker()
+        self.clock = clock
+        self.health_ttl_seconds = (
+            int(health_ttl_seconds)
+            if health_ttl_seconds is not None
+            else positive_int_env("WORKER_DEPENDENCY_HEALTH_TTL_SECONDS", 30)
+        )
+        self.app_db = resolve_app_db_config()
+        self.log_reader_db = resolve_log_reader_db_config()
+        self._last_successful_health_at: Optional[float] = None
+
+    def startup(self, *, stdout: TextIO) -> None:
+        self._validate_static()
+        self._print_effective_config(stdout)
+        self._check_dependencies()
+        print("[analysis-job-worker] startup preflight passed", file=stdout)
+
+    def ensure_dependencies_fresh(self) -> None:
+        now = self.clock()
+        if (
+            self._last_successful_health_at is not None
+            and now - self._last_successful_health_at < self.health_ttl_seconds
+        ):
+            return
+        self._check_dependencies()
+
+    def _validate_static(self) -> None:
+        try:
+            validate_database_config(self.app_db)
+            validate_database_config(self.log_reader_db)
+        except RuntimeConfigError as exc:
+            raise WorkerConfigurationError(str(exc)) from exc
+        if self.log_reader_db.user.value != "log_reader":
+            raise WorkerConfigurationError("log reader DB user must be log_reader")
+        required_files = (
+            self.project_root / "src" / "export_db_logs_cli.py",
+            self.project_root / "src" / "run_analysis_pipeline.py",
+        )
+        if not self.project_root.is_dir():
+            raise WorkerConfigurationError(f"project root does not exist: {self.project_root}")
+        for path in required_files:
+            if not path.is_file():
+                raise WorkerConfigurationError(f"required runtime file missing: {path}")
+        executable = Path(self.python_executable)
+        if not executable.is_file() or not os.access(executable, os.X_OK):
+            raise WorkerConfigurationError(f"Python executable is not usable: {executable}")
+        artifact_parent = self.project_root / "runs" / "jobs"
+        try:
+            artifact_parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise WorkerConfigurationError(f"cannot create artifact parent: {artifact_parent}") from exc
+        if not os.access(artifact_parent, os.W_OK | os.X_OK):
+            raise WorkerConfigurationError(f"artifact parent is not writable: {artifact_parent}")
+
+    def _check_dependencies(self) -> None:
+        self.dependency_checker.check_app_db(self.app_db)
+        self.dependency_checker.check_source_log_db(self.log_reader_db)
+        self._last_successful_health_at = self.clock()
+
+    def _print_effective_config(self, stdout: TextIO) -> None:
+        print("[analysis-job-worker] effective runtime config", file=stdout)
+        for line in db_config_diagnostic_lines((self.app_db, self.log_reader_db)):
+            print(f"[analysis-job-worker] {line}", file=stdout)
+        for warning in db_override_warnings():
+            print(f"[analysis-job-worker] WARNING: {warning}", file=stdout)
 
 
 def build_default_worker_id() -> str:
@@ -47,7 +185,14 @@ def run_once(
     heartbeat_interval: float = 30.0,
     stdout: TextIO = sys.stdout,
     stderr: TextIO = sys.stderr,
+    dependency_gate: Optional[Callable[[], None]] = None,
 ) -> int:
+    if dependency_gate is not None:
+        try:
+            dependency_gate()
+        except WorkerDependencyError as exc:
+            print(f"[analysis-job-worker] dependency unavailable: {redact_worker_error(exc)}", file=stderr)
+            return EX_TEMPFAIL
     claimed = repository.claim_next_pending_full_report_job(worker_id=worker_id)
     if not claimed:
         print("[analysis-job-worker] no pending full_report job", file=stdout)
@@ -86,11 +231,18 @@ def run_loop(
     sleep_fn: Callable[[float], None] = time.sleep,
     stdout: TextIO = sys.stdout,
     stderr: TextIO = sys.stderr,
+    dependency_gate: Optional[Callable[[], None]] = None,
 ) -> int:
     processed_jobs = 0
     print(f"[analysis-job-worker] loop started worker_id={worker_id}", file=stdout)
 
     while max_jobs is None or processed_jobs < max_jobs:
+        if dependency_gate is not None:
+            try:
+                dependency_gate()
+            except WorkerDependencyError as exc:
+                print(f"[analysis-job-worker] dependency unavailable: {redact_worker_error(exc)}", file=stderr)
+                return EX_TEMPFAIL
         claimed = repository.claim_next_pending_full_report_job(worker_id=worker_id)
         if not claimed:
             print("[analysis-job-worker] no pending full_report job", file=stdout)
@@ -592,6 +744,8 @@ def main(
     sleep_fn: Callable[[float], None] = time.sleep,
     stdout: TextIO = sys.stdout,
     stderr: TextIO = sys.stderr,
+    runtime_loader: Callable[..., Any] = load_project_env,
+    preflight_factory: Optional[Callable[[], WorkerRuntimePreflight]] = None,
 ) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -615,6 +769,8 @@ def main(
         if args.once or args.claim_only or args.run_pipeline or args.pipeline_dry_run:
             parser.error("--recover-stale cannot be combined with worker claim/run options")
         try:
+            if repository_factory is AnalysisJobRepository:
+                runtime_loader(PROJECT_ROOT)
             repository = repository_factory()
             if args.mark_failed:
                 return run_recover_stale_mark_failed(
@@ -649,6 +805,24 @@ def main(
         parser.error("loop mode requires --run-pipeline")
     worker_id = args.worker_id or build_default_worker_id()
 
+    # In-memory repositories are test seams for the lower-level worker helpers.
+    # The deployed CLI always uses AnalysisJobRepository and executes preflight.
+    preflight: Optional[WorkerRuntimePreflight] = None
+    if preflight_factory is not None or repository_factory is AnalysisJobRepository:
+        try:
+            runtime_loader(PROJECT_ROOT)
+            preflight = preflight_factory() if preflight_factory is not None else WorkerRuntimePreflight()
+            preflight.startup(stdout=stdout)
+        except WorkerConfigurationError as exc:
+            print(f"[analysis-job-worker] configuration error: {redact_worker_error(exc)}", file=stderr)
+            return EX_CONFIG
+        except WorkerDependencyError as exc:
+            print(f"[analysis-job-worker] dependency unavailable: {redact_worker_error(exc)}", file=stderr)
+            return EX_TEMPFAIL
+        except RuntimeConfigError as exc:
+            print(f"[analysis-job-worker] configuration error: {redact_worker_error(exc)}", file=stderr)
+            return EX_CONFIG
+
     try:
         repository = repository_factory()
         runner = None
@@ -669,6 +843,7 @@ def main(
                 sleep_fn=sleep_fn,
                 stdout=stdout,
                 stderr=stderr,
+                dependency_gate=preflight.ensure_dependencies_fresh if preflight else None,
             )
         return run_once(
             repository,
@@ -678,6 +853,7 @@ def main(
             heartbeat_interval=args.heartbeat_interval,
             stdout=stdout,
             stderr=stderr,
+            dependency_gate=preflight.ensure_dependencies_fresh if preflight else None,
         )
     except Exception as exc:
         print(f"[analysis-job-worker] error: {redact_worker_error(exc)}", file=stderr)

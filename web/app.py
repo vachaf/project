@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from web.config import DEBUG, PROJECT_ROOT
+
 from web.routes.live import init_templates as init_live_templates
 from web.routes.live import router as live_router
 from web.routes.reports import _apply_src_ip_display_mode

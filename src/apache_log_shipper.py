@@ -13,35 +13,49 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import pymysql
 from pymysql.cursors import DictCursor
+from runtime_config import (
+    RuntimeConfigError,
+    load_project_env,
+    resolve_shipper_db_config,
+    validate_database_config,
+)
 
 
-CONFIG = {
-    "db": {
-        "host": os.getenv("LOG_DB_HOST", ""),
-        "port": int(os.getenv("LOG_DB_PORT", "3306")),
-        "user": os.getenv("LOG_DB_USER", "log_writer"),
-        "password": os.getenv("LOG_DB_PASSWORD", ""),
-        "database": os.getenv("LOG_DB_NAME", "web_logs"),
-        "charset": "utf8mb4",
-        "autocommit": False,
-    },
-    "logs": {
+def _build_config() -> Dict:
+    shipper_db = resolve_shipper_db_config()
+    return {
+        "db": shipper_db.connection_kwargs(autocommit=False),
+        "logs": {
         "access": os.getenv("APACHE_ACCESS_LOG", "/var/log/apache2/app_access.log"),
         "security": os.getenv("APACHE_SECURITY_LOG", "/var/log/apache2/app_security.log"),
         "error": os.getenv("APACHE_ERROR_LOG", "/var/log/apache2/app_error.log"),
-    },
-    "error_log_timezone": os.getenv("APACHE_ERROR_LOG_TIMEZONE", "Asia/Seoul"),
-    "state_dir": os.getenv("SHIPPER_STATE_DIR", "/var/lib/apache_log_shipper"),
-    "spool_dir": os.getenv("SHIPPER_SPOOL_DIR", "/var/spool/apache_log_shipper"),
-    "app_log": os.getenv("SHIPPER_APP_LOG", "/var/log/apache2/apache_log_shipper.log"),
-    "scan_interval_sec": float(os.getenv("SHIPPER_SCAN_INTERVAL_SEC", "1.0")),
-    "flush_interval_sec": float(os.getenv("SHIPPER_FLUSH_INTERVAL_SEC", "2.0")),
-    "batch_size": int(os.getenv("SHIPPER_BATCH_SIZE", "100")),
-    "spool_retry_interval_sec": float(os.getenv("SHIPPER_SPOOL_RETRY_INTERVAL_SEC", "10.0")),
-    "connect_timeout_sec": int(os.getenv("SHIPPER_CONNECT_TIMEOUT_SEC", "5")),
-    "read_timeout_sec": int(os.getenv("SHIPPER_READ_TIMEOUT_SEC", "10")),
-    "write_timeout_sec": int(os.getenv("SHIPPER_WRITE_TIMEOUT_SEC", "10")),
-}
+        },
+        "error_log_timezone": os.getenv("APACHE_ERROR_LOG_TIMEZONE", "Asia/Seoul"),
+        "state_dir": os.getenv("SHIPPER_STATE_DIR", "/var/lib/apache_log_shipper"),
+        "spool_dir": os.getenv("SHIPPER_SPOOL_DIR", "/var/spool/apache_log_shipper"),
+        "app_log": os.getenv("SHIPPER_APP_LOG", "/var/log/apache2/apache_log_shipper.log"),
+        "scan_interval_sec": float(os.getenv("SHIPPER_SCAN_INTERVAL_SEC", "1.0")),
+        "flush_interval_sec": float(os.getenv("SHIPPER_FLUSH_INTERVAL_SEC", "2.0")),
+        "batch_size": int(os.getenv("SHIPPER_BATCH_SIZE", "100")),
+        "spool_retry_interval_sec": float(os.getenv("SHIPPER_SPOOL_RETRY_INTERVAL_SEC", "10.0")),
+        "connect_timeout_sec": int(os.getenv("SHIPPER_CONNECT_TIMEOUT_SEC", "5")),
+        "read_timeout_sec": int(os.getenv("SHIPPER_READ_TIMEOUT_SEC", "10")),
+        "write_timeout_sec": int(os.getenv("SHIPPER_WRITE_TIMEOUT_SEC", "10")),
+    }
+
+
+# Config is intentionally empty at import time.  Bootstrap resolves DB/runtime
+# configuration once, immediately before CLI execution.
+CONFIG: Dict = {}
+
+
+def configure_runtime() -> None:
+    """Load fallback env and reject an accidental read-only writer account."""
+    global CONFIG
+    load_project_env()
+    shipper_db = resolve_shipper_db_config()
+    validate_database_config(shipper_db, require_writer=True)
+    CONFIG = _build_config()
 
 RUNNING = True
 
@@ -577,6 +591,10 @@ def main() -> None:
     parser.add_argument("--reset-state", action="store_true", help="reset saved offsets and read from beginning")
     parser.add_argument("--test-db", action="store_true", help="test database connection and exit")
     args = parser.parse_args()
+    try:
+        configure_runtime()
+    except RuntimeConfigError as exc:
+        parser.error(str(exc))
 
     ensure_dirs()
     setup_logging(CONFIG["app_log"])

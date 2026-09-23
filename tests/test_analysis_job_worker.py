@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import os
 import threading
 import time
 from io import StringIO
@@ -1126,8 +1127,8 @@ def test_main_passes_timeout_and_project_root_to_runner_factory() -> None:
 def test_worker_source_does_not_call_pipeline_modules() -> None:
     source = inspect.getsource(analysis_job_worker)
 
-    assert "export_db_logs_cli" not in source
-    assert "run_analysis_pipeline" not in source
+    assert "import export_db_logs_cli" not in source
+    assert "import run_analysis_pipeline" not in source
 
 
 def test_worker_does_not_upsert_manifest_or_handle_windowed_triage() -> None:
@@ -1135,3 +1136,189 @@ def test_worker_does_not_upsert_manifest_or_handle_windowed_triage() -> None:
 
     assert "manifest_path" not in source
     assert "windowed_triage" not in source
+
+
+class RecordingDependencyChecker:
+    def __init__(self, *, fail_app: bool = False, fail_source: bool = False) -> None:
+        self.fail_app = fail_app
+        self.fail_source = fail_source
+        self.calls: list[str] = []
+
+    def check_app_db(self, _config: Any) -> None:
+        self.calls.append("app")
+        if self.fail_app:
+            raise analysis_job_worker.WorkerDependencyError("app unavailable")
+
+    def check_source_log_db(self, _config: Any) -> None:
+        self.calls.append("source")
+        if self.fail_source:
+            raise analysis_job_worker.WorkerDependencyError("source unavailable")
+
+
+def make_runtime_project(tmp_path: Any) -> Any:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "export_db_logs_cli.py").write_text("# export\n", encoding="utf-8")
+    (tmp_path / "src" / "run_analysis_pipeline.py").write_text("# pipeline\n", encoding="utf-8")
+    return tmp_path
+
+
+def set_worker_db_env(monkeypatch: Any) -> None:
+    for key in (
+        "APP_DB_HOST", "APP_DB_PORT", "APP_DB_NAME",
+        "LOG_DB_HOST", "LOG_DB_PORT", "LOG_DB_NAME",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("DB_HOST", "db-host")
+    monkeypatch.setenv("DB_PORT", "3306")
+    monkeypatch.setenv("DB_NAME", "web_logs")
+    monkeypatch.setenv("APP_DB_USER", "analysis_app")
+    monkeypatch.setenv("APP_DB_PASSWORD", "app-password")
+    monkeypatch.setenv("LOG_DB_USER", "log_reader")
+    monkeypatch.setenv("LOG_DB_PASSWORD", "reader-password")
+
+
+def test_main_static_preflight_failure_never_claims(monkeypatch: Any, tmp_path: Any) -> None:
+    set_worker_db_env(monkeypatch)
+    monkeypatch.delenv("DB_HOST")
+    repo = FakeRepository()
+    preflight = analysis_job_worker.WorkerRuntimePreflight(
+        project_root=make_runtime_project(tmp_path),
+        dependency_checker=RecordingDependencyChecker(),
+    )
+
+    exit_code = analysis_job_worker.main(
+        ["--once", "--run-pipeline"],
+        repository_factory=lambda: repo,
+        runtime_loader=lambda _root: None,
+        preflight_factory=lambda: preflight,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == os.EX_CONFIG
+    assert repo.claim_calls == 0
+
+
+def test_startup_dependency_failure_never_claims(monkeypatch: Any, tmp_path: Any) -> None:
+    set_worker_db_env(monkeypatch)
+    repo = FakeRepository()
+    preflight = analysis_job_worker.WorkerRuntimePreflight(
+        project_root=make_runtime_project(tmp_path),
+        dependency_checker=RecordingDependencyChecker(fail_source=True),
+    )
+
+    exit_code = analysis_job_worker.main(
+        ["--once", "--run-pipeline"],
+        repository_factory=lambda: repo,
+        runtime_loader=lambda _root: None,
+        preflight_factory=lambda: preflight,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == os.EX_TEMPFAIL
+    assert repo.claim_calls == 0
+
+
+def test_preclaim_gate_uses_ttl_then_blocks_claim_on_dependency_failure(monkeypatch: Any, tmp_path: Any) -> None:
+    set_worker_db_env(monkeypatch)
+    now = [0.0]
+    checker = RecordingDependencyChecker()
+    preflight = analysis_job_worker.WorkerRuntimePreflight(
+        project_root=make_runtime_project(tmp_path),
+        dependency_checker=checker,
+        clock=lambda: now[0],
+        health_ttl_seconds=30,
+    )
+    preflight.startup(stdout=StringIO())
+    assert checker.calls == ["app", "source"]
+    now[0] = 10.0
+    preflight.ensure_dependencies_fresh()
+    assert checker.calls == ["app", "source"]
+
+    checker.fail_source = True
+    now[0] = 31.0
+    repo = FakeRepository()
+    exit_code = analysis_job_worker.run_loop(
+        repo,
+        worker_id="worker-gate",
+        runner=FakeRunner(),
+        max_jobs=1,
+        dependency_gate=preflight.ensure_dependencies_fresh,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert exit_code == os.EX_TEMPFAIL
+    assert repo.claim_calls == 0
+
+
+def test_preclaim_gate_recovers_and_then_allows_claim(monkeypatch: Any, tmp_path: Any) -> None:
+    set_worker_db_env(monkeypatch)
+    now = [0.0]
+    checker = RecordingDependencyChecker()
+    preflight = analysis_job_worker.WorkerRuntimePreflight(
+        project_root=make_runtime_project(tmp_path),
+        dependency_checker=checker,
+        clock=lambda: now[0],
+        health_ttl_seconds=1,
+    )
+    preflight.startup(stdout=StringIO())
+    now[0] = 2.0
+    checker.fail_source = True
+    with pytest.raises(analysis_job_worker.WorkerDependencyError):
+        preflight.ensure_dependencies_fresh()
+
+    checker.fail_source = False
+    preflight.ensure_dependencies_fresh()
+    repo = FakeRepository()
+    assert analysis_job_worker.run_once(
+        repo,
+        worker_id="worker-gate",
+        dependency_gate=preflight.ensure_dependencies_fresh,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    ) == 0
+    assert repo.claim_calls == 1
+
+
+def test_app_health_check_reads_analysis_jobs_and_accepts_empty_result(monkeypatch: Any) -> None:
+    executed: list[str] = []
+
+    class Cursor:
+        def __enter__(self): return self
+        def __exit__(self, *_args): return None
+        def execute(self, sql: str): executed.append(sql)
+        def fetchone(self): return None
+
+    class Connection:
+        def cursor(self): return Cursor()
+        def close(self): return None
+
+    monkeypatch.setattr(analysis_job_worker.pymysql, "connect", lambda **_kwargs: Connection())
+    config = analysis_job_worker.resolve_app_db_config(
+        {"DB_HOST": "host", "APP_DB_USER": "analysis_app", "APP_DB_PASSWORD": "password"}
+    )
+
+    analysis_job_worker.WorkerDependencyChecker().check_app_db(config)
+
+    assert executed == ["SELECT id FROM analysis_jobs LIMIT 1"]
+
+
+def test_app_health_check_wraps_analysis_jobs_query_failure(monkeypatch: Any) -> None:
+    class Cursor:
+        def __enter__(self): return self
+        def __exit__(self, *_args): return None
+        def execute(self, _sql: str): raise RuntimeError("analysis_jobs denied")
+
+    class Connection:
+        def cursor(self): return Cursor()
+        def close(self): return None
+
+    monkeypatch.setattr(analysis_job_worker.pymysql, "connect", lambda **_kwargs: Connection())
+    config = analysis_job_worker.resolve_app_db_config(
+        {"DB_HOST": "host", "APP_DB_USER": "analysis_app", "APP_DB_PASSWORD": "password"}
+    )
+
+    with pytest.raises(analysis_job_worker.WorkerDependencyError, match="analysis_app dependency health check failed"):
+        analysis_job_worker.WorkerDependencyChecker().check_app_db(config)

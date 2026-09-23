@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -8,6 +7,11 @@ from typing import Any, Callable, Dict, Iterator, List, Literal, Optional
 
 import pymysql
 from pymysql.cursors import DictCursor
+from src.runtime_config import (
+    RuntimeConfigError,
+    positive_int_env,
+    resolve_log_reader_db_config,
+)
 
 LIVE_LOG_TABLE = "web_logs.apache_security_logs"
 CursorDirection = Literal["older", "newer"]
@@ -43,50 +47,35 @@ class LiveLogPage:
     has_newer: bool
 
 
-def _timeout(name: str, default: int) -> int:
-    try:
-        value = int(os.getenv(name, str(default)))
-    except (TypeError, ValueError) as exc:
-        raise LiveLogRepositoryError(f"{name} must be an integer") from exc
-    if value < 1:
-        raise LiveLogRepositoryError(f"{name} must be positive")
-    return value
-
-
 def get_live_log_db_config() -> Dict[str, Any]:
     """Read only LOG_DB_*; never use the analysis-job DB configuration."""
 
-    user = str(os.getenv("LOG_DB_USER", "log_reader") or "").strip()
-    host = str(os.getenv("LOG_DB_HOST", "") or "").strip()
-    password = str(os.getenv("LOG_DB_PASSWORD", "") or "")
-    database = str(os.getenv("LOG_DB_NAME", "web_logs") or "").strip()
+    config = resolve_log_reader_db_config()
+    user = config.user.value
+    host = config.host.value
+    password = config.password.value
+    database = config.database.value
     if user != "log_reader":
         raise LiveLogRepositoryError("Live Monitoring requires LOG_DB_USER=log_reader")
     if not host:
-        raise LiveLogRepositoryError("LOG_DB_HOST is required for Live Monitoring")
+        raise LiveLogRepositoryError("source log DB host is required for Live Monitoring")
     if not password:
-        raise LiveLogRepositoryError("LOG_DB_PASSWORD is required for Live Monitoring")
+        raise LiveLogRepositoryError("source log DB password is required for Live Monitoring")
     if database != "web_logs":
-        raise LiveLogRepositoryError("Live Monitoring requires LOG_DB_NAME=web_logs")
+        raise LiveLogRepositoryError("Live Monitoring requires source log database web_logs")
     try:
-        port = int(os.getenv("LOG_DB_PORT", "3306"))
-    except (TypeError, ValueError) as exc:
-        raise LiveLogRepositoryError("LOG_DB_PORT must be an integer") from exc
-    if not 1 <= port <= 65535:
-        raise LiveLogRepositoryError("LOG_DB_PORT must be between 1 and 65535")
-    return {
-        "host": host,
-        "port": port,
-        "user": user,
-        "password": password,
-        "database": database,
-        "charset": "utf8mb4",
-        "autocommit": True,
-        "connect_timeout": _timeout("LOG_DB_CONNECT_TIMEOUT_SEC", 5),
-        "read_timeout": _timeout("LOG_DB_READ_TIMEOUT_SEC", 10),
-        "write_timeout": _timeout("LOG_DB_WRITE_TIMEOUT_SEC", 10),
-        "cursorclass": DictCursor,
-    }
+        values = config.connection_kwargs(autocommit=True)
+        values.update({
+            "charset": "utf8mb4",
+            "autocommit": True,
+            "connect_timeout": positive_int_env("LOG_DB_CONNECT_TIMEOUT_SEC", 5),
+            "read_timeout": positive_int_env("LOG_DB_READ_TIMEOUT_SEC", 10),
+            "write_timeout": positive_int_env("LOG_DB_WRITE_TIMEOUT_SEC", 10),
+            "cursorclass": DictCursor,
+        })
+        return values
+    except RuntimeConfigError as exc:
+        raise LiveLogRepositoryError(str(exc)) from exc
 
 
 @contextmanager

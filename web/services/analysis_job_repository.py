@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import json
 import hashlib
 from contextlib import contextmanager
@@ -19,6 +18,7 @@ from web.services.analysis_job_policy import (
     redact_secret_text,
     to_mariadb_datetime3,
 )
+from src.runtime_config import positive_int_env, resolve_app_db_config
 
 DEFAULT_STATUS_COUNTS = {"PENDING": 0, "RUNNING": 0, "SUCCEEDED": 0, "FAILED": 0}
 ACTIVE_JOB_STATUSES = ("PENDING", "RUNNING")
@@ -105,22 +105,14 @@ def get_app_db_config() -> Dict[str, Any]:
     log_reader/log_writer roles used by export/log shipper flows.
     """
 
-    user = os.getenv("APP_DB_USER") or os.getenv("LOG_DB_USER") or "analysis_app"
-    password = os.getenv("APP_DB_PASSWORD") or os.getenv("LOG_DB_PASSWORD") or ""
-    host = os.getenv("DB_HOST") or os.getenv("LOG_DB_HOST") or "127.0.0.1"
-    database = os.getenv("DB_NAME") or os.getenv("LOG_DB_NAME") or "web_logs"
-    port = int(os.getenv("DB_PORT") or os.getenv("LOG_DB_PORT") or "3306")
+    config = resolve_app_db_config()
     return {
-        "host": host,
-        "port": port,
-        "user": user,
-        "password": password,
-        "database": database,
+        **config.connection_kwargs(autocommit=False),
         "charset": "utf8mb4",
         "autocommit": False,
-        "connect_timeout": int(os.getenv("APP_DB_CONNECT_TIMEOUT_SEC", "5")),
-        "read_timeout": int(os.getenv("APP_DB_READ_TIMEOUT_SEC", "10")),
-        "write_timeout": int(os.getenv("APP_DB_WRITE_TIMEOUT_SEC", "10")),
+        "connect_timeout": positive_int_env("APP_DB_CONNECT_TIMEOUT_SEC", 5),
+        "read_timeout": positive_int_env("APP_DB_READ_TIMEOUT_SEC", 10),
+        "write_timeout": positive_int_env("APP_DB_WRITE_TIMEOUT_SEC", 10),
         "cursorclass": DictCursor,
     }
 
