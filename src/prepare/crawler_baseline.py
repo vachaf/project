@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional
-from urllib.parse import unquote_plus
+
+from .decoders import decode_url_path
 
 BROWSER_UA_HINTS = (
     "mozilla/",
@@ -23,7 +24,7 @@ CRAWLER_BROWSE_GENERIC_SEGMENTS = {"list", "browse"}
 def _normalize_text(value: Optional[Any]) -> str:
     if value is None:
         return ""
-    return unquote_plus(str(value)).strip()
+    return str(value).strip()
 
 
 def _raw_text(value: Optional[Any]) -> str:
@@ -93,7 +94,7 @@ def classify_crawler_baseline_path_category(
     generic_segments: Iterable[str],
 ) -> str:
     normalized_method = _normalize_text(method).upper()
-    normalized_path = _normalize_text(path).lower()
+    normalized_path = decode_url_path(path).lower()
     if normalized_method not in {"GET", "HEAD"} or not normalized_path:
         return ""
     if normalized_path == "/robots.txt":

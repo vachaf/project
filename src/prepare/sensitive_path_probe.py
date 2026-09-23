@@ -3,13 +3,14 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional
-from urllib.parse import unquote_plus
+
+from .decoders import decode_url_path
 
 
 def _normalize_text(value: Optional[Any]) -> str:
     if value is None:
         return ""
-    return unquote_plus(str(value)).strip()
+    return str(value).strip()
 
 
 def _raw_text(value: Optional[Any]) -> str:
@@ -111,7 +112,7 @@ def _get_effective_request_path(uri: str, raw_request_target: str) -> str:
 
 def classify_sensitive_path_probe_category(path: str, method: str) -> str:
     normalized_method = _normalize_text(method).upper()
-    normalized_path = _normalize_text(path).lower()
+    normalized_path = decode_url_path(path).lower()
     if normalized_method not in {"GET", "HEAD", "OPTIONS"} or not normalized_path:
         return ""
 
@@ -328,4 +329,3 @@ def build_sensitive_path_probe_summary_contexts(
             }
         )
     return contexts
-

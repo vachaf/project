@@ -39,7 +39,7 @@ from dataclasses import asdict
 from datetime import datetime
 import hashlib
 from typing import Any, Dict, Iterable, List, Optional, Tuple
-from urllib.parse import parse_qsl, unquote_plus
+from urllib.parse import parse_qsl
 
 try:
     from src.prepare.shared_signal_adapter import observe_prepare_security_signals
@@ -48,6 +48,7 @@ try:
         build_decoded_variants as _build_decoded_variants,
         build_html_entity_decoded_variant as _build_html_entity_decoded_variant,
         build_html_entity_variants as _build_html_entity_variants,
+        decode_url_path as _decode_url_path,
     )
     from src.prepare.l3_hints import (
         classify_ssrf_target as _classify_ssrf_target,
@@ -190,6 +191,7 @@ except ImportError:
         build_decoded_variants as _build_decoded_variants,
         build_html_entity_decoded_variant as _build_html_entity_decoded_variant,
         build_html_entity_variants as _build_html_entity_variants,
+        decode_url_path as _decode_url_path,
     )
     from prepare.l3_hints import (
         classify_ssrf_target as _classify_ssrf_target,
@@ -566,7 +568,7 @@ def dump_json(path: str, payload: Any, pretty: bool) -> None:
 def normalize_text(value: Optional[Any]) -> str:
     if value is None:
         return ""
-    return unquote_plus(str(value)).strip()
+    return str(value).strip()
 
 
 def raw_text(value: Optional[Any]) -> str:
@@ -2285,7 +2287,7 @@ def looks_like_browser_ua(ua: str) -> bool:
 
 
 def contains_login_uri(uri: str) -> bool:
-    uri_lower = (uri or "").lower()
+    uri_lower = _decode_url_path(uri).lower()
     return any(hint in uri_lower for hint in LOGIN_URI_HINTS)
 
 
@@ -2308,7 +2310,7 @@ def is_auth_endpoint_request(method: str, uri: str, raw_request_target: str = ""
 
 
 def contains_query_heavy_uri(uri: str) -> bool:
-    uri_lower = (uri or "").lower()
+    uri_lower = _decode_url_path(uri).lower()
     return any(hint in uri_lower for hint in QUERY_HEAVY_URI_HINTS)
 
 
@@ -2323,17 +2325,17 @@ def has_auth_success_attack_hint(*values: str) -> bool:
 
 
 def is_static_resource(uri: str) -> bool:
-    uri_lower = (uri or "").lower()
+    uri_lower = _decode_url_path(uri).lower()
     return uri_lower.endswith(STATIC_EXTENSIONS) or any(uri_lower.startswith(p) for p in STATIC_PREFIXES)
 
 
 def is_health_like_path(path: str) -> bool:
-    return normalize_text(path).lower() in HEALTH_LIKE_PATHS
+    return _decode_url_path(path).lower() in HEALTH_LIKE_PATHS
 
 
 def classify_static_baseline_asset_category(path: str, method: str) -> str:
     normalized_method = normalize_text(method).upper()
-    normalized_path = normalize_text(path).lower()
+    normalized_path = _decode_url_path(path).lower()
     if normalized_method not in {"GET", "HEAD"} or not normalized_path:
         return ""
 
@@ -2913,15 +2915,12 @@ def extract_raw_request_target(raw_request: str) -> str:
 
 
 def path_from_target(target: str) -> str:
-    value = normalize_text(target)
-    if not value:
-        return ""
-    return value.split("?", 1)[0]
+    return _decode_url_path(target)
 
 
 def get_effective_request_path(uri: str, raw_request_target: str) -> str:
     normalized_raw_path = path_from_target(raw_request_target)
-    return normalized_raw_path or normalize_text(uri)
+    return normalized_raw_path or _decode_url_path(uri)
 
 
 def normalize_content_type_bucket(content_type: str) -> str:
@@ -3461,9 +3460,7 @@ def classify_filtered_noise_category(
     ):
         return "low_signal_fuzzing"
 
-    if looks_like_browser_ua(user_agent):
-        return "benign_normal_search"
-    return "low_signal_fuzzing"
+    return "low_signal_request"
 
 
 def build_filtered_row_payload(
@@ -3567,7 +3564,7 @@ def classify_filtered_reason(row: Dict[str, Any]) -> str:
         return "static_asset_like"
     if category in {"socketio_polling", "auth_baseline_context", "benign_normal_search"}:
         return "known_baseline_like"
-    if category in {"low_signal_fuzzing", "low_signal_dir_probe", "auth_endpoint_context", "benign_fallback_html"}:
+    if category in {"low_signal_fuzzing", "low_signal_dir_probe", "low_signal_request", "auth_endpoint_context", "benign_fallback_html"}:
         return "low_signal_request"
 
     hints = [normalize_text(hint).lower() for hint in row.get("reason_hints") or []]
@@ -4320,6 +4317,7 @@ def aggregate_noise_rows(rows: List[Dict[str, Any]], min_repeat: int) -> Tuple[L
             "benign_fallback_html": "경로 변형이 있었지만 기본 HTML fallback 으로 해석되는 반복 요청",
             "low_signal_fuzzing": "퍼징/입력 변형 흔적은 있으나 근거가 약한 저신호 반복 요청",
             "low_signal_dir_probe": "디렉터리/민감 경로 존재 확인 수준의 저신호 probe 반복",
+            "low_signal_request": "후보 기준을 넘지 않은 저신호 요청 집계",
         }.get(category, "반복 정상 요청 집계")
         aggregates.append(
             NoiseAggregate(

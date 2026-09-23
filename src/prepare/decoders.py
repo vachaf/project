@@ -3,7 +3,7 @@ from __future__ import annotations
 import html
 import re
 from typing import Any, Dict, List, Optional
-from urllib.parse import unquote_plus
+from urllib.parse import unquote, unquote_plus
 
 DECODE_VARIANT_MAX_CHARS = 4096
 HTML_ENTITY_RE = re.compile(r"&#x?[0-9a-fA-F]+;", re.IGNORECASE)
@@ -13,6 +13,18 @@ def _raw_text(value: Optional[Any]) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def decode_url_path(value: Optional[Any]) -> str:
+    """Decode only the path portion of a request target without form decoding."""
+    raw = _raw_text(value)
+    if not raw:
+        return ""
+    path = raw.split("?", 1)[0]
+    try:
+        return unquote(path)
+    except Exception:
+        return path
 
 
 def _safe_int(value: Optional[Any], default: int = 0) -> int:

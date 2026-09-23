@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, List, Optional
-from urllib.parse import unquote_plus
 
 IP_BEHAVIOR_WINDOW_SEC = 300
 IP_BEHAVIOR_SAMPLE_REQUEST_LIMIT = 10
@@ -13,7 +12,7 @@ IP_BEHAVIOR_SENSITIVE_PATH_LIMIT = 10
 def _normalize_text(value: Optional[Any]) -> str:
     if value is None:
         return ""
-    return unquote_plus(str(value)).strip()
+    return str(value).strip()
 
 
 def _raw_text(value: Optional[Any]) -> str:

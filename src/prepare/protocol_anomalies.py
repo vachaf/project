@@ -4,7 +4,8 @@ import re
 from collections import Counter, defaultdict
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
-from urllib.parse import unquote_plus
+
+from .decoders import decode_url_path
 
 PROTOCOL_ANOMALY_WINDOW_SEC = 300
 PROTOCOL_ANOMALY_SAMPLE_REQUEST_LIMIT = 10
@@ -14,7 +15,7 @@ PROTOCOL_ANOMALY_LONG_PATH_MIN_LEN = 512
 def _normalize_text(value: Optional[Any]) -> str:
     if value is None:
         return ""
-    return unquote_plus(str(value)).strip()
+    return str(value).strip()
 
 
 def _raw_text(value: Optional[Any]) -> str:
@@ -105,15 +106,12 @@ def _extract_raw_request_target(raw_request: str) -> str:
 
 
 def _path_from_target(target: str) -> str:
-    value = _normalize_text(target)
-    if not value:
-        return ""
-    return value.split("?", 1)[0]
+    return decode_url_path(target)
 
 
 def _get_effective_request_path(uri: str, raw_request_target: str) -> str:
     normalized_raw_path = _path_from_target(raw_request_target)
-    return normalized_raw_path or _normalize_text(uri)
+    return normalized_raw_path or decode_url_path(uri)
 
 
 def _get_row_protocol_value(row: Dict[str, Any]) -> str:

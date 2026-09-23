@@ -4,7 +4,8 @@ from collections import Counter, defaultdict
 from datetime import datetime
 import re
 from typing import Any, Callable, Dict, Iterable, List, Optional, Pattern, Tuple
-from urllib.parse import unquote_plus
+
+from .decoders import decode_url_path
 
 AUTH_SUCCESS_ATTACK_HINT_PATTERN = re.compile(
     r"(?i)\b("
@@ -42,7 +43,7 @@ AUTH_BEHAVIOR_REPRESENTATIVE_CANDIDATE_LIMIT = 3
 def _normalize_text(value: Optional[Any]) -> str:
     if value is None:
         return ""
-    return unquote_plus(str(value)).strip()
+    return str(value).strip()
 
 
 def _raw_text(value: Optional[Any]) -> str:
@@ -134,15 +135,12 @@ def _extract_raw_request_target(raw_request: str) -> str:
 
 
 def _path_from_target(target: str) -> str:
-    value = _normalize_text(target)
-    if not value:
-        return ""
-    return value.split("?", 1)[0]
+    return decode_url_path(target)
 
 
 def _get_effective_request_path(uri: str, raw_request_target: str) -> str:
     normalized_raw_path = _path_from_target(raw_request_target)
-    return normalized_raw_path or _normalize_text(uri)
+    return normalized_raw_path or decode_url_path(uri)
 
 
 def _get_auth_endpoint_family(

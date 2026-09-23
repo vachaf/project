@@ -430,7 +430,11 @@ def infer_related_path(stage1_results_path: str, replacement_suffix: str) -> str
 
 
 def parse_known_asset_ips(raw: str) -> List[str]:
-    return sorted({part.strip() for part in raw.split(",") if part.strip()})
+    return sorted({
+        part.strip()
+        for part in raw.split(",")
+        if part.strip() and part.strip() != "OPTIONAL_ASSET_IP_LIST"
+    })
 
 
 def iter_env_file_candidates(extra_roots: Optional[Sequence[Path]] = None) -> List[Path]:
@@ -1669,6 +1673,7 @@ def build_report_input(
                 "promotion_rule": "should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 incident 후보로 승격된 것으로 해석하지 않음",
                 "interpretation_rule": "같은 src_ip, 짧은 시간 window, 높은 4xx 비율, 다중 attempted category, 민감 경로 접근은 reconnaissance/scanning-like context 로만 설명",
                 "category_rule": "attack_categories_attempted 는 시도 유형 요약이지 성공한 공격 목록이 아님",
+                "single_request_multiple_category_rule": "request_count=1 이고 attack_categories_attempted가 복수이면 한 요청에서 복수의 탐지 성격이 파생된 것으로만 설명하며, 반복 요청, 다중 시도, 집중, 연속 시도, 여러 요청으로 표현하지 않음",
                 "sensitive_path_rule": "sensitive_path_hits 는 민감 경로 접근 시도 문맥일 뿐 실제 파일 노출 또는 침해 성공 근거가 아님",
                 "success_rule": "status_code=200, text/html, response_body_bytes, status_5xx_count 만으로 공격 성공, 침해 성공, 파일 노출, XSS 실행, DB 유출을 단정하지 않음",
                 "identity_rule": "동일 src_ip 는 scanning-like behavior 가 관찰된 출발지로만 표현하고 공격자나 침해 주체로 단정하지 않음",
@@ -1877,6 +1882,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "- mixed_baseline_scanner_summaries 가 있으면 이는 context-only 이며, baseline/static/crawler-like 요청과 scanner-like sensitive path가 함께 관찰된 mixed context로만 설명하라. baseline/static/crawler-like context 와 sensitive path probe context 를 같은 성공 공격이나 단일 침해 체인으로 합치지 말고 분리하라.\n"
             "- Probing sequence: 같은 src_ip에서 짧은 시간 안에 여러 민감/관리/백업 경로 접근이 관찰된 reconnaissance 또는 directory probing 흐름으로만 설명하라. 반복 200 text/html 또는 동일 response_body_bytes는 fallback HTML 가능성으로만 설명하고 compromise/exposure proof로 쓰지 마라. 403/401은 access control이 동작한 정황으로 설명하되 scan/probe intent는 남길 수 있다.\n"
             "- IP behavior: same src_ip scanning-like context로만 설명하라. attack_categories_attempted는 시도 유형 요약이지 성공한 공격 목록이 아니며, sensitive_path_hits는 민감 경로 접근 문맥이지 실제 파일 노출 근거가 아니다. src_ip를 공격자라고 단정하지 마라.\n"
+            "- ip_behavior_aggregates에서 request_count=1 이고 attack_categories_attempted가 복수이면 한 요청에서 복수의 탐지 성격이 파생된 것으로만 설명하라. 이 경우 반복 요청, 다중 시도, 집중, 연속 시도, 여러 요청으로 표현하지 마라.\n"
             "- auth_behavior_summaries 가 있으면 이는 context-only 이며 반복 auth 실패 row를 대표 사건 밖 문맥으로 정리한 것이다. 개별 incident로 재승격하지 말고 auth 성공이나 침해 성공으로 단정하지 마라.\n"
             "- method_behavior_summaries 가 있으면 이는 context-only 이며 risky method row를 대표 사건 밖 문맥으로 정리한 것이다. 개별 incident로 재승격하지 말고 method 허용, 업로드 성공, 삭제 성공, XST 성공, CORS 취약점을 단정하지 마라.\n"
             "- protocol_anomaly_summaries 가 있으면 이는 context-only 이며 malformed/protocol row를 대표 사건 밖 문맥으로 정리한 것이다. 개별 incident로 재승격하지 말고 protocol bypass 성공, 우회 성공, 침해 성공, 서버 취약점 성공을 단정하지 마라."
@@ -1996,6 +2002,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "ip_behavior_aggregates 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip, 짧은 시간 window, 여러 path 접근, 높은 4xx 비율, attempted category 혼합이 관찰된 reconnaissance/scanning-like context 로만 설명하라.",
             "ip_behavior_aggregates 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 aggregate 때문에 candidate 로 승격된 것으로 해석하지 마라.",
             "ip_behavior_aggregates 의 attack_categories_attempted 는 시도 유형 요약일 뿐 성공한 공격 유형 목록이 아니다.",
+            "ip_behavior_aggregates 에서 request_count=1 이고 attack_categories_attempted 가 복수이면 한 요청에서 복수의 탐지 성격이 파생된 것으로만 설명하고, 반복 요청, 다중 시도, 집중, 연속 시도, 여러 요청으로 표현하지 마라.",
             "ip_behavior_aggregates 의 sensitive_path_hits 는 민감 경로 접근 시도 문맥일 뿐 실제 파일 노출 근거가 아니다.",
             "ip_behavior_aggregates 에 200 응답, text/html, response_body_bytes, 5xx count 가 있어도 공격 성공이나 침해 성공 근거로 사용하지 마라.",
             "ip_behavior_aggregates 가 있어도 동일 src_ip 를 공격자라고 단정하지 말고, same src_ip observed with scanning-like behavior 정도로만 표현하라.",
@@ -2308,7 +2315,10 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
             lines.append(f"  - attempted_categories={attack_categories}")
             lines.append(f"  - sensitive_path_hits={sensitive_paths}")
             lines.append(f"  - reason_hints={reason_hints}")
-            lines.append("  - 해석: 같은 src_ip 에서 scanning-like 또는 reconnaissance-like behavior 가 관찰된 문맥으로만 본다.")
+            if safe_int(item.get("request_count"), 0) == 1 and len(item.get("attack_categories_attempted") or []) > 1:
+                lines.append("  - 해석: 한 요청에서 복수의 탐지 성격이 파생된 문맥으로만 본다. 반복 요청, 다중 시도, 집중, 연속 시도, 여러 요청으로 해석하지 않는다.")
+            else:
+                lines.append("  - 해석: 같은 src_ip 에서 scanning-like 또는 reconnaissance-like behavior 가 관찰된 문맥으로만 본다.")
             interpretation_limit = normalize_str(item.get("interpretation_limit"))
             if interpretation_limit:
                 lines.append(f"  - 제한: {interpretation_limit}")
@@ -2546,6 +2556,8 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
                 f"4xx_ratio={safe_float(item.get('status_4xx_ratio'), 0.0):.2f} | "
                 f"attempted_categories={categories}"
             )
+            if safe_int(item.get("request_count"), 0) == 1 and len(item.get("attack_categories_attempted") or []) > 1:
+                lines.append("  - 해석: 한 요청에서 복수의 탐지 성격이 파생된 문맥이며, 반복 요청이나 다중 시도로 해석하지 않는다.")
     if auth_behavior_summaries:
         lines.append("- context-only auth behavior summaries:")
         lines.append("- auth_behavior_summaries 의 request 수는 auth endpoint family 기준 auth 요청 수이며, ip_behavior_aggregates request 수와 직접 합산하지 않는다.")

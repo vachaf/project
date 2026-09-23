@@ -404,9 +404,11 @@ def normalize_finding_category(item: Dict[str, Any]) -> str:
     def has_hint(prefix: str) -> bool:
         return any(hint.startswith(prefix) for hint in reason_hints)
 
+    if "command_injection" in joined or has_hint("cmdi:"):
+        return "generic_candidate"
     if "auth" in joined or has_hint("auth:") or "login" in uri:
         return "auth_behavior_candidate"
-    if "traversal" in joined or "path_traversal" in joined or has_hint("traversal:") or has_hint("cmdi:"):
+    if "traversal" in joined or "path_traversal" in joined or has_hint("traversal:"):
         return "path_traversal_candidate"
     if "sqli" in joined or has_hint("sqli:"):
         return "sqli_candidate"
