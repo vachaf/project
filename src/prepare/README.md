@@ -327,6 +327,9 @@ sensitive path request
 
 Source-IP 단위 aggregate context를 관리한다.
 
+이 aggregate는 같은 source IP의 시간창 내 복수 요청 행동을 요약한다. 한 요청에서
+여러 detection signal이 파생된 사실만으로는 IP behavior context를 만들지 않는다.
+
 특정 IP 자체를 악성 판정 규칙으로 사용하지 않는다.
 
 ### `probing_sequence.py`

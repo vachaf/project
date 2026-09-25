@@ -350,6 +350,18 @@ def test_context_only_summaries_stay_in_contexts_not_findings(tmp_path: Path) ->
     assert all("should_promote_to_candidate" not in f for f in payload["findings"])
 
 
+def test_single_finding_without_prepare_context_does_not_gain_viewer_context(tmp_path: Path) -> None:
+    stage2_report_input = base_stage2_report_input()
+    stage2_report_input["top_incidents"] = [traversal_finding()]
+
+    payload = run_builder(tmp_path, stage2_report_input=stage2_report_input)
+
+    assert len(payload["findings"]) == 1
+    assert payload["contexts"] == []
+    assert payload["supporting_events"] == []
+    assert payload["findings"][0]["related_context_ids"] == []
+
+
 def test_supporting_events_stay_top_level_and_context_only(tmp_path: Path) -> None:
     stage2_report_input = base_stage2_report_input()
     stage2_report_input["top_incidents"] = [auth_finding(["error_status:401(+2)"])]

@@ -142,6 +142,10 @@ def finalize_ip_behavior_bucket(
         return None
 
     request_count = len(items)
+    # This collection represents behavior across requests from one source IP,
+    # not overlapping detector categories derived from a single request.
+    if request_count < 2:
+        return None
 
     distinct_paths: List[str] = []
     seen_paths = set()

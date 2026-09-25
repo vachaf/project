@@ -196,6 +196,100 @@ def test_single_request_multiple_categories_prompt_disallows_multiple_request_wo
     assert "한 요청에서 복수의 탐지 성격이 파생된 문맥" not in multiple_summary
 
 
+def single_request_multi_signal_row() -> dict:
+    return {
+        "id": 9001,
+        "log_schema": "apache_security_io_v2",
+        "log_time": "2026-09-23T11:30:57.980+09:00",
+        "request_id": "single-multi-signal",
+        "src_ip": "192.0.2.44",
+        "method": "GET",
+        "raw_request": "GET /download.php?file=../../../etc/passwd HTTP/1.1",
+        "request_target": "/download.php?file=../../../etc/passwd",
+        "uri": "/download.php",
+        "query_string": "?file=../../../etc/passwd",
+        "status_code": 403,
+        "response_body_bytes": 10,
+        "duration_us": 5693,
+        "ttfb_us": 5032,
+        "handler": "application/x-httpd-php",
+        "resp_content_type": "text/plain",
+        "referer": None,
+        "user_agent": "test-agent/1.0",
+        "raw_log": "",
+    }
+
+
+def test_single_request_multi_signal_stays_finding_evidence_not_ip_behavior() -> None:
+    row = single_request_multi_signal_row()
+    payload = {"meta": {"total_count": 1}, "data": {"security": [row]}}
+
+    llm_input, candidates, _noise, _filtered_reasons, _filtered_rows = prepare.build_outputs(
+        payload,
+        min_score=4,
+        min_repeat_aggregate=3,
+        source_tables=["security"],
+    )
+
+    assert len(candidates) == 1
+    assert candidates[0]["verdict_hint"] == "path_traversal"
+    assert "traversal:dotdot_slash(+4)" in candidates[0]["reason_hints"]
+    assert "file_disclosure:sensitive_resource:os_file" in candidates[0]["reason_hints"]
+    context_hints = prepare.build_row_context_reason_hints(row)
+    assert "dir_probe:burst" in context_hints
+    assert prepare.get_attack_categories_from_reason_hints(context_hints) == [
+        "path_traversal",
+        "file_disclosure",
+        "dir_probe",
+    ]
+    assert llm_input["ip_behavior_aggregates"] == []
+
+    report_input = stage2.build_report_input(
+        stage1_payload={"meta": {"success_count": 1, "error_count": 0}, "results": candidates},
+        llm_input_payload=llm_input,
+        stage1_errors_payload=None,
+        top_incidents=3,
+        top_noise_groups=8,
+        top_ips=3,
+        known_asset_ips=[],
+    )
+    assert report_input["top_incidents"]
+    assert report_input["ip_behavior_aggregates"] == []
+
+
+def test_multi_request_multiple_categories_keeps_ip_behavior_context() -> None:
+    traversal_row = single_request_multi_signal_row()
+    sqli_row = dict(traversal_row)
+    sqli_row.update(
+        {
+            "id": 9002,
+            "request_id": "multi-request-sqli",
+            "log_time": "2026-09-23T11:30:58.980+09:00",
+            "raw_request": "GET /search.php?q=%27%20OR%201%3D1-- HTTP/1.1",
+            "request_target": "/search.php?q=%27%20OR%201%3D1--",
+            "uri": "/search.php",
+            "query_string": "?q=%27%20OR%201%3D1--",
+            "status_code": 200,
+        }
+    )
+    payload = {"meta": {"total_count": 2}, "data": {"security": [traversal_row, sqli_row]}}
+
+    llm_input, candidates, _noise, _filtered_reasons, _filtered_rows = prepare.build_outputs(
+        payload,
+        min_score=4,
+        min_repeat_aggregate=3,
+        source_tables=["security"],
+    )
+
+    assert len(candidates) == 2
+    assert len(llm_input["ip_behavior_aggregates"]) == 1
+    aggregate = llm_input["ip_behavior_aggregates"][0]
+    assert aggregate["request_count"] == 2
+    assert "path_traversal" in aggregate["attack_categories_attempted"]
+    assert "sqli" in aggregate["attack_categories_attempted"]
+    assert "ip_behavior:multiple_attack_categories" in aggregate["reason_hints"]
+
+
 def test_viewer_cmdi_uses_existing_generic_category_without_affecting_other_categories() -> None:
     assert viewer.normalize_finding_category(
         {"reason_hints": ["cmdi:semicolon_exec(+4)"], "verdict": "suspicious_command_injection"}
