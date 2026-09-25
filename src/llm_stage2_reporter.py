@@ -88,6 +88,43 @@ LOW_SIGNAL_RECON_TERMS = re.compile(
     r"탐색|정찰|스캔|퍼징|(?<![A-Za-z])(?:recon|reconnaissance|scan|scans|scanner|scanning|probe|probes|probing|fuzz|fuzzing)(?![A-Za-z])",
     re.IGNORECASE,
 )
+HTTP_STATUS_OUTCOME_WARNING = "semantic_violation:http_status_outcome_overreach"
+HTTP_STATUS_BLOCK_ASSERTION_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"(?:http\s*)?(?:401|403)[^.!?\n]{0,32}차단(?:되었|됐|됨|됩니다|되었다|됐다)",
+        r"차단(?:이|은)?\s*(?:(?:정상|기준선\s*유사)\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다|된\s*것으로\s*보)",
+        r"접근\s*제어(?:가|는|은)?\s*(?:(?:정상|기준선\s*유사)\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다)",
+        r"access\s*control\s*(?:is|was|has\s+been)?\s*(?:working|worked|operational|functioning)",
+    )
+)
+HTTP_STATUS_ATTACK_FAILURE_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"공격(?:은|이)?\s*실패(?:했|하였|한|합니다|했다|했습니다|되었|됐다|됨)",
+        r"공격\s*실패(?:가)?\s*확인(?:되었|됐|됨|되었습니다|됐다)",
+    )
+)
+HTTP_STATUS_FILE_ACCESS_FAILURE_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"(?:실제\s*)?파일\s*(?:접근|읽기)(?:에|를)?\s*실패(?:했|하였|한|합니다|했다|했습니다|되었|됐다|됨)",
+        r"(?:실제\s*)?파일\s*(?:접근|읽기)\s*실패(?:가)?\s*확인(?:되었|됐|됨|되었습니다|됐다)",
+    )
+)
+HTTP_STATUS_CONSERVATIVE_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"단정(?:하지|할\s*수)\s*없",
+        r"판단(?:하지|할\s*수)\s*없",
+        r"볼\s*수\s*없",
+        r"확인(?:되지|할\s*수)\s*않",
+        r"증명(?:하지|할\s*수)\s*않",
+        r"근거가\s*부족",
+        r"not\s+confirmed",
+        r"no\s+evidence",
+    )
+)
 
 
 @dataclass
@@ -926,6 +963,81 @@ def sanitize_report_json_text(payload: Any, *, current_key: str = "") -> Tuple[A
     return payload, warnings
 
 
+def http_status_outcome_fallback(text: str) -> Optional[str]:
+    """Return a canonical fallback only for an unsupported outcome assertion."""
+    if any(pattern.search(text) for pattern in HTTP_STATUS_CONSERVATIVE_PATTERNS):
+        return None
+
+    if any(pattern.search(text) for pattern in HTTP_STATUS_BLOCK_ASSERTION_PATTERNS):
+        status_match = re.search(r"(?<!\d)(401|403)(?!\d)", text)
+        if status_match:
+            status_code = status_match.group(1)
+            interpretation = (
+                "접근 제한 가능성이 있습니다."
+                if status_code == "403"
+                else "접근 거부 또는 인증 필요 가능성이 있습니다."
+            )
+            return (
+                f"HTTP {status_code} 응답이 관찰되어 {interpretation} "
+                "실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다."
+            )
+        return "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다."
+
+    if any(pattern.search(text) for pattern in HTTP_STATUS_ATTACK_FAILURE_PATTERNS):
+        return "공격 성공·실패 여부는 Apache 로그만으로 판단할 수 없습니다."
+
+    if any(pattern.search(text) for pattern in HTTP_STATUS_FILE_ACCESS_FAILURE_PATTERNS):
+        return "실제 파일 접근 성공·실패 여부는 Apache 로그만으로 판단할 수 없습니다."
+
+    return None
+
+
+def validate_http_status_report_semantics(
+    report_json: Dict[str, Any], report_input: Dict[str, Any]
+) -> Tuple[Dict[str, Any], List[str]]:
+    """Keep Stage2 wording within the Apache logs-only HTTP status boundary.
+
+    ``report_input`` is deliberately not used for gating: an unsupported status
+    outcome assertion is unsafe whether it appears in a candidate report, a
+    context-only report, or a low-signal report.
+    """
+    del report_input
+
+    changed = False
+
+    def validate(value: Any, *, current_key: str = "") -> Any:
+        nonlocal changed
+        if isinstance(value, dict):
+            return {key: validate(child, current_key=normalize_str(key)) for key, child in value.items()}
+        if isinstance(value, list):
+            return [validate(item, current_key=current_key) for item in value]
+        if not isinstance(value, str) or current_key not in REPORT_TEXT_FIELDS:
+            return value
+        # Recommended actions may refer to reviewing block policies or logs; they
+        # are not outcome assertions and must remain actionable.
+        if current_key in {"action", "why"}:
+            return value
+
+        sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s*|\n+", value) if part.strip()]
+        if not sentences:
+            return value
+
+        validated_sentences: List[str] = []
+        for sentence in sentences:
+            fallback = http_status_outcome_fallback(sentence)
+            if fallback is not None:
+                validated_sentences.append(fallback)
+                changed = True
+            else:
+                validated_sentences.append(sentence)
+        return " ".join(validated_sentences)
+
+    validated = validate(report_json)
+    if not isinstance(validated, dict):
+        return report_json, []
+    return validated, [HTTP_STATUS_OUTCOME_WARNING] if changed else []
+
+
 def is_low_signal_only_neutral_mode(report_input: Dict[str, Any]) -> bool:
     counts = report_input.get("pipeline_counts") or {}
     breakdown = (report_input.get("distributions") or {}).get("filtered_out_breakdown") or {}
@@ -1009,8 +1121,9 @@ def validate_low_signal_report_semantics(
 
 def postprocess_report_json(parsed_report: Dict[str, Any], report_input: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
     report_json, warnings = sanitize_report_json_text(parsed_report)
-    report_json, semantic_warnings = validate_low_signal_report_semantics(report_json, report_input)
-    return report_json, sorted(set(warnings + semantic_warnings))
+    report_json, status_warnings = validate_http_status_report_semantics(report_json, report_input)
+    report_json, low_signal_warnings = validate_low_signal_report_semantics(report_json, report_input)
+    return report_json, sorted(set(warnings + status_warnings + low_signal_warnings))
 
 
 def build_filtered_category_rows(filtered_out_breakdown: Dict[str, int], total_filtered_out_rows: int, top_n: int) -> List[Dict[str, Any]]:
@@ -1716,7 +1829,7 @@ def build_report_input(
                 "default_action": "probing_sequence_summaries 는 context-only 이며 개별 incident 로 승격하지 않음",
                 "interpretation_rule": "같은 src_ip, 짧은 시간 window, 여러 민감/관리/백업 경로 접근은 reconnaissance 또는 directory probing 정황으로만 설명",
                 "fallback_rule": "반복되는 200 text/html 동일 응답 크기는 fallback HTML 가능성으로만 설명하고 민감 리소스 노출 성공으로 단정하지 않음",
-                "blocked_rule": "예: /server-status 403 같은 차단 응답은 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급 가능",
+                "blocked_rule": "예: /server-status 403은 접근 거부 또는 접근 제한 가능성을 보여주는 HTTP 응답으로 설명하되, 실제 차단·access control 동작·공격 실패를 단정하지 않고 scan/probe intent 는 보조적으로 언급 가능",
             },
             "static_baseline_summary_policy": {
                 "default_action": "static_baseline_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
@@ -1734,7 +1847,7 @@ def build_report_input(
             "sensitive_path_probe_summary_policy": {
                 "default_action": "sensitive_path_probe_summaries 는 context-only 이며 개별 incident 나 analysis_candidate 로 승격하지 않음",
                 "interpretation_rule": "wp-login/wp-admin/.env/phpinfo/server-status/backup.zip 같은 path 는 scanner-like sensitive path probing context 로만 설명",
-                "success_rule": "status_code, response_body_bytes, content_type 만으로 WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 단정하지 않음",
+                "success_rule": "status_code, response_body_bytes, content_type 만으로 WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출 또는 실제 차단, backup 노출, 공격 성공을 단정하지 않음",
                 "visibility_rule": "Apache 로그 표면에서는 response body 원문, 서버 내부 파일 존재 여부, 애플리케이션 종류를 확인할 수 없으므로 sensitive path outcome 은 관찰 문맥으로만 해석",
             },
             "mixed_baseline_scanner_summary_policy": {
@@ -1939,7 +2052,8 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "B. Global Apache logs-only invariants\n"
             "- Apache 로그 표면에서 확인 가능한 raw_request_target, uri, method, src_ip, User-Agent, status_code, response_body_bytes, resp_content_type, timing, sequence context, reason_hints만 근거로 사용하라.\n"
             "- raw POST body 원문, response body 원문, DB query 결과, 브라우저 실행 여부, 서버 내부 파일 내용이나 내부 상태를 본 것처럼 단정하지 마라.\n"
-            "- status_code, response_body_bytes, resp_content_type, 200/403/404/500, text/html/application/json 응답은 관찰 신호일 뿐이며 단독으로 성공, 침해, 노출, 브라우저 실행, DB 결과, 파일 내용 반환을 증명하지 않는다.\n"
+            "- status_code, response_body_bytes, resp_content_type, 200/401/403/404/500, text/html/application/json 응답은 관찰 신호일 뿐이며 단독으로 성공, 실패, 침해, 노출, 브라우저 실행, DB 결과, 파일 내용 반환을 증명하지 않는다.\n"
+            "- 401/403은 접근 거부·인증 필요 또는 접근 제한 가능성을 보여주는 HTTP 응답으로만 설명하라. status_code만으로 차단 성공, 접근 제어의 정상 동작, 공격·우회 실패, 파일 접근 실패, 실제 리소스 접근 결과를 단정하지 마라.\n"
             "- resp_content_type 이 text/html 이거나 likely_html_fallback_response/HTML fallback 정황이 있으면 시도 탐지와 실제 노출 가능성을 분리해서 서술하라.\n"
             "- 동일 파라미터가 반복되면 HPP(HTTP Parameter Pollution) 문맥을 검토하라. hpp_detected=true 이고 embedded_attack_hint 가 있으면 기존 SQLi/XSS 분류를 유지하되 '중복 파라미터(HPP)를 이용한 시도' 문맥을 설명하라."
         ),
@@ -1974,9 +2088,9 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "- Count scope: static=request_count는 같은 src_ip와 static/health/browse baseline 시간창, crawler=같은 src_ip와 crawler-like UA/browse baseline 시간창, sensitive=같은 src_ip와 sensitive path 시간창, mixed=같은 src_ip와 mixed baseline/scanner 시간창, auth=request_count/auth_request_count는 auth endpoint family, method=같은 src_ip와 method/protocol relevant row 시간창, protocol=같은 src_ip와 protocol anomaly relevant row 시간창, ip aggregate=같은 src_ip/time window 기준 전체 또는 관련 요청 수다.\n"
             "- static_baseline_summaries 가 있으면 이는 context-only 이며, favicon, robots.txt, sitemap.xml, static asset, health check, baseline GET이 함께 관찰된 baseline/static context로만 설명하라. static file 존재, crawler policy 내용, site structure 노출, JS 실행, file exposure, health 상태를 단정하지 마라.\n"
             "- crawler_baseline_summaries 가 있으면 이는 context-only 이며, crawler-like User-Agent, robots.txt, sitemap.xml, product/category browse, baseline browse가 함께 관찰된 crawler baseline context로만 설명하라. Googlebot/Bingbot/GenericCrawler-like User-Agent 는 spoof 가능하므로 실제 crawler 정체를 단정하지 마라. robots/sitemap 내용, site structure, product/category page existence, attack success를 단정하지 마라.\n"
-            "- sensitive_path_probe_summaries 가 있으면 이는 context-only 이며, wp-login/wp-admin/.env/phpinfo/server-status/backup.zip 같은 path가 관찰된 scanner-like sensitive path probing context로만 설명하라. WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 단정하지 마라.\n"
+            "- sensitive_path_probe_summaries 가 있으면 이는 context-only 이며, wp-login/wp-admin/.env/phpinfo/server-status/backup.zip 같은 path가 관찰된 scanner-like sensitive path probing context로만 설명하라. WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출 또는 실제 차단, backup 노출, 공격 성공을 단정하지 마라.\n"
             "- mixed_baseline_scanner_summaries 가 있으면 이는 context-only 이며, baseline/static/crawler-like 요청과 scanner-like sensitive path가 함께 관찰된 mixed context로만 설명하라. baseline/static/crawler-like context 와 sensitive path probe context 를 같은 성공 공격이나 단일 침해 체인으로 합치지 말고 분리하라.\n"
-            "- Probing sequence: 같은 src_ip에서 짧은 시간 안에 여러 민감/관리/백업 경로 접근이 관찰된 reconnaissance 또는 directory probing 흐름으로만 설명하라. 반복 200 text/html 또는 동일 response_body_bytes는 fallback HTML 가능성으로만 설명하고 compromise/exposure proof로 쓰지 마라. 403/401은 access control이 동작한 정황으로 설명하되 scan/probe intent는 남길 수 있다.\n"
+            "- Probing sequence: 같은 src_ip에서 짧은 시간 안에 여러 민감/관리/백업 경로 접근이 관찰된 reconnaissance 또는 directory probing 흐름으로만 설명하라. 반복 200 text/html 또는 동일 response_body_bytes는 fallback HTML 가능성으로만 설명하고 compromise/exposure proof로 쓰지 마라. 403/401은 접근 거부·인증 필요 또는 접근 제한 가능성을 보여주는 HTTP 응답으로 설명하되, 실제 차단이나 access control 동작을 단정하지 말고 scan/probe intent는 보조적으로 언급할 수 있다.\n"
             "- IP behavior: same src_ip scanning-like context로만 설명하라. attack_categories_attempted는 시도 유형 요약이지 성공한 공격 목록이 아니며, sensitive_path_hits는 민감 경로 접근 문맥이지 실제 파일 노출 근거가 아니다. src_ip를 공격자라고 단정하지 마라.\n"
             "- ip_behavior_aggregates에서 request_count=1 이고 attack_categories_attempted가 복수이면 한 요청에서 복수의 탐지 성격이 파생된 것으로만 설명하라. 이 경우 반복 요청, 다중 시도, 집중, 연속 시도, 여러 요청으로 표현하지 마라.\n"
             "- auth_behavior_summaries 가 있으면 이는 context-only 이며 반복 auth 실패 row를 대표 사건 밖 문맥으로 정리한 것이다. 개별 incident로 재승격하지 말고 auth 성공이나 침해 성공으로 단정하지 마라.\n"
@@ -2084,7 +2198,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "probing_sequence_summaries 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip, 짧은 시간 window, 여러 민감/관리/백업 경로 접근이 관찰된 reconnaissance 또는 directory probing 흐름으로만 설명하라.",
             "probing_sequence_summaries 에서 200 text/html 반복 응답이나 동일 response_body_bytes 반복은 fallback HTML 가능성으로만 설명하고 실제 민감 리소스 노출 성공으로 단정하지 마라.",
             "probing_sequence_summaries 안의 direct config path 접근은 context_only 이며 개별 incident 나 config 노출 성공으로 과승격하지 마라.",
-            "probing_sequence_summaries 에 403 또는 401 응답이 있으면 access control 이 동작한 정황으로 설명하되 scan/probe intent 는 보조적으로 언급하라.",
+            "probing_sequence_summaries 에 403 또는 401 응답이 있으면 접근 거부·인증 필요 또는 접근 제한 가능성을 보여주는 HTTP 응답으로 설명하되, 실제 차단이나 access control 동작을 단정하지 말고 scan/probe intent 는 보조적으로 언급하라.",
             "known_asset 이거나 known asset IP 와 겹치는 probing_sequence_summaries 는 내부 테스트/운영 점검 가능성을 함께 병기하라.",
             "static_baseline_summaries 는 context-only 이며 개별 incident 로 승격하지 말고, 같은 src_ip 와 짧은 시간 window 안에서 favicon, robots.txt, sitemap.xml, static asset, health check, baseline GET 이 함께 관찰된 baseline/static context 로만 설명하라.",
             "static_baseline_summaries 의 should_promote_to_candidate=false 이면 어떤 개별 row 도 이 summary 때문에 candidate 로 승격된 것으로 해석하지 마라.",
@@ -2650,7 +2764,7 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
                 f"path_categories={','.join(item.get('path_categories_observed') or []) or '-'} | "
                 f"status_counts={json.dumps(item.get('status_counts') or {}, ensure_ascii=False)}"
             )
-        lines.append("- sensitive path probe 해석 제한: WordPress 존재, admin access, .env/phpinfo/server-status/backup 노출 또는 차단 성공, attack success 를 단정하지 않는다.")
+        lines.append("- sensitive path probe 해석 제한: WordPress 존재, admin access, .env/phpinfo/server-status/backup 노출 또는 실제 차단, attack success 를 단정하지 않는다.")
     if mixed_baseline_scanner_summaries:
         lines.append("- Mixed baseline/scanner context:")
         lines.append("- mixed_baseline_scanner_summaries 의 request 수는 같은 src_ip 와 mixed baseline/scanner 시간창 기준 관찰 수다.")
@@ -2747,7 +2861,8 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append("- top_incidents 가 없거나 모두 info/low 이고 관찰 근거가 context-only summary 중심이면 key_findings severity 는 info 또는 low 를 사용한다.")
     lines.append("- static_baseline_summaries 는 context-only 이며 static/health/browse baseline 문맥으로만 사용하고 static file 존재, robots/sitemap 내용, JS 실행, file exposure, health 상태를 단정하지 않는다.")
     lines.append("- crawler_baseline_summaries 는 context-only 이며 crawler-like baseline 문맥으로만 사용하고 crawler authenticity, robots/sitemap 내용, site structure, page existence, attack success 를 단정하지 않는다.")
-    lines.append("- sensitive_path_probe_summaries 는 context-only 이며 scanner-like sensitive path probing 문맥으로만 사용하고 WordPress 존재, admin access, .env/phpinfo/server-status/backup 노출, 차단 성공, attack success 를 단정하지 않는다.")
+    lines.append("- 401/403은 접근 거부·인증 필요 또는 접근 제한 가능성을 보여주는 HTTP 응답으로만 설명하며, 실제 차단·접근 제어 동작·공격/파일 접근 성공·실패를 단정하지 않는다.")
+    lines.append("- sensitive_path_probe_summaries 는 context-only 이며 scanner-like sensitive path probing 문맥으로만 사용하고 WordPress 존재, admin access, .env/phpinfo/server-status/backup 노출, 실제 차단, attack success 를 단정하지 않는다.")
     lines.append("- mixed_baseline_scanner_summaries 는 context-only 이며 baseline/static/crawler-like 와 scanner-like 문맥을 분리해서 설명하고, 이를 같은 성공 공격이나 단일 침해 체인으로 합치지 않는다.")
     lines.append("- ip_behavior_aggregates 는 context-only 이며 개별 incident 승격이나 severity 상향 근거로 사용하지 않는다.")
     lines.append("- auth_behavior_summaries 는 context-only 이며 raw POST body 미확인 상태에서 auth sequence 문맥으로만 사용한다.")

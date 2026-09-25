@@ -144,6 +144,18 @@ def test_existing_benign_sanitizer_warning_survives_semantic_fallback() -> None:
     assert "normalization 용어는 유지합니다." == accepted["presentation_takeaway"]
 
 
+def test_http_status_warning_composes_with_sanitizer_and_low_signal_warnings() -> None:
+    report = model_report()
+    report["overall_assessment"] = "정상 403으로 차단되었습니다."
+
+    accepted, warnings = stage2.postprocess_report_json(report, neutral_input())
+
+    assert accepted["overall_assessment"].startswith("HTTP 403 응답이 관찰되어 접근 제한 가능성이 있습니다.")
+    assert "forbidden_phrase:정상" in warnings
+    assert stage2.HTTP_STATUS_OUTCOME_WARNING in warnings
+    assert stage2.LOW_SIGNAL_RECON_WARNING in warnings
+
+
 @pytest.mark.parametrize(
     "field",
     ["report_title", "confidence_and_limitations", "presentation_takeaway", "notable_incidents", "notable_source_ips"],

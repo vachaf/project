@@ -1,5 +1,5 @@
 {
-  "description": "Stage dry-run should preserve sensitive path probe summaries as context-only scanner-like probing context without asserting app presence, exposure, blocked success, or attack success.",
+  "description": "Stage dry-run should preserve sensitive path probe summaries as context-only scanner-like probing context without asserting app presence, exposure, actual blocking, or attack success.",
   "MUST": [
     {
       "op": "json_path_exists",
@@ -24,7 +24,7 @@
       "op": "json_path_contains",
       "file": "stage2_report_input",
       "path": "policy_notes.sensitive_path_probe_summary_policy.success_rule",
-      "contains": "WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 단정하지 않음",
+      "contains": "WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출 또는 실제 차단, backup 노출, 공격 성공을 단정하지 않음",
       "message": "sensitive path probe policy keeps conservative success rule"
     },
     {
@@ -90,7 +90,7 @@
       "op": "json_path_contains",
       "file": "stage2_prompt_bundle",
       "path": "system_prompt",
-      "contains": "WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출/차단, backup 노출, 공격 성공을 단정하지 마라",
+      "contains": "WordPress 존재, admin access, .env 노출, phpinfo 노출, server-status 노출 또는 실제 차단, backup 노출, 공격 성공을 단정하지 마라",
       "message": "stage2 prompt includes sensitive path probe no-success-inference rule"
     },
     {

@@ -482,6 +482,67 @@ def test_stage2_wording_sanitizer_replaces_forbidden_report_text_and_keeps_norma
     assert "forbidden_phrase:normal" in warnings
 
 
+def test_http_status_semantic_validator_replaces_unsupported_outcome_assertions() -> None:
+    unsafe_cases = {
+        "403으로 차단되었습니다.": "HTTP 403 응답이 관찰되어 접근 제한 가능성이 있습니다.",
+        "차단이 정상 동작했습니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",
+        "차단은 동작한 것으로 보입니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",
+        "접근 제어가 정상 동작했습니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",
+        "공격은 실패했습니다.": "공격 성공·실패 여부는 Apache 로그만으로 판단할 수 없습니다.",
+        "파일 접근에 실패했습니다.": "실제 파일 접근 성공·실패 여부는 Apache 로그만으로 판단할 수 없습니다.",
+    }
+    for unsafe, expected_prefix in unsafe_cases.items():
+        report, warnings = stage2.postprocess_report_json({"overall_assessment": unsafe}, {})
+        assert report["overall_assessment"].startswith(expected_prefix)
+        assert stage2.HTTP_STATUS_OUTCOME_WARNING in warnings
+
+
+def test_http_status_semantic_validator_preserves_safe_actions_and_negations() -> None:
+    safe_cases = [
+        "403 응답이 관찰되었습니다.",
+        "403 응답이 관찰되어 접근 제한 가능성이 있습니다.",
+        "공격 성공·실패 여부는 Apache 로그만으로 판단할 수 없습니다.",
+        "파일 접근 성공 여부는 확인되지 않았습니다.",
+        "403만으로 차단되었다고 단정할 수 없습니다.",
+        "공격이 실패했다고 볼 수 없습니다.",
+        "파일 접근 실패 여부는 확인되지 않았습니다.",
+    ]
+    for safe in safe_cases:
+        report, warnings = stage2.postprocess_report_json({"overall_assessment": safe}, {})
+        assert report["overall_assessment"] == safe
+        assert stage2.HTTP_STATUS_OUTCOME_WARNING not in warnings
+
+    actions = ["WAF 차단 정책을 점검하세요.", "차단 여부를 추가 로그에서 확인하세요.", "접근 제어 설정을 검토하세요."]
+    report, warnings = stage2.postprocess_report_json(
+        {"recommended_actions": [{"action": action, "why": action} for action in actions]}, {}
+    )
+    assert [item["action"] for item in report["recommended_actions"]] == actions
+    assert [item["why"] for item in report["recommended_actions"]] == actions
+    assert stage2.HTTP_STATUS_OUTCOME_WARNING not in warnings
+
+
+def test_http_status_semantic_validator_is_not_limited_to_low_signal_reports() -> None:
+    candidate_report_input = {
+        "pipeline_counts": {"candidate_rows": 1, "distinct_incident_count": 1, "stage1_success_count": 1},
+        "top_incidents": [{"status_code": 403}],
+        "ip_behavior_aggregates": [{"request_count": 1}],
+    }
+    report, warnings = stage2.postprocess_report_json(
+        {"overall_assessment": "403으로 차단되었습니다."}, candidate_report_input
+    )
+    assert report["overall_assessment"].startswith("HTTP 403 응답이 관찰되어 접근 제한 가능성이 있습니다.")
+    assert warnings == [stage2.HTTP_STATUS_OUTCOME_WARNING]
+
+
+def test_stage2_prompt_and_dry_run_keep_http_status_boundary() -> None:
+    prompt = stage2.build_messages({})[0]["content"]
+    assert "401/403은 접근 거부·인증 필요 또는 접근 제한 가능성을 보여주는 HTTP 응답으로만 설명하라." in prompt
+    assert "403/401은 access control이 동작한 정황" not in prompt
+
+    dry_run = stage2.build_dry_run_markdown({}, selected_model="test", mode="routine")
+    assert "401/403은 접근 거부·인증 필요 또는 접근 제한 가능성을 보여주는 HTTP 응답으로만 설명" in dry_run
+
+
 def test_stage2_output_forbidden_wording_gets_replaced_and_warned(tmp_path: Path, monkeypatch) -> None:
     stage1_path = write_stage1_results(tmp_path)
     out_dir = tmp_path / "out"

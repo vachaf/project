@@ -111,6 +111,19 @@ KNOWN_ASSET_CAUTION_PATTERNS = tuple(
         r"내부\s*자산",
     )
 )
+HTTP_STATUS_OUTCOME_ASSERTION_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"(?:http\s*)?(?:401|403)[^.!?\n]{0,32}차단(?:되었|됐|됨|됩니다|되었다|됐다)",
+        r"차단(?:이|은)?\s*(?:정상\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다|된\s*것으로\s*보)",
+        r"접근\s*제어(?:가|는|은)?\s*(?:정상\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다)",
+        r"access\s*control\s*(?:is|was|has\s+been)?\s*(?:working|worked|operational|functioning)",
+        r"공격(?:은|이)?\s*실패(?:했|하였|한|합니다|했다|했습니다|되었|됐다|됨)",
+        r"공격\s*실패(?:가)?\s*확인(?:되었|됐|됨|되었습니다|됐다)",
+        r"(?:실제\s*)?파일\s*(?:접근|읽기)(?:에|를)?\s*실패(?:했|하였|한|합니다|했다|했습니다|되었|됐다|됨)",
+        r"(?:실제\s*)?파일\s*(?:접근|읽기)\s*실패(?:가)?\s*확인(?:되었|됐|됨|되었습니다|됐다)",
+    )
+)
 
 
 @dataclass(frozen=True)
@@ -122,6 +135,15 @@ class RuleSpec:
 
 
 RULE_SPECS: Tuple[RuleSpec, ...] = (
+    RuleSpec(
+        name="http_status_outcome_assertion",
+        blocker_patterns=(),
+        warning_patterns=HTTP_STATUS_OUTCOME_ASSERTION_PATTERNS,
+        suggestion=(
+            "Apache logs show HTTP response metadata, not confirmed blocking, access-control operation, attack failure, "
+            "or actual file-access outcome. Prefer observed 401/403 response or access-restriction-possible wording."
+        ),
+    ),
     RuleSpec(
         name="sql_success_assertion",
         blocker_patterns=tuple(

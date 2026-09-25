@@ -104,6 +104,30 @@ def test_weak_possibility_stays_warning() -> None:
     assert result["summary"]["warning_count"] >= 1
 
 
+def test_http_status_outcome_assertions_warn_and_canonical_wording_passes() -> None:
+    unsafe_cases = [
+        "403으로 차단되었습니다.",
+        "차단이 정상 동작했습니다.",
+        "공격은 실패했습니다.",
+        "파일 접근에 실패했습니다.",
+    ]
+    for text in unsafe_cases:
+        result = lint.analyze_stage2_report_data(wrap_report(make_minimal_report(text)))
+        assert result["verdict"] in {"WARN", "FAIL"}
+        assert any(issue["rule"] == "http_status_outcome_assertion" for issue in result["warnings"] + result["blockers"])
+
+    safe_cases = [
+        "403 응답이 관찰되었습니다.",
+        "접근 제한 가능성이 있습니다.",
+        "공격 성공·실패 여부는 확인할 수 없습니다.",
+        "WAF 차단 정책을 점검하세요.",
+    ]
+    for text in safe_cases:
+        result = lint.analyze_stage2_report_data(wrap_report(make_minimal_report(text)))
+        assert result["verdict"] == "PASS"
+        assert not any(issue["rule"] == "http_status_outcome_assertion" for issue in result["warnings"] + result["blockers"])
+
+
 def test_limited_language_downgrades_target_warning_rules_to_info() -> None:
     report = make_minimal_report("반복된 401 실패가 보여도 인증 오용이라고 확정할 수 없습니다.")
     result = lint.analyze_stage2_report_data(wrap_report(report))
