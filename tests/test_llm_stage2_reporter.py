@@ -485,6 +485,7 @@ def test_stage2_wording_sanitizer_replaces_forbidden_report_text_and_keeps_norma
 def test_http_status_semantic_validator_replaces_unsupported_outcome_assertions() -> None:
     unsafe_cases = {
         "403으로 차단되었습니다.": "HTTP 403 응답이 관찰되어 접근 제한 가능성이 있습니다.",
+        "이 요청은 애플리케이션에 의해 차단된 것으로 추정됩니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",
         "차단이 정상 동작했습니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",
         "차단은 동작한 것으로 보입니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",
         "접근 제어가 정상 동작했습니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",

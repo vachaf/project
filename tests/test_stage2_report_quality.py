@@ -107,6 +107,7 @@ def test_weak_possibility_stays_warning() -> None:
 def test_http_status_outcome_assertions_warn_and_canonical_wording_passes() -> None:
     unsafe_cases = [
         "403으로 차단되었습니다.",
+        "이 요청은 애플리케이션에 의해 차단된 것으로 추정됩니다.",
         "차단이 정상 동작했습니다.",
         "공격은 실패했습니다.",
         "파일 접근에 실패했습니다.",

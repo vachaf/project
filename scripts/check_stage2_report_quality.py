@@ -116,6 +116,7 @@ HTTP_STATUS_OUTCOME_ASSERTION_PATTERNS = tuple(
     for pattern in (
         r"(?:http\s*)?(?:401|403)[^.!?\n]{0,32}차단(?:되었|됐|됨|됩니다|되었다|됐다)",
         r"차단(?:이|은)?\s*(?:정상\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다|된\s*것으로\s*보)",
+        r"(?:애플리케이션|서버|waf)[^.!?\n]{0,24}차단(?:되었|됐|된)\s*것으로\s*(?:추정|보)",
         r"접근\s*제어(?:가|는|은)?\s*(?:정상\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다)",
         r"access\s*control\s*(?:is|was|has\s+been)?\s*(?:working|worked|operational|functioning)",
         r"공격(?:은|이)?\s*실패(?:했|하였|한|합니다|했다|했습니다|되었|됐다|됨)",
@@ -498,6 +499,16 @@ def adjust_issue_severity(
         effective_severity = "warning"
     elif original_severity == "warning" and context_class in ("strong_negation", "weak_conservative"):
         effective_severity = "info"
+
+    # "추정" alone does not make an asserted blocking mechanism or outcome
+    # observable from Apache status metadata. Keep this rule reviewable unless
+    # the sentence contains an actual conservative negation.
+    if (
+        rule_name == "http_status_outcome_assertion"
+        and original_severity == "warning"
+        and context_class == "weak_conservative"
+    ):
+        effective_severity = "warning"
 
     if (
         original_severity == "warning"

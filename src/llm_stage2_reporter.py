@@ -94,6 +94,7 @@ HTTP_STATUS_BLOCK_ASSERTION_PATTERNS = tuple(
     for pattern in (
         r"(?:http\s*)?(?:401|403)[^.!?\n]{0,32}차단(?:되었|됐|됨|됩니다|되었다|됐다)",
         r"차단(?:이|은)?\s*(?:(?:정상|기준선\s*유사)\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다|된\s*것으로\s*보)",
+        r"(?:애플리케이션|서버|waf)[^.!?\n]{0,24}차단(?:되었|됐|된)\s*것으로\s*(?:추정|보)",
         r"접근\s*제어(?:가|는|은)?\s*(?:(?:정상|기준선\s*유사)\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다)",
         r"access\s*control\s*(?:is|was|has\s+been)?\s*(?:working|worked|operational|functioning)",
     )
