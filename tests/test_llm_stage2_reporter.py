@@ -486,6 +486,8 @@ def test_http_status_semantic_validator_replaces_unsupported_outcome_assertions(
     unsafe_cases = {
         "403으로 차단되었습니다.": "HTTP 403 응답이 관찰되어 접근 제한 가능성이 있습니다.",
         "이 요청은 애플리케이션에 의해 차단된 것으로 추정됩니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",
+        "경로 탐색 시도가 차단된 정황입니다.": "접근 제한 가능성은 있으나, 실제 차단 여부나 공격 성공·실패는 Apache 로그만으로 판단할 수 없습니다.",
+        "요청이 차단된 것으로 보입니다.": "접근 제한 가능성은 있으나, 실제 차단 여부나 공격 성공·실패는 Apache 로그만으로 판단할 수 없습니다.",
         "차단이 정상 동작했습니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",
         "차단은 동작한 것으로 보입니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",
         "접근 제어가 정상 동작했습니다.": "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다.",
@@ -504,6 +506,7 @@ def test_http_status_semantic_validator_preserves_safe_actions_and_negations() -
         "403 응답이 관찰되어 접근 제한 가능성이 있습니다.",
         "공격 성공·실패 여부는 Apache 로그만으로 판단할 수 없습니다.",
         "파일 접근 성공 여부는 확인되지 않았습니다.",
+        "차단 여부는 확인되지 않았습니다.",
         "403만으로 차단되었다고 단정할 수 없습니다.",
         "공격이 실패했다고 볼 수 없습니다.",
         "파일 접근 실패 여부는 확인되지 않았습니다.",
@@ -512,6 +515,11 @@ def test_http_status_semantic_validator_preserves_safe_actions_and_negations() -
         report, warnings = stage2.postprocess_report_json({"overall_assessment": safe}, {})
         assert report["overall_assessment"] == safe
         assert stage2.HTTP_STATUS_OUTCOME_WARNING not in warnings
+
+    path_text = "`../../../etc/passwd` 요청이 관찰되었습니다. 실제 파일 읽기 성공은 확인되지 않았습니다."
+    report, warnings = stage2.postprocess_report_json({"overall_assessment": path_text}, {})
+    assert report["overall_assessment"] == path_text
+    assert stage2.HTTP_STATUS_OUTCOME_WARNING not in warnings
 
     actions = ["WAF 차단 정책을 점검하세요.", "차단 여부를 추가 로그에서 확인하세요.", "접근 제어 설정을 검토하세요."]
     report, warnings = stage2.postprocess_report_json(

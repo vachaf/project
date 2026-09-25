@@ -108,6 +108,8 @@ def test_http_status_outcome_assertions_warn_and_canonical_wording_passes() -> N
     unsafe_cases = [
         "403으로 차단되었습니다.",
         "이 요청은 애플리케이션에 의해 차단된 것으로 추정됩니다.",
+        "경로 탐색 시도가 차단된 정황입니다.",
+        "요청이 차단된 것으로 보입니다.",
         "차단이 정상 동작했습니다.",
         "공격은 실패했습니다.",
         "파일 접근에 실패했습니다.",
@@ -122,6 +124,7 @@ def test_http_status_outcome_assertions_warn_and_canonical_wording_passes() -> N
         "접근 제한 가능성이 있습니다.",
         "공격 성공·실패 여부는 확인할 수 없습니다.",
         "WAF 차단 정책을 점검하세요.",
+        "차단 여부는 확인되지 않았습니다.",
     ]
     for text in safe_cases:
         result = lint.analyze_stage2_report_data(wrap_report(make_minimal_report(text)))

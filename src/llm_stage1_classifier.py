@@ -31,6 +31,7 @@ import json
 import os
 import sys
 import time
+import re
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,6 +47,7 @@ from llm_client import (
     resolve_llm_config,
 )
 from security_standards_mapping import build_security_standards_mapping
+from http_status_semantics import http_status_outcome_fallback
 
 DEFAULT_TIMEOUT_SEC = 180
 DEFAULT_MODE = "routine"
@@ -257,10 +259,12 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
         "증거가 약하면 likely_false_positive 또는 inconclusive를 우선 고려하라. "
         "규칙 기반 힌트는 단서일 뿐 확정 증거가 아니다. "
         "Apache 로그에는 raw POST body 원문이 없을 수 있으므로, raw POST body 를 본 것처럼 body 내부 payload 성공/실패를 단정하지 마라. "
+        "401/403/404/500 등의 status_code는 관찰 가능한 HTTP metadata다. 특히 401/403은 접근 거부·인증 필요 또는 접근 제한 가능성을 보여줄 수 있으나, status_code만으로 실제 차단 성공, access control 정상 동작, 공격·우회 실패, 파일 접근·읽기 실패, exploit 실패를 단정하지 마라. "
         "반드시 schema-valid JSON 객체만 반환하라. "
         "verdict, severity, recommended_actions 같은 enum 값은 스키마에 정의된 영어 값을 그대로 사용하라. "
         "reasoning_summary 와 evidence_fields 의 자유서술 내용은 반드시 한국어로 작성하라. "
         "path traversal 의 경우 status_code 200 만으로 실제 파일 노출 성공을 암시하지 마라. "
+        "path traversal 또는 file disclosure 시도에서 403 응답은 실제 파일 읽기 실패나 traversal 차단 성공을 증명하지 않는다. "
         "suspicious_path_traversal 은 ../, encoded equivalent, traversal reason hint 같은 explicit directory-escape evidence 가 있을 때만 선택하라. "
         "민감해 보이는 경로에 직접 요청했다는 사실만으로는 suspicious_path_traversal 을 선택하지 마라. "
         "403 응답, error linkage, Referer 부재, non-browser User-Agent, 민감해 보이는 파일명은 directory escape 증거를 대체하지 못한다. "
@@ -357,6 +361,8 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
             "request_id 와 error_link_id 는 상관분석 단서일 뿐 공격의 확정 증거는 아니다.",
             "Apache 로그에는 raw POST body 원문이 없을 수 있으므로 body 내부 payload를 직접 본 것처럼 단정하지 마라.",
             "path traversal 은 raw_request 의 시도 정황과 실제 파일 노출 성공 여부를 분리해서 판단하라.",
+            "401/403/404/500 등의 status_code는 관찰 가능한 HTTP metadata이며, 특히 401/403은 접근 거부·인증 필요 또는 접근 제한 가능성으로만 설명하라. 실제 차단 성공, access control 정상 동작, 공격·우회 실패, 파일 접근·읽기 실패, exploit 실패를 단정하지 마라.",
+            "path traversal 또는 file disclosure 시도에서 403 응답만으로 실제 파일 읽기 실패나 traversal 차단 성공을 단정하지 마라.",
             "/private/secret.txt, /.env, /admin, /config.php 처럼 민감해 보이는 경로를 직접 요청한 사실만으로는 suspicious_path_traversal 로 분류하지 마라.",
             "명시적인 traversal 근거와 다른 공격 유형의 충분한 근거가 모두 없으면 제공된 증거에 따라 likely_false_positive 같은 보수적 verdict 를 우선 검토하라.",
             "php://filter, convert.base64-encode, resource=... 구조는 단순 path traversal 보다 suspicious_file_disclosure 쪽이 더 적절한지 우선 검토하라.",
@@ -376,6 +382,48 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
     ]
+
+
+def normalize_stage1_http_status_text(value: Any) -> str:
+    text = normalize_str(value)
+    if not text:
+        return text
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?])(?=\s|$)|\n+", text) if part.strip()]
+    if not sentences:
+        return text
+    return " ".join(http_status_outcome_fallback(sentence) or sentence for sentence in sentences)
+
+
+def normalize_stage1_http_status_evidence(value: Any, candidate: Dict[str, Any]) -> str:
+    text = normalize_str(value)
+    fallback = http_status_outcome_fallback(text)
+    if fallback is None:
+        return text
+
+    status_match = re.search(r"(?<!\d)(401|403)(?!\d)", text)
+    if status_match:
+        return f"status_code={status_match.group(1)} 응답 관찰"
+    if "파일" in text and ("접근" in text or "읽기" in text):
+        return "파일 접근 성공 여부는 Apache 로그만으로 확인할 수 없음"
+    if "공격" in text or "우회" in text:
+        return "공격 성공·실패 여부는 Apache 로그만으로 확인할 수 없음"
+
+    status_code = candidate.get("status_code")
+    if status_code not in (None, ""):
+        return f"status_code={status_code} 응답 관찰; 실제 차단 여부는 Apache 로그만으로 판단할 수 없음"
+    return "HTTP 응답 관찰; 실제 차단 여부는 Apache 로그만으로 판단할 수 없음"
+
+
+def validate_stage1_http_status_semantics(parsed: Dict[str, Any], candidate: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize Stage1 explanatory fields without altering raw LLM provenance."""
+    normalized = dict(parsed)
+    normalized["reasoning_summary"] = normalize_stage1_http_status_text(parsed.get("reasoning_summary"))
+    evidence_fields = parsed.get("evidence_fields")
+    if isinstance(evidence_fields, list):
+        normalized["evidence_fields"] = [
+            normalize_stage1_http_status_evidence(item, candidate) for item in evidence_fields
+        ]
+    return normalized
 
 
 def maybe_normalize_file_disclosure_verdict(parsed: Dict[str, Any], candidate: Dict[str, Any]) -> Dict[str, Any]:
@@ -451,6 +499,7 @@ def classify_candidate(
 
         try:
             parsed = maybe_normalize_file_disclosure_verdict(json.loads(output_text), candidate)
+            parsed = validate_stage1_http_status_semantics(parsed, candidate)
         except json.JSONDecodeError as e:
             return None, Stage1Error(
                 candidate_index=candidate_index,

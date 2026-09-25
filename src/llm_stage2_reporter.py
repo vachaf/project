@@ -34,6 +34,10 @@ from llm_client import (
     resolve_llm_config,
 )
 from security_standards_summary import build_security_standards_summary
+from http_status_semantics import (
+    HTTP_STATUS_OUTCOME_WARNING,
+    http_status_outcome_fallback,
+)
 
 DEFAULT_TIMEOUT_SEC = 180
 DEFAULT_MODE = "routine"
@@ -87,44 +91,6 @@ LOW_SIGNAL_RECON_WARNING = "semantic_violation:low_signal_request_recon_overreac
 LOW_SIGNAL_RECON_TERMS = re.compile(
     r"탐색|정찰|스캔|퍼징|(?<![A-Za-z])(?:recon|reconnaissance|scan|scans|scanner|scanning|probe|probes|probing|fuzz|fuzzing)(?![A-Za-z])",
     re.IGNORECASE,
-)
-HTTP_STATUS_OUTCOME_WARNING = "semantic_violation:http_status_outcome_overreach"
-HTTP_STATUS_BLOCK_ASSERTION_PATTERNS = tuple(
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in (
-        r"(?:http\s*)?(?:401|403)[^.!?\n]{0,32}차단(?:되었|됐|됨|됩니다|되었다|됐다)",
-        r"차단(?:이|은)?\s*(?:(?:정상|기준선\s*유사)\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다|된\s*것으로\s*보)",
-        r"(?:애플리케이션|서버|waf)[^.!?\n]{0,24}차단(?:되었|됐|된)\s*것으로\s*(?:추정|보)",
-        r"접근\s*제어(?:가|는|은)?\s*(?:(?:정상|기준선\s*유사)\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다)",
-        r"access\s*control\s*(?:is|was|has\s+been)?\s*(?:working|worked|operational|functioning)",
-    )
-)
-HTTP_STATUS_ATTACK_FAILURE_PATTERNS = tuple(
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in (
-        r"공격(?:은|이)?\s*실패(?:했|하였|한|합니다|했다|했습니다|되었|됐다|됨)",
-        r"공격\s*실패(?:가)?\s*확인(?:되었|됐|됨|되었습니다|됐다)",
-    )
-)
-HTTP_STATUS_FILE_ACCESS_FAILURE_PATTERNS = tuple(
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in (
-        r"(?:실제\s*)?파일\s*(?:접근|읽기)(?:에|를)?\s*실패(?:했|하였|한|합니다|했다|했습니다|되었|됐다|됨)",
-        r"(?:실제\s*)?파일\s*(?:접근|읽기)\s*실패(?:가)?\s*확인(?:되었|됐|됨|되었습니다|됐다)",
-    )
-)
-HTTP_STATUS_CONSERVATIVE_PATTERNS = tuple(
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in (
-        r"단정(?:하지|할\s*수)\s*없",
-        r"판단(?:하지|할\s*수)\s*없",
-        r"볼\s*수\s*없",
-        r"확인(?:되지|할\s*수)\s*않",
-        r"증명(?:하지|할\s*수)\s*않",
-        r"근거가\s*부족",
-        r"not\s+confirmed",
-        r"no\s+evidence",
-    )
 )
 
 
@@ -964,35 +930,6 @@ def sanitize_report_json_text(payload: Any, *, current_key: str = "") -> Tuple[A
     return payload, warnings
 
 
-def http_status_outcome_fallback(text: str) -> Optional[str]:
-    """Return a canonical fallback only for an unsupported outcome assertion."""
-    if any(pattern.search(text) for pattern in HTTP_STATUS_CONSERVATIVE_PATTERNS):
-        return None
-
-    if any(pattern.search(text) for pattern in HTTP_STATUS_BLOCK_ASSERTION_PATTERNS):
-        status_match = re.search(r"(?<!\d)(401|403)(?!\d)", text)
-        if status_match:
-            status_code = status_match.group(1)
-            interpretation = (
-                "접근 제한 가능성이 있습니다."
-                if status_code == "403"
-                else "접근 거부 또는 인증 필요 가능성이 있습니다."
-            )
-            return (
-                f"HTTP {status_code} 응답이 관찰되어 {interpretation} "
-                "실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다."
-            )
-        return "HTTP 응답 metadata만으로 실제 차단 여부나 접근 제어 동작은 Apache 로그만으로 판단할 수 없습니다."
-
-    if any(pattern.search(text) for pattern in HTTP_STATUS_ATTACK_FAILURE_PATTERNS):
-        return "공격 성공·실패 여부는 Apache 로그만으로 판단할 수 없습니다."
-
-    if any(pattern.search(text) for pattern in HTTP_STATUS_FILE_ACCESS_FAILURE_PATTERNS):
-        return "실제 파일 접근 성공·실패 여부는 Apache 로그만으로 판단할 수 없습니다."
-
-    return None
-
-
 def validate_http_status_report_semantics(
     report_json: Dict[str, Any], report_input: Dict[str, Any]
 ) -> Tuple[Dict[str, Any], List[str]]:
@@ -1019,7 +956,7 @@ def validate_http_status_report_semantics(
         if current_key in {"action", "why"}:
             return value
 
-        sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s*|\n+", value) if part.strip()]
+        sentences = [part.strip() for part in re.split(r"(?<=[.!?])(?=\s|$)|\n+", value) if part.strip()]
         if not sentences:
             return value
 

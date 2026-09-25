@@ -10,6 +10,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from llm_client import LLMResponse
 import llm_stage1_classifier as stage1
+import llm_stage2_reporter as stage2
 
 
 def write_llm_input(tmp_path: Path) -> Path:
@@ -272,6 +273,100 @@ def test_stage1_prompt_does_not_allow_weak_context_alone_as_traversal_evidence()
     assert "non-browser User-Agent" in prompt_text
     assert "directory escape 증거를 대체하지 못한다" in prompt_text
     assert "likely_false_positive 같은 보수적 verdict 를 우선 검토하라" in prompt_text
+
+
+def test_stage1_prompt_and_validator_keep_http_status_boundary() -> None:
+    prompt_text = "\n".join(message["content"] for message in stage1.build_messages({}, private_secret_candidate(), 8))
+    assert "401/403/404/500 등의 status_code는 관찰 가능한 HTTP metadata다" in prompt_text
+    assert "실제 차단 성공" in prompt_text
+    assert "파일 접근·읽기 실패" in prompt_text
+
+    unsafe = {
+        "verdict": "suspicious_path_traversal",
+        "severity": "medium",
+        "confidence": "high",
+        "false_positive_possible": False,
+        "reasoning_summary": "403으로 차단되었고 실제 파일 노출은 확인되지 않았습니다.",
+        "evidence_fields": ["403으로 차단됨", "파일 읽기 실패"],
+        "recommended_actions": ["review_raw_log"],
+    }
+    normalized = stage1.validate_stage1_http_status_semantics(unsafe, private_secret_candidate())
+    assert normalized["reasoning_summary"].startswith("HTTP 403 응답이 관찰되어 접근 제한 가능성이 있습니다.")
+    assert normalized["evidence_fields"] == [
+        "status_code=403 응답 관찰",
+        "파일 접근 성공 여부는 Apache 로그만으로 확인할 수 없음",
+    ]
+    assert normalized["recommended_actions"] == ["review_raw_log"]
+
+    safe = dict(unsafe)
+    safe["reasoning_summary"] = "403 응답이 관찰되어 접근 제한 가능성이 있습니다. 실제 파일 접근 성공 여부는 확인되지 않았습니다."
+    safe["evidence_fields"] = ["status_code=403 응답 관찰", "파일 접근 성공 여부는 확인되지 않았습니다."]
+    assert stage1.validate_stage1_http_status_semantics(safe, private_secret_candidate()) == safe
+
+    path_text = "`../../../etc/passwd` 경로 이탈 패턴이 관찰되었습니다. 실제 파일 읽기 성공은 확인되지 않았습니다."
+    assert stage1.normalize_stage1_http_status_text(path_text) == path_text
+
+
+def test_stage1_preserves_raw_output_while_normalizing_status_outcome_fields(tmp_path: Path, monkeypatch) -> None:
+    input_path = write_llm_input(tmp_path)
+    out_dir = tmp_path / "out"
+    raw_output = json.dumps(
+        {
+            "verdict": "suspicious_sqli",
+            "severity": "medium",
+            "confidence": "medium",
+            "false_positive_possible": False,
+            "reasoning_summary": "403으로 차단되었고 실제 파일 노출은 확인되지 않았습니다.",
+            "evidence_fields": ["403으로 차단됨"],
+            "recommended_actions": ["review_raw_log"],
+        },
+        ensure_ascii=False,
+    )
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        stage1,
+        "call_llm_json",
+        lambda **kwargs: LLMResponse(
+            output_text=raw_output,
+            response_id="resp-status",
+            raw_response={},
+            provider="openai",
+            model=kwargs["model"],
+        ),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "llm_stage1_classifier.py",
+            "--input",
+            str(input_path),
+            "--out-dir",
+            str(out_dir),
+            "--base-name",
+            "status",
+            "--provider",
+            "openai",
+        ],
+    )
+
+    assert stage1.main() == 0
+    result = json.loads((out_dir / "status_stage1_results.json").read_text(encoding="utf-8"))["results"][0]
+    assert result["raw_output_text"] == raw_output
+    assert result["reasoning_summary"].startswith("HTTP 403 응답이 관찰되어 접근 제한 가능성이 있습니다.")
+    assert result["evidence_fields"] == ["status_code=403 응답 관찰"]
+
+    report_input = stage2.build_report_input(
+        stage1_payload={"meta": {"success_count": 1, "error_count": 0}, "results": [result]},
+        llm_input_payload=json.loads(input_path.read_text(encoding="utf-8")),
+        stage1_errors_payload=None,
+        top_incidents=3,
+        top_noise_groups=8,
+        top_ips=3,
+        known_asset_ips=[],
+    )
+    assert report_input["top_incidents"][0]["reasoning_summary"] == result["reasoning_summary"]
 
 
 def test_stage1_does_not_add_code_based_path_traversal_fallback() -> None:
