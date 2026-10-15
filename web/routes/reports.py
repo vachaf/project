@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from datetime import datetime
+from ipaddress import IPv4Address
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
@@ -169,6 +170,10 @@ def report_payload_detail(request: Request, report_id: str):
             payload_summary["stage2_generated_at_source"] = "stage2_report.meta.generated_at (기존 보고서 로더)"
     mask_src_ip = _is_mask_src_ip_enabled(request.query_params.get("mask_src_ip"))
 
+    payload_obj, payload_summary = _apply_payload_src_ip_display_mode(
+        payload_obj, payload_summary, mask_src_ip
+    )
+    detail["viewer_payload_summary"] = payload_summary
 
     findings = sanitize_payload_findings(
         payload_obj.get("findings"),
@@ -1013,6 +1018,62 @@ def _is_mask_src_ip_enabled(value: Any) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _apply_payload_src_ip_display_mode(
+    payload: Dict[str, Any], summary: Dict[str, Any], mask_src_ip: bool
+) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    """출발지 필드에 기록된 IPv4만 웹 표시 사본에서 가립니다."""
+    payload_summary = payload.get("summary")
+    payload_summary = payload_summary if isinstance(payload_summary, Mapping) else {}
+    payload_report = payload.get("report")
+    payload_report = payload_report if isinstance(payload_report, Mapping) else {}
+    canonical_summary = dict(summary)
+    # 기존 요약 정규화의 전체 IP 치환 대신 보존된 원문을 표시 기준으로 사용합니다.
+    for key in ("report_title", "overall_assessment"):
+        original = payload_summary.get(key)
+        if (isinstance(original, str) and original and not payload_report.get(key)
+                and summary.get(key) == mask_value(original)):
+            canonical_summary[key] = original
+    source_ips: set[str] = set()
+    if mask_src_ip:
+        containers = (
+            payload.get("findings"), payload.get("contexts"), payload.get("supporting_events"),
+            payload_summary.get("findings_preview"), payload_summary.get("contexts_preview"),
+            summary.get("findings_preview"), summary.get("contexts_preview"),
+            payload_report.get("notable_incidents"), payload_report.get("notable_source_ips"),
+        )
+        for rows in containers:
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                if not isinstance(row, Mapping):
+                    continue
+                for key in ("src_ip", "source_ip"):
+                    address = row.get(key)
+                    if not isinstance(address, str):
+                        continue
+                    address = address.strip()
+                    try:
+                        IPv4Address(address)
+                    except ValueError:
+                        continue
+                    source_ips.add(address)
+
+    pattern = None
+    if source_ips:
+        alternatives = "|".join(re.escape(address) for address in sorted(source_ips, key=len, reverse=True))
+        # 한글 조사는 허용하고, 더 긴 주소·버전·식별자의 일부는 치환하지 않습니다.
+        pattern = re.compile(r"(?<![A-Za-z0-9_.])(?:" + alternatives + r")(?![A-Za-z0-9_]|\.[0-9])")
+
+    def display_copy(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {key: display_copy(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [display_copy(item) for item in value]
+        if isinstance(value, str) and pattern is not None:
+            return pattern.sub(lambda match: _mask_ipv4(match.group(0)), value)
+        return value
+
+    return display_copy(payload), display_copy(canonical_summary)
 
 
 def _apply_src_ip_display_mode(rows: List[Dict[str, Any]], mask_src_ip: bool) -> List[Dict[str, Any]]:

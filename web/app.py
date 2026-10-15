@@ -16,6 +16,7 @@ from web.config import DEBUG, PROJECT_ROOT
 from web.routes.live import init_templates as init_live_templates
 from web.routes.live import router as live_router
 from web.routes.reports import _apply_src_ip_display_mode
+from web.routes.reports import _apply_payload_src_ip_display_mode
 from web.routes.reports import _is_mask_src_ip_enabled
 from web.routes.reports import init_templates as init_report_templates
 from web.routes.reports import router as reports_router
@@ -703,6 +704,9 @@ def job_viewer_payload(request: Request, job_id: int):
     payload_summary = _build_job_viewer_payload_summary(payload_obj)
     mask_src_ip = _is_mask_src_ip_enabled(request.query_params.get("mask_src_ip"))
 
+    payload_obj, payload_summary = _apply_payload_src_ip_display_mode(
+        payload_obj, payload_summary, mask_src_ip
+    )
 
     findings = sanitize_payload_findings(payload_obj.get("findings"), payload_summary.get("findings_preview"))
     findings = sort_payload_findings_for_timeline(findings)
