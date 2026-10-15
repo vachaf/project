@@ -16,6 +16,7 @@ from web.config import DEBUG, PROJECT_ROOT
 from web.routes.live import init_templates as init_live_templates
 from web.routes.live import router as live_router
 from web.routes.reports import _apply_src_ip_display_mode
+from web.routes.reports import _apply_payload_src_ip_display_mode
 from web.routes.reports import _is_mask_src_ip_enabled
 from web.routes.reports import init_templates as init_report_templates
 from web.routes.reports import router as reports_router
@@ -459,6 +460,30 @@ def _build_job_artifact_summary(report: Optional[Dict[str, Any]]) -> Dict[str, A
 
 def _build_job_viewer_payload_summary(payload: Dict[str, Any]) -> Dict[str, Any]:
     summary = dict(payload.get("summary")) if isinstance(payload.get("summary"), dict) else {}
+    meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+
+    def provided_time(value: Any) -> bool:
+        return isinstance(value, str) and value.strip().lower() not in {"", "unknown", "n/a", "-"}
+
+    if provided_time(summary.get("generated_at")):
+        summary["generated_at_source"] = "summary.generated_at (기존 summary 제공 시각)"
+    elif provided_time(meta.get("generated_at")):
+        summary["generated_at"] = meta["generated_at"]
+        summary["generated_at_source"] = "payload.meta.generated_at (Viewer 자료 생성 시각)"
+    else:
+        summary["generated_at"] = None
+        summary["generated_at_source"] = "실제 생성 시각 미제공"
+    summary["viewer_generated_at"] = meta.get("generated_at") if provided_time(meta.get("generated_at")) else None
+    report = payload.get("report") if isinstance(payload.get("report"), dict) else {}
+    if provided_time(meta.get("stage2_generated_at")):
+        summary["stage2_generated_at"] = meta["stage2_generated_at"]
+        summary["stage2_generated_at_source"] = "payload.meta.stage2_generated_at ← stage2_report.meta.generated_at"
+    elif provided_time(report.get("generated_at")):
+        summary["stage2_generated_at"] = report["generated_at"]
+        summary["stage2_generated_at_source"] = "payload.report.generated_at"
+    else:
+        summary["stage2_generated_at"] = None
+        summary["stage2_generated_at_source"] = "실제 Stage2 보고서 시각 미제공"
     if payload.get("schema_version") and not summary.get("schema_version"):
         summary["schema_version"] = str(payload.get("schema_version"))
 
@@ -678,6 +703,10 @@ def job_viewer_payload(request: Request, job_id: int):
     payload_obj = _load_viewer_payload_json(viewer_payload_path)
     payload_summary = _build_job_viewer_payload_summary(payload_obj)
     mask_src_ip = _is_mask_src_ip_enabled(request.query_params.get("mask_src_ip"))
+
+    payload_obj, payload_summary = _apply_payload_src_ip_display_mode(
+        payload_obj, payload_summary, mask_src_ip
+    )
 
     findings = sanitize_payload_findings(payload_obj.get("findings"), payload_summary.get("findings_preview"))
     findings = sort_payload_findings_for_timeline(findings)

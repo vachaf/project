@@ -2221,3 +2221,11 @@
 .payload-detail-panel.card {
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
 }
+
+/* Original request whitespace remains visible while long encoded tokens wrap. */
+.payload-raw-request {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  max-width: 100%;
+}

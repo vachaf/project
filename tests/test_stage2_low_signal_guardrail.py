@@ -138,7 +138,7 @@ def test_existing_benign_sanitizer_warning_survives_semantic_fallback() -> None:
     report["overall_assessment"] = "정상 탐색성 트래픽"
     report["presentation_takeaway"] = "normalization 용어는 유지합니다."
     accepted, warnings = stage2.postprocess_report_json(report, neutral_input())
-    assert "forbidden_phrase:정상" in warnings
+    assert any(warning.startswith("safety_review:") for warning in warnings)
     assert stage2.LOW_SIGNAL_RECON_WARNING in warnings
     assert "정상" not in json.dumps(accepted, ensure_ascii=False)
     assert "normalization 용어는 유지합니다." == accepted["presentation_takeaway"]
@@ -151,7 +151,7 @@ def test_http_status_warning_composes_with_sanitizer_and_low_signal_warnings() -
     accepted, warnings = stage2.postprocess_report_json(report, neutral_input())
 
     assert accepted["overall_assessment"].startswith("HTTP 403 응답이 관찰되어 접근 제한 가능성이 있습니다.")
-    assert "forbidden_phrase:정상" in warnings
+    assert any(warning.startswith("safety_review:") for warning in warnings)
     assert stage2.HTTP_STATUS_OUTCOME_WARNING in warnings
     assert stage2.LOW_SIGNAL_RECON_WARNING in warnings
 
@@ -223,6 +223,7 @@ def test_main_accepted_json_paths_share_semantic_postprocessing(
 
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setenv("ANTHROPIC_MODEL", "claude-test")
     monkeypatch.setattr(stage2, "call_llm_json", fake_call_llm_json)
     monkeypatch.setattr(
         sys,

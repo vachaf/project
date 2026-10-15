@@ -471,15 +471,44 @@ def test_stage2_wording_sanitizer_replaces_forbidden_report_text_and_keeps_norma
         "benign_normal_search 정상 무해 normal baseline, but path normalization stays."
     )
 
-    assert "benign_normal_search" not in sanitized
-    assert "정상" not in sanitized
-    assert "무해" not in sanitized
-    assert " normal " not in sanitized
-    assert "path normalization stays" in sanitized
-    assert "forbidden_phrase:benign_normal_search" in warnings
-    assert "forbidden_phrase:정상" in warnings
-    assert "forbidden_phrase:무해" in warnings
-    assert "forbidden_phrase:normal" in warnings
+    assert sanitized == "benign_normal_search 정상 무해 normal baseline, but path normalization stays."
+    assert len(warnings) == 1
+    detail = json.loads(warnings[0].split(":", 1)[1])
+    assert detail["source_text"] == sanitized
+    assert detail["reason"] == "mixed_or_unsupported_safety_judgment"
+
+
+def test_postprocessing_preserves_technical_strings_and_separators() -> None:
+    text = (
+        "URL https://example.com/a.php?file=php://filter/convert.base64-encode/resource=index.php&x=1. "
+        "IP 192.168.56.1 및 2001:db8::1.\n"
+        "wrapper php://filter/convert.base64-encode/resource=config.php 관찰."
+    )
+    report, warnings = stage2.postprocess_report_json({"overall_assessment": text}, {})
+    assert report["overall_assessment"] == text
+    assert warnings == []
+
+    report, warnings = stage2.postprocess_report_json(
+        {"overall_assessment": text + "\n403으로 차단되었습니다."}, {}
+    )
+    assert report["overall_assessment"].startswith(text + "\nHTTP 403")
+    assert warnings == [stage2.HTTP_STATUS_OUTCOME_WARNING]
+
+
+def test_sanitizer_handles_korean_inflections_without_broken_wording() -> None:
+    cases = {
+        "입력값을 무해화하세요.": "입력값을 안전하게 처리하세요.",
+        "입력값의 무해화를 권고합니다.": "입력값의 안전한 처리를 권고합니다.",
+        "무해화 조치를 검토하세요.": "안전한 처리 조치를 검토하세요.",
+        "이 요청은 무해합니다.": "이 요청은 안전하다고 확정할 수 없습니다.",
+        "무해한 요청입니다.": "안전 여부가 확인되지 않은 요청입니다.",
+    }
+    for text, expected in cases.items():
+        report, warnings = stage2.postprocess_report_json(
+            {"recommended_actions": [{"action": text}]}, {}
+        )
+        assert report["recommended_actions"][0]["action"] == expected
+        assert warnings == ["forbidden_phrase:무해"]
 
 
 def test_http_status_semantic_validator_replaces_unsupported_outcome_assertions() -> None:
@@ -591,16 +620,14 @@ def test_stage2_output_forbidden_wording_gets_replaced_and_warned(tmp_path: Path
 
     payload = json.loads((out_dir / "sample_stage2_report.json").read_text(encoding="utf-8"))
     report_text = json.dumps(payload["report"], ensure_ascii=False)
-    assert "benign_normal_search" not in report_text
-    assert "normal_search_baseline" not in report_text
-    assert "정상" not in report_text
-    assert "무해" not in report_text
+    assert payload["report"] == json.loads(stage2_output_text_with_filtered_wording())
     assert "normalization 같은" in report_text
-    assert "known_baseline_like_legacy_alias" in report_text
+    assert "benign_normal_search" in report_text
     warnings = payload["meta"]["guardrail_warnings"]
-    assert "forbidden_phrase:benign_normal_search" in warnings
-    assert "forbidden_phrase:normal_search_baseline" in warnings
-    assert "forbidden_phrase:정상" in warnings
+    reviews = [json.loads(note.split(":", 1)[1]) for note in warnings if note.startswith("safety_review:")]
+    assert any(row["path"] == "report.overall_assessment" for row in reviews)
+    assert any(row["source_text"] == payload["report"]["key_findings"][0]["detail"] for row in reviews)
+    assert all(row["reason"] for row in reviews)
 
 
 def test_stage2_anthropic_repair_success_preserves_initial_and_repair_usage(tmp_path: Path, monkeypatch) -> None:
@@ -896,3 +923,64 @@ def test_stage2_uses_representative_row_standards_mapping_without_union() -> Non
     assert summary["unmapped_finding_count"] == 0
     assert summary["standards"]["OWASP_TOP10"][0]["id"] == "A05:2025"
     assert summary["standards"]["OWASP_TOP10"][0]["finding_count"] == 1
+
+
+def test_safety_negations_preserve_original_wording_without_warnings() -> None:
+    for text in (
+        "무해함을 의미하지는 않습니다.",
+        "무해하다고 단정할 수는 없습니다.",
+        "무해한 요청이라고 판단할 근거가 부족합니다.",
+        "무해하지 않습니다.",
+        "무해하다는 증거가 없습니다.",
+    ):
+        report, warnings = stage2.postprocess_report_json({"overall_assessment": text}, {})
+        assert report["overall_assessment"] == text
+        assert warnings == []
+
+
+def test_safety_negation_scope_does_not_exempt_other_claims() -> None:
+    for separator in (". ", ", ", "; ", "\n", " 하지만 "):
+        text = "무해함을 의미하지는 않습니다" + separator + "다른 요청은 무해합니다."
+        expected = "무해함을 의미하지는 않습니다" + separator + "다른 요청은 안전하다고 확정할 수 없습니다."
+        assert stage2.sanitize_report_text(text) == (expected, ["forbidden_phrase:무해"])
+    text = "이 요청은 무해합니다. 다른 요청은 무해하다고 단정할 수는 없습니다."
+    expected = "이 요청은 안전하다고 확정할 수 없습니다. 다른 요청은 무해하다고 단정할 수는 없습니다."
+    assert stage2.sanitize_report_text(text) == (expected, ["forbidden_phrase:무해"])
+
+
+def test_neutralization_action_is_distinct_from_negated_safety_claim() -> None:
+    text = "무해하다고 단정할 수는 없습니다. 입력값을 무해화하세요."
+    report, warnings = stage2.postprocess_report_json(
+        {"recommended_actions": [{"action": text}]}, {}
+    )
+    assert report["recommended_actions"][0]["action"] == (
+        "무해하다고 단정할 수는 없습니다. 입력값을 안전하게 처리하세요."
+    )
+    assert warnings == ["forbidden_phrase:무해"]
+
+
+def test_direct_safety_judgment_negation_and_uncertain_scope() -> None:
+    for text in (
+        "무해한 것으로 볼 수 없습니다.",
+        "무해함을 의미하지는 않습니다.",
+    ):
+        assert stage2.sanitize_report_text(text) == (text, [])
+    for text in (
+        "무해한 요청이지만 공격 성공을 확인할 수는 없습니다.",
+        "이 요청은 무해합니다만 공격 성공을 확인할 수는 없습니다.",
+        "무해한 요청이며 공격 성공을 입증할 수는 없습니다.",
+        "무해한 요청을 확인하지는 않았습니다.",
+        "무해하지 않은 것은 아닙니다.",
+        '분석가는 "이 요청은 무해합니다"라고 말했습니다.',
+        '"무해함을 의미하지는 않습니다."라는 표현을 인용합니다.',
+    ):
+        report, warnings = stage2.postprocess_report_json(
+            {"key_findings": [{"detail": text}]}, {}
+        )
+        assert report["key_findings"][0]["detail"] == text
+        assert len(warnings) == 1
+        assert warnings[0].startswith("safety_review:")
+        detail = json.loads(warnings[0].split(":", 1)[1])
+        assert detail["source_text"] == text
+        assert detail["path"] == "report.key_findings[0].detail"
+        assert detail["reason"]

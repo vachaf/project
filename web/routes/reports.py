@@ -3,9 +3,11 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from datetime import datetime
+from ipaddress import IPv4Address
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
+from src.report_semantics import redact_diagnostic, redact_diagnostic_text
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 
@@ -149,7 +151,29 @@ def report_payload_detail(request: Request, report_id: str):
     payload_error = payload_load_error or str(detail.get("viewer_payload_error") or "")
     if payload_obj is None:
         payload_obj = {}
+    # Read timestamp provenance from the actual artifact also for legacy routes.
+    from web.app import _build_job_viewer_payload_summary
+    actual_summary = _build_job_viewer_payload_summary(payload_obj)
+    if payload_obj:
+        for key in ("generated_at", "generated_at_source", "viewer_generated_at", "stage2_generated_at", "stage2_generated_at_source"):
+            payload_summary[key] = actual_summary.get(key)
+    elif payload_summary.get("generated_at"):
+        cached_summary = _build_job_viewer_payload_summary({"summary": payload_summary})
+        payload_summary["generated_at"] = cached_summary.get("generated_at")
+        payload_summary["generated_at_source"] = (
+            "기존 Viewer 요약 (원본 payload 확인 불가)" if cached_summary.get("generated_at") else "실제 생성 시각 미제공"
+        )
+    if not payload_summary.get("stage2_generated_at"):
+        report_time = _build_job_viewer_payload_summary({"meta": {"stage2_generated_at": report.meta.get("generated_at")}})
+        if report_time.get("stage2_generated_at"):
+            payload_summary["stage2_generated_at"] = report_time["stage2_generated_at"]
+            payload_summary["stage2_generated_at_source"] = "stage2_report.meta.generated_at (기존 보고서 로더)"
     mask_src_ip = _is_mask_src_ip_enabled(request.query_params.get("mask_src_ip"))
+
+    payload_obj, payload_summary = _apply_payload_src_ip_display_mode(
+        payload_obj, payload_summary, mask_src_ip
+    )
+    detail["viewer_payload_summary"] = payload_summary
 
     findings = sanitize_payload_findings(
         payload_obj.get("findings"),
@@ -330,7 +354,7 @@ def lint_for_report(report: Optional[Report]) -> Optional[Dict[str, Any]]:
             "warnings": [],
             "info": [],
             "is_error": True,
-            "error": report.error or "Invalid report JSON",
+            "error": redact_diagnostic_text(report.error or "Invalid report JSON"),
         }
 
     lint_result = qa_runner.run_quality_lint(report.report_id, report.file_path)
@@ -346,7 +370,7 @@ def enrich_lint_result_with_source_text(lint_result: Optional[Dict[str, Any]], r
     enriched = dict(lint_result)
     for bucket_name in ("blockers", "warnings", "info"):
         enriched[bucket_name] = enrich_issue_list_with_source_text(lint_result.get(bucket_name), report_payload)
-    return enriched
+    return redact_diagnostic(enriched)
 
 
 def normalize_lint_result_summary(lint_result: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -377,7 +401,7 @@ def enrich_issue_list_with_source_text(rows: Any, report_payload: Dict[str, Any]
         item = dict(row)
         if not str(item.get("source_text") or "").strip():
             item["source_text"] = resolve_issue_source_text(report_payload, str(item.get("path") or ""))
-        enriched_rows.append(item)
+        enriched_rows.append(redact_diagnostic(item))
     return enriched_rows
 
 
@@ -408,8 +432,8 @@ def resolve_issue_source_text(report_payload: Dict[str, Any], issue_path: str) -
     if current is None:
         return ""
     if isinstance(current, str):
-        return current
-    return str(current)
+        return redact_diagnostic_text(current)
+    return redact_diagnostic_text(str(redact_diagnostic(current)))
 
 
 def resolve_group_report(summary: Any) -> Optional[Report]:
@@ -873,6 +897,10 @@ def sanitize_payload_findings(rows: Any, fallback_rows: Any = None) -> List[Dict
                 "request_id": str(raw_match_obj.get("request_id") or "N/A"),
             },
         }
+        # Only explicit strings are originals; never synthesize from URI/method.
+        for key in ("raw_request_target", "raw_request", "query_string"):
+            value = row.get(key)
+            finding[key] = value if isinstance(value, str) else None
         standards_mapping = _normalize_standards_mapping(row.get("standards_mapping"))
         if standards_mapping:
             finding["standards_mapping"] = standards_mapping
@@ -990,6 +1018,64 @@ def _is_mask_src_ip_enabled(value: Any) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _apply_payload_src_ip_display_mode(
+    payload: Dict[str, Any], summary: Dict[str, Any], mask_src_ip: bool
+) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    """출발지 필드에 기록된 IPv4만 웹 표시 사본에서 가립니다."""
+    payload_summary = payload.get("summary")
+    payload_summary = payload_summary if isinstance(payload_summary, Mapping) else {}
+    payload_report = payload.get("report")
+    payload_report = payload_report if isinstance(payload_report, Mapping) else {}
+    canonical_summary = dict(summary)
+    # 기존 요약 정규화의 전체 IP 치환 대신 보존된 원문을 표시 기준으로 사용합니다.
+    for key in ("report_title", "overall_assessment"):
+        original = payload_summary.get(key)
+        if (isinstance(original, str) and original and not payload_report.get(key)
+                and summary.get(key) == mask_value(original)):
+            canonical_summary[key] = original
+    source_ips: set[str] = set()
+    if mask_src_ip:
+        containers = (
+            payload.get("findings"), payload.get("contexts"), payload.get("supporting_events"),
+            payload_summary.get("findings_preview"), payload_summary.get("contexts_preview"),
+            summary.get("findings_preview"), summary.get("contexts_preview"),
+            payload_report.get("notable_incidents"), payload_report.get("notable_source_ips"),
+        )
+        for rows in containers:
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                if not isinstance(row, Mapping):
+                    continue
+                for key in ("src_ip", "source_ip"):
+                    address = row.get(key)
+                    if not isinstance(address, str):
+                        continue
+                    address = address.strip()
+                    try:
+                        IPv4Address(address)
+                    except ValueError:
+                        continue
+                    source_ips.add(address)
+
+    pattern = None
+    if source_ips:
+        alternatives = "|".join(re.escape(address) for address in sorted(source_ips, key=len, reverse=True))
+        # 한글 조사는 허용하고, 더 긴 주소·버전·식별자의 일부는 치환하지 않습니다.
+        pattern = re.compile(r"(?<![A-Za-z0-9_.])(?:" + alternatives + r")(?![A-Za-z0-9_]|\.[0-9])")
+
+    def display_copy(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {key: display_copy(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [display_copy(item) for item in value]
+        if isinstance(value, str) and pattern is not None:
+            return pattern.sub(lambda match: _mask_ipv4(match.group(0)), value)
+        return value
+
+    return display_copy(payload), display_copy(canonical_summary)
+
+
 def _apply_src_ip_display_mode(rows: List[Dict[str, Any]], mask_src_ip: bool) -> List[Dict[str, Any]]:
     if not isinstance(rows, list):
         return []
@@ -1002,6 +1088,12 @@ def _apply_src_ip_display_mode(rows: List[Dict[str, Any]], mask_src_ip: bool) ->
             continue
         copied = dict(row)
         copied["src_ip"] = str(mask_value(copied.get("src_ip") or "-"))
+        # Hide entire originals: IPs can occur encoded or in arbitrary headers.
+        # Display copies only; stored payloads and unmasked originals are intact.
+        for key in ("raw_request_target", "raw_request", "query_string"):
+            if key in copied:
+                copied[key] = None
+        copied["raw_request_hidden"] = True
         displayed.append(copied)
     return displayed
 

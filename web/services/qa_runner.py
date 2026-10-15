@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from web.config import QA_OUTPUT_DIR, QA_SCRIPT_PATH, QA_TIMEOUT_SEC
+from src.report_semantics import redact_diagnostic, redact_diagnostic_text
+
+
+SEMANTICS_PATH = Path(__file__).resolve().parents[2] / "src" / "report_semantics.py"
 
 
 class QARunner:
@@ -29,13 +33,15 @@ class QARunner:
 
         output_path = self._output_path(report_id)
         cached = self._read_cached_if_fresh(output_path, report_path)
-        if cached is not None:
+        if cached is not None and cached.get("scope") == "all":
             return cached
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         command = [
             self.python_exec,
             str(self.script_path),
+            "--scope",
+            "all",
             "--input",
             str(report_path),
             "--output",
@@ -90,8 +96,8 @@ class QARunner:
             return None
         try:
             output_mtime = output_path.stat().st_mtime
-            report_mtime = report_path.stat().st_mtime
-            script_mtime = self.script_path.stat().st_mtime
+            report_mtime = max([report_path.stat().st_mtime] + [p.stat().st_mtime for p in (report_path.parent / "stage1_results.json", report_path.parent / "viewer_payload.json", report_path.parent / "stage2_report_input.json") if p.exists()])
+            script_mtime = max(self.script_path.stat().st_mtime, SEMANTICS_PATH.stat().st_mtime)
         except OSError:
             return None
 
@@ -107,14 +113,26 @@ class QARunner:
         if not isinstance(parsed, dict):
             return None
 
+        coverage = parsed.get("coverage", {})
+        for name, filename in (("stage1", "stage1_results.json"), ("viewer", "viewer_payload.json")):
+            status = coverage.get(name, {}).get("status")
+            if status is None or (status != "missing") != (report_path.parent / filename).exists():
+                return None
+        evidence_present = (report_path.parent / "stage2_report_input.json").exists()
+        if evidence_present != (parsed.get("asset_review", {}).get("status") == "checked"):
+            return None
         return self._normalize_qa_output(parsed)
 
     def _normalize_qa_output(self, data: Dict) -> Dict:
+        data = redact_diagnostic(data)
         summary = data.get("summary", {})
         if not isinstance(summary, dict):
             summary = {}
 
         return {
+            "scope": data.get("scope", "stage2"),
+            "coverage": data.get("coverage", {}),
+            "asset_review": data.get("asset_review", {"status": "not_evaluable"}),
             "verdict": str(data.get("verdict", "UNKNOWN") or "UNKNOWN"),
             "checked_fields": int(summary.get("checked_fields", 0) or 0),
             "blocker_count": int(summary.get("blocker_count", 0) or 0),
@@ -157,5 +175,5 @@ class QARunner:
             "warnings": [],
             "info": [],
             "is_error": True,
-            "error": message,
+            "error": redact_diagnostic_text(message),
         }

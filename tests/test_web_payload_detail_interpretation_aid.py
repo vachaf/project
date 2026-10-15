@@ -168,3 +168,29 @@ def test_payload_dashboard_has_responsive_light_and_dark_summary_styles():
     assert "var(--pd-surface-soft)" in css
     assert '[data-theme="dark"] .security-standards-summary.card' in dark_css
     assert '[data-theme="dark"] .security-standard-relationship' in dark_css
+
+
+def test_original_request_dom_uses_text_content_without_trim_or_html():
+    text = TEMPLATE.read_text(encoding='utf-8')
+    renderer = text.split('function renderOriginalRequest(finding) {', 1)[1].split('function setText', 1)[0]
+    for key in ('raw_request_target', 'raw_request', 'query_string'):
+        assert key in renderer
+    assert 'el.textContent' in renderer
+    assert '.trim(' not in renderer
+    assert 'asText(' not in renderer
+    assert 'decodeURI' not in renderer
+    assert 'innerHTML' not in text
+    assert 'renderOriginalRequest(finding);' in text
+    assert 'findings_display | tojson' in text
+    css = CSS_FILE.read_text(encoding='utf-8').split('.payload-raw-request {', 1)[1].split('}', 1)[0]
+    assert 'white-space: pre-wrap' in css
+    assert 'overflow-wrap: anywhere' in css
+
+
+def test_empty_selection_clears_originals_without_standards_mapping_clearing_them():
+    text = TEMPLATE.read_text(encoding='utf-8')
+    detail = text.split('function renderDetail(index) {', 1)[1]
+    empty_branch = detail.split('const finding = findings[index]', 1)[0]
+    assert 'renderOriginalRequest({});' in empty_branch
+    standards_renderer = text.split('function renderStandardsMapping(finding) {', 1)[1].split('function ', 1)[0]
+    assert 'renderOriginalRequest(' not in standards_renderer

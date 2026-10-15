@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+from src import viewer_payload_builder as viewer
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BUILDER = REPO_ROOT / "src" / "viewer_payload_builder.py"
@@ -701,3 +703,35 @@ def test_apache_logs_only_guardrail_present(tmp_path: Path) -> None:
     joined = " ".join(guardrails).lower()
     assert "apache logs alone do not prove exploit success" in joined
     assert "not success proof" in joined
+
+
+def test_original_request_strings_are_never_trimmed_or_composed():
+    row = {'query_string': '  q=%2527+%2B  ', 'raw_request_target': '\t/x?q=%2527  ',
+           'raw_request': ' GET /x?q=%2527 HTTP/1.1\n  '}
+    finding = viewer.build_finding(row, 'stage1.results', None, False)
+    for key in ('query_string', 'raw_request_target', 'raw_request'):
+        assert finding[key] == row[key]
+    missing = viewer.build_finding({'method': 'GET', 'uri': '/x?q=1'}, 'stage1.results', None, False)
+    assert all(missing[key] is None for key in ('query_string', 'raw_request_target', 'raw_request'))
+    explicit_empty = viewer.build_finding({'raw_request': ''}, 'stage1.results', {'raw_request': 'fallback'}, False)
+    assert explicit_empty['raw_request'] == ''
+
+
+def test_stage2_summary_uses_matched_export_original_instead_of_shortened_excerpt():
+    raw = {'raw_request': '  GET /x?x=' + '%2527' * 1000 + ' HTTP/1.1  ',
+           'raw_request_target': ' /x?x=%2527  ', 'query_string': '  x=%2527  '}
+    summary = {'raw_request': 'GET /x?x=excerpt...', 'raw_request_target': '/x?x=%2527', 'query_string': 'x=%2527'}
+    finding = viewer.build_finding(summary, 'stage2_report_input.top_incidents', raw, False)
+    for key in raw:
+        assert finding[key] == raw[key]
+
+
+def test_builder_cli_preserves_empty_original_and_stage2_timestamp(tmp_path):
+    payload = run_builder(tmp_path, stage2_report_input={'pipeline_counts': {'candidate_rows': 1}},
+                          stage2_report={'meta': {'generated_at': 'actual-stage2-time'}, 'report': {'overall_assessment': '관찰 기록'}},
+                          stage1_results={'results': [{'request_id': 'r-empty', 'raw_request': '', 'query_string': ' \t ', 'raw_request_target': '  /x?q=%2527  '}]},
+                          llm_input={'analysis_candidates': [{'request_id': 'r-empty', 'raw_request': 'fallback must not replace empty'}]})
+    assert payload['findings'][0]['raw_request'] == ''
+    assert payload['findings'][0]['query_string'] == ' \t '
+    assert payload['findings'][0]['raw_request_target'] == '  /x?q=%2527  '
+    assert payload['meta']['stage2_generated_at'] == 'actual-stage2-time'

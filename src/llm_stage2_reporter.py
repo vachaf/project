@@ -18,11 +18,13 @@ import json
 import os
 import sys
 from collections import Counter, defaultdict
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from pathlib import Path
 import re
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+
+from report_semantics import process_text, process_stage1, PROMPT_BOUNDARY, build_asset_match_context, review_asset_report, review_marker, http_outcome_is_protected, redact_diagnostic_text, redact_diagnostic
 from urllib import error
 
 from llm_client import (
@@ -36,7 +38,7 @@ from llm_client import (
 from security_standards_summary import build_security_standards_summary
 from http_status_semantics import (
     HTTP_STATUS_OUTCOME_WARNING,
-    http_status_outcome_fallback,
+    http_status_outcome_fallback as shared_http_status_outcome_fallback,
 )
 
 DEFAULT_TIMEOUT_SEC = 180
@@ -127,6 +129,8 @@ class IncidentBrief:
     embedded_attack_hint: str
     reasoning_summary: str
     evidence_fields: List[str]
+    guardrail_warnings: List[str] = field(default_factory=list, kw_only=True)
+    wording_originals: Dict[str, str] = field(default_factory=dict, kw_only=True)
     reason_hints: List[str]
     user_agent: str
     raw_request: str
@@ -301,9 +305,9 @@ def build_repair_messages(invalid_output_text: str) -> List[Dict[str, str]]:
 
 
 def log_llm_response_summary(label: str, provider: str, response_id: Optional[str], stop_reason: Optional[str]) -> None:
-    print(
+    print(redact_diagnostic_text(
         f"[INFO] {label}: provider={provider} response_id={response_id or '-'} stop_reason={stop_reason or '-'}"
-    )
+    ))
     if provider == "anthropic" and stop_reason == "max_tokens":
         print("[WARN] Anthropic stop_reason=max_tokens: 응답 truncation 가능성이 있습니다.", file=sys.stderr)
 
@@ -350,7 +354,7 @@ def dump_stage2_parse_error(
         "model": model,
         "response_id": response_id,
         "stop_reason": stop_reason,
-        "parse_error": str(parse_error),
+        "parse_error": redact_diagnostic_text(str(parse_error)),
         "repair_attempted": repair_attempted,
         "raw_dump_path": str(raw_dump_path),
     }
@@ -366,7 +370,7 @@ def dump_stage2_parse_error(
         "stop_reason": stop_reason,
         "output_text": output_text,
         "raw_response": raw_response,
-        "parse_error": str(parse_error),
+        "parse_error": redact_diagnostic_text(str(parse_error)),
         "repair_attempted": repair_attempted,
         "repair_response": repair_response,
     }
@@ -641,6 +645,7 @@ def choose_best_representative(items: Sequence[Dict[str, Any]]) -> Dict[str, Any
 def dedup_stage1_results(results: List[Dict[str, Any]], known_asset_ips: Sequence[str]) -> List[Dict[str, Any]]:
     grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
     for item in results:
+        item = process_stage1(item)
         grouped[build_dedup_key(item)].append(item)
 
     deduped: List[Dict[str, Any]] = []
@@ -776,6 +781,8 @@ def build_incident_briefs(
                 embedded_attack_hint=pick_text_value(item.get("embedded_attack_hint"), evidence_source.get("embedded_attack_hint"), default=""),
                 reasoning_summary=normalize_str(item.get("reasoning_summary")),
                 evidence_fields=evidence_fields,
+                guardrail_warnings=item.get("guardrail_warnings", []),
+                wording_originals=item.get("wording_originals", {}),
                 reason_hints=reason_hints,
                 user_agent=shorten_evidence_text(
                     pick_text_value(item.get("user_agent"), evidence_source.get("user_agent"), default=""),
@@ -889,45 +896,43 @@ def normalize_filtered_breakdown_for_report(raw: Any) -> Dict[str, int]:
 
 
 def sanitize_report_text(value: str) -> Tuple[str, List[str]]:
-    text = normalize_str(value)
-    warnings: List[str] = []
-    replacements = [
-        ("benign_normal_search", "known_baseline_like_legacy_alias", "forbidden_phrase:benign_normal_search"),
-        ("normal_search_baseline", "known_baseline_like_legacy_alias", "forbidden_phrase:normal_search_baseline"),
-        ("benign_fallback_html", "low_signal_request_legacy_alias", "forbidden_phrase:benign_fallback_html"),
-        ("benign", "baseline-like", "forbidden_phrase:benign"),
-        ("무해", "안전 확정 불가", "forbidden_phrase:무해"),
-        ("정상", "기준선 유사", "forbidden_phrase:정상"),
-    ]
-    for pattern, replacement, warning in replacements:
-        if pattern in text:
-            text = text.replace(pattern, replacement)
-            warnings.append(warning)
-    if re.search(r"(?<![A-Za-z_])normal(?![A-Za-z_])", text):
-        text = re.sub(r"(?<![A-Za-z_])normal(?![A-Za-z_])", "baseline-like", text)
-        warnings.append("forbidden_phrase:normal")
-    return text, warnings
+    # Delegate simple HTTP outcomes to the dedicated validator without rolling
+    # back other corrections or losing quotation review markers.
+    return process_text(value, correct_http=False)
 
 
-def sanitize_report_json_text(payload: Any, *, current_key: str = "") -> Tuple[Any, List[str]]:
+def sanitize_report_json_text(payload: Any, *, current_key: str = "", field_path: str = "report") -> Tuple[Any, List[str]]:
     warnings: List[str] = []
     if isinstance(payload, dict):
         sanitized: Dict[str, Any] = {}
         for key, value in payload.items():
-            child, child_warnings = sanitize_report_json_text(value, current_key=normalize_str(key))
+            child, child_warnings = sanitize_report_json_text(value, current_key=normalize_str(key), field_path=f"{field_path}.{key}")
             sanitized[key] = child
             warnings.extend(child_warnings)
         return sanitized, warnings
     if isinstance(payload, list):
         rows = []
-        for item in payload:
-            child, child_warnings = sanitize_report_json_text(item, current_key=current_key)
+        for index, item in enumerate(payload):
+            child, child_warnings = sanitize_report_json_text(item, current_key=current_key, field_path=f"{field_path}[{index}]")
             rows.append(child)
             warnings.extend(child_warnings)
         return rows, warnings
     if isinstance(payload, str) and current_key in REPORT_TEXT_FIELDS:
-        return sanitize_report_text(payload)
+        sanitized, warnings = sanitize_report_text(payload)
+        for index, warning in enumerate(warnings):
+            if warning.startswith("safety_review:"):
+                detail = json.loads(warning.split(":", 1)[1])
+                detail["path"] = field_path
+                warnings[index] = "safety_review:" + json.dumps(detail, ensure_ascii=False)
+        return sanitized, warnings
     return payload, warnings
+
+
+def http_status_outcome_fallback(text: str) -> Optional[str]:
+    """Preserve quote/compound scope, then use the shared main outcome rules."""
+    if http_outcome_is_protected(text):
+        return None
+    return shared_http_status_outcome_fallback(text)
 
 
 def validate_http_status_report_semantics(
@@ -956,19 +961,26 @@ def validate_http_status_report_semantics(
         if current_key in {"action", "why"}:
             return value
 
-        sentences = [part.strip() for part in re.split(r"(?<=[.!?])(?=\s|$)|\n+", value) if part.strip()]
-        if not sentences:
-            return value
-
-        validated_sentences: List[str] = []
-        for sentence in sentences:
+        # Only punctuation followed by whitespace ends a sentence. Preserve
+        # separators and untouched text, including URL queries, IPs and wrappers.
+        from report_semantics import PROTECTED
+        protected = list(PROTECTED.finditer(value))
+        parts = re.split(r"((?<=[.!?])[^\S\n]+|\n+)", value)
+        starts = []
+        offset = 0
+        for part in parts:
+            starts.append(offset)
+            offset += len(part)
+        for index in range(0, len(parts), 2):
+            sentence = parts[index]
+            start = starts[index]
+            if any(span.start() < start + len(sentence) and span.end() > start for span in protected):
+                continue
             fallback = http_status_outcome_fallback(sentence)
             if fallback is not None:
-                validated_sentences.append(fallback)
+                parts[index] = fallback
                 changed = True
-            else:
-                validated_sentences.append(sentence)
-        return " ".join(validated_sentences)
+        return "".join(parts)
 
     validated = validate(report_json)
     if not isinstance(validated, dict):
@@ -1061,7 +1073,9 @@ def postprocess_report_json(parsed_report: Dict[str, Any], report_input: Dict[st
     report_json, warnings = sanitize_report_json_text(parsed_report)
     report_json, status_warnings = validate_http_status_report_semantics(report_json, report_input)
     report_json, low_signal_warnings = validate_low_signal_report_semantics(report_json, report_input)
-    return report_json, sorted(set(warnings + status_warnings + low_signal_warnings))
+    asset_review = review_asset_report(parsed_report, report_input)
+    asset_warnings = [review_marker(row["source_text"], row["path"], row["reason"]) for row in asset_review["warnings"]]
+    return report_json, sorted(set(warnings + status_warnings + low_signal_warnings + asset_warnings))
 
 
 def build_filtered_category_rows(filtered_out_breakdown: Dict[str, int], total_filtered_out_rows: int, top_n: int) -> List[Dict[str, Any]]:
@@ -1739,8 +1753,17 @@ def build_report_input(
         "protocol_anomaly_summaries": top_protocol_anomaly_summaries,
         "supporting_events": supporting_events[:20],
         "false_positive_review_candidates": false_positive_review_candidates[:20],
-        "stage1_errors_excerpt": stage1_errors[:5],
+        "stage1_errors_excerpt": redact_diagnostic(stage1_errors[:5]),
         "asset_context": {
+            **build_asset_match_context(known_asset_ips, [
+                row.get("src_ip") for row in (
+                    deduped_results + ip_rows + supporting_events + probing_sequence_summaries
+                    + static_baseline_summaries + crawler_baseline_summaries
+                    + sensitive_path_probe_summaries + mixed_baseline_scanner_summaries
+                    + ip_behavior_aggregates + auth_behavior_summaries
+                    + method_behavior_summaries + protocol_anomaly_summaries
+                ) if isinstance(row, dict)
+            ]),
             "known_asset_ips": list(known_asset_ips),
             "matched_known_assets": matched_known_assets,
             "matched_known_asset_incident_count": sum(1 for x in deduped_results if bool(x.get("known_asset"))),
@@ -2210,7 +2233,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
         )
 
     return [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": PROMPT_BOUNDARY + system_prompt},
         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
     ]
 
@@ -2832,7 +2855,7 @@ def main() -> int:
         llm_config = resolve_llm_config(args.provider)
         selected_model = choose_model(llm_config.provider, args.mode, args.model, dry_run=bool(args.dry_run))
     except ValueError as e:
-        print(f"[ERROR] {e}", file=sys.stderr)
+        print(redact_diagnostic_text(f"[ERROR] {e}"), file=sys.stderr)
         return 2
     base_name = derive_base_name(args.stage1_results, args.base_name)
     out_dir = Path(args.out_dir)
@@ -2896,7 +2919,7 @@ def main() -> int:
         return 0
 
     if not llm_config.api_key:
-        print(f"[ERROR] {provider_api_key_error(llm_config.provider)}", file=sys.stderr)
+        print(redact_diagnostic_text(f"[ERROR] {provider_api_key_error(llm_config.provider)}"), file=sys.stderr)
         return 2
 
     try:
@@ -2934,8 +2957,8 @@ def main() -> int:
                 repair_attempted=False,
                 llm_usage=build_stage_llm_usage(stage="stage2", calls=llm_usage_calls),
             )
-            print(f"[ERROR] {empty_error}", file=sys.stderr)
-            print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
+            print(redact_diagnostic_text(f"[ERROR] {empty_error}"), file=sys.stderr)
+            print(redact_diagnostic_text(f"[ERROR] raw dump: {report_raw_error_path}"), file=sys.stderr)
             return 1
         try:
             parse_result = safe_parse_llm_json(output_text)
@@ -2955,8 +2978,8 @@ def main() -> int:
                     repair_attempted=False,
                     llm_usage=build_stage_llm_usage(stage="stage2", calls=llm_usage_calls),
                 )
-                print(f"[ERROR] stage2 JSON parse failed: {parse_error}", file=sys.stderr)
-                print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
+                print(redact_diagnostic_text(f"[ERROR] stage2 JSON parse failed: {parse_error}"), file=sys.stderr)
+                print(redact_diagnostic_text(f"[ERROR] raw dump: {report_raw_error_path}"), file=sys.stderr)
                 return 1
 
             print("[WARN] Anthropic stage2 JSON parse failed. Retrying one JSON repair request.", file=sys.stderr)
@@ -3009,12 +3032,12 @@ def main() -> int:
                         "initial_output_text": output_text,
                         "initial_llm_usage": initial_llm_usage,
                         "initial_raw_response": llm_response.raw_response,
-                        "initial_parse_error": str(parse_error),
+                        "initial_parse_error": redact_diagnostic_text(str(parse_error)),
                     },
                     llm_usage=build_stage_llm_usage(stage="stage2", calls=repair_usage_calls),
                 )
-                print(f"[ERROR] stage2 JSON repair failed: {repair_error}", file=sys.stderr)
-                print(f"[ERROR] raw dump: {report_raw_error_path}", file=sys.stderr)
+                print(redact_diagnostic_text(f"[ERROR] stage2 JSON repair failed: {repair_error}"), file=sys.stderr)
+                print(redact_diagnostic_text(f"[ERROR] raw dump: {report_raw_error_path}"), file=sys.stderr)
                 return 1
 
         report_json, guardrail_warnings = postprocess_report_json(parse_result.parsed, report_input)
@@ -3066,34 +3089,34 @@ def main() -> int:
             str(report_error_path),
             {
                 "error_type": "http_error",
-                "error_message": f"HTTP {e.code}: {e.reason}",
-                "response_excerpt": body[:2000],
+                "error_message": redact_diagnostic_text(f"HTTP {e.code}: {e.reason}"),
+                "response_excerpt": redact_diagnostic_text(body[:2000]),
             },
             pretty=args.pretty,
         )
-        print(f"[ERROR] HTTP {e.code}: {e.reason}", file=sys.stderr)
+        print(redact_diagnostic_text(f"[ERROR] HTTP {e.code}: {e.reason}"), file=sys.stderr)
         return 1
     except error.URLError as e:
         dump_json(
             str(report_error_path),
             {
                 "error_type": "url_error",
-                "error_message": normalize_str(e.reason) or repr(e),
+                "error_message": redact_diagnostic_text(normalize_str(e.reason) or repr(e)),
             },
             pretty=args.pretty,
         )
-        print(f"[ERROR] URL error: {normalize_str(e.reason) or repr(e)}", file=sys.stderr)
+        print(redact_diagnostic_text(f"[ERROR] URL error: {normalize_str(e.reason) or repr(e)}"), file=sys.stderr)
         return 1
     except Exception as e:
         dump_json(
             str(report_error_path),
             {
                 "error_type": "unexpected_error",
-                "error_message": repr(e),
+                "error_message": redact_diagnostic_text(repr(e)),
             },
             pretty=args.pretty,
         )
-        print(f"[ERROR] unexpected: {repr(e)}", file=sys.stderr)
+        print(redact_diagnostic_text(f"[ERROR] unexpected: {repr(e)}"), file=sys.stderr)
         return 1
 
 

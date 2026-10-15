@@ -1155,3 +1155,132 @@ def test_job_viewer_route_preserves_security_standards_mapping_in_payload_script
     assert "Testing for SQL Injection" in body
     assert "Direct" in body
     assert "standards_mapping" in body
+
+
+@pytest.mark.parametrize('summary_time,meta_time,expected,source', [
+    ('legacy-time', 'viewer-time', 'legacy-time', 'summary.generated_at'),
+    (None, 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
+    ('', 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
+    ('unknown', 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
+    ('  ', 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
+    ('unknown', 'N/A', None, '미제공'),
+    (None, None, None, '미제공'),
+])
+def test_viewer_timestamp_precedence_and_provenance(summary_time, meta_time, expected, source):
+    payload = {'summary': {'generated_at': summary_time}, 'meta': {'generated_at': meta_time},
+               'report': {'generated_at': 'stage2-time'}}
+    before = json.dumps(payload)
+    result = web_app_module._build_job_viewer_payload_summary(payload)
+    assert result.get('generated_at') == expected
+    assert source in result['generated_at_source']
+    assert result['stage2_generated_at'] == 'stage2-time'
+    assert json.dumps(payload) == before
+
+
+def finding_script(body):
+    import re
+    match = re.search(r'<script type="application/json" id="payload-findings-data">(.*?)</script>', body, re.S)
+    assert match is not None
+    return json.loads(match.group(1))
+
+
+@pytest.mark.parametrize('mask', [False, True])
+def test_job_viewer_original_fields_safe_serialization_and_mask(monkeypatch, tmp_path, mask):
+    raw = '  GET /x?q=%2527%2520%253Cscript%253E&ip=203%2e0%2e113%2e10  HTTP/1.1\n</script><img src=x onerror=alert(1)>  '
+    rows = [dict(src_ip='203.0.113.10', request_id='r-1', uri='/display',
+                 raw_request_target=raw, raw_request=raw, query_string=raw),
+            dict(src_ip='203.0.113.20', request_id='r-2', uri='/display?composed=true')]
+    payload = make_viewer_payload(findings=rows)
+    payload['summary'].pop('generated_at')
+    payload['meta'] = {'generated_at': 'actual-viewer-time'}
+    payload['report'] = {'generated_at': 'actual-stage2-time'}
+    artifact = write_payload(tmp_path, payload=payload)
+    original_bytes = artifact.read_bytes()
+    install_repo(monkeypatch, tmp_path, make_report())
+    response = web_app_module.job_viewer_payload(make_request(query_string=b'mask_src_ip=1' if mask else b''), 123)
+    body = render_response_body(response)
+    findings = {row['request_id']: row for row in finding_script(body)}
+    for key in ('raw_request_target', 'raw_request', 'query_string'):
+        assert findings['r-1'][key] == (None if mask else raw)
+        assert findings['r-2'][key] is None
+    if mask:
+        assert findings['r-1']['raw_request_hidden'] is True
+        assert '203%2e0%2e113%2e10' not in body
+        assert 'onerror=alert(1)' not in body
+    else:
+        assert '</script><img src=x onerror=alert(1)>' not in body
+        assert '203%2e0%2e113%2e10' in body
+    assert 'actual-viewer-time' in body and 'payload.meta.generated_at' in body
+    assert 'actual-stage2-time' in body and 'Stage2 보고서 시각' in body
+    assert artifact.read_bytes() == original_bytes
+
+
+def test_original_fields_preserve_empty_whitespace_and_do_not_synthesize():
+    rows = [dict(raw_request_target='', raw_request=' \t\n ', query_string='  x=%2520+%2B  '),
+            dict(method='GET', uri='/x?q=1', request={'raw_request': 'not-an-explicit-original'})]
+    before = json.dumps(rows)
+    result = report_routes.sanitize_payload_findings(rows)
+    assert result[0]['raw_request_target'] == ''
+    assert result[0]['raw_request'] == ' \t\n '
+    assert result[0]['query_string'] == '  x=%2520+%2B  '
+    assert all(result[1][key] is None for key in ('raw_request_target', 'raw_request', 'query_string'))
+    assert json.dumps(rows) == before
+
+
+def test_job_viewer_missing_timestamp_renders_unprovided(monkeypatch, tmp_path):
+    payload = make_viewer_payload()
+    payload['summary'].pop('generated_at')
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+    assert '생성 시각 미제공' in body
+    assert '실제 생성 시각 미제공' in body
+
+
+@pytest.mark.parametrize('mask', [False, True])
+def test_legacy_report_viewer_uses_same_original_and_timestamp_contract(monkeypatch, tmp_path, mask):
+    from types import SimpleNamespace
+    raw = '  /q?x=%2527&h=<script>  '
+    payload = make_viewer_payload(findings=[{'src_ip': '203.0.113.10', 'request_id': 'legacy-r', 'raw_request_target': raw}])
+    payload['summary'].pop('generated_at')
+    payload['meta'] = {'generated_at': 'legacy-payload-time'}
+    report = SimpleNamespace(report_id='legacy-1', filename='stage2_report.json', generated_at='stage2-only-time', meta={'generated_at': 'legacy-stage2-time'})
+    report.to_detail = lambda: {'report_id': report.report_id, 'filename': report.filename, 'viewer_payload_summary': {}}
+    loader = SimpleNamespace(scan_reports=lambda: [report], load_viewer_payload=lambda r: (payload, ''))
+    monkeypatch.setattr(report_routes, 'loader', loader)
+    monkeypatch.setattr(report_routes, 'lint_for_report', lambda r: None)
+    response = report_routes.report_payload_detail(make_request(path='/report/legacy-1/payload', query_string=b'mask_src_ip=1' if mask else b''), 'legacy-1')
+    body = render_response_body(response)
+    parsed = finding_script(body)[0]
+    assert parsed['raw_request_target'] == (None if mask else raw)
+    assert 'legacy-payload-time' in body and 'payload.meta.generated_at' in body
+    assert 'stage2-only-time' not in body
+    assert 'legacy-stage2-time' in body and 'stage2_report.meta.generated_at (기존 보고서 로더)' in body
+
+
+def test_optional_asset_input_invalidates_web_quality_cache(tmp_path, monkeypatch):
+    import os
+    from web.services import qa_runner
+    paths = {name: tmp_path / name for name in ('script.py', 'semantics.py', 'report.json', 'cache.json', 'stage2_report_input.json')}
+    for name in ('script.py', 'semantics.py', 'report.json'):
+        paths[name].write_text('{}')
+        os.utime(paths[name], (100, 100))
+    paths['cache.json'].write_text(json.dumps({'scope': 'all', 'coverage': {'stage1': {'status': 'missing'}, 'viewer': {'status': 'missing'}}, 'asset_review': {'status': 'not_evaluable'}}))
+    os.utime(paths['cache.json'], (200, 200))
+    monkeypatch.setattr(qa_runner, 'SEMANTICS_PATH', paths['semantics.py'])
+    runner = qa_runner.QARunner(script_path=paths['script.py'])
+    assert runner._read_cached_if_fresh(paths['cache.json'], paths['report.json']) is not None
+    paths['stage2_report_input.json'].write_text('{}')
+    os.utime(paths['stage2_report_input.json'], (150, 150))
+    assert runner._read_cached_if_fresh(paths['cache.json'], paths['report.json']) is None
+
+
+def test_stage2_and_viewer_metadata_times_remain_distinct():
+    payload = {'summary': {'generated_at': 'legacy-time'},
+               'meta': {'generated_at': 'viewer-time', 'stage2_generated_at': 'actual-stage2-time'},
+               'report': {'generated_at': 'report-fallback-time'}}
+    summary = web_app_module._build_job_viewer_payload_summary(payload)
+    assert summary['generated_at'] == 'legacy-time'
+    assert summary['viewer_generated_at'] == 'viewer-time'
+    assert summary['stage2_generated_at'] == 'actual-stage2-time'
+    assert 'stage2_report.meta.generated_at' in summary['stage2_generated_at_source']
