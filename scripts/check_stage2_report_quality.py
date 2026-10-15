@@ -11,6 +11,9 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 
 SCRIPT_PATH = Path(__file__).resolve()
+sys.path.insert(0, str(SCRIPT_PATH.parents[1] / "src"))
+from report_semantics import (process_text, review_marker, review_asset_report,
+    normalize_guardrail_warnings, redact_diagnostic, redact_diagnostic_text)
 CONTEXT_WINDOW = 60
 MIN_TEXT_WARNING_PATTERNS = (
     "실제 공격",
@@ -25,7 +28,7 @@ STRONG_NEGATION_PATTERNS = tuple(
         r"단정하지\s*않",
         r"단정할\s*수\s*없",
         r"확인되지\s*않",
-        r"확인할\s*수\s*없",
+        r"확인할\s*수(?:는)?\s*없",
         r"확정하지\s*않",
         r"확정할\s*수\s*없",
         r"근거가\s*부족",
@@ -36,7 +39,7 @@ STRONG_NEGATION_PATTERNS = tuple(
         r"해석할\s*수\s*없",
         r"주장하지\s*않",
         r"입증되지\s*않",
-        r"입증할\s*수\s*없",
+        r"입증할\s*수(?:는)?\s*없",
         r"입증할\s*근거",
         r"볼\s*근거는\s*부족",
         r"본\s*보고서에서\s*주장하지\s*않",
@@ -401,6 +404,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         description="Review-only wording lint for Stage2 report JSON under Apache logs-only constraints.",
     )
     parser.add_argument("--input", required=True, help="Stage2 report JSON path")
+    parser.add_argument("--asset-input", default=None, help="optional preserved Stage2 input JSON for asset evidence review")
+    parser.add_argument("--scope", choices=("stage2", "all"), default="stage2")
     parser.add_argument("--pretty", action="store_true", help="print result JSON with indentation")
     parser.add_argument("--debug", action="store_true", help="print rule matching debug output")
     parser.add_argument(
@@ -437,6 +442,11 @@ def normalize_text(value: Any) -> Optional[str]:
 
 
 def clip_excerpt(text: str, start: int, end: int) -> str:
+    # Redact before clipping: a clipped credential tail has lost its header and
+    # cannot be recognized safely by the final diagnostic serializer.
+    safe = redact_diagnostic_text(text)
+    if safe != text:
+        return safe
     left = max(0, start - CONTEXT_WINDOW)
     right = min(len(text), end + CONTEXT_WINDOW)
     excerpt = text[left:right].strip()
@@ -465,13 +475,6 @@ def classify_assertion_context(text: str, start: int, end: int) -> str:
     if sentence_context and any(pattern.search(sentence_context) for pattern in WEAK_CONSERVATIVE_PATTERNS):
         return "weak_conservative"
 
-    left = max(0, start - CONTEXT_WINDOW)
-    right = min(len(text), end + CONTEXT_WINDOW)
-    context_window = text[left:right]
-    if any(pattern.search(context_window) for pattern in STRONG_NEGATION_PATTERNS):
-        return "strong_negation"
-    if any(pattern.search(context_window) for pattern in WEAK_CONSERVATIVE_PATTERNS):
-        return "weak_conservative"
     return "none"
 
 
@@ -592,6 +595,10 @@ def detect_rule_issue(
             match = pattern.search(text)
             if not match:
                 continue
+            # Absence of a supplied collection is not an outcome assertion.
+            context = extract_sentence_context(text, match.start(), match.end())
+            if spec.name == "method_protocol_success_assertion" and severity_name == "warning" and re.search(r'(?:분포|묶음|자료|데이터)[^.!?]*제공되지\s*않', context) and not re.search(r'성공|우회|차단', context):
+                continue
             excerpt = clip_excerpt(text, match.start(), match.end())
             context_class = classify_assertion_context(text, match.start(), match.end())
             effective_severity = adjust_issue_severity(
@@ -698,29 +705,91 @@ def build_verdict(blocker_count: int, warning_count: int) -> str:
     return "PASS"
 
 
-def analyze_stage2_report_data(data: Dict[str, Any], *, debug: bool = False) -> Dict[str, Any]:
+def analyze_stage2_report_data(data: Dict[str, Any], *, debug: bool = False, scope: str = "stage2", asset_input: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     report = data.get("report")
     if report is None:
-        return {
-            "verdict": "PASS",
-            "blockers": [],
-            "warnings": [],
-            "info": [],
-            "summary": {
-                "checked_fields": 0,
-                "blocker_count": 0,
-                "warning_count": 0,
-                "info_count": 0,
-            },
-        }
+        report = {}
     if not isinstance(report, dict):
         raise ValueError("report must be an object or null")
 
     fields = list(iter_report_fields(report))
+    markers = []
+    coverage = {}
+    if scope == "all":
+        for name, value in (("stage1", data.get("stage1")), ("stage2", data.get("report")), ("viewer", data.get("viewer"))):
+            present = isinstance(value, dict)
+            rows = value.get("results") if name == "stage1" and present else None
+            coverage[name] = {"status": "checked_empty" if rows == [] else "checked" if present and (name != "stage1" or isinstance(rows, list)) and (name == "stage1" or bool(value)) else "invalid" if present else "missing", "checked_fields": 0}
+
+    def collect_warnings(value, path):
+        if "guardrail_warnings" in value:
+            markers.extend(normalize_guardrail_warnings(value["guardrail_warnings"], path + ".guardrail_warnings"))
+        if "meta" in value:
+            meta = value["meta"]
+            if isinstance(meta, dict):
+                if "guardrail_warnings" in meta:
+                    markers.extend(normalize_guardrail_warnings(meta["guardrail_warnings"], path + ".meta.guardrail_warnings"))
+            else:
+                markers.append(review_marker(type(meta).__name__, path + ".meta", "invalid_guardrail_metadata_container"))
+
+    def extra(value, path):
+        if isinstance(value, dict):
+            collect_warnings(value, path)
+            if isinstance(value.get("report"), dict):
+                fields.extend((path + "." + field, text) for field, text in iter_report_fields(value["report"]))
+            for key, child in value.items():
+                if key in {"report", "raw_output_text", "wording_originals", "raw_log", "raw_request", "meta", "guardrail_warnings"}:
+                    continue
+                if key in {"reasoning_summary", "evidence_fields", "detail", "description"}:
+                    for i, text in enumerate(child if isinstance(child, list) else [child]):
+                        if isinstance(text, str):
+                            fields.append((f"{path}.{key}" + (f"[{i}]" if isinstance(child, list) else ""), text))
+                elif isinstance(child, (dict, list)):
+                    extra(child, f"{path}.{key}")
+        elif isinstance(value, list):
+            for i, child in enumerate(value):
+                extra(child, f"{path}[{i}]")
+    if scope == "all":
+        for key in ("stage1", "viewer", "results", "findings", "top_incidents"):
+            if key in data:
+                extra(data[key], key)
+    if scope == "all":
+        for path, _ in fields:
+            name = "stage2" if path.startswith("report.") else path.split(".")[0].split("[")[0]
+            if name in coverage:
+                coverage[name]["checked_fields"] += 1
+        for name, details in coverage.items():
+            if details["status"] in {"missing", "invalid"}:
+                markers.append(review_marker("자료 누락: " + name, name, "missing_scope_input"))
+    for path, text in fields:
+        _, notes = process_text(text, path)
+        markers.extend(notes)
+    # Preserve the legacy all-scope ordering: Stage1/Viewer, prose markers,
+    # then outer artifact metadata. Each list is validated before dedup.
+    collect_warnings(data, "input")
     blocker_issues: List[Issue] = []
     warning_issues: List[Issue] = []
     info_issues: List[Issue] = []
     debug_rows: List[str] = []
+
+    # Existing artifact warnings remain strings; review markers always warn.
+    for warning in normalize_guardrail_warnings(markers):
+        if not isinstance(warning, str) or not warning.startswith("safety_review:"):
+            continue
+        try:
+            detail = json.loads(warning.split(":", 1)[1])
+            if not isinstance(detail, dict):
+                detail = {}
+        except (ValueError, TypeError):
+            detail = {}
+        source = str(detail.get("source_text", warning))
+        warning_issues.append(Issue(
+            rule="guardrail_warning_input_invalid" if str(detail.get("reason", "")).startswith("invalid_guardrail_") else "safety_judgment_review",
+            path=str(detail.get("path", "meta.guardrail_warnings")),
+            excerpt=source,
+            source_text=source,
+            suggestion="Review safety judgment scope: " + str(detail.get("reason", "invalid_review_marker")),
+        ))
 
     for path, text in fields:
         for spec in RULE_SPECS:
@@ -769,11 +838,25 @@ def analyze_stage2_report_data(data: Dict[str, Any], *, debug: bool = False) -> 
         if severity_name == "info":
             info_issues.append(issue)
 
+    asset_review = review_asset_report(report, asset_input)
+    if scope == "all" and isinstance(data.get("viewer"), dict) and isinstance(data["viewer"].get("report"), dict):
+        viewer_review = review_asset_report(data["viewer"]["report"], asset_input, field_path="viewer.report")
+        asset_review["warnings"].extend(viewer_review["warnings"])
+    for row in asset_review["warnings"]:
+        warning_issues.append(Issue(rule="asset_context_inference", path=row["path"],
+                                   excerpt=row["source_text"], source_text=row["source_text"], suggestion=row["reason"]))
+    if asset_review["status"] == "not_evaluable":
+        info_issues.append(Issue(rule="asset_context_not_evaluable", path="asset_input",
+                                excerpt=asset_review["reason"], source_text="", suggestion=asset_review["limitations"]))
+
     if debug and debug_rows:
         for row in debug_rows:
-            print(f"[debug] {row}", file=sys.stderr)
+            print(redact_diagnostic_text(f"[debug] {row}"), file=sys.stderr)
 
     result = {
+        "scope": scope,
+        "asset_review": asset_review,
+        "coverage": coverage,
         "verdict": build_verdict(len(blocker_issues), len(warning_issues)),
         "blockers": [asdict(issue) for issue in blocker_issues],
         "warnings": [asdict(issue) for issue in warning_issues],
@@ -785,7 +868,7 @@ def analyze_stage2_report_data(data: Dict[str, Any], *, debug: bool = False) -> 
             "info_count": len(info_issues),
         },
     }
-    return result
+    return redact_diagnostic(result)
 
 
 def format_summary(input_path: Path, result: Dict[str, Any], output_path: Optional[Path]) -> str:
@@ -807,21 +890,33 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv)
     input_path = Path(args.input)
     if not input_path.exists():
-        print(f"Input not found: {input_path}", file=sys.stderr)
+        print(redact_diagnostic_text(f"Input not found: {input_path}"), file=sys.stderr)
         return 1
 
     try:
         data = load_json(input_path)
-        result = analyze_stage2_report_data(data, debug=args.debug)
+        if args.scope == "all":
+            for key, filename in (("stage1", "stage1_results.json"), ("viewer", "viewer_payload.json")):
+                sibling = input_path.parent / filename
+                if sibling.exists():
+                    data[key] = load_json(sibling)
+        asset_input = load_json(Path(args.asset_input)) if args.asset_input else None
+        # Existing CLI remains valid; a preserved sibling is optional evidence.
+        if asset_input is None and (input_path.parent / "stage2_report_input.json").exists():
+            asset_input = load_json(input_path.parent / "stage2_report_input.json")
+        result = analyze_stage2_report_data(data, debug=args.debug, scope=args.scope, asset_input=asset_input)
+        if args.scope == "all":
+            for name, filename in (("stage1", "stage1_results.json"), ("stage2", input_path.name), ("viewer", "viewer_payload.json")):
+                result["coverage"][name]["source_path"] = str(input_path.parent / filename)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
-        print(f"Failed to lint Stage2 report: {exc}", file=sys.stderr)
+        print(redact_diagnostic_text(f"Failed to lint Stage2 report: {exc}"), file=sys.stderr)
         return 1
 
     output_path = Path(args.output) if args.output else None
     if output_path is not None:
         dump_json(output_path, result)
 
-    print(format_summary(input_path, result, output_path))
+    print(redact_diagnostic_text(format_summary(input_path, result, output_path)))
     if args.pretty:
         print(json.dumps(result, ensure_ascii=False, indent=2))
 

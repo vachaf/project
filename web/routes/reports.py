@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
+from src.report_semantics import redact_diagnostic, redact_diagnostic_text
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 
@@ -330,7 +331,7 @@ def lint_for_report(report: Optional[Report]) -> Optional[Dict[str, Any]]:
             "warnings": [],
             "info": [],
             "is_error": True,
-            "error": report.error or "Invalid report JSON",
+            "error": redact_diagnostic_text(report.error or "Invalid report JSON"),
         }
 
     lint_result = qa_runner.run_quality_lint(report.report_id, report.file_path)
@@ -346,7 +347,7 @@ def enrich_lint_result_with_source_text(lint_result: Optional[Dict[str, Any]], r
     enriched = dict(lint_result)
     for bucket_name in ("blockers", "warnings", "info"):
         enriched[bucket_name] = enrich_issue_list_with_source_text(lint_result.get(bucket_name), report_payload)
-    return enriched
+    return redact_diagnostic(enriched)
 
 
 def normalize_lint_result_summary(lint_result: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -377,7 +378,7 @@ def enrich_issue_list_with_source_text(rows: Any, report_payload: Dict[str, Any]
         item = dict(row)
         if not str(item.get("source_text") or "").strip():
             item["source_text"] = resolve_issue_source_text(report_payload, str(item.get("path") or ""))
-        enriched_rows.append(item)
+        enriched_rows.append(redact_diagnostic(item))
     return enriched_rows
 
 
@@ -408,8 +409,8 @@ def resolve_issue_source_text(report_payload: Dict[str, Any], issue_path: str) -
     if current is None:
         return ""
     if isinstance(current, str):
-        return current
-    return str(current)
+        return redact_diagnostic_text(current)
+    return redact_diagnostic_text(str(redact_diagnostic(current)))
 
 
 def resolve_group_report(summary: Any) -> Optional[Report]:
@@ -988,6 +989,8 @@ def _first_non_empty_text(*values: Any) -> str:
 
 def _is_mask_src_ip_enabled(value: Any) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 
 
 def _apply_src_ip_display_mode(rows: List[Dict[str, Any]], mask_src_ip: bool) -> List[Dict[str, Any]]:

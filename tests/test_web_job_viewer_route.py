@@ -1155,3 +1155,20 @@ def test_job_viewer_route_preserves_security_standards_mapping_in_payload_script
     assert "Testing for SQL Injection" in body
     assert "Direct" in body
     assert "standards_mapping" in body
+
+
+def test_optional_asset_input_invalidates_web_quality_cache(tmp_path, monkeypatch):
+    import os
+    from web.services import qa_runner
+    paths = {name: tmp_path / name for name in ('script.py', 'semantics.py', 'report.json', 'cache.json', 'stage2_report_input.json')}
+    for name in ('script.py', 'semantics.py', 'report.json'):
+        paths[name].write_text('{}')
+        os.utime(paths[name], (100, 100))
+    paths['cache.json'].write_text(json.dumps({'scope': 'all', 'coverage': {'stage1': {'status': 'missing'}, 'viewer': {'status': 'missing'}}, 'asset_review': {'status': 'not_evaluable'}}))
+    os.utime(paths['cache.json'], (200, 200))
+    monkeypatch.setattr(qa_runner, 'SEMANTICS_PATH', paths['semantics.py'])
+    runner = qa_runner.QARunner(script_path=paths['script.py'])
+    assert runner._read_cached_if_fresh(paths['cache.json'], paths['report.json']) is not None
+    paths['stage2_report_input.json'].write_text('{}')
+    os.utime(paths['stage2_report_input.json'], (150, 150))
+    assert runner._read_cached_if_fresh(paths['cache.json'], paths['report.json']) is None

@@ -32,10 +32,14 @@ import os
 import sys
 import time
 import re
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+from report_semantics import (process_text, process_stage1, PROMPT_BOUNDARY,
+    map_http_sentences, http_outcome_is_protected, review_marker, redact_diagnostic_text,
+    PROTECTED, normalize_guardrail_warnings)
 from urllib import error
 
 from llm_client import (
@@ -101,6 +105,8 @@ class Stage1Result:
     response_id: Optional[str]
     raw_output_text: str
     llm_usage: Dict[str, Any]
+    guardrail_warnings: List[str] = field(default_factory=list)
+    wording_originals: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -252,7 +258,7 @@ def build_schema() -> Dict[str, Any]:
 
 def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence_items: int) -> List[Dict[str, str]]:
     analysis_window = meta.get("analysis_window", {})
-    system_prompt = (
+    system_prompt = PROMPT_BOUNDARY + (
         "당신은 웹 보안 로그 1차 분류기다. "
         "사전 필터링된 Apache/MariaDB 로그 후보 1건을 보수적으로 분류하라. "
         "제공된 필드만 근거로 사용하고 확신을 과장하지 마라. "
@@ -385,18 +391,24 @@ def build_messages(meta: Dict[str, Any], candidate: Dict[str, Any], max_evidence
 
 
 def normalize_stage1_http_status_text(value: Any) -> str:
-    text = normalize_str(value)
-    if not text:
-        return text
-    sentences = [part.strip() for part in re.split(r"(?<=[.!?])(?=\s|$)|\n+", text) if part.strip()]
-    if not sentences:
-        return text
-    return " ".join(http_status_outcome_fallback(sentence) or sentence for sentence in sentences)
+    text = value if isinstance(value, str) else normalize_str(value)
+    def normalize_sentence(sentence):
+        # Main's explicit "차단되었고" assertion is correctable, while its
+        # following qualification remains verbatim rather than being dropped.
+        compound = re.fullmatch(r"(\s*)((?:HTTP\s*)?(?:401|403)으로\s*차단되었)고(\s+.+)", sentence)
+        if compound and not PROTECTED.search(sentence):
+            observation = http_status_outcome_fallback(compound[2] + "습니다.")
+            if observation is not None:
+                return compound[1] + observation + compound[3]
+        if http_outcome_is_protected(sentence):
+            return None
+        return http_status_outcome_fallback(sentence)
+    return map_http_sentences(text, normalize_sentence, allow_compound=True)
 
 
 def normalize_stage1_http_status_evidence(value: Any, candidate: Dict[str, Any]) -> str:
-    text = normalize_str(value)
-    fallback = http_status_outcome_fallback(text)
+    text = value if isinstance(value, str) else normalize_str(value)
+    fallback = None if http_outcome_is_protected(text) else http_status_outcome_fallback(text)
     if fallback is None:
         return text
 
@@ -423,6 +435,21 @@ def validate_stage1_http_status_semantics(parsed: Dict[str, Any], candidate: Dic
         normalized["evidence_fields"] = [
             normalize_stage1_http_status_evidence(item, candidate) for item in evidence_fields
         ]
+    originals = dict(parsed.get("wording_originals") or {})
+    warnings = normalize_guardrail_warnings(parsed.get("guardrail_warnings", []), "stage1.guardrail_warnings")
+    for key in ("reasoning_summary", "evidence_fields"):
+        old, new = parsed.get(key), normalized.get(key)
+        old_rows = old if isinstance(old, list) else [old]
+        new_rows = new if isinstance(new, list) else [new]
+        for index, (before, after) in enumerate(zip(old_rows, new_rows)):
+            if isinstance(before, str) and before != after:
+                path = "stage1." + key + (f"[{index}]" if isinstance(old, list) else "")
+                originals.setdefault(path, before)
+                warnings.append(review_marker(before, path, "http_outcome_corrected_to_observation"))
+    if originals or "wording_originals" in parsed:
+        normalized["wording_originals"] = originals
+    if warnings or "guardrail_warnings" in parsed:
+        normalized["guardrail_warnings"] = warnings
     return normalized
 
 
@@ -493,7 +520,7 @@ def classify_candidate(
                 error_type="empty_output",
                 error_message="응답에서 output_text를 찾지 못했습니다.",
                 response_id=response_id,
-                raw_response_excerpt=json.dumps(llm_response.raw_response, ensure_ascii=False)[:1500],
+                raw_response_excerpt=redact_diagnostic_text(json.dumps(llm_response.raw_response, ensure_ascii=False))[:1500],
                 llm_usage=llm_usage,
             )
 
@@ -506,10 +533,11 @@ def classify_candidate(
                 request_id=request_id,
                 model=model,
                 error_type="json_decode_error",
-                error_message=str(e),
+                error_message=redact_diagnostic_text(str(e)),
                 response_id=response_id,
                 llm_usage=llm_usage,
             )
+        parsed = process_stage1(parsed, f"stage1.results[{candidate_index}]")
         result = Stage1Result(
             candidate_index=candidate_index,
             incident_group_key=incident_group_key,
@@ -547,6 +575,8 @@ def classify_candidate(
             recommended_actions=[normalize_str(x) for x in (parsed.get("recommended_actions") or []) if normalize_str(x)],
             response_id=response_id,
             raw_output_text=output_text,
+            guardrail_warnings=parsed["guardrail_warnings"],
+            wording_originals=parsed["wording_originals"],
             llm_usage=llm_usage,
         )
         return result, None
@@ -562,8 +592,8 @@ def classify_candidate(
             request_id=request_id,
             model=model,
             error_type="http_error",
-            error_message=f"HTTP {e.code}: {e.reason}",
-            raw_response_excerpt=body[:1500],
+            error_message=redact_diagnostic_text(f"HTTP {e.code}: {e.reason}"),
+            raw_response_excerpt=redact_diagnostic_text(body[:1500]),
         )
     except error.URLError as e:
         return None, Stage1Error(
@@ -571,7 +601,7 @@ def classify_candidate(
             request_id=request_id,
             model=model,
             error_type="url_error",
-            error_message=normalize_str(e.reason) or repr(e),
+            error_message=redact_diagnostic_text(normalize_str(e.reason) or repr(e)),
         )
     except Exception as e:  # pragma: no cover - 운영 예외 포착용
         return None, Stage1Error(
@@ -579,7 +609,7 @@ def classify_candidate(
             request_id=request_id,
             model=model,
             error_type="unexpected_error",
-            error_message=repr(e),
+            error_message=redact_diagnostic_text(repr(e)),
         )
 
 
@@ -595,7 +625,7 @@ def main() -> int:
         llm_config = resolve_llm_config(args.provider)
         selected_model = choose_model(llm_config.provider, args.mode, args.model, dry_run=bool(args.dry_run))
     except ValueError as e:
-        print(f"[ERROR] {e}", file=sys.stderr)
+        print(redact_diagnostic_text(f"[ERROR] {e}"), file=sys.stderr)
         return 2
     base_name = derive_base_name(args.input, args.base_name)
     out_dir = Path(args.out_dir)

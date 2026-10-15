@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from report_semantics import process_text, process_stage1, PROMPT_BOUNDARY, normalize_guardrail_warnings
+
 
 CONTEXT_COLLECTIONS: List[Tuple[str, str]] = [
     ("probing_sequence_summaries", "probing_sequence"),
@@ -440,12 +442,25 @@ def select_findings_source(
     return "llm_input.analysis_candidates", [item for item in analysis_candidates if isinstance(item, dict)]
 
 
+def original_request_field(item: Dict[str, Any], raw_match: Optional[Dict[str, Any]], source_name: str, key: str) -> Optional[str]:
+    # IncidentBrief is an LLM summary and can shorten raw_request. Prefer a
+    # matched export's explicit field when available; never compose originals.
+    raw_value = (raw_match or {}).get(key)
+    if source_name == "stage2_report_input.top_incidents" and isinstance(raw_value, str):
+        return raw_value
+    value = item.get(key)
+    if isinstance(value, str):
+        return value
+    return raw_value if isinstance(raw_value, str) else None
+
+
 def build_finding(
     item: Dict[str, Any],
     source_name: str,
     raw_match: Optional[Dict[str, Any]],
     include_raw_log: bool,
 ) -> Dict[str, Any]:
+    item = process_stage1(item, "viewer.finding")
     finding = {
         "source": source_name,
         "context_only": False,
@@ -458,7 +473,7 @@ def build_finding(
         "src_ip": normalize_str(item.get("src_ip")),
         "method": normalize_str(item.get("method")),
         "uri": normalize_str(item.get("uri")),
-        "query_string": normalize_str(item.get("query_string")),
+        "query_string": original_request_field(item, raw_match, source_name, "query_string"),
         "status_code": item.get("status_code"),
         "log_time": normalize_str(item.get("log_time")),
         "severity": normalize_str(item.get("severity")),
@@ -467,6 +482,8 @@ def build_finding(
         "verdict_hint": normalize_str(item.get("verdict_hint")),
         "category": normalize_finding_category(item),
         "score": item.get("score"),
+        "guardrail_warnings": item.get("guardrail_warnings", []),
+        "wording_originals": item.get("wording_originals", {}),
         "reasoning_summary": normalize_str(item.get("reasoning_summary")),
         "reason_hints": normalize_reason_hints(item.get("reason_hints")),
         "evidence_fields": normalize_string_list(item.get("evidence_fields")),
@@ -475,8 +492,8 @@ def build_finding(
         "resp_content_type": normalize_str(item.get("resp_content_type")),
         "handler": normalize_str(item.get("handler")),
         "log_schema": normalize_str(item.get("log_schema")),
-        "raw_request_target": normalize_str(item.get("raw_request_target")),
-        "raw_request": normalize_str(item.get("raw_request")),
+        "raw_request_target": original_request_field(item, raw_match, source_name, "raw_request_target"),
+        "raw_request": original_request_field(item, raw_match, source_name, "raw_request"),
         "path_normalized_from_raw_request": bool(item.get("path_normalized_from_raw_request")),
         "likely_html_fallback_response": bool(item.get("likely_html_fallback_response")),
         "hpp_detected": bool(item.get("hpp_detected")),
@@ -597,6 +614,10 @@ def main() -> int:
         stage1_match = lookup_match(source_item, stage1_lookup)
         candidate_match = lookup_match(source_item, candidate_lookup)
         merged = merge_missing(merge_missing(dict(source_item), stage1_match), candidate_match)
+        # Empty and whitespace-only strings can be explicit originals, not gaps.
+        for key in ("raw_request_target", "raw_request", "query_string"):
+            if isinstance(source_item.get(key), str):
+                merged[key] = source_item[key]
         raw_match = lookup_match(merged, raw_lookup)
         findings.append(build_finding(merged, finding_source_name, raw_match=raw_match, include_raw_log=bool(args.include_raw_log)))
 
@@ -648,12 +669,17 @@ def main() -> int:
         "schema_version": "viewer_payload.v1",
         "meta": {
             "generated_at": iso_now(),
+            "stage2_generated_at": ensure_dict(stage2_report_payload.get("meta")).get("generated_at"),
             "source_of_truth": {
                 "findings": finding_source_name,
                 "contexts": "stage2_report_input + llm_input context-only collections",
                 "supporting_events": "stage2_report_input.supporting_events + llm_input.supporting_events",
             },
             "include_raw_log": bool(args.include_raw_log),
+            "guardrail_warnings": list(dict.fromkeys(
+                normalize_guardrail_warnings(ensure_dict(stage2_report_payload.get("meta")).get("guardrail_warnings", []), "stage2.meta.guardrail_warnings")
+                + [note for finding in findings for note in finding.get("guardrail_warnings", [])]
+            )),
         },
         "summary": {
             "report_title": report_fields.get("report_title"),

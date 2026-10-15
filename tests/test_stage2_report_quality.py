@@ -77,6 +77,23 @@ def test_safe_auth_negation_is_not_blocker() -> None:
     assert result["summary"]["info_count"] >= 1
 
 
+def test_success_cannot_be_confirmed_with_topic_particle_is_not_assertion() -> None:
+    for claim in ("로그인 성공", "파일 읽기 성공", "SQL injection 성공"):
+        for ending in ("확인할 수 없습니다.", "확인할 수는 없습니다."):
+            result = lint.analyze_stage2_report_data(
+                wrap_report(make_minimal_report(f"{claim}은 {ending}"))
+            )
+            assert result["verdict"] == "PASS"
+            assert result["summary"]["blocker_count"] == 0
+            assert result["summary"]["warning_count"] == 0
+            assert result["summary"]["info_count"] >= 1
+
+        positive = lint.analyze_stage2_report_data(
+            wrap_report(make_minimal_report(f"{claim}을 확인했습니다."))
+        )
+        assert positive["verdict"] in {"WARN", "FAIL"}
+
+
 def test_safe_account_takeover_negation_is_not_blocker() -> None:
     report = make_minimal_report("계정 탈취로는 해석하지 않았습니다")
     result = lint.analyze_stage2_report_data(wrap_report(report))
@@ -243,3 +260,42 @@ def test_cli_fail_on_blocker_changes_exit_code(tmp_path: Path) -> None:
 
     strict = subprocess.run(command + ["--fail-on-blocker"], cwd=Path(__file__).resolve().parents[1], check=False)
     assert strict.returncode != 0
+
+
+def test_success_cannot_be_proven_with_topic_particle_is_not_assertion() -> None:
+    text = "파일 내용 노출이나 권한 우회 성공을 입증할 수는 없습니다."
+    result = lint.analyze_stage2_report_data(wrap_report(make_minimal_report(text)))
+    assert result["verdict"] == "PASS"
+    assert result["summary"]["blocker_count"] == 0
+    assert result["summary"]["warning_count"] == 0
+    assert result["summary"]["info_count"] >= 1
+    positive = lint.analyze_stage2_report_data(
+        wrap_report(make_minimal_report("파일 내용 노출이나 권한 우회 성공을 입증했습니다."))
+    )
+    assert positive["verdict"] in {"WARN", "FAIL"}
+
+
+def test_safety_review_artifact_warning_survives_final_quality_check() -> None:
+    from src import llm_stage2_reporter as stage2
+
+    for text in (
+        "무해한 요청이지만 공격 성공을 확인할 수는 없습니다.",
+        "이 요청은 무해합니다만 공격 성공을 확인할 수는 없습니다.",
+        '분석가는 "이 요청은 무해합니다"라고 말했습니다.',
+        "무해하지 않은 것은 아닙니다.",
+    ):
+        report, warnings = stage2.postprocess_report_json(make_minimal_report(text), {})
+        artifact = {"report": report, "meta": {"guardrail_warnings": warnings}}
+        result = lint.analyze_stage2_report_data(artifact)
+        assert result["verdict"] == "WARN"
+        review = [row for row in result["warnings"] if row["rule"] == "safety_judgment_review"]
+        assert len(review) == 1
+        assert review[0]["path"] == "report.overall_assessment"
+        assert review[0]["source_text"] == text
+        assert "scope" in review[0]["suggestion"]
+
+
+def test_malformed_safety_review_marker_cannot_silently_pass() -> None:
+    artifact = wrap_report(make_minimal_report("요약"))
+    artifact["meta"] = {"guardrail_warnings": ["safety_review:invalid"]}
+    assert lint.analyze_stage2_report_data(artifact)["verdict"] == "WARN"
