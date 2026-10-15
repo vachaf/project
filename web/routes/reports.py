@@ -150,7 +150,25 @@ def report_payload_detail(request: Request, report_id: str):
     payload_error = payload_load_error or str(detail.get("viewer_payload_error") or "")
     if payload_obj is None:
         payload_obj = {}
+    # Read timestamp provenance from the actual artifact also for legacy routes.
+    from web.app import _build_job_viewer_payload_summary
+    actual_summary = _build_job_viewer_payload_summary(payload_obj)
+    if payload_obj:
+        for key in ("generated_at", "generated_at_source", "viewer_generated_at", "stage2_generated_at", "stage2_generated_at_source"):
+            payload_summary[key] = actual_summary.get(key)
+    elif payload_summary.get("generated_at"):
+        cached_summary = _build_job_viewer_payload_summary({"summary": payload_summary})
+        payload_summary["generated_at"] = cached_summary.get("generated_at")
+        payload_summary["generated_at_source"] = (
+            "기존 Viewer 요약 (원본 payload 확인 불가)" if cached_summary.get("generated_at") else "실제 생성 시각 미제공"
+        )
+    if not payload_summary.get("stage2_generated_at"):
+        report_time = _build_job_viewer_payload_summary({"meta": {"stage2_generated_at": report.meta.get("generated_at")}})
+        if report_time.get("stage2_generated_at"):
+            payload_summary["stage2_generated_at"] = report_time["stage2_generated_at"]
+            payload_summary["stage2_generated_at_source"] = "stage2_report.meta.generated_at (기존 보고서 로더)"
     mask_src_ip = _is_mask_src_ip_enabled(request.query_params.get("mask_src_ip"))
+
 
     findings = sanitize_payload_findings(
         payload_obj.get("findings"),
@@ -874,6 +892,10 @@ def sanitize_payload_findings(rows: Any, fallback_rows: Any = None) -> List[Dict
                 "request_id": str(raw_match_obj.get("request_id") or "N/A"),
             },
         }
+        # Only explicit strings are originals; never synthesize from URI/method.
+        for key in ("raw_request_target", "raw_request", "query_string"):
+            value = row.get(key)
+            finding[key] = value if isinstance(value, str) else None
         standards_mapping = _normalize_standards_mapping(row.get("standards_mapping"))
         if standards_mapping:
             finding["standards_mapping"] = standards_mapping
@@ -1005,6 +1027,12 @@ def _apply_src_ip_display_mode(rows: List[Dict[str, Any]], mask_src_ip: bool) ->
             continue
         copied = dict(row)
         copied["src_ip"] = str(mask_value(copied.get("src_ip") or "-"))
+        # Hide entire originals: IPs can occur encoded or in arbitrary headers.
+        # Display copies only; stored payloads and unmasked originals are intact.
+        for key in ("raw_request_target", "raw_request", "query_string"):
+            if key in copied:
+                copied[key] = None
+        copied["raw_request_hidden"] = True
         displayed.append(copied)
     return displayed
 

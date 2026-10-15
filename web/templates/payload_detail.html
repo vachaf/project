@@ -248,9 +248,13 @@
       <p class="payload-summary-meta">표시·참고용 연계</p>
     </article>
     <article class="payload-summary-card">
-      <p class="payload-summary-label">생성 시각</p>
-      <p class="payload-summary-value payload-summary-time">{{ summary.get('generated_at') or 'unknown' }}</p>
-      <p class="payload-summary-meta">{{ summary.get('report_title') or 'N/A' }}</p>
+      <p class="payload-summary-label">생성 시각 (제공 값)</p>
+      <p class="payload-summary-value payload-summary-time">{{ summary.get('generated_at') or '생성 시각 미제공' }}</p>
+      <p class="payload-summary-meta">출처: {{ summary.get('generated_at_source') or '기존 summary.generated_at' }}</p>
+      {% if summary.get('generated_at_source', '').startswith('summary.generated_at') %}
+      <p class="payload-summary-meta">Viewer 자료 생성 시각 (payload.meta.generated_at): {{ summary.get('viewer_generated_at') or '미제공' }}</p>
+      {% endif %}
+      <p class="payload-summary-meta">Stage2 보고서 시각: {{ summary.get('stage2_generated_at') or '미제공' }} · 출처: {{ summary.get('stage2_generated_at_source') or '실제 Stage2 보고서 시각 미제공' }}</p>
     </article>
   </section>
 
@@ -404,6 +408,14 @@
             <p><span class="meta-label">HTTP status</span> <span id="pd-status-code">N/A</span></p>
             <p class="payload-request-uri"><span class="meta-label">URI</span> <span id="pd-uri">N/A</span></p>
           </div>
+        </section>
+
+        <section class="payload-detail-section payload-original-request-section">
+          <h4>제공된 요청 원문</h4>
+          <p>payload에 제공된 문자열 그대로 표시합니다. 누락된 원문은 조합하지 않습니다. 생성 이전 정규화·생략 여부는 확인하지 못합니다.</p>
+          <p class="meta-label">raw_request_target</p><pre class="payload-raw-request" id="pd-raw-request-target">원문 미제공</pre>
+          <p class="meta-label">raw_request</p><pre class="payload-raw-request" id="pd-raw-request">원문 미제공</pre>
+          <p class="meta-label">query_string</p><pre class="payload-raw-request" id="pd-query-string">원문 미제공</pre>
         </section>
 
         <section class="payload-detail-section payload-analysis-section">
@@ -755,7 +767,7 @@
   </section>
 </section>
 
-<script type="application/json" id="payload-findings-data">{{ findings | tojson }}</script>
+<script type="application/json" id="payload-findings-data">{{ findings_display | tojson }}</script>
 <script type="application/json" id="payload-contexts-data">{{ contexts_data | tojson }}</script>
 <script type="application/json" id="payload-supporting-events-data">{{ supporting_events | tojson }}</script>
 <script type="application/json" id="payload-src-ip-mask-mode">{{ {"mask_src_ip": src_ip_mask_enabled}|tojson }}</script>
@@ -821,7 +833,7 @@
     function renderList(targetId, items) {
       const target = document.getElementById(targetId);
       if (!target) return;
-      target.innerHTML = "";
+      target.textContent = "";
       if (!items.length) {
         const li = document.createElement("li");
         li.className = "is-muted";
@@ -849,6 +861,20 @@
       } else {
         more.textContent = "";
         more.classList.add("is-hidden");
+      }
+    }
+
+    function renderOriginalRequest(finding) {
+      for (const [id, key] of [
+        ["pd-raw-request-target", "raw_request_target"],
+        ["pd-raw-request", "raw_request"],
+        ["pd-query-string", "query_string"],
+      ]) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        el.textContent = finding.raw_request_hidden
+          ? "IP 가리기 모드에서는 원문을 숨깁니다."
+          : typeof finding[key] === "string" ? finding[key] : "원문 미제공";
       }
     }
 
@@ -1014,8 +1040,8 @@
     function clearObservabilityBadges() {
       const badgeWrap = document.getElementById("pd-observability-badges");
       const notesEl = document.getElementById("pd-interpretation-notes");
-      if (badgeWrap) badgeWrap.innerHTML = "";
-      if (notesEl) notesEl.innerHTML = "";
+      if (badgeWrap) badgeWrap.textContent = "";
+      if (notesEl) notesEl.textContent = "";
     }
 
     function renderObservabilityBadges(finding) {
@@ -1023,8 +1049,8 @@
       const notesEl = document.getElementById("pd-interpretation-notes");
       if (!badgeWrap || !notesEl) return;
 
-      badgeWrap.innerHTML = "";
-      notesEl.innerHTML = "";
+      badgeWrap.textContent = "";
+      notesEl.textContent = "";
 
       const badges = getObservabilityBadges(finding);
       if (!badges.length) {
@@ -1109,8 +1135,8 @@
       const section = document.getElementById("pd-standards-section");
       const scopeEl = document.getElementById("pd-standards-scope");
       const groupsEl = document.getElementById("pd-standards-groups");
-      if (scopeEl) scopeEl.innerHTML = "";
-      if (groupsEl) groupsEl.innerHTML = "";
+      if (scopeEl) scopeEl.textContent = "";
+      if (groupsEl) groupsEl.textContent = "";
       if (section) section.classList.add("is-hidden");
     }
 
@@ -1163,8 +1189,8 @@
       }
 
       section.classList.remove("is-hidden");
-      scopeEl.innerHTML = "";
-      groupsEl.innerHTML = "";
+      scopeEl.textContent = "";
+      groupsEl.textContent = "";
 
       const scopeLabel = evidenceScopeLabel(standardsMappingObservability(finding));
       if (scopeLabel) {
@@ -1251,7 +1277,7 @@
       const moreEl = document.getElementById("pd-contexts-more");
       if (!summaryEl || !badgeEl || !emptyEl || !listEl || !moreEl) return;
 
-      listEl.innerHTML = "";
+      listEl.textContent = "";
       moreEl.classList.add("is-hidden");
       moreEl.textContent = "";
 
@@ -1368,7 +1394,7 @@
       const moreEl = document.getElementById("pd-supporting-events-more");
       if (!summaryEl || !badgeEl || !emptyEl || !tableWrapEl || !tbodyEl || !moreEl) return;
 
-      tbodyEl.innerHTML = "";
+      tbodyEl.textContent = "";
       moreEl.classList.add("is-hidden");
       moreEl.textContent = "";
 
@@ -1500,6 +1526,7 @@
           row.setAttribute("aria-selected", "false");
         });
         clearStandardsMapping();
+        renderOriginalRequest({});
         return;
       }
 
@@ -1525,6 +1552,7 @@
       setText("pd-source-ip", displaySourceIp(finding.src_ip));
       setText("pd-method", finding.method);
       setText("pd-uri", finding.uri);
+      renderOriginalRequest(finding);
       setText("pd-status-code", finding.status_code);
       setText("pd-confidence", finding.confidence);
       setText("pd-reasoning-summary", finding.reasoning_summary);

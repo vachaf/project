@@ -1172,3 +1172,63 @@ def test_optional_asset_input_invalidates_web_quality_cache(tmp_path, monkeypatc
     paths['stage2_report_input.json'].write_text('{}')
     os.utime(paths['stage2_report_input.json'], (150, 150))
     assert runner._read_cached_if_fresh(paths['cache.json'], paths['report.json']) is None
+
+
+@pytest.mark.parametrize('summary_time,meta_time,expected,source', [
+    ('legacy-time', 'viewer-time', 'legacy-time', 'summary.generated_at'),
+    (None, 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
+    ('', 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
+    ('unknown', 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
+    ('  ', 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
+    ('unknown', 'N/A', None, '미제공'),
+    (None, None, None, '미제공'),
+])
+def test_viewer_timestamp_precedence_and_provenance(summary_time, meta_time, expected, source):
+    payload = {'summary': {'generated_at': summary_time}, 'meta': {'generated_at': meta_time},
+               'report': {'generated_at': 'stage2-time'}}
+    before = json.dumps(payload)
+    result = web_app_module._build_job_viewer_payload_summary(payload)
+    assert result.get('generated_at') == expected
+    assert source in result['generated_at_source']
+    assert result['stage2_generated_at'] == 'stage2-time'
+    assert json.dumps(payload) == before
+
+
+def finding_script(body):
+    import re
+    match = re.search(r'<script type="application/json" id="payload-findings-data">(.*?)</script>', body, re.S)
+    assert match is not None
+    return json.loads(match.group(1))
+
+
+def test_original_fields_preserve_empty_whitespace_and_do_not_synthesize():
+    rows = [dict(raw_request_target='', raw_request=' \t\n ', query_string='  x=%2520+%2B  '),
+            dict(method='GET', uri='/x?q=1', request={'raw_request': 'not-an-explicit-original'})]
+    before = json.dumps(rows)
+    result = report_routes.sanitize_payload_findings(rows)
+    assert result[0]['raw_request_target'] == ''
+    assert result[0]['raw_request'] == ' \t\n '
+    assert result[0]['query_string'] == '  x=%2520+%2B  '
+    assert all(result[1][key] is None for key in ('raw_request_target', 'raw_request', 'query_string'))
+    assert json.dumps(rows) == before
+
+
+def test_job_viewer_missing_timestamp_renders_unprovided(monkeypatch, tmp_path):
+    payload = make_viewer_payload()
+    payload['summary'].pop('generated_at')
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+    assert '생성 시각 미제공' in body
+    assert '실제 생성 시각 미제공' in body
+
+
+def test_stage2_and_viewer_metadata_times_remain_distinct():
+    payload = {'summary': {'generated_at': 'legacy-time'},
+               'meta': {'generated_at': 'viewer-time', 'stage2_generated_at': 'actual-stage2-time'},
+               'report': {'generated_at': 'report-fallback-time'}}
+    summary = web_app_module._build_job_viewer_payload_summary(payload)
+    assert summary['generated_at'] == 'legacy-time'
+    assert summary['viewer_generated_at'] == 'viewer-time'
+    assert summary['stage2_generated_at'] == 'actual-stage2-time'
+    assert 'stage2_report.meta.generated_at' in summary['stage2_generated_at_source']
