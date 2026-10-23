@@ -1245,6 +1245,25 @@
   margin: 3px 0;
 }
 
+.payload-evidence-toggle {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--pd-line);
+  border-radius: 7px;
+  background: var(--pd-surface-soft);
+  color: var(--pd-text);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.payload-evidence-toggle:focus-visible {
+  outline: 2px solid #2b6ccf;
+  outline-offset: 2px;
+}
+
 .payload-interpretation-aid {
   border-top: 1px solid var(--pd-line-soft);
 }

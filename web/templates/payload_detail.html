@@ -408,7 +408,7 @@
         <section class="payload-detail-section payload-evidence-section">
           <h4>관찰 근거 <span class="payload-label-secondary">Evidence</span></h4>
           <ul id="pd-evidence-fields" class="payload-detail-list"></ul>
-          <p id="pd-evidence-more" class="payload-detail-more is-hidden"></p>
+          <button type="button" id="pd-evidence-more" class="payload-evidence-toggle is-hidden" aria-controls="pd-evidence-fields" aria-expanded="false"></button>
         </section>
 
         <section class="payload-detail-section payload-related-contexts">
@@ -819,18 +819,34 @@
 
     function renderEvidence(items) {
       const list = Array.isArray(items) ? items : [];
-      const primary = list.slice(0, 5);
       const extra = Math.max(list.length - 5, 0);
-      renderList("pd-evidence-fields", primary);
       const more = document.getElementById("pd-evidence-more");
-      if (!more) return;
-      if (extra > 0) {
-        more.textContent = `관찰 근거 ${extra}건 더 있음`;
-        more.classList.remove("is-hidden");
-      } else {
+      if (!more) {
+        renderList("pd-evidence-fields", list.slice(0, 5));
+        return;
+      }
+
+      more.onclick = null;
+      more.setAttribute("aria-expanded", "false");
+      if (extra === 0) {
+        renderList("pd-evidence-fields", list);
         more.textContent = "";
         more.classList.add("is-hidden");
+        return;
       }
+
+      let expanded = false;
+      const update = () => {
+        renderList("pd-evidence-fields", expanded ? list : list.slice(0, 5));
+        more.textContent = expanded ? "추가 근거 접기" : `추가 근거 ${extra}개 보기`;
+        more.setAttribute("aria-expanded", expanded ? "true" : "false");
+      };
+      more.onclick = () => {
+        expanded = !expanded;
+        update();
+      };
+      more.classList.remove("is-hidden");
+      update();
     }
 
     function renderOriginalRequest(finding) {
@@ -1496,6 +1512,7 @@
         });
         clearStandardsMapping();
         renderOriginalRequest({});
+        renderEvidence([]);
         return;
       }
 

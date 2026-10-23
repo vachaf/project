@@ -1302,6 +1302,74 @@ def finding_script(body):
     return json.loads(match.group(1))
 
 
+@pytest.mark.parametrize("evidence", [
+    [], ["one"], [f"hint-{i}" for i in range(4)],
+    [f"hint-{i}" for i in range(5)], [f"hint-{i}" for i in range(6)],
+    [f"hint-{i}" for i in range(12)], None, "", ["", "  "],
+])
+def test_job_viewer_passes_available_evidence_without_item_limit(monkeypatch, tmp_path, evidence):
+    finding = {"request_id": "r-evidence", "evidence_fields": evidence}
+    payload = make_viewer_payload(findings=[finding])
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+    expected = evidence if isinstance(evidence, list) and any(str(item).strip() for item in evidence) else []
+    assert finding_script(body)[0]["evidence_fields"] == expected
+    assert 'id="pd-evidence-more"' in body
+
+
+@pytest.mark.parametrize("finding", [
+    {"request_id": "missing-evidence"},
+    {"request_id": "unexpected-shape", "evidence_fields": {"unexpected": "value"}},
+    {"request_id": "mixed-values", "evidence_fields": [None, "", "valid"]},
+])
+def test_job_viewer_handles_missing_or_malformed_evidence_without_crashing(monkeypatch, tmp_path, finding):
+    payload = make_viewer_payload(findings=[finding])
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+    values = finding_script(body)[0]["evidence_fields"]
+    assert isinstance(values, list)
+    assert all(isinstance(value, str) for value in values)
+
+
+@pytest.mark.parametrize("mask", [False, True])
+def test_both_viewer_routes_keep_extra_evidence_safe_and_masked(monkeypatch, tmp_path, mask):
+    from types import SimpleNamespace
+
+    extra = "203.0.113.10 </script><img src=x onerror=alert(1)> OR 1=1 /q?x=%2527"
+    evidence = [f"hint-{i}" for i in range(5)] + [extra]
+    payload = make_viewer_payload(findings=[{
+        "request_id": "r-evidence", "src_ip": "203.0.113.10",
+        "raw_request_target": "/q?x=%2527", "evidence_fields": evidence,
+        "reasoning_summary": "SQLi 의심 분석 요약",
+    }])
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+    query = b"mask_src_ip=1" if mask else b""
+    job_body = render_response_body(web_app_module.job_viewer_payload(make_request(query_string=query), 123))
+
+    report = SimpleNamespace(report_id="legacy-evidence", filename="stage2_report.json", generated_at="", meta={})
+    report.to_detail = lambda: {"report_id": report.report_id, "filename": report.filename, "viewer_payload_summary": {}}
+    fake_loader = SimpleNamespace(scan_reports=lambda: [report], load_viewer_payload=lambda _: (payload, ""))
+    monkeypatch.setattr(report_routes, "loader", fake_loader)
+    monkeypatch.setattr(report_routes, "lint_for_report", lambda _: None)
+    legacy_body = render_response_body(report_routes.report_payload_detail(
+        make_request(path="/report/legacy-evidence/payload", query_string=query), report.report_id
+    ))
+
+    for body in (job_body, legacy_body):
+        shown = finding_script(body)[0]
+        assert shown["evidence_fields"][:5] == evidence[:5]
+        assert len(shown["evidence_fields"]) == 6
+        assert shown["evidence_fields"][5] == (extra.replace("203.0.113.10", "203.0.113.***") if mask else extra)
+        assert shown["raw_request_target"] == (None if mask else "/q?x=%2527")
+        assert shown["reasoning_summary"] == "SQLi 의심 분석 요약"
+        assert "</script><img src=x onerror=alert(1)>" not in body
+        assert 'aria-controls="pd-evidence-fields"' in body
+
+
 @pytest.mark.parametrize('mask', [False, True])
 def test_job_viewer_original_fields_safe_serialization_and_mask(monkeypatch, tmp_path, mask):
     raw = '  GET /x?q=%2527%2520%253Cscript%253E&ip=203%2e0%2e113%2e10  HTTP/1.1\n</script><img src=x onerror=alert(1)>  '

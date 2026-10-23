@@ -194,3 +194,18 @@ def test_empty_selection_clears_originals_without_standards_mapping_clearing_the
     assert 'renderOriginalRequest({});' in empty_branch
     standards_renderer = text.split('function renderStandardsMapping(finding) {', 1)[1].split('function ', 1)[0]
     assert 'renderOriginalRequest(' not in standards_renderer
+
+
+def test_evidence_overflow_has_accessible_control_and_safe_rendering():
+    text = TEMPLATE.read_text(encoding="utf-8")
+    assert '<button type="button" id="pd-evidence-more"' in text
+    assert 'aria-controls="pd-evidence-fields"' in text
+    assert 'aria-expanded="false"' in text
+    renderer = text.split("function renderEvidence(items) {", 1)[1].split("function renderOriginalRequest", 1)[0]
+    assert 'list.slice(0, 5)' in renderer
+    assert '추가 근거 ${extra}개 보기' in renderer
+    assert '추가 근거 접기' in renderer
+    assert 'setAttribute("aria-expanded"' in renderer
+    assert 'renderList("pd-evidence-fields"' in renderer
+    assert 'innerHTML' not in renderer
+    assert 'renderEvidence([]);' in text.split('function renderDetail(index) {', 1)[1].split('const finding = findings[index]', 1)[0]
