@@ -40,7 +40,10 @@ from datetime import datetime
 import hashlib
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+try:
+    from src.input_scope_contract import validate_input_scope
+except ModuleNotFoundError:
+    from input_scope_contract import validate_input_scope
 
 try:
     from src.prepare.shared_signal_adapter import observe_prepare_security_signals
@@ -4397,23 +4400,11 @@ def build_input_scope_from_export_meta(meta: Dict[str, Any]) -> Any:
     timezone_name = meta.get("query_timezone")
     window_values = (start, end, timezone_name)
     if all(value is None for value in window_values):
-        return scope
+        return validate_input_scope(scope)
     if not all(isinstance(value, str) and value.strip() for value in window_values):
         raise ValueError("input scope: incomplete window")
-    try:
-        start_time = datetime.fromisoformat(start.replace("Z", "+00:00"))
-        end_time = datetime.fromisoformat(end.replace("Z", "+00:00"))
-        zone = ZoneInfo(timezone_name)
-        if start_time.tzinfo is None or end_time.tzinfo is None or start_time >= end_time:
-            raise ValueError
-        if start_time.utcoffset() != start_time.astimezone(zone).utcoffset():
-            raise ValueError
-        if end_time.utcoffset() != end_time.astimezone(zone).utcoffset():
-            raise ValueError
-    except (ValueError, ZoneInfoNotFoundError) as exc:
-        raise ValueError("input scope: invalid window") from exc
     scope["window"] = {"start": start, "end_exclusive": end, "timezone": timezone_name}
-    return scope
+    return validate_input_scope(scope)
 
 
 def build_outputs(

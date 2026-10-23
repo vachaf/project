@@ -121,7 +121,7 @@ def test_prepare_rejects_explicitly_invalid_or_conflicting_scope(changes: dict) 
         prepared_meta(export)
 
 
-def test_stage2_existing_input_builder_ignores_new_prepare_metadata_until_b2() -> None:
+def test_stage2_input_builder_uses_verified_prepare_and_stage1_metadata() -> None:
     export = build_export_payload("web_logs", "security", export_range(), None,
                                   {"access": [], "security": [], "error": []}, selected_log_ids=[10])
     llm_input, *_ = build_outputs(export, min_score=4, min_repeat_aggregate=3, source_tables=["security"])
@@ -131,5 +131,5 @@ def test_stage2_existing_input_builder_ignores_new_prepare_metadata_until_b2() -
         top_incidents=6, top_noise_groups=3, top_ips=3, known_asset_ips=[],
     )
     assert report_input["analysis_context"]["window"] == llm_input["meta"]["analysis_window"]
-    assert "input_scope" not in report_input["analysis_context"]
-    assert "input_scope" not in stage2.build_messages(report_input)[1]["content"]
+    assert report_input["analysis_context"]["input_scope"] == scope
+    assert "input_scope" in stage2.build_messages(report_input)[1]["content"]

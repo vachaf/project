@@ -224,6 +224,11 @@ def run_stage2_main(monkeypatch, argv: list[str]) -> int:
 
 def test_stage2_normal_report_meta_includes_usage_calls_and_totals(tmp_path: Path, monkeypatch) -> None:
     stage1_path = write_stage1_results(tmp_path)
+    stage1_payload = json.loads(stage1_path.read_text(encoding="utf-8"))
+    input_scope = {"kind": "live_selected_logs", "window_role": "selected_log_timestamp_envelope",
+                   "window": None, "selected_id_count": 1}
+    stage1_payload["meta"]["source_input_scope"] = input_scope
+    stage1_path.write_text(json.dumps(stage1_payload), encoding="utf-8")
     out_dir = tmp_path / "out"
 
     def fake_call_llm_json(**kwargs):
@@ -262,6 +267,7 @@ def test_stage2_normal_report_meta_includes_usage_calls_and_totals(tmp_path: Pat
     ) == 0
 
     payload = json.loads((out_dir / "sample_stage2_report.json").read_text(encoding="utf-8"))
+    assert payload["meta"]["input_scope"] == input_scope
     usage = payload["meta"]["llm_usage"]
     assert usage["schema_version"] == "llm_usage_stage.v1"
     assert usage["available"] is True

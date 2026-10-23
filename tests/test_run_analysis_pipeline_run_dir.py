@@ -37,7 +37,7 @@ def test_dry_run_placeholder_preserves_optional_input_scope(tmp_path: Path) -> N
     ("time_range", "query_filter"),
     ("live_selected_logs", "selected_log_timestamp_envelope"),
 ])
-def test_dry_run_pipeline_preserves_new_scope_without_changing_stage2_or_viewer(tmp_path: Path, kind: str, role: str) -> None:
+def test_dry_run_pipeline_passes_scope_through_stage2_without_changing_viewer(tmp_path: Path, kind: str, role: str) -> None:
     export = load_json(FIXTURE)
     export["meta"]["input_kind"] = kind
     if kind == "live_selected_logs":
@@ -59,11 +59,13 @@ def test_dry_run_pipeline_preserves_new_scope_without_changing_stage2_or_viewer(
     prepared = load_json(work_dir / "data/processed/scope_llm_input.json")
     stage1 = load_json(work_dir / "data/processed/scope_stage1_results.json")
     stage2_input = load_json(work_dir / "reports/scope_stage2_report_input.json")
+    stage2_report = load_json(work_dir / "reports/scope_stage2_report.json")
     viewer = load_json(work_dir / "reports/scope_viewer_payload.json")
     assert prepared["meta"]["input_scope"]["kind"] == kind
     assert prepared["meta"]["input_scope"]["window_role"] == role
     assert stage1["meta"]["source_input_scope"] == prepared["meta"]["input_scope"]
-    assert "input_scope" not in stage2_input["analysis_context"]
+    assert stage2_input["analysis_context"]["input_scope"] == prepared["meta"]["input_scope"]
+    assert stage2_report["meta"]["input_scope"] == prepared["meta"]["input_scope"]
     assert "input_scope" not in viewer["meta"]
 
     resumed_work = tmp_path / "resumed"
@@ -74,6 +76,26 @@ def test_dry_run_pipeline_preserves_new_scope_without_changing_stage2_or_viewer(
     assert resumed.returncode == 0, resumed.stderr
     resumed_stage1 = load_json(resumed_work / "data/processed/scope_resumed_stage1_results.json")
     assert resumed_stage1["meta"]["source_input_scope"] == prepared["meta"]["input_scope"]
+    resumed_report = load_json(resumed_work / "reports/scope_resumed_stage2_report.json")
+    assert resumed_report["meta"]["input_scope"] == prepared["meta"]["input_scope"]
+
+
+def test_stage1_results_resume_rejects_scope_from_another_prepare_input(tmp_path: Path) -> None:
+    stage1_path = tmp_path / "mixed_stage1_results.json"
+    llm_path = tmp_path / "mixed_llm_input.json"
+    stage1_scope = {"kind": "live_selected_logs", "window_role": "selected_log_timestamp_envelope",
+                    "window": None, "selected_id_count": 1}
+    prepared_scope = {"kind": "time_range", "window_role": "query_filter", "window": None}
+    stage1_path.write_text(json.dumps({"meta": {"source_input_scope": stage1_scope}, "results": []}), encoding="utf-8")
+    llm_path.write_text(json.dumps({"meta": {"input_scope": prepared_scope}}), encoding="utf-8")
+    work_dir = tmp_path / "work"
+    completed = subprocess.run([
+        sys.executable, str(PIPELINE), "--stage1-results", str(stage1_path), "--work-dir", str(work_dir),
+        "--base-name", "mixed", "--dry-run",
+    ], cwd=REPO_ROOT, text=True, capture_output=True)
+    assert completed.returncode != 0
+    assert "input scope" in completed.stderr
+    assert not (work_dir / "reports/mixed_stage2_report_input.json").exists()
 
 
 def run_pipeline(work_dir: Path, base_name: str, extra_args: list[str]) -> subprocess.CompletedProcess[str]:

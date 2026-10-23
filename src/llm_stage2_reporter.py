@@ -24,7 +24,7 @@ from pathlib import Path
 import re
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from report_semantics import process_text, process_stage1, PROMPT_BOUNDARY, build_asset_match_context, review_asset_report, review_marker, http_outcome_is_protected, correct_http_outcome_assertions, redact_diagnostic_text, redact_diagnostic
+from report_semantics import process_text, process_stage1, PROMPT_BOUNDARY, PROTECTED, build_asset_match_context, review_asset_report, review_marker, http_outcome_is_protected, correct_http_outcome_assertions, redact_diagnostic_text, redact_diagnostic
 from urllib import error
 
 from llm_client import (
@@ -36,6 +36,7 @@ from llm_client import (
     resolve_llm_config,
 )
 from security_standards_summary import build_security_standards_summary
+from input_scope_contract import validate_input_scope
 from http_status_semantics import (
     HTTP_STATUS_OUTCOME_WARNING,
     http_status_outcome_fallback as shared_http_status_outcome_fallback,
@@ -1052,13 +1053,124 @@ def validate_low_signal_report_semantics(
     return validated, [LOW_SIGNAL_RECON_WARNING] if changed else []
 
 
+_SCOPE_ABSENCE = re.compile(
+    r"(?:추가(?:적인)?|다른|주변|후속).{0,80}(?:요청|공격(?:\s*(?:요청|시도))?|활동|이상|탐색|로그|이벤트)"
+    r".{0,80}(?:없(?:었|습니다|다)|관찰되지|확인되지|발견되지|존재하지)"
+)
+_UNSELECTED_ABSENCE = re.compile(
+    r"(?:선택되지 않은|미선택).{0,40}(?:요청|로그|활동).{0,60}"
+    r"(?:없(?:었|습니다|다)|관찰되지|확인되지|존재하지)"
+)
+_SIMPLE_UNSELECTED_ABSENCE = re.compile(
+    r"(?:선택되지 않은|미선택)\s*(?:주변\s*)?(?:요청|로그|활동)(?:은|는|이|가)?\s*"
+    r"(?:없었습니다|없습니다|관찰되지 않았습니다|확인되지 않았습니다|존재하지 않습니다)[.!?]?"
+)
+_OUTSIDE_SCOPE_ABSENCE = re.compile(
+    r"(?:조회 범위 밖|분석 범위 밖|기간 외|서버 전체).{0,80}(?:요청|공격\s*(?:요청|시도)|활동)"
+    r".{0,80}(?:없(?:었|습니다|다)|관찰되지|확인되지|존재하지)"
+)
+_WINDOW_ABSENCE = re.compile(
+    r"(?:해당 시간대|분석 시간 구간|분석 창|전체 시간대).{0,80}(?:요청|공격\s*(?:요청|시도)|활동|이상|탐색|로그)"
+    r".{0,80}(?:없(?:었|습니다|다)|관찰되지|확인되지|존재하지)"
+)
+_WINDOW_ONLY = re.compile(
+    r"(?:해당 시간대|분석 시간 구간|분석 창|전체 시간대).{0,100}"
+    r"(?:1건(?:의.{0,30})?만|단일.{0,40}만)"
+)
+_INPUT_QUALIFIER = re.compile(r"(?:제공된|선택된|입력된).{0,20}(?:로그|요청|입력)")
+_INPUT_QUALIFIER_APPLIES = re.compile(
+    r"^\s*(?:이번 분석에\s*)?(?:제공된|선택된|입력된).{0,20}(?:로그|요청|입력)"
+    r"(?:에서(?:는)?|에(?:서는|는)?|내에서(?:는)?)\s*"
+)
+_ADDITIONAL_REQUEST = re.compile(r"(?:추가(?:적인)?|다른).{0,60}요청")
+_FOLLOWUP_UNCERTAINTY = re.compile(
+    r"\s*후속\s*(?:공격|요청|활동)\s*여부(?:는|를)?\s*"
+    r"(?:확인|판단)할 수 없(?:습니다|다)[.!?]?\s*"
+)
+_CORRECTED_UNSELECTED_UNCERTAINTY = re.compile(
+    r"\s*선택되지 않은 주변 요청의 존재 여부는 이번 입력으로 확인할 수 없습니다[.!?]?\s*"
+)
+_WINDOW_CLAIM = re.compile(r"해당 시간대(?: 전체)?|분석 시간 구간|분석 구간|분석 창|전체 시간대")
+
+
+def validate_input_scope_report_semantics(
+    report_json: Dict[str, Any], report_input: Dict[str, Any]
+) -> Tuple[Dict[str, Any], List[str]]:
+    """Correct narrow unscoped absence claims; flag ambiguous wider claims."""
+    context = report_input.get("analysis_context") or {}
+    scope = validate_input_scope(context.get("input_scope")) if isinstance(context, dict) and "input_scope" in context else None
+    kind = scope["kind"] if isinstance(scope, dict) else "unknown"
+    warnings: List[str] = []
+
+    def correct_clause(clause: str, path: str) -> str:
+        # Search a same-length surface so quoted evidence and technical tokens
+        # cannot become assertion matches or be changed by a correction.
+        surface = list(clause)
+        protected = list(PROTECTED.finditer(clause))
+        for match in protected:
+            surface[match.start():match.end()] = " " * (match.end() - match.start())
+        searchable = "".join(surface)
+        if kind == "live_selected_logs":
+            if _CORRECTED_UNSELECTED_UNCERTAINTY.fullmatch(searchable):
+                return clause
+            if _FOLLOWUP_UNCERTAINTY.fullmatch(searchable):
+                return clause
+            if _UNSELECTED_ABSENCE.search(searchable) and "존재 여부" not in searchable:
+                if protected or not _SIMPLE_UNSELECTED_ABSENCE.fullmatch(searchable.strip()):
+                    warnings.append(review_marker(clause, path, "input_scope_review_required"))
+                    return clause
+                warnings.append(f"input_scope_selected_claim_corrected:{path}")
+                return "선택되지 않은 주변 요청의 존재 여부는 이번 입력으로 확인할 수 없습니다."
+            window_absence = _WINDOW_ABSENCE.search(searchable)
+            scope_absence = _SCOPE_ABSENCE.search(searchable)
+            window_only = _WINDOW_ONLY.search(searchable)
+            if window_absence or scope_absence or window_only:
+                # A qualifier elsewhere in a compound sentence does not scope
+                # the later absence claim. Broad "no requests" claims also
+                # cannot safely become "no requests in the supplied logs".
+                qualified = _INPUT_QUALIFIER.search(searchable)
+                if qualified and not window_absence and not window_only and _INPUT_QUALIFIER_APPLIES.match(searchable):
+                    return clause
+                if qualified or (scope_absence and not window_absence) or (
+                    window_absence and not _ADDITIONAL_REQUEST.search(window_absence.group())
+                ) or re.search(r"[,;]|지만|으며", searchable):
+                    warnings.append(review_marker(clause, path, "input_scope_review_required"))
+                    return clause
+                warnings.append(f"input_scope_selected_claim_corrected:{path}")
+                scope_phrase = _WINDOW_CLAIM.search(searchable)
+                if scope_phrase:
+                    return clause[:scope_phrase.start()] + "이번 분석에 제공된 로그" + clause[scope_phrase.end():]
+                return "이번 분석에 제공된 로그에서는 " + clause
+        elif _OUTSIDE_SCOPE_ABSENCE.search(searchable) or (
+            _WINDOW_ABSENCE.search(searchable) and not _INPUT_QUALIFIER.search(searchable)
+        ):
+            warnings.append(review_marker(clause, path, "input_scope_review_required"))
+        return clause
+
+    def visit(value: Any, *, key: str = "", path: str = "report") -> Any:
+        if isinstance(value, dict):
+            return {name: visit(item, key=name, path=f"{path}.{name}") for name, item in value.items()}
+        if isinstance(value, list):
+            return [visit(item, key=key, path=f"{path}[{index}]") for index, item in enumerate(value)]
+        if not isinstance(value, str) or key not in REPORT_TEXT_FIELDS:
+            return value
+        parts = re.split(r"((?<=[.!?])\s+|\n+)", value)
+        return "".join(
+            part if index % 2 else correct_clause(part, path)
+            for index, part in enumerate(parts)
+        )
+
+    return visit(report_json), sorted(set(warnings))
+
+
 def postprocess_report_json(parsed_report: Dict[str, Any], report_input: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
     report_json, warnings = sanitize_report_json_text(parsed_report)
     report_json, status_warnings = validate_http_status_report_semantics(report_json, report_input)
     report_json, low_signal_warnings = validate_low_signal_report_semantics(report_json, report_input)
+    report_json, scope_warnings = validate_input_scope_report_semantics(report_json, report_input)
     asset_review = review_asset_report(parsed_report, report_input)
     asset_warnings = [review_marker(row["source_text"], row["path"], row["reason"]) for row in asset_review["warnings"]]
-    return report_json, sorted(set(warnings + status_warnings + low_signal_warnings + asset_warnings))
+    return report_json, sorted(set(warnings + status_warnings + low_signal_warnings + scope_warnings + asset_warnings))
 
 
 def build_filtered_category_rows(filtered_out_breakdown: Dict[str, int], total_filtered_out_rows: int, top_n: int) -> List[Dict[str, Any]]:
@@ -1496,6 +1608,48 @@ def build_behavior_scope_note(
     return None
 
 
+_MISSING_INPUT_SCOPE = object()
+
+
+def resolve_stage2_input_scope(stage1_meta: Dict[str, Any], llm_meta: Dict[str, Any], *, llm_input_present: bool) -> Tuple[bool, Optional[Dict[str, Any]]]:
+    """Use only a validated, non-conflicting scope from the supplied artifacts."""
+    stage1_scope = (
+        validate_input_scope(stage1_meta["source_input_scope"])
+        if "source_input_scope" in stage1_meta else _MISSING_INPUT_SCOPE
+    )
+    prepared_scope = (
+        validate_input_scope(llm_meta["input_scope"])
+        if "input_scope" in llm_meta else _MISSING_INPUT_SCOPE
+    )
+    if stage1_scope is not _MISSING_INPUT_SCOPE and prepared_scope is not _MISSING_INPUT_SCOPE:
+        if stage1_scope != prepared_scope:
+            raise ValueError("input scope: Prepare and Stage1 metadata disagree")
+        resolved = stage1_scope
+    elif stage1_scope is not _MISSING_INPUT_SCOPE:
+        if llm_input_present and stage1_scope is not None:
+            raise ValueError("input scope: Stage1 scope cannot be paired with unscoped Prepare input")
+        resolved = stage1_scope
+    elif prepared_scope is not _MISSING_INPUT_SCOPE:
+        if prepared_scope is not None:
+            raise ValueError("input scope: Prepare scope cannot be paired with unscoped Stage1 input")
+        resolved = prepared_scope
+    else:
+        return False, None
+
+    if isinstance(resolved, dict) and isinstance(resolved.get("window"), dict):
+        window = resolved["window"]
+        for source_window in (stage1_meta.get("source_window"), llm_meta.get("analysis_window")):
+            if not isinstance(source_window, dict):
+                continue
+            for key in ("start", "end_exclusive"):
+                if source_window.get(key) not in (None, "", window[key]):
+                    raise ValueError("input scope: window disagrees with existing analysis window")
+        for timezone_name in (stage1_meta.get("source_query_timezone"), llm_meta.get("query_timezone")):
+            if timezone_name not in (None, "", window["timezone"]):
+                raise ValueError("input scope: timezone disagrees with existing analysis timezone")
+    return True, resolved
+
+
 def build_report_input(
     stage1_payload: Dict[str, Any],
     llm_input_payload: Optional[Dict[str, Any]],
@@ -1505,9 +1659,18 @@ def build_report_input(
     top_ips: int,
     known_asset_ips: Sequence[str],
 ) -> Dict[str, Any]:
+    if not isinstance(stage1_payload, dict) or (llm_input_payload is not None and not isinstance(llm_input_payload, dict)):
+        raise ValueError("input scope: invalid Stage1 or Prepare artifact root")
+    if "meta" in stage1_payload and stage1_payload["meta"] is not None and not isinstance(stage1_payload["meta"], dict):
+        raise ValueError("input scope: invalid Stage1 metadata")
+    if llm_input_payload is not None and "meta" in llm_input_payload and llm_input_payload["meta"] is not None and not isinstance(llm_input_payload["meta"], dict):
+        raise ValueError("input scope: invalid Prepare metadata")
     results = stage1_payload.get("results") or []
     meta = stage1_payload.get("meta") or {}
     llm_meta = (llm_input_payload or {}).get("meta") or {}
+    has_input_scope, input_scope = resolve_stage2_input_scope(
+        meta, llm_meta, llm_input_present=llm_input_payload is not None
+    )
     counts = llm_meta.get("counts") or {}
     noise_summary = (llm_input_payload or {}).get("noise_summary") or []
     supporting_events = (llm_input_payload or {}).get("supporting_events") or []
@@ -1615,9 +1778,13 @@ def build_report_input(
         }
     )
 
-    return {
+    report_input = {
         "analysis_context": {
-            "query_timezone": llm_meta.get("query_timezone") or meta.get("source_query_timezone") or "Asia/Seoul",
+            "query_timezone": (
+                llm_meta.get("query_timezone") or meta.get("source_query_timezone")
+                or ((input_scope.get("window") or {}).get("timezone") if isinstance(input_scope, dict) else None)
+                or "Asia/Seoul"
+            ),
             "window": llm_meta.get("analysis_window") or meta.get("source_window") or {},
             "source_exported_at": meta.get("source_exported_at") or llm_meta.get("exported_at"),
             "source_prepared_at": meta.get("source_prepared_at") or llm_meta.get("prepared_at"),
@@ -1884,6 +2051,12 @@ def build_report_input(
             },
         },
     }
+    if has_input_scope:
+        report_input["analysis_context"]["input_scope"] = input_scope
+    selected_source_rows = counts.get("selected_source_rows")
+    if isinstance(selected_source_rows, int) and not isinstance(selected_source_rows, bool) and selected_source_rows >= 0:
+        report_input["pipeline_counts"]["selected_source_rows"] = selected_source_rows
+    return report_input
 
 
 def build_schema() -> Dict[str, Any]:
@@ -1983,6 +2156,39 @@ def build_schema() -> Dict[str, Any]:
 def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
     llm_report_input = dict(report_input)
     llm_report_input.pop("security_standards_summary", None)
+    analysis_context = report_input.get("analysis_context") or {}
+    scope = validate_input_scope(analysis_context.get("input_scope")) if "input_scope" in analysis_context else None
+    if scope is not None and scope["kind"] == "live_selected_logs":
+        window_rule = (
+            "analysis_context.window는 선택 로그 시각의 외피이며 그 사이의 모든 요청을 조회한 조건이 아니다. "
+            if scope["window"] is not None else
+            "검증된 시각 경계가 없으므로 analysis_context.window를 조회 조건이나 확정된 선택 시각으로 설명하지 마라. "
+        )
+        scope_rule = (
+            "입력 방식은 선택 로그 ID 기반이다. " + window_rule +
+            "선택되지 않은 주변 요청의 존재·부재, "
+            "추가 요청이나 후속 공격의 부재를 단정하지 마라. 결론은 실제 제공된 로그와 근거에 한정하라. "
+            "selected_id_count, total_exported_rows, selected_source_rows, candidate_rows, Stage1 성공 수, "
+            "대표 사건 수는 서로 다른 단위다."
+        )
+    elif scope is not None and scope["kind"] == "time_range":
+        window_rule = (
+            "analysis_context.window는 start <= log_time < end_exclusive 조회 조건이며 종료 시각은 포함되지 않는다. "
+            if scope["window"] is not None else
+            "검증된 시각 경계가 없으므로 analysis_context.window를 확정된 조회 조건으로 설명하지 마라. "
+        )
+        scope_rule = (
+            "입력 방식은 시간 범위 조회다. " + window_rule +
+            "실제 추출되어 전처리된 로그의 출처와 행에만 "
+            "결론을 한정하라. 조회 대상 밖의 로그, 서버 전체 활동 또는 실제 공격 부재를 단정하지 마라. "
+            "total_exported_rows와 selected_source_rows, 후보·사건 수를 같은 단위로 합치지 마라."
+        )
+    else:
+        scope_rule = (
+            "입력 방식은 미확인이다. 시간 경계·건수·analysis mode만으로 선택 로그 또는 시간 범위 조회로 "
+            "추정하지 마라. 제공된 분석 입력에서 관찰된 사실만 설명하고 실제 조회 범위나 "
+            "주변 요청의 존재·부재를 단정하지 마라."
+        )
 
     system_prompt_sections = (
         (
@@ -1991,6 +2197,10 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "- 입력은 원본 DB 로그가 아니라 전처리 및 1차 분류가 끝난 report_input 요약 데이터뿐이다.\n"
             "- 과장하지 말고 수상한 정황, 시도, 관찰 문맥, 확정된 침해를 구분하라. 심각도 표현은 필요한 최소 수준으로 사용하라.\n"
             "- 오탐 가능성이나 추가 상관분석 필요성이 있으면 분명히 언급하라."
+        ),
+        (
+            "A2. Analysis input scope\n"
+            + scope_rule
         ),
         (
             "B. Global Apache logs-only invariants\n"
@@ -2108,7 +2318,7 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
             "output_language": "한국어",
         },
         "instructions": [
-            "제공된 분포와 상위 incident 를 사용해 분석 시간 구간을 설명하라.",
+            "제공된 분포와 상위 incident 를 설명하되, 입력 범위는 검증된 input_scope 의 의미에 맞춰 한정하라.",
             "수상한 패턴, 주목할 IP, 즉시 필요한 조치에 집중하라.",
             "likely_false_positive 와 inconclusive 는 특히 조심해서 해석하라.",
             "제공된 근거가 강하지 않으면 성공적인 침해나 악용 성공을 단정하지 마라.",
@@ -2221,6 +2431,33 @@ def build_messages(report_input: Dict[str, Any]) -> List[Dict[str, str]]:
     ]
 
 
+def input_scope_markdown_lines(ctx: Dict[str, Any]) -> List[str]:
+    scope = validate_input_scope(ctx.get("input_scope")) if "input_scope" in ctx else None
+    if scope is not None:
+        window = scope.get("window") or {}
+    else:
+        raw_window = ctx.get("window")
+        window = raw_window if isinstance(raw_window, dict) else {}
+    start = normalize_str(window.get("start")) or "-"
+    end = normalize_str(window.get("end_exclusive")) or "-"
+    if scope is not None and scope["kind"] == "live_selected_logs":
+        return [
+            "- 입력 방식: 선택 로그 분석",
+            f"- 선택 로그의 시각 범위: {start} ~ {end}" if scope["window"] else "- 선택 로그의 시각 범위: 미제공",
+            "- 범위 의미: 선택 로그 시각의 표시용 경계이며, 그 사이의 모든 요청을 조회한 조건이 아닙니다.",
+        ]
+    if scope is not None and scope["kind"] == "time_range":
+        return [
+            "- 입력 방식: 시간 범위 분석",
+            f"- 로그 조회 시간 범위: {start} <= log_time < {end}" if scope["window"] else "- 로그 조회 시간 범위: 미제공",
+            "- 범위 의미: 종료 시각은 포함되지 않으며, 결론은 실제 제공된 로그에 한정됩니다.",
+        ]
+    return [
+        "- 입력 방식: 미확인",
+        f"- 제공된 분석 입력의 시간 정보: {start} ~ {end} (조회 방식 미확인)" if window else "- 제공된 분석 입력의 시간 정보: 미제공",
+    ]
+
+
 def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], selected_model: str, mode: str) -> str:
     ctx = report_input.get("analysis_context") or {}
     counts = report_input.get("pipeline_counts") or {}
@@ -2251,8 +2488,7 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
     lines.append(f"- 분석 모드: {mode}")
     lines.append(f"- 사용 모델: {selected_model}")
     lines.append(f"- 분석 시간대: {normalize_str(ctx.get('query_timezone')) or 'Asia/Seoul'}")
-    window = ctx.get("window") or {}
-    lines.append(f"- 분석 구간: {normalize_str(window.get('start')) or '-'} ~ {normalize_str(window.get('end_exclusive')) or '-'}")
+    lines.extend(input_scope_markdown_lines(ctx))
     if asset_context.get("known_asset_ips"):
         lines.append(f"- known asset IP: {', '.join(asset_context.get('known_asset_ips') or [])}")
     lines.append("")
@@ -2268,6 +2504,8 @@ def render_markdown(report_json: Dict[str, Any], report_input: Dict[str, Any], s
 
     lines.append("## 3. 파이프라인 요약")
     lines.append(f"- 전체 export row 수: {safe_int(counts.get('total_exported_rows'), 0)}")
+    if "selected_source_rows" in counts:
+        lines.append(f"- Prepare 검토 로그 row 수: {counts['selected_source_rows']}")
     lines.append(f"- 1차 후보 row 수: {safe_int(counts.get('candidate_rows'), 0)}")
     lines.append(f"- distinct incident 수: {safe_int(counts.get('distinct_incident_count'), 0)}")
     lines.append(f"- filtered out row 수: {safe_int(counts.get('filtered_out_rows'), 0)}")
@@ -2629,13 +2867,14 @@ def build_dry_run_markdown(report_input: Dict[str, Any], selected_model: str, mo
     lines.append(f"- 분석 모드: {mode}")
     lines.append(f"- 사용 모델 예정: {selected_model}")
     lines.append(f"- 분석 시간대: {normalize_str(ctx.get('query_timezone')) or 'Asia/Seoul'}")
-    window = ctx.get("window") or {}
-    lines.append(f"- 분석 구간: {normalize_str(window.get('start')) or '-'} ~ {normalize_str(window.get('end_exclusive')) or '-'}")
+    lines.extend(input_scope_markdown_lines(ctx))
     if asset_context.get("known_asset_ips"):
         lines.append(f"- known asset IP: {', '.join(asset_context.get('known_asset_ips') or [])}")
     lines.append("")
     lines.append("## 요약")
     lines.append(f"- 전체 export row 수: {safe_int(counts.get('total_exported_rows'), 0)}")
+    if "selected_source_rows" in counts:
+        lines.append(f"- Prepare 검토 로그 row 수: {counts['selected_source_rows']}")
     lines.append(f"- 1차 후보 row 수: {safe_int(counts.get('candidate_rows'), 0)}")
     lines.append(f"- distinct incident 수: {safe_int(counts.get('distinct_incident_count'), 0)}")
     lines.append(f"- filtered out row 수: {safe_int(counts.get('filtered_out_rows'), 0)}")
@@ -2849,15 +3088,19 @@ def main() -> int:
     report_raw_error_path = out_dir / f"{base_name}_stage2_report_raw_error.json"
     known_asset_ips = resolve_known_asset_ips(args.known_asset_ips)
 
-    report_input = build_report_input(
-        stage1_payload=stage1_payload,
-        llm_input_payload=llm_input_payload,
-        stage1_errors_payload=stage1_errors_payload,
-        top_incidents=args.top_incidents,
-        top_noise_groups=args.top_noise_groups,
-        top_ips=args.top_ips,
-        known_asset_ips=known_asset_ips,
-    )
+    try:
+        report_input = build_report_input(
+            stage1_payload=stage1_payload,
+            llm_input_payload=llm_input_payload,
+            stage1_errors_payload=stage1_errors_payload,
+            top_incidents=args.top_incidents,
+            top_noise_groups=args.top_noise_groups,
+            top_ips=args.top_ips,
+            known_asset_ips=known_asset_ips,
+        )
+    except ValueError as exc:
+        print(redact_diagnostic_text(f"[ERROR] {exc}"), file=sys.stderr)
+        return 2
     dump_json(str(report_input_path), report_input, pretty=args.pretty)
 
     if args.dry_run:
@@ -2876,6 +3119,8 @@ def main() -> int:
                     "base_url": llm_config.base_url,
                     "input_stage1_results": os.path.abspath(args.stage1_results),
                     "input_llm_input": os.path.abspath(llm_input_path) if llm_input_payload else None,
+                    **({"input_scope": report_input["analysis_context"]["input_scope"]}
+                       if "input_scope" in report_input["analysis_context"] else {}),
                     "llm_usage": {
                         "schema_version": "llm_usage_stage.v1",
                         "available": False,
@@ -3050,6 +3295,8 @@ def main() -> int:
                     "guardrail_warnings": guardrail_warnings,
                     "input_stage1_results": os.path.abspath(args.stage1_results),
                     "input_llm_input": os.path.abspath(llm_input_path) if llm_input_payload else None,
+                    **({"input_scope": report_input["analysis_context"]["input_scope"]}
+                       if "input_scope" in report_input["analysis_context"] else {}),
                     "llm_usage": build_stage_llm_usage(stage="stage2", calls=llm_usage_calls),
                 },
                 "report": report_json,
