@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import sys
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -523,9 +525,14 @@ def test_http_status_semantic_validator_replaces_unsupported_outcome_assertions(
         "공격은 실패했습니다.": "공격 성공·실패 여부는 Apache 로그만으로 판단할 수 없습니다.",
         "파일 접근에 실패했습니다.": "실제 파일 접근 성공·실패 여부는 Apache 로그만으로 판단할 수 없습니다.",
     }
-    for unsafe, expected_prefix in unsafe_cases.items():
+    for unsafe, expected_correction in unsafe_cases.items():
         report, warnings = stage2.postprocess_report_json({"overall_assessment": unsafe}, {})
-        assert report["overall_assessment"].startswith(expected_prefix)
+        assert expected_correction in report["overall_assessment"]
+        assert unsafe not in report["overall_assessment"]
+        # The context identifies the affected system/request and remains evidence.
+        for context in ("애플리케이션에 의해", "경로 탐색 시도가", "요청이"):
+            if context in unsafe:
+                assert context in report["overall_assessment"]
         assert stage2.HTTP_STATUS_OUTCOME_WARNING in warnings
 
 
@@ -557,6 +564,138 @@ def test_http_status_semantic_validator_preserves_safe_actions_and_negations() -
     assert [item["action"] for item in report["recommended_actions"]] == actions
     assert [item["why"] for item in report["recommended_actions"]] == actions
     assert stage2.HTTP_STATUS_OUTCOME_WARNING not in warnings
+
+
+TECHNICAL_IDENTIFIERS = [
+    "192.168.56.121",
+    "api.example.test",
+    "https://api.example.test/search?q=a&next=/a.b#part",
+    "/search?q=a",
+    "15:20:23.804",
+    "2026-10-23T15:20:23.804+09:00",
+    "2026-10-23T06:20:23.804Z",
+    "./logs/access.log",
+    "../../../etc/passwd",
+    "req.ab?cd!ef-123",
+    "/search?q=%252e%252e%252f&value=a%20b%3Fc",
+]
+
+
+@pytest.mark.parametrize("text", [
+    "관찰된 요청은 추가 확인이 필요합니다.",
+    "  요청을 관찰했습니다.  추가 확인이 필요합니까?\n\n근거를 검토합니다!\t끝.  ",
+    *[f"관찰 자료: {identifier} 요청을 확인했습니다." for identifier in TECHNICAL_IDENTIFIERS],
+    "관찰 자료: " + " | ".join(TECHNICAL_IDENTIFIERS),
+    "DB 실행, 데이터 유출 및 실제 침해 성공 여부는 Apache 로그만으로 판단할 수 없습니다.",
+])
+def test_stage2_postprocess_preserves_unmodified_text_exactly(text: str) -> None:
+    original = {"overall_assessment": text}
+    validated, warnings = stage2.validate_http_status_report_semantics(original, {})
+    assert validated == original
+    assert warnings == []
+    processed, warnings = stage2.postprocess_report_json(original, {})
+    assert processed == original
+    assert warnings == []
+    assert stage2.postprocess_report_json(processed, {}) == (processed, [])
+
+
+@pytest.mark.parametrize("assertion", [
+    "403으로 차단되었습니다.",
+    "HTTP 401 응답으로 차단되었습니다.",
+    "HTTP 404 응답으로 공격은 실패했습니다.",
+    "HTTP 404 응답으로 파일 접근에 실패했습니다.",
+    "WAF에 의해 차단된 것으로 추정됩니다.",
+    # Identifiers can occur inside the context matched by the block rule.
+    "403 /search?q=a 차단되었습니다.",
+    "403 /search?q=a 차단되었습니다, 공격은 실패했습니다.",
+    "403 https://api.example.test/" + "long-path/" * 20 + " 차단되었습니다.",
+])
+def test_stage2_correction_preserves_surrounding_evidence(assertion: str) -> None:
+    evidence = " | ".join(TECHNICAL_IDENTIFIERS)
+    prefix = f"자료 {evidence} 요청에서 "
+    suffix = "\n\n추가 근거를 확인합니다.  원본을 검토합니다!"
+    report, warnings = stage2.postprocess_report_json(
+        {"overall_assessment": prefix + assertion + suffix}, {}
+    )
+    text = report["overall_assessment"]
+    assert text.startswith(prefix)
+    assert text.endswith(suffix)
+    for identifier in TECHNICAL_IDENTIFIERS:
+        assert identifier in text
+    if "/search?q=a" in assertion:
+        assert text.count("/search?q=a") == (prefix + assertion + suffix).count("/search?q=a")
+    assert "Apache 로그만으로 판단할 수 없습니다." in text
+    for unsupported in ["차단되었습니다", "공격은 실패했습니다", "파일 접근에 실패했습니다", "차단된 것으로 추정됩니다"]:
+        assert unsupported not in text
+    assert stage2.HTTP_STATUS_OUTCOME_WARNING in warnings
+    reprocessed, repeated_warnings = stage2.postprocess_report_json(report, {})
+    assert reprocessed == report
+    assert stage2.HTTP_STATUS_OUTCOME_WARNING not in repeated_warnings
+
+
+def test_stage2_sentence_boundaries_keep_independent_assertion_correction() -> None:
+    safe = "공격이 실패했다고 볼 수 없습니다."
+    for separator in ["  ", "\n", "\r\n\r\n", "\t"]:
+        original = safe + separator + "HTTP 404 응답에서 공격은 실패했습니다."
+        report, warnings = stage2.postprocess_report_json({"detail": original}, {})
+        assert report["detail"].startswith(safe + separator)
+        assert "공격은 실패했습니다" not in report["detail"]
+        assert stage2.HTTP_STATUS_OUTCOME_WARNING in warnings
+
+
+def test_stage2_json_and_markdown_preserve_technical_identifiers() -> None:
+    original = json.loads(stage2_output_text())
+    evidence = "관찰 자료: " + " | ".join(TECHNICAL_IDENTIFIERS)
+    original["overall_assessment"] = evidence
+    original["key_findings"][0]["detail"] = evidence + " HTTP 404 응답에서 공격은 실패했습니다."
+    report, warnings = stage2.postprocess_report_json(original, {})
+    serialized = json.dumps(report, ensure_ascii=False)
+    markdown = stage2.render_markdown(report, {}, "fixture-model", "routine")
+    assert report["overall_assessment"] == evidence
+    for identifier in TECHNICAL_IDENTIFIERS:
+        assert identifier in serialized
+        assert identifier in markdown
+    assert "공격은 실패했습니다" not in serialized
+    assert "공격은 실패했습니다" not in markdown
+    assert stage2.HTTP_STATUS_OUTCOME_WARNING in warnings
+
+
+@pytest.mark.parametrize("repair", [False, True], ids=["direct_parse", "repair_parse"])
+def test_stage2_main_saves_preserved_identifiers_in_json_and_markdown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, repair: bool
+) -> None:
+    report = json.loads(stage2_output_text())
+    evidence = "관찰 자료: " + " | ".join(TECHNICAL_IDENTIFIERS)
+    report["overall_assessment"] = evidence
+    report["key_findings"][0]["detail"] = evidence + " HTTP 404 응답에서 공격은 실패했습니다."
+    responses = iter((["invalid json"] if repair else []) + [json.dumps(report, ensure_ascii=False)])
+    calls = []
+
+    def fake_call_llm_json(**kwargs):
+        calls.append(kwargs)
+        return LLMResponse(
+            output_text=next(responses), response_id="fixture", raw_response={},
+            provider=kwargs["config"].provider, model=kwargs["model"],
+        )
+
+    stage1_path = write_stage1_results(tmp_path)
+    out_dir = tmp_path / "out"
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(stage2, "call_llm_json", fake_call_llm_json)
+    assert run_stage2_main(monkeypatch, [
+        "--stage1-results", str(stage1_path), "--out-dir", str(out_dir),
+        "--base-name", "fixture", "--provider", "anthropic" if repair else "openai", "--model", "fixture-model",
+    ]) == 0
+    assert len(calls) == (2 if repair else 1)
+    payload = json.loads((out_dir / "fixture_stage2_report.json").read_text(encoding="utf-8"))
+    markdown = (out_dir / "fixture_stage2_report.md").read_text(encoding="utf-8")
+    assert payload["report"]["overall_assessment"] == evidence
+    for identifier in TECHNICAL_IDENTIFIERS:
+        assert identifier in payload["report"]["key_findings"][0]["detail"]
+        assert identifier in markdown
+    assert "공격은 실패했습니다" not in markdown
+    assert stage2.HTTP_STATUS_OUTCOME_WARNING in payload["meta"]["guardrail_warnings"]
 
 
 def test_http_status_semantic_validator_is_not_limited_to_low_signal_reports() -> None:
@@ -984,3 +1123,44 @@ def test_direct_safety_judgment_negation_and_uncertain_scope() -> None:
         assert detail["source_text"] == text
         assert detail["path"] == "report.key_findings[0].detail"
         assert detail["reason"]
+
+
+@pytest.mark.parametrize("evidence", [
+    '192.168.56.121', 'api.example.test', 'req.ab?cd!ef-123',
+    'https://api.example.test/공격은실패했습니다?q=403',
+    '/403/차단되었습니다', 'request_id=공격은실패했습니다',
+    '`403으로 차단되었습니다.`', '"403으로 차단되었습니다."',
+])
+def test_http_correction_masks_evidence_but_corrects_adjacent_assertion(evidence):
+    original = f"  {evidence} HTTP 401 응답에서 차단되었습니다.\r\n\t다음 자료.  "
+    report, warnings = stage2.postprocess_report_json({"detail": original}, {})
+    assert report["detail"] == (
+        f"  {evidence} HTTP 401 응답에서 "
+        + stage2.shared_http_status_outcome_fallback("401으로 차단되었습니다.")
+        + "\r\n\t다음 자료.  "
+    )
+    assert stage2.HTTP_STATUS_OUTCOME_WARNING in warnings
+
+
+def test_http_correction_preserves_all_separators_and_evidence_fields():
+    original = {
+        "detail": "  403 /x?q=a 차단되었습니다,  공격은 실패했습니다;\t파일 접근에 실패했습니다.\r\n끝.  ",
+        "src_ip": "192.168.56.121",
+        "raw_request": "  GET /403/차단되었습니다?q=공격은실패했습니다 HTTP/1.1  ",
+        "request_id": "req.ab?cd!ef-123",
+        "generated_at": "2026-10-23T15:20:23.804+09:00",
+    }
+    result, warnings = stage2.postprocess_report_json(original, {})
+    block = stage2.shared_http_status_outcome_fallback("403으로 차단되었습니다.")
+    attack = stage2.shared_http_status_outcome_fallback("공격은 실패했습니다.")
+    file_access = stage2.shared_http_status_outcome_fallback("파일 접근에 실패했습니다.")
+    assert result == {**original, "detail": f"  403 /x?q=a {block},  {attack};\t{file_access}\r\n끝.  "}
+    assert stage2.HTTP_STATUS_OUTCOME_WARNING in warnings
+
+
+@pytest.mark.parametrize("prefix,suffix", [("  ", "  "), ("\t", "\r\n"), ("\r\n  ", "\n\n")])
+def test_safety_sanitizer_keeps_whitespace_around_corrected_claim(prefix, suffix):
+    original = prefix + "이 요청은 무해합니다." + suffix
+    result, warnings = stage2.postprocess_report_json({"detail": original}, {})
+    assert result["detail"] == prefix + "이 요청은 안전하다고 확정할 수 없습니다." + suffix
+    assert warnings == ["forbidden_phrase:무해"]

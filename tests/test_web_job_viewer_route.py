@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import re
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
@@ -10,6 +12,8 @@ from starlette.requests import Request
 
 import web.app as web_app_module
 import web.routes.reports as report_routes
+from web.services.report_loader import ReportLoader
+from src import viewer_payload_builder
 
 
 class FakeJobRepository:
@@ -1158,7 +1162,7 @@ def test_job_viewer_route_preserves_security_standards_mapping_in_payload_script
 
 
 @pytest.mark.parametrize('summary_time,meta_time,expected,source', [
-    ('legacy-time', 'viewer-time', 'legacy-time', 'summary.generated_at'),
+    ('legacy-time', 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
     (None, 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
     ('', 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
     ('unknown', 'viewer-time', 'viewer-time', 'payload.meta.generated_at'),
@@ -1280,7 +1284,109 @@ def test_stage2_and_viewer_metadata_times_remain_distinct():
                'meta': {'generated_at': 'viewer-time', 'stage2_generated_at': 'actual-stage2-time'},
                'report': {'generated_at': 'report-fallback-time'}}
     summary = web_app_module._build_job_viewer_payload_summary(payload)
-    assert summary['generated_at'] == 'legacy-time'
+    assert summary['generated_at'] == 'viewer-time'
     assert summary['viewer_generated_at'] == 'viewer-time'
     assert summary['stage2_generated_at'] == 'actual-stage2-time'
     assert 'stage2_report.meta.generated_at' in summary['stage2_generated_at_source']
+
+
+PAYLOAD_TIME = "2026-10-23T15:20:23.804+09:00"
+LEGACY_TIME = "2026-10-22T06:00:00.123Z"
+
+
+def assert_viewer_times_match(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, payload: dict[str, Any], expected: Optional[str]
+) -> None:
+    original = json.dumps(payload, sort_keys=True)
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+    job_response = web_app_module.job_viewer_payload(make_request(), 123)
+
+    # Load the same payload through the existing report Viewer, with a deliberately
+    # different Stage2 timestamp to catch accidental substitution of report time.
+    stage2_time = "2000-01-01T00:00:00Z"
+    write_json_artifact(tmp_path, "fixture_stage2_report.json", {
+        "meta": {"generated_at": stage2_time}, "report": {"report_title": "Fixture report"},
+    })
+    write_json_artifact(tmp_path, "fixture_viewer_payload.json", payload)
+    loader = ReportLoader(project_root=tmp_path, report_globs=["fixture_stage2_report.json"])
+    reports = loader.scan_reports()
+    assert len(reports) == 1
+    report = reports[0]
+    assert report.generated_at == stage2_time
+    assert report.viewer_payload_summary["generated_at"] == (expected or "unknown")
+    timestamps = web_app_module._build_job_viewer_payload_summary(payload)
+    for key in ("generated_at_source", "viewer_generated_at", "stage2_generated_at", "stage2_generated_at_source"):
+        assert report.viewer_payload_summary[key] == timestamps[key]
+    monkeypatch.setattr(report_routes, "loader", loader)
+    monkeypatch.setattr(report_routes, "lint_for_report", lambda report: None)
+    legacy_response = report_routes.report_payload_detail(
+        make_request(f"/report/{report.report_id}/payload"), report.report_id
+    )
+
+    for response in [job_response, legacy_response]:
+        assert response.status_code == 200
+        assert response.context["payload_summary"]["generated_at"] == expected
+        for key in ("generated_at_source", "viewer_generated_at"):
+            assert response.context["payload_summary"][key] == timestamps[key]
+        if timestamps["stage2_generated_at"]:
+            for key in ("stage2_generated_at", "stage2_generated_at_source"):
+                assert response.context["payload_summary"][key] == timestamps[key]
+        assert re.search(
+            r'payload-summary-time">\s*' + re.escape(expected or "생성 시각 미제공") + r"\s*</p>",
+            render_response_body(response),
+        )
+    assert json.dumps(payload, sort_keys=True) == original
+
+
+@pytest.mark.parametrize("meta,summary,expected", [
+    ({"generated_at": PAYLOAD_TIME}, {}, PAYLOAD_TIME),
+    ({}, {"generated_at": LEGACY_TIME}, LEGACY_TIME),
+    ({"generated_at": PAYLOAD_TIME}, {"generated_at": LEGACY_TIME}, PAYLOAD_TIME),
+    ({}, {}, None),
+    (None, None, None),
+    ("invalid-meta", [], None),
+    ({"generated_at": LEGACY_TIME}, {"generated_at": PAYLOAD_TIME}, LEGACY_TIME),
+    *[({"generated_at": invalid}, {"generated_at": LEGACY_TIME}, LEGACY_TIME)
+      for invalid in [None, "", "  \t", "unknown", " UnKnOwN ", "N/A", "-", 0, False, [], {}]],
+    *[({"generated_at": invalid}, {"generated_at": invalid}, None)
+      for invalid in [None, "", "  ", "unknown", " UNKNOWN ", "n/a", "-", 0, False, [], {}]],
+])
+def test_viewer_generated_at_priority_and_legacy_fallback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, meta: Any, summary: Any, expected: Optional[str]
+) -> None:
+    payload = make_viewer_payload()
+    payload["meta"] = meta
+    payload["summary"] = summary
+    assert_viewer_times_match(monkeypatch, tmp_path, payload, expected)
+
+
+def test_viewers_keep_unknown_when_timestamp_fields_are_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    payload = make_viewer_payload()
+    payload.pop("meta", None)
+    payload["summary"].pop("generated_at", None)
+    assert_viewer_times_match(monkeypatch, tmp_path, payload, None)
+
+
+def test_actual_builder_payload_timestamp_renders_in_both_viewers(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    report_input_path = write_json_artifact(tmp_path, "builder_input.json", {"pipeline_counts": {}})
+    stage2_path = write_json_artifact(tmp_path, "builder_stage2.json", {
+        "meta": {"generated_at": "2000-01-01T00:00:00Z"},
+        "report": {"report_title": "Actual builder fixture"},
+    })
+    out_path = tmp_path / "builder_viewer.json"
+    monkeypatch.setattr(viewer_payload_builder, "iso_now", lambda: PAYLOAD_TIME)
+    monkeypatch.setattr(sys, "argv", [
+        "viewer_payload_builder.py", "--stage2-report-input", str(report_input_path),
+        "--stage2-report", str(stage2_path), "--out", str(out_path),
+    ])
+    assert viewer_payload_builder.main() == 0
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["meta"]["generated_at"] == PAYLOAD_TIME
+    assert "generated_at" not in payload["summary"]
+    assert payload["meta"]["stage2_generated_at"] == "2000-01-01T00:00:00Z"
+    assert_viewer_times_match(monkeypatch, tmp_path, payload, PAYLOAD_TIME)

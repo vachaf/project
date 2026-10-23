@@ -24,7 +24,7 @@ from pathlib import Path
 import re
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from report_semantics import process_text, process_stage1, PROMPT_BOUNDARY, build_asset_match_context, review_asset_report, review_marker, http_outcome_is_protected, redact_diagnostic_text, redact_diagnostic
+from report_semantics import process_text, process_stage1, PROMPT_BOUNDARY, build_asset_match_context, review_asset_report, review_marker, http_outcome_is_protected, correct_http_outcome_assertions, redact_diagnostic_text, redact_diagnostic
 from urllib import error
 
 from llm_client import (
@@ -961,26 +961,9 @@ def validate_http_status_report_semantics(
         if current_key in {"action", "why"}:
             return value
 
-        # Only punctuation followed by whitespace ends a sentence. Preserve
-        # separators and untouched text, including URL queries, IPs and wrappers.
-        from report_semantics import PROTECTED
-        protected = list(PROTECTED.finditer(value))
-        parts = re.split(r"((?<=[.!?])[^\S\n]+|\n+)", value)
-        starts = []
-        offset = 0
-        for part in parts:
-            starts.append(offset)
-            offset += len(part)
-        for index in range(0, len(parts), 2):
-            sentence = parts[index]
-            start = starts[index]
-            if any(span.start() < start + len(sentence) and span.end() > start for span in protected):
-                continue
-            fallback = http_status_outcome_fallback(sentence)
-            if fallback is not None:
-                parts[index] = fallback
-                changed = True
-        return "".join(parts)
+        corrected = correct_http_outcome_assertions(value)
+        changed = changed or corrected != value
+        return corrected
 
     validated = validate(report_json)
     if not isinstance(validated, dict):

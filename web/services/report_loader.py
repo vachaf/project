@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from src.viewer_timestamps import viewer_timestamp_summary
 from web.config import PROJECT_ROOT, REPORT_GLOBS
 
 
@@ -559,13 +560,11 @@ class ReportLoader:
         context_rows = contexts if isinstance(contexts, list) else []
         supporting_rows = supporting_events if isinstance(supporting_events, list) else []
 
+        timestamps = viewer_timestamp_summary(payload)
         return {
             "schema_version": str(payload.get("schema_version") or "unknown"),
-            "generated_at": first_non_empty(
-                meta_obj.get("generated_at"),
-                summary_obj.get("generated_at"),
-            )
-            or "unknown",
+            **timestamps,
+            "generated_at": timestamps["generated_at"] or "unknown",
             "report_title": first_non_empty(
                 summary_obj.get("report_title"),
                 report_obj.get("report_title"),

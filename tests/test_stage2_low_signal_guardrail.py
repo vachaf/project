@@ -150,7 +150,7 @@ def test_http_status_warning_composes_with_sanitizer_and_low_signal_warnings() -
 
     accepted, warnings = stage2.postprocess_report_json(report, neutral_input())
 
-    assert accepted["overall_assessment"].startswith("HTTP 403 응답이 관찰되어 접근 제한 가능성이 있습니다.")
+    assert accepted["overall_assessment"] == "정상 403으로 " + stage2.http_status_outcome_fallback("403으로 차단되었습니다.")
     assert any(warning.startswith("safety_review:") for warning in warnings)
     assert stage2.HTTP_STATUS_OUTCOME_WARNING in warnings
     assert stage2.LOW_SIGNAL_RECON_WARNING in warnings

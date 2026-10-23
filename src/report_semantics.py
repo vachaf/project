@@ -10,7 +10,12 @@ PROMPT_BOUNDARY = (
     '기술 값과 인용은 보존하고 복합 판단은 무리하게 다시 쓰지 말고 검토 대상으로 명시하라. '
 )
 # Token boundaries protect URLs, paths, encoded strings, wrappers and identifiers.
-PROTECTED = re.compile(r'''https?://\S+|\b\w+://\S+|(?:/|\b\w*[=_%])[^\s]+|`[^`]*`|["“‘「][\s\S]*?["”’」]''')
+PROTECTED = re.compile(
+    r'''https?://\S+|\b\w+://\S+|(?:/|\b\w*[=_%])[^\s]+|`[^`]*`|["“‘「][\s\S]*?["”’」]'''
+    r'|\b\d{4}-\d{2}-\d{2}T\S+|\b\d{2}:\d{2}:\d{2}\S*'
+    r'|\b(?:[A-Za-z0-9_-]+\.)+[A-Za-z0-9_-]+\S*'
+    r'|\b[0-9A-Fa-f]*:[0-9A-Fa-f:]+\b'
+)
 JUDGMENT = re.compile(r'무해[가-힣]*|정상[가-힣]*|\b(?:normal|benign)\b|차단[가-힣]*|공격\s*성공\s*없|(?:공격|파일|인증|우회)[^,;.!?\n]*?성공', re.I)
 # Match the complete judgment predicate, so another judgment's negation cannot
 # exempt an earlier assertion. Double negation remains a review case.
@@ -100,8 +105,73 @@ def map_http_sentences(text, fallback, *, allow_compound=False):
         if index % 2 or any(span.start() < offset and span.end() > start for span in protected):
             continue
         if allow_compound or not http_outcome_is_protected(part):
-            parts[index] = fallback(part) or part
+            replacement = fallback(part)
+            if replacement is not None:
+                # Keep indentation/trailing whitespace around a corrected clause.
+                left = len(part) - len(part.lstrip())
+                right = len(part.rstrip())
+                parts[index] = part[:left] + replacement + part[right:]
     return ''.join(parts)
+
+
+def correct_http_outcome_assertions(text):
+    """Rewrite assertion spans, keeping technical evidence and separators intact.
+
+    Mask before finding clause boundaries/rules, but apply edits at original
+    offsets. Quotes and technical values cannot become either claims or status
+    evidence. Ambiguous compound/negated judgments retain their review scope.
+    """
+    from http_status_semantics import (
+        HTTP_STATUS_BLOCK_ASSERTION_PATTERNS,
+        HTTP_STATUS_GENERIC_BLOCK_ASSERTION_PATTERNS,
+        HTTP_STATUS_ATTACK_FAILURE_PATTERNS,
+        HTTP_STATUS_FILE_ACCESS_FAILURE_PATTERNS,
+        http_status_outcome_fallback,
+    )
+
+    protected = list(PROTECTED.finditer(text))
+    surface = list(text)
+    for span in protected:
+        # A non-whitespace mask cannot join predicate words across evidence.
+        surface[span.start():span.end()] = '\0' * (span.end() - span.start())
+    surface = ''.join(surface)
+    patterns = (*HTTP_STATUS_BLOCK_ASSERTION_PATTERNS,
+                *HTTP_STATUS_GENERIC_BLOCK_ASSERTION_PATTERNS,
+                *HTTP_STATUS_ATTACK_FAILURE_PATTERNS,
+                *HTTP_STATUS_FILE_ACCESS_FAILURE_PATTERNS)
+    edits = []
+    start = 0
+    boundaries = [(m.start(), m.end()) for m in re.finditer(
+        r'(?<=[.!?])[^\S\r\n]+|\r\n|[\r\n]|[,;][^\S\r\n]*', surface)]
+    for end, next_start in boundaries + [(len(text), len(text))]:
+        clause = surface[start:end]
+        if not http_outcome_is_protected(clause) and http_status_outcome_fallback(clause):
+            # Preserve the existing canonical rendering of a bare status claim.
+            if re.fullmatch(r'\s*(?:HTTP\s*)?(?:401|403)(?:으로| 응답으로)\s*차단되었습니다[.!?]?\s*', clause, re.I):
+                left = start + len(clause) - len(clause.lstrip())
+                right = end - (len(clause) - len(clause.rstrip()))
+                edits.append((left, right, http_status_outcome_fallback(clause)))
+            else:
+                for pattern in patterns:
+                    for match in pattern.finditer(clause):
+                        fallback = http_status_outcome_fallback(match.group())
+                        left, right = match.span('assertion') if 'assertion' in match.groupdict() else match.span()
+                        # Complete only the matched Korean predicate/inflection.
+                        ending = re.match(r'[가-힣]*(?:\s+것으로\s*(?:추정|보)[가-힣]*)?[.!?]?', clause[right:])
+                        right += ending.end()
+                        if fallback is not None:
+                            edits.append((start + left, start + right, fallback))
+        start = next_start
+
+    result = []
+    cursor = 0
+    for start, end, replacement in sorted(edits, key=lambda item: (item[0], -item[1])):
+        if start < cursor or any(span.start() < end and span.end() > start for span in protected):
+            continue
+        result.extend((text[cursor:start], replacement))
+        cursor = end
+    result.append(text[cursor:])
+    return ''.join(result)
 
 
 def process_text(text, path='report', *, correct_http=True):
@@ -143,7 +213,7 @@ def process_text(text, path='report', *, correct_http=True):
         if claim and not correct_http:
             continue
         if claim:
-            replacement = f'HTTP {claim[2]} 응답이 관찰되었습니다' + ('.' if part.endswith('.') else '')
+            replacement = f'HTTP {claim[2]} 응답이 관찰되었습니다' + ('.' if part.rstrip().endswith('.') else '')
         else:
             if re.fullmatch(r'(?:입력값을 무해화하세요|입력값의 무해화를 권고합니다|무해화 조치를 검토하세요)', stripped):
                 replacement = stripped.replace('무해화하세요', '안전하게 처리하세요').replace('무해화를', '안전한 처리를').replace('무해화', '안전한 처리')
@@ -152,10 +222,12 @@ def process_text(text, path='report', *, correct_http=True):
             replacement = re.sub(r'^무해한 요청입니다$', '안전 여부가 확인되지 않은 요청입니다', replacement)
             if replacement == stripped:
                 replacement = None
-            elif part.endswith('.'):
+            elif part.rstrip().endswith('.'):
                 replacement += '.'
         if replacement is not None and surface == part:
-            parts[i] = replacement
+            left = len(part) - len(part.lstrip())
+            right = len(part.rstrip())
+            parts[i] = part[:left] + replacement + part[right:]
             warnings.append('forbidden_phrase:무해' if '무해' in part else review_marker(text, path, 'simple_claim_corrected_to_observation'))
         else:
             warnings.append(review_marker(text, path, 'mixed_or_unsupported_safety_judgment'))

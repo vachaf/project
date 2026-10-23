@@ -10,9 +10,9 @@ HTTP_STATUS_OUTCOME_WARNING = "semantic_violation:http_status_outcome_overreach"
 HTTP_STATUS_BLOCK_ASSERTION_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
-        r"(?:http\s*)?(?:401|403)[^.!?\n]{0,32}차단(?:되었|됐|됨|됩니다|되었다|됐다)",
+        r"(?:http\s*)?(?:401|403)[^.!?\r\n]*?(?P<assertion>차단(?:되었|됐|됨|됩니다|되었다|됐다))",
         r"차단(?:이|은)?\s*(?:(?:정상|기준선\s*유사)\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다|된\s*것으로\s*보)",
-        r"(?:애플리케이션|서버|waf)[^.!?\n]{0,24}차단(?:되었|됐|된)\s*것으로\s*(?:추정|보)",
+        r"(?:애플리케이션|서버|waf)[^.!?\r\n]*?(?P<assertion>차단(?:되었|됐|된)\s*것으로\s*(?:추정|보))",
         r"접근\s*제어(?:가|는|은)?\s*(?:(?:정상|기준선\s*유사)\s*)?(?:동작|작동)(?:했|하였|한|합니다|했다|했습니다)",
         r"access\s*control\s*(?:is|was|has\s+been)?\s*(?:working|worked|operational|functioning)",
     )
@@ -20,7 +20,7 @@ HTTP_STATUS_BLOCK_ASSERTION_PATTERNS = tuple(
 HTTP_STATUS_GENERIC_BLOCK_ASSERTION_PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
-        r"(?:경로\s*(?:탐색|조작)\s*시도|공격\s*시도|공격|(?:해당\s*)?요청)(?:가|는|은|이)?[^.!?\n]{0,24}차단(?:되었|됐|된)\s*(?:정황|것으로\s*(?:보|추정))",
+        r"(?:경로\s*(?:탐색|조작)\s*시도|공격\s*시도|공격|(?:해당\s*)?요청)(?:가|는|은|이)?[^.!?\r\n]*?(?P<assertion>차단(?:되었|됐|된)\s*(?:정황|것으로\s*(?:보|추정)))",
     )
 )
 HTTP_STATUS_ATTACK_FAILURE_PATTERNS = tuple(
