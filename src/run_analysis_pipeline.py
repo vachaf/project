@@ -469,6 +469,8 @@ def build_stage1_dry_run_placeholder(llm_input_path: Path, output_path: Path, pr
         },
         "results": results,
     }
+    if "input_scope" in prepared_meta:
+        dry_payload["meta"]["source_input_scope"] = prepared_meta["input_scope"]
     dump_json(output_path, dry_payload, pretty=pretty)
 
 

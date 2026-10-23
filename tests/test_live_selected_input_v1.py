@@ -17,6 +17,7 @@ from export_db_logs_cli import (
     LogExporter,
     RangeConfig,
     build_export_payload,
+    validate_selected_log_ids,
 )
 from full_report_job_runner import FullReportJobRunner, FullReportRunnerError
 from web.services.analysis_job_policy import (
@@ -145,6 +146,23 @@ def test_exact_export_query_excludes_unselected_middle_row_and_orders_canonicall
     assert cursor.params == [10, 30]
 
 
+def test_time_range_export_query_keeps_exclusive_end() -> None:
+    cursor = _ExactCursor([])
+    exporter = LogExporter(DBConfig("h", 3306, "u", "p", "web_logs"))
+    exporter.conn = _ExactConnection(cursor)
+    start = datetime(2026, 1, 1, 0, 0, 0, 123000)
+    end = datetime(2026, 1, 1, 0, 0, 0, 124000)
+    assert exporter.fetch_rows("apache_security_logs", start, end) == []
+    assert "log_time >= %s" in cursor.sql and "log_time < %s" in cursor.sql
+    assert cursor.params == ["2026-01-01 00:00:00.123", "2026-01-01 00:00:00.124"]
+
+
+def test_export_cli_selected_id_validation_keeps_first_seen_order() -> None:
+    assert validate_selected_log_ids([30, 10, 30]) == [30, 10]
+    with pytest.raises(ValueError, match="at least one"):
+        validate_selected_log_ids([])
+
+
 def _range() -> RangeConfig:
     from datetime import timezone
     start = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -205,7 +223,9 @@ def _selected_job(**overrides: Any) -> dict[str, Any]:
 
 
 class _EmptyExactSubprocess:
-    def __init__(self) -> None: self.calls: list[list[str]] = []
+    def __init__(self, export_meta: Optional[dict[str, Any]] = None) -> None:
+        self.calls: list[list[str]] = []
+        self.export_meta = export_meta if export_meta is not None else {"total_count": 0}
     def __call__(self, cmd: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
         self.calls.append(cmd)
         out = Path(cmd[cmd.index("--out") + 1])
@@ -213,7 +233,7 @@ class _EmptyExactSubprocess:
         out.write_text(
             json.dumps(
                 {
-                    "meta": {"total_count": 0},
+                    "meta": self.export_meta,
                     "counts": {"access": 0, "security": 0, "error": 0},
                     "data": {"access": [], "security": [], "error": []},
                 }
@@ -231,6 +251,23 @@ def test_selected_runner_accepts_over_24h_metadata_and_passes_exact_ids(tmp_path
     cmd = fake.calls[0]
     assert [cmd[index + 1] for index, value in enumerate(cmd) if value == "--selected-log-id"] == ["30", "10"]
     assert "--start" in cmd and "--end" in cmd
+
+
+@pytest.mark.parametrize("export_meta", [
+    {"total_count": 0, "input_kind": "time_range"},
+    {"total_count": 0, "input_kind": "live_selected_logs", "selected_log_ids": [10, 30]},
+])
+def test_selected_runner_rejects_conflicting_explicit_export_scope(tmp_path: Path, export_meta: dict) -> None:
+    fake = _EmptyExactSubprocess(export_meta)
+    with pytest.raises(FullReportRunnerError, match="export (input_kind|selected IDs)"):
+        FullReportJobRunner(project_root=tmp_path, subprocess_run=fake).run(_selected_job())
+    assert len(fake.calls) == 1
+
+
+def test_selected_runner_accepts_matching_explicit_export_scope(tmp_path: Path) -> None:
+    fake = _EmptyExactSubprocess({"total_count": 0, "input_kind": "live_selected_logs", "selected_log_ids": [30, 10]})
+    result = FullReportJobRunner(project_root=tmp_path, subprocess_run=fake).run(_selected_job())
+    assert result.no_data is True
 
 
 def _command_option(command: list[str], option: str) -> str:

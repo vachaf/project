@@ -3,7 +3,12 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
+
+import pytest
+
+from src.run_analysis_pipeline import build_stage1_dry_run_placeholder
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +18,62 @@ FIXTURE = REPO_ROOT / "tests" / "fixtures" / "prepare_regression" / "b_r2b_doubl
 
 def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_dry_run_placeholder_preserves_optional_input_scope(tmp_path: Path) -> None:
+    scope = {"kind": "time_range", "window_role": "query_filter", "window": None}
+    source = tmp_path / "llm_input.json"
+    output = tmp_path / "stage1_results.json"
+    source.write_text(json.dumps({"meta": {"input_scope": scope}, "analysis_candidates": []}), encoding="utf-8")
+    build_stage1_dry_run_placeholder(source, output, pretty=False, mode="routine", selected_model=None)
+    assert load_json(output)["meta"]["source_input_scope"] == scope
+
+    source.write_text(json.dumps({"meta": {}, "analysis_candidates": []}), encoding="utf-8")
+    build_stage1_dry_run_placeholder(source, output, pretty=False, mode="routine", selected_model=None)
+    assert "source_input_scope" not in load_json(output)["meta"]
+
+
+@pytest.mark.parametrize("kind,role", [
+    ("time_range", "query_filter"),
+    ("live_selected_logs", "selected_log_timestamp_envelope"),
+])
+def test_dry_run_pipeline_preserves_new_scope_without_changing_stage2_or_viewer(tmp_path: Path, kind: str, role: str) -> None:
+    export = load_json(FIXTURE)
+    export["meta"]["input_kind"] = kind
+    if kind == "live_selected_logs":
+        row = export["data"]["security"][0]
+        start = datetime.fromisoformat(row["log_time"])
+        export["meta"]["start"] = start.isoformat(timespec="milliseconds")
+        export["meta"]["end_exclusive"] = (start + timedelta(milliseconds=1)).isoformat(timespec="milliseconds")
+        export["meta"]["selected_log_ids"] = [row["id"]]
+        export["meta"]["input_source_table"] = "apache_security_logs"
+    source = tmp_path / "export.json"
+    source.write_text(json.dumps(export), encoding="utf-8")
+    work_dir = tmp_path / "work"
+    completed = subprocess.run([
+        sys.executable, str(PIPELINE), "--export-input", str(source), "--work-dir", str(work_dir),
+        "--base-name", "scope", "--dry-run", "--pretty",
+    ], cwd=REPO_ROOT, text=True, capture_output=True)
+    assert completed.returncode == 0, completed.stderr
+
+    prepared = load_json(work_dir / "data/processed/scope_llm_input.json")
+    stage1 = load_json(work_dir / "data/processed/scope_stage1_results.json")
+    stage2_input = load_json(work_dir / "reports/scope_stage2_report_input.json")
+    viewer = load_json(work_dir / "reports/scope_viewer_payload.json")
+    assert prepared["meta"]["input_scope"]["kind"] == kind
+    assert prepared["meta"]["input_scope"]["window_role"] == role
+    assert stage1["meta"]["source_input_scope"] == prepared["meta"]["input_scope"]
+    assert "input_scope" not in stage2_input["analysis_context"]
+    assert "input_scope" not in viewer["meta"]
+
+    resumed_work = tmp_path / "resumed"
+    resumed = subprocess.run([
+        sys.executable, str(PIPELINE), "--llm-input", str(work_dir / "data/processed/scope_llm_input.json"),
+        "--work-dir", str(resumed_work), "--base-name", "scope_resumed", "--dry-run", "--pretty",
+    ], cwd=REPO_ROOT, text=True, capture_output=True)
+    assert resumed.returncode == 0, resumed.stderr
+    resumed_stage1 = load_json(resumed_work / "data/processed/scope_resumed_stage1_results.json")
+    assert resumed_stage1["meta"]["source_input_scope"] == prepared["meta"]["input_scope"]
 
 
 def run_pipeline(work_dir: Path, base_name: str, extra_args: list[str]) -> subprocess.CompletedProcess[str]:

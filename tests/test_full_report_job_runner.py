@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from datetime import datetime
@@ -289,6 +290,27 @@ def test_empty_export_string_zero_returns_no_data_result(tmp_path: Path) -> None
 
     assert len(fake.calls) == 1
     assert result.no_data is True
+
+
+@pytest.mark.parametrize("scope_meta", [
+    {"input_kind": "live_selected_logs", "selected_log_ids": [1]},
+    {"input_kind": "time_range", "selected_log_ids": [1]},
+])
+def test_time_range_runner_rejects_conflicting_explicit_export_scope(tmp_path: Path, scope_meta: dict) -> None:
+    class ScopedExport(FakeSubprocess):
+        def __call__(self, cmd, **kwargs):
+            result = super().__call__(cmd, **kwargs)
+            if Path(cmd[1]).name == "export_db_logs_cli.py":
+                output = Path(option_value(cmd, "--out"))
+                payload = json.loads(output.read_text(encoding="utf-8"))
+                payload["meta"].update(scope_meta)
+                output.write_text(json.dumps(payload), encoding="utf-8")
+            return result
+
+    fake = ScopedExport(total_count=0)
+    with pytest.raises(FullReportRunnerError, match="export input_kind|time-range export"):
+        FullReportJobRunner(project_root=tmp_path, subprocess_run=fake).run(make_job())
+    assert len(fake.calls) == 1
 
 
 def test_missing_total_count_continues_existing_pipeline_path(tmp_path: Path) -> None:

@@ -676,6 +676,8 @@ def main() -> int:
                 for idx, c in enumerate(candidates)
             ],
         }
+        if "input_scope" in meta:
+            dry_payload["meta"]["source_input_scope"] = meta["input_scope"]
         dump_json(str(results_path), dry_payload, pretty=args.pretty)
         print(f"[OK] dry-run plan: {results_path}")
         return 0
@@ -763,6 +765,8 @@ def main() -> int:
         },
         "results": results,
     }
+    if "input_scope" in meta:
+        result_payload["meta"]["source_input_scope"] = meta["input_scope"]
 
     dump_json(str(results_path), result_payload, pretty=args.pretty)
     dump_json(str(errors_path), {"errors": errors_out}, pretty=args.pretty)

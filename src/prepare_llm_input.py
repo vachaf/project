@@ -40,6 +40,7 @@ from datetime import datetime
 import hashlib
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qsl
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 try:
     from src.prepare.shared_signal_adapter import observe_prepare_security_signals
@@ -4348,6 +4349,73 @@ def collect_rows(payload: Dict[str, Any], source_tables: List[str]) -> Iterable[
             yield table_name, row
 
 
+_MISSING_INPUT_SCOPE = object()
+
+
+def build_input_scope_from_export_meta(meta: Dict[str, Any]) -> Any:
+    """Describe the Export dispatch without inferring a mode for old artifacts."""
+    if "input_kind" not in meta:
+        return _MISSING_INPUT_SCOPE
+    kind = meta["input_kind"]
+    if kind is None:
+        if (
+            "selected_log_ids" in meta
+            or meta.get("window_role") is not None
+            or meta.get("input_source_table") not in (None, "")
+        ):
+            raise ValueError("input scope: dispatch metadata conflicts with unknown input kind")
+        return None
+    if not isinstance(kind, str) or kind not in {"live_selected_logs", "time_range"}:
+        raise ValueError("input scope: unsupported input_kind")
+
+    expected_role = "selected_log_timestamp_envelope" if kind == "live_selected_logs" else "query_filter"
+    if "window_role" in meta and meta["window_role"] != expected_role:
+        raise ValueError("input scope: window_role conflicts with input_kind")
+    scope: Dict[str, Any] = {
+        "kind": kind,
+        "window_role": expected_role,
+        "window": None,
+    }
+    if kind == "live_selected_logs":
+        ids = meta.get("selected_log_ids")
+        if (
+            not isinstance(ids, list)
+            or not ids
+            or len(ids) > 50
+            or any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in ids)
+            or len(set(ids)) != len(ids)
+            or meta.get("table_option", "security") != "security"
+            or meta.get("input_source_table", "apache_security_logs") != "apache_security_logs"
+        ):
+            raise ValueError("input scope: invalid selected-log metadata")
+        scope["selected_id_count"] = len(ids)
+    elif "selected_log_ids" in meta or meta.get("input_source_table") not in (None, ""):
+        raise ValueError("input scope: selected-log metadata conflicts with time_range")
+
+    start = meta.get("start")
+    end = meta.get("end_exclusive")
+    timezone_name = meta.get("query_timezone")
+    window_values = (start, end, timezone_name)
+    if all(value is None for value in window_values):
+        return scope
+    if not all(isinstance(value, str) and value.strip() for value in window_values):
+        raise ValueError("input scope: incomplete window")
+    try:
+        start_time = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        end_time = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        zone = ZoneInfo(timezone_name)
+        if start_time.tzinfo is None or end_time.tzinfo is None or start_time >= end_time:
+            raise ValueError
+        if start_time.utcoffset() != start_time.astimezone(zone).utcoffset():
+            raise ValueError
+        if end_time.utcoffset() != end_time.astimezone(zone).utcoffset():
+            raise ValueError
+    except (ValueError, ZoneInfoNotFoundError) as exc:
+        raise ValueError("input scope: invalid window") from exc
+    scope["window"] = {"start": start, "end_exclusive": end, "timezone": timezone_name}
+    return scope
+
+
 def build_outputs(
     payload: Dict[str, Any],
     min_score: int,
@@ -4355,6 +4423,7 @@ def build_outputs(
     source_tables: List[str],
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any], List[Dict[str, Any]]]:
     original_meta = payload.get("meta", {})
+    input_scope = build_input_scope_from_export_meta(original_meta)
     all_rows: List[Dict[str, Any]] = []
     filtered_out_rows: List[Dict[str, Any]] = []
     candidates: List[Candidate] = []
@@ -4527,6 +4596,8 @@ def build_outputs(
         "method_behavior_summaries": method_behavior_summaries,
         "protocol_anomaly_summaries": protocol_anomaly_summaries,
     }
+    if input_scope is not _MISSING_INPUT_SCOPE:
+        llm_input["meta"]["input_scope"] = input_scope
 
     filtered_payload = [
         build_filtered_row_payload(

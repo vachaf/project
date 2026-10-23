@@ -179,7 +179,7 @@ class FullReportJobRunner:
         )
         try:
             self._run_subprocess(export_cmd, "export")
-            is_no_data = self._is_no_data_export(scratch_export_path)
+            is_no_data = self._is_no_data_export(scratch_export_path, job)
         except Exception as exc:
             duration_seconds = time.monotonic() - export_started_at
             self._emit_event(
@@ -375,7 +375,7 @@ class FullReportJobRunner:
             lint_result_path=None,
         )
 
-    def _is_no_data_export(self, export_path: Path) -> bool:
+    def _is_no_data_export(self, export_path: Path, job: FullReportJob) -> bool:
         try:
             with open(export_path, "r", encoding="utf-8") as f:
                 payload = json.load(f)
@@ -384,7 +384,17 @@ class FullReportJobRunner:
         if not isinstance(payload, dict):
             raise FullReportRunnerError("export JSON must be an object", failed_at_stage="export")
         meta = payload.get("meta")
-        if not isinstance(meta, dict) or "total_count" not in meta:
+        if not isinstance(meta, dict):
+            return False
+        if "input_kind" in meta:
+            if meta["input_kind"] != job.input_kind:
+                raise FullReportRunnerError("export input_kind does not match job", failed_at_stage="export")
+            if job.input_kind == LIVE_SELECTED_INPUT_KIND:
+                if meta.get("selected_log_ids") != list(job.selected_source_ids):
+                    raise FullReportRunnerError("export selected IDs do not match job", failed_at_stage="export")
+            elif "selected_log_ids" in meta:
+                raise FullReportRunnerError("time-range export contains selected IDs", failed_at_stage="export")
+        if "total_count" not in meta:
             return False
         try:
             return int(meta.get("total_count") or 0) == 0

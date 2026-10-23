@@ -387,9 +387,16 @@ def test_stage1_does_not_add_code_based_path_traversal_fallback() -> None:
 
 def test_stage1_success_artifact_includes_per_candidate_usage_and_totals(tmp_path: Path, monkeypatch) -> None:
     input_path = write_llm_input(tmp_path)
+    input_payload = json.loads(input_path.read_text(encoding="utf-8"))
+    prompt_without_scope = stage1.build_messages(input_payload["meta"], input_payload["analysis_candidates"][0], 8)
+    scope = {"kind": "live_selected_logs", "window_role": "selected_log_timestamp_envelope",
+             "window": None, "selected_id_count": 1}
+    input_payload["meta"]["input_scope"] = scope
+    input_path.write_text(json.dumps(input_payload), encoding="utf-8")
     out_dir = tmp_path / "out"
 
     def fake_call_llm_json(**kwargs):
+        assert kwargs["messages"] == prompt_without_scope
         return LLMResponse(
             output_text=stage1_output_text(),
             response_id="resp_stage1",
@@ -428,6 +435,8 @@ def test_stage1_success_artifact_includes_per_candidate_usage_and_totals(tmp_pat
     assert stage1.main() == 0
 
     payload = json.loads((out_dir / "sample_stage1_results.json").read_text(encoding="utf-8"))
+    assert payload["meta"]["source_input_scope"] == scope
+    assert "selected_log_ids" not in payload["meta"]["source_input_scope"]
     result = payload["results"][0]
     assert result["request_id"] == "req-1"
     assert result["response_id"] == "resp_stage1"
@@ -451,6 +460,9 @@ def test_stage1_success_artifact_includes_per_candidate_usage_and_totals(tmp_pat
 
 def test_stage1_dry_run_marks_usage_unavailable_without_per_candidate_usage(tmp_path: Path, monkeypatch) -> None:
     input_path = write_llm_input(tmp_path)
+    input_payload = json.loads(input_path.read_text(encoding="utf-8"))
+    input_payload["meta"]["input_scope"] = None
+    input_path.write_text(json.dumps(input_payload), encoding="utf-8")
     out_dir = tmp_path / "out"
     monkeypatch.setattr(
         sys,
@@ -470,6 +482,7 @@ def test_stage1_dry_run_marks_usage_unavailable_without_per_candidate_usage(tmp_
     assert stage1.main() == 0
 
     payload = json.loads((out_dir / "sample_stage1_results.json").read_text(encoding="utf-8"))
+    assert "source_input_scope" in payload["meta"] and payload["meta"]["source_input_scope"] is None
     assert "llm_usage" not in payload["candidates_preview"][0]
     assert payload["meta"]["llm_usage_totals"] == {
         "schema_version": "llm_usage_totals.v1",
@@ -478,6 +491,35 @@ def test_stage1_dry_run_marks_usage_unavailable_without_per_candidate_usage(tmp_
         "call_count": 0,
         "unavailable_reason": "dry_run_no_provider_call",
     }
+
+
+def test_stage1_scope_metadata_survives_partial_candidate_failure(tmp_path: Path, monkeypatch) -> None:
+    input_path = write_llm_input(tmp_path)
+    input_payload = json.loads(input_path.read_text(encoding="utf-8"))
+    second = dict(input_payload["analysis_candidates"][0], request_id="req-2")
+    input_payload["analysis_candidates"].append(second)
+    scope = {"kind": "time_range", "window_role": "query_filter", "window": None}
+    input_payload["meta"]["input_scope"] = scope
+    input_path.write_text(json.dumps(input_payload), encoding="utf-8")
+    calls = 0
+
+    def one_success_one_failure(**kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("synthetic provider failure")
+        return LLMResponse(output_text=stage1_output_text(), response_id="ok", raw_response={},
+                           provider="openai", model=kwargs["model"])
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(stage1, "call_llm_json", one_success_one_failure)
+    monkeypatch.setattr(sys, "argv", ["llm_stage1_classifier.py", "--input", str(input_path),
+                                  "--out-dir", str(tmp_path / "out"), "--base-name", "sample"])
+    assert stage1.main() == 1
+    result = json.loads((tmp_path / "out/sample_stage1_results.json").read_text(encoding="utf-8"))
+    assert result["meta"]["source_input_scope"] == scope
+    assert result["meta"]["success_count"] == result["meta"]["error_count"] == 1
+    assert result["results"][0]["verdict"] == "suspicious_sqli"
 
 
 def test_stage1_artifact_rows_include_deterministic_standards_mapping(tmp_path: Path, monkeypatch) -> None:

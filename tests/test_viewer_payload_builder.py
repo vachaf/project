@@ -246,6 +246,18 @@ def test_works_without_stage2_report(tmp_path: Path) -> None:
     }
 
 
+def test_new_prepare_scope_does_not_change_viewer_payload_contract_in_b1(tmp_path: Path) -> None:
+    scope = {"kind": "live_selected_logs", "window_role": "selected_log_timestamp_envelope",
+             "window": None, "selected_id_count": 1}
+    payload = run_builder(
+        tmp_path,
+        stage2_report_input=base_stage2_report_input(),
+        llm_input={"meta": {"input_scope": scope}, "analysis_candidates": []},
+    )
+    assert payload["schema_version"] == "viewer_payload.v1"
+    assert "input_scope" not in payload["meta"]
+
+
 def test_reason_hints_type_defense_list_string_none(tmp_path: Path) -> None:
     stage2_report_input = base_stage2_report_input()
     stage2_report_input["top_incidents"] = [

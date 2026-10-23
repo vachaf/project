@@ -489,6 +489,7 @@ def build_export_payload(
             "start_db_query": range_cfg.start_db_tz.isoformat(timespec="milliseconds"),
             "end_exclusive_db_query": range_cfg.end_exclusive_db_tz.isoformat(timespec="milliseconds"),
             "table_option": table_option,
+            "input_kind": "live_selected_logs" if selected_log_ids is not None else "time_range",
             "limit_per_table": limit,
             "total_count": sum(counts.values()),
             "analysis_recommendation": {
@@ -507,7 +508,6 @@ def build_export_payload(
     if selected_log_ids is not None:
         payload["meta"].update(
             {
-                "input_kind": "live_selected_logs",
                 "input_source_table": "apache_security_logs",
                 "selected_log_ids": list(selected_log_ids),
             }
