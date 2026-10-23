@@ -81,8 +81,8 @@ def make_viewer_payload(*, findings: Optional[list[dict[str, Any]]] = None, cont
         "summary": {
             "report_title": "DB backed payload",
             "generated_at": "2026-05-30T00:00:00Z",
-            "finding_count": len(findings or []),
-            "context_count": len(contexts or []),
+            "finding_count": len(findings) if findings is not None else 1,
+            "context_count": len(contexts) if contexts is not None else 1,
             "supporting_event_count": 0,
         },
         "findings": findings
@@ -370,6 +370,120 @@ def test_job_viewer_route_renders_report_level_human_sections(
     assert " normal " not in body.lower()
     assert "정상" not in body
     assert "무해" not in body
+
+
+@pytest.mark.parametrize(
+    "summary,payload,expected_value,expected_unit,expected_source",
+    [
+        ({"total_request_count": 0}, {"counts": {"total_exported_rows": 9}}, 0, "requests", "summary.total_request_count"),
+        ({"total_request_count": "0", "request_count": 8}, {}, 0, "requests", "summary.total_request_count"),
+        ({"total_request_count": 4}, {"counts": {"total_exported_rows": 9}}, 4, "requests", "summary.total_request_count"),
+        ({"total_request_count": "unknown"}, {"counts": {"total_exported_rows": 3}}, 3, "log_rows", "payload.counts.total_exported_rows"),
+        ({"total_request_count": None}, {"summary": {"request_count": 2}}, 2, "requests", "payload.summary.request_count"),
+        ({"total_request_count": ""}, {"meta": {"counts": {"total_rows": 5}}}, 5, "log_rows", "payload.meta.counts.total_rows"),
+        ({}, {"summary": {"pipeline_counts": {"total_exported_rows": 0}}}, 0, "log_rows", "payload.summary.pipeline_counts.total_exported_rows"),
+    ],
+)
+def test_viewer_input_count_preserves_priority_and_unit(summary, payload, expected_value, expected_unit, expected_source):
+    resolved = report_routes.resolve_viewer_input_count(summary, payload)
+    assert (resolved["value"], resolved["unit"], resolved["source"]) == (
+        expected_value, expected_unit, expected_source
+    )
+
+
+@pytest.mark.parametrize(
+    "summary,expected_status",
+    [({}, "missing"), ({"total_request_count": None}, "null"),
+     ({"total_request_count": "  "}, "empty"), ({"total_request_count": "unknown"}, "unknown")],
+)
+def test_viewer_input_count_distinguishes_unavailable_values(summary, expected_status):
+    resolved = report_routes.resolve_viewer_input_count(summary, {})
+    assert resolved["value"] is None
+    assert resolved["status"] == expected_status
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [(0, "0"), (7, "7"), (None, "미제공"), ("", "미제공"), ("unknown", "알 수 없음")],
+)
+def test_job_viewer_renders_request_count_and_unavailable_values(monkeypatch, tmp_path, value, expected):
+    payload = make_viewer_payload(findings=[])
+    payload["summary"]["total_request_count"] = value
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+    if expected.isdigit():
+        assert "분석 입력 요청" in body
+    else:
+        assert "분석 입력 규모" in body
+    assert f'<p class="payload-summary-value">{expected}</p>' in body
+
+
+def test_legacy_viewer_uses_cached_request_count_when_payload_is_missing(monkeypatch):
+    from types import SimpleNamespace
+
+    report = SimpleNamespace(report_id="old", filename="stage2_report.json", generated_at="", meta={})
+    report.to_detail = lambda: {"report_id": "old", "filename": report.filename,
+                                "viewer_payload_summary": {"request_count": 6}}
+    fake_loader = SimpleNamespace(scan_reports=lambda: [report], load_viewer_payload=lambda _: (None, "missing"))
+    monkeypatch.setattr(report_routes, "loader", fake_loader)
+    monkeypatch.setattr(report_routes, "lint_for_report", lambda _: None)
+    body = render_response_body(report_routes.report_payload_detail(make_request(path="/report/old/payload"), "old"))
+    assert "분석 입력 요청" in body
+    assert '<p class="payload-summary-value">6</p>' in body
+
+
+def test_legacy_loader_preserves_explicit_zero_when_rows_exist(tmp_path):
+    payload = make_viewer_payload(findings=[{"request_id": "row-1"}])
+    payload["summary"].update({"finding_count": 0, "context_count": "0", "supporting_event_count": None})
+    resolved = ReportLoader(project_root=tmp_path)._build_viewer_payload_summary(payload)
+    assert resolved["finding_count"] == 0
+    assert resolved["context_count"] == 0
+    assert resolved["supporting_event_count"] == len(payload["supporting_events"])
+    assert len(resolved["findings_preview"]) == 1
+
+
+@pytest.mark.parametrize("finding_count", [0, 1, 4])
+def test_job_viewer_distinguishes_findings_from_report_summary_items(monkeypatch, tmp_path, finding_count):
+    payload = make_viewer_payload(findings=[{"request_id": f"r-{index}"} for index in range(finding_count)])
+    payload["report"] = {"key_findings": [
+        {"title": "SQLi 의심", "detail": "요청 문자열 관찰", "severity": "medium"},
+        {"title": "", "detail": "범위 확인", "severity": "info"},
+        {"title": "판단 한계", "detail": "성공 여부 미확인", "severity": "low"},
+    ]}
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+    body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+    assert "보고서 핵심 요약 (3항목)" in body
+    assert "실제 검토 대상 요청 건수와는 다릅니다" in body
+    assert "제목 없는 요약 항목" in body
+    assert f'<p class="payload-summary-value">{finding_count}</p>' in body
+    assert body.index("요청 문자열 관찰") < body.index("Event Timeline")
+
+
+def test_job_and_legacy_viewers_show_same_zero_and_scope(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    payload = make_viewer_payload(findings=[])
+    payload["summary"]["pipeline_counts"] = {"total_exported_rows": 0}
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+    job_body = render_response_body(web_app_module.job_viewer_payload(make_request(), 123))
+
+    report = SimpleNamespace(report_id="legacy-1", filename="stage2_report.json", generated_at="", meta={})
+    report.to_detail = lambda: {"report_id": "legacy-1", "filename": report.filename, "viewer_payload_summary": {}}
+    fake_loader = SimpleNamespace(scan_reports=lambda: [report], load_viewer_payload=lambda _: (payload, ""))
+    monkeypatch.setattr(report_routes, "loader", fake_loader)
+    monkeypatch.setattr(report_routes, "lint_for_report", lambda _: None)
+    legacy_body = render_response_body(report_routes.report_payload_detail(
+        make_request(path="/report/legacy-1/payload"), "legacy-1"
+    ))
+    for body in (job_body, legacy_body):
+        assert "분석 입력 로그 행" in body
+        assert '<p class="payload-summary-value">0</p>' in body
+        assert "서버 전체 요청 현황을 뜻하지 않습니다" in body
+        assert "의심 신호의 강도와 검토 필요성을 반영한 정성 등급" in body
+        assert "공격이 성공할 확률을 뜻하지 않습니다" in body
 
 
 def test_sanitize_security_standards_summary_preserves_valid_known_and_unknown_groups() -> None:
@@ -1373,7 +1487,9 @@ def test_viewers_keep_unknown_when_timestamp_fields_are_missing(
 def test_actual_builder_payload_timestamp_renders_in_both_viewers(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    report_input_path = write_json_artifact(tmp_path, "builder_input.json", {"pipeline_counts": {}})
+    report_input_path = write_json_artifact(tmp_path, "builder_input.json", {
+        "pipeline_counts": {"total_exported_rows": 0}
+    })
     stage2_path = write_json_artifact(tmp_path, "builder_stage2.json", {
         "meta": {"generated_at": "2000-01-01T00:00:00Z"},
         "report": {"report_title": "Actual builder fixture"},
@@ -1389,4 +1505,6 @@ def test_actual_builder_payload_timestamp_renders_in_both_viewers(
     assert payload["meta"]["generated_at"] == PAYLOAD_TIME
     assert "generated_at" not in payload["summary"]
     assert payload["meta"]["stage2_generated_at"] == "2000-01-01T00:00:00Z"
+    assert payload["summary"]["finding_count"] == len(payload["findings"]) == 0
+    assert report_routes.resolve_viewer_input_count(payload["summary"], payload)["value"] == 0
     assert_viewer_times_match(monkeypatch, tmp_path, payload, PAYLOAD_TIME)

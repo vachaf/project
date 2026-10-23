@@ -576,11 +576,9 @@ class ReportLoader:
                 report_obj.get("overall_assessment"),
             )
             or "N/A",
-            "finding_count": int(_safe_int(first_non_empty(summary_obj.get("finding_count")), len(finding_rows))),
-            "context_count": int(_safe_int(first_non_empty(summary_obj.get("context_count")), len(context_rows))),
-            "supporting_event_count": int(
-                _safe_int(first_non_empty(summary_obj.get("supporting_event_count")), len(supporting_rows))
-            ),
+            "finding_count": _viewer_summary_count(summary_obj.get("finding_count"), len(finding_rows)),
+            "context_count": _viewer_summary_count(summary_obj.get("context_count"), len(context_rows)),
+            "supporting_event_count": _viewer_summary_count(summary_obj.get("supporting_event_count"), len(supporting_rows)),
             "findings_preview": [self._build_finding_preview(row) for row in finding_rows[:5] if isinstance(row, dict)],
             "contexts_preview": [self._build_context_preview(row) for row in context_rows[:5] if isinstance(row, dict)],
             "integrity_warnings": self._ensure_str_list(integrity_obj.get("warnings")),
@@ -764,6 +762,17 @@ def first_non_empty(*values: Any) -> str:
         if text:
             return text
     return ""
+
+
+def _viewer_summary_count(value: Any, row_count: int) -> int:
+    """Preserve an explicit zero; use the actual row count only if unavailable."""
+    if isinstance(value, bool):
+        return row_count
+    if isinstance(value, int) and value >= 0:
+        return value
+    if isinstance(value, str) and re.fullmatch(r"[0-9]+", value.strip()):
+        return int(value.strip())
+    return row_count
 
 
 def _safe_int(value: Any, default: int = 0) -> int:

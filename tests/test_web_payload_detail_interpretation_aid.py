@@ -109,7 +109,7 @@ def test_payload_detail_prioritizes_artifact_text_without_rewriting_report_concl
     text = TEMPLATE.read_text(encoding="utf-8")
     assert "{{ overall_assessment }}" in text
     assert "{{ presentation_takeaway }}" in text
-    assert "{{ item.get('title') or '제목 없는 Finding' }}" in text
+    assert "{{ item.get('title') or '제목 없는 요약 항목' }}" in text
     assert "{{ item.get('detail') }}" in text
     assert "safe_report_text(overall_assessment)" not in text
     assert "safe_report_text(presentation_takeaway)" not in text

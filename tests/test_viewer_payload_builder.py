@@ -225,6 +225,9 @@ def test_minimal_payload_has_required_top_level_keys(tmp_path: Path) -> None:
     }
     assert required_keys.issubset(payload.keys())
     assert payload["schema_version"] == "viewer_payload.v1"
+    assert payload["summary"]["finding_count"] == len(payload["findings"])
+    assert payload["summary"]["context_count"] == len(payload["contexts"])
+    assert payload["summary"]["supporting_event_count"] == len(payload["supporting_events"])
 
 
 def test_works_without_stage2_report(tmp_path: Path) -> None:
@@ -499,6 +502,7 @@ def test_findings_priority_top_incidents_then_stage1_then_llm_input(tmp_path: Pa
     stage2_report_input_a = base_stage2_report_input()
     stage2_report_input_a["top_incidents"] = [auth_finding(["error_status:401(+2)"])]
     payload_a = run_builder(tmp_path / "case_a", stage2_report_input=stage2_report_input_a)
+    assert payload_a["summary"]["finding_count"] == len(payload_a["findings"]) == 1
     assert payload_a["meta"]["source_of_truth"]["findings"] == "stage2_report_input.top_incidents"
     assert payload_a["findings"][0]["verdict"] == "suspicious_auth_abuse"
 

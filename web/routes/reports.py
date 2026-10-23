@@ -210,6 +210,7 @@ def report_payload_detail(request: Request, report_id: str):
             "qa_result": qa_result,
             "payload": payload_obj,
             "payload_summary": payload_summary,
+            "input_count": resolve_viewer_input_count(payload_summary, payload_obj),
             "payload_error": str(mask_value(payload_error)) if payload_error else "",
             "findings": findings,
             "findings_display": findings_display,
@@ -744,6 +745,71 @@ def sanitize_viewer_payload_summary(summary: Any) -> Dict[str, Any]:
     normalized["integrity_warnings"] = [str(item) for item in warnings] if isinstance(warnings, list) else []
 
     return normalized
+
+
+def resolve_viewer_input_count(summary: Any, payload: Any) -> Dict[str, Any]:
+    """Select the first available input count without treating zero as missing.
+
+    Request counts and exported log-row counts have different display units.
+    Keep the existing source order so older payloads retain their precedence.
+    """
+    summary = summary if isinstance(summary, Mapping) else {}
+    payload = payload if isinstance(payload, Mapping) else {}
+    payload_summary = payload.get("summary") if isinstance(payload.get("summary"), Mapping) else {}
+    summary_truth = summary.get("source_of_truth") if isinstance(summary.get("source_of_truth"), Mapping) else {}
+    payload_summary_truth = payload_summary.get("source_of_truth") if isinstance(payload_summary.get("source_of_truth"), Mapping) else {}
+    payload_truth = payload.get("source_of_truth") if isinstance(payload.get("source_of_truth"), Mapping) else {}
+    payload_counts = payload.get("counts") if isinstance(payload.get("counts"), Mapping) else {}
+    payload_meta = payload.get("meta") if isinstance(payload.get("meta"), Mapping) else {}
+    meta_counts = payload_meta.get("counts") if isinstance(payload_meta.get("counts"), Mapping) else {}
+    summary_pipeline = summary.get("pipeline_counts") if isinstance(summary.get("pipeline_counts"), Mapping) else {}
+    payload_pipeline = payload_summary.get("pipeline_counts") if isinstance(payload_summary.get("pipeline_counts"), Mapping) else {}
+
+    candidates = []
+    for container, prefix, keys in (
+        (summary, "summary", ("total_request_count", "request_count")),
+        (payload_summary, "payload.summary", ("total_request_count", "request_count")),
+        (summary_truth, "summary.source_of_truth", ("total_requests", "request_count")),
+        (payload_summary_truth, "payload.summary.source_of_truth", ("total_requests", "request_count")),
+        (payload_truth, "payload.source_of_truth", ("total_requests", "request_count")),
+        (payload_counts, "payload.counts", ("total_exported_rows", "total_rows", "request_count")),
+        (meta_counts, "payload.meta.counts", ("total_exported_rows", "total_rows", "request_count")),
+        (summary_pipeline, "summary.pipeline_counts", ("total_exported_rows", "total_rows", "request_count")),
+        (payload_pipeline, "payload.summary.pipeline_counts", ("total_exported_rows", "total_rows", "request_count")),
+    ):
+        candidates.extend((container, key, f"{prefix}.{key}") for key in keys)
+
+    unavailable_status = "missing"
+    for container, key, source in candidates:
+        if key not in container:
+            continue
+        raw = container[key]
+        if raw is None:
+            status = "null"
+        elif isinstance(raw, bool):
+            status = "invalid"
+        elif isinstance(raw, int) and raw >= 0:
+            value = raw
+            status = "known"
+        elif isinstance(raw, str):
+            stripped = raw.strip()
+            if not stripped:
+                status = "empty"
+            elif stripped.lower() == "unknown":
+                status = "unknown"
+            elif re.fullmatch(r"[0-9]+", stripped):
+                value = int(stripped)
+                status = "known"
+            else:
+                status = "invalid"
+        else:
+            status = "invalid"
+        if status == "known":
+            unit = "log_rows" if key in {"total_exported_rows", "total_rows"} else "requests"
+            return {"value": value, "unit": unit, "source": source, "status": status}
+        if unavailable_status == "missing":
+            unavailable_status = status
+    return {"value": None, "unit": None, "source": "", "status": unavailable_status}
 
 
 def _nonnegative_summary_int(value: Any) -> int:

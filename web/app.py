@@ -26,6 +26,7 @@ from web.routes.reports import sanitize_payload_contexts
 from web.routes.reports import sanitize_payload_findings
 from web.routes.reports import sanitize_security_standards_summary
 from web.routes.reports import sanitize_viewer_payload_summary
+from web.routes.reports import resolve_viewer_input_count
 from web.routes.reports import sort_payload_findings_for_timeline
 from web.services.analysis_job_policy import (
     AnalysisJobValidationError,
@@ -714,6 +715,7 @@ def job_viewer_payload(request: Request, job_id: int):
             "qa_result": None,
             "payload": payload_obj,
             "payload_summary": payload_summary,
+            "input_count": resolve_viewer_input_count(payload_summary, payload_obj),
             "payload_error": "",
             "findings": findings,
             "findings_display": findings_display,

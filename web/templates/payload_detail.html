@@ -19,48 +19,14 @@
   {% set payload_report = payload_obj.get('report') if payload_obj.get('report') is mapping else {} %}
   {% set payload_noise = payload_obj.get('noise') if payload_obj.get('noise') is mapping else {} %}
   {% set payload_summary_obj = payload_obj.get('summary') if payload_obj.get('summary') is mapping else {} %}
-  {% set summary_source_of_truth = summary.get('source_of_truth') if summary.get('source_of_truth') is mapping else {} %}
-  {% set payload_summary_source_of_truth = payload_summary_obj.get('source_of_truth') if payload_summary_obj.get('source_of_truth') is mapping else {} %}
-  {% set payload_source_of_truth = payload_obj.get('source_of_truth') if payload_obj.get('source_of_truth') is mapping else {} %}
-  {% set source_of_truth = summary_source_of_truth or payload_summary_source_of_truth or payload_source_of_truth %}
-  {% set payload_counts = payload_obj.get('counts') if payload_obj.get('counts') is mapping else {} %}
-  {% set payload_meta = payload_obj.get('meta') if payload_obj.get('meta') is mapping else {} %}
-  {% set payload_meta_counts = payload_meta.get('counts') if payload_meta.get('counts') is mapping else {} %}
   {% set standards_summary = security_standards_summary if security_standards_summary is mapping else {} %}
   {% set standards_groups = standards_summary.get('standards') if standards_summary.get('standards') is mapping else {} %}
   {% set owasp_standard_rows = standards_groups.get('OWASP_TOP10') if standards_groups.get('OWASP_TOP10') is sequence and standards_groups.get('OWASP_TOP10') is not string else [] %}
   {% set cwe_standard_rows = standards_groups.get('CWE') if standards_groups.get('CWE') is sequence and standards_groups.get('CWE') is not string else [] %}
   {% set wstg_standard_rows = standards_groups.get('WSTG') if standards_groups.get('WSTG') is sequence and standards_groups.get('WSTG') is not string else [] %}
   {% set standards_observability = standards_summary.get('observability_counts') if standards_summary.get('observability_counts') is mapping else {} %}
-  {% set summary_pipeline_counts = summary.get('pipeline_counts') if summary.get('pipeline_counts') is mapping else {} %}
-  {% set payload_summary_pipeline_counts = payload_summary_obj.get('pipeline_counts') if payload_summary_obj.get('pipeline_counts') is mapping else {} %}
   {% set schema_version = summary.get('schema_version') or 'viewer_payload.v1' %}
   {% set guardrails = summary.get('guardrails') if summary.get('guardrails') is sequence and summary.get('guardrails') is not string else [] %}
-  {% set total_requests =
-    summary.get('total_request_count')
-    or summary.get('request_count')
-    or payload_summary_obj.get('total_request_count')
-    or payload_summary_obj.get('request_count')
-    or summary_source_of_truth.get('total_requests')
-    or summary_source_of_truth.get('request_count')
-    or payload_summary_source_of_truth.get('total_requests')
-    or payload_summary_source_of_truth.get('request_count')
-    or payload_source_of_truth.get('total_requests')
-    or payload_source_of_truth.get('request_count')
-    or payload_counts.get('total_exported_rows')
-    or payload_counts.get('total_rows')
-    or payload_counts.get('request_count')
-    or payload_meta_counts.get('total_exported_rows')
-    or payload_meta_counts.get('total_rows')
-    or payload_meta_counts.get('request_count')
-    or summary_pipeline_counts.get('total_exported_rows')
-    or summary_pipeline_counts.get('total_rows')
-    or summary_pipeline_counts.get('request_count')
-    or payload_summary_pipeline_counts.get('total_exported_rows')
-    or payload_summary_pipeline_counts.get('total_rows')
-    or payload_summary_pipeline_counts.get('request_count')
-    or 'unknown'
-  %}
   {% set supporting_events = payload_obj.get('supporting_events') if payload_obj.get('supporting_events') is sequence and payload_obj.get('supporting_events') is not string else [] %}
   {% set contexts_data = payload_obj.get('contexts') if payload_obj.get('contexts') is sequence and payload_obj.get('contexts') is not string else [] %}
   {% set src_ip_mask_enabled = mask_src_ip|default(false) %}
@@ -228,9 +194,9 @@
 
   <section class="payload-summary-cards">
     <article class="payload-summary-card">
-      <p class="payload-summary-label">전체 요청</p>
-      <p class="payload-summary-value">{{ total_requests }}</p>
-      <p class="payload-summary-meta">원천 요약 기준</p>
+      <p class="payload-summary-label">{% if input_count.unit == 'requests' %}분석 입력 요청{% elif input_count.unit == 'log_rows' %}분석 입력 로그 행{% else %}분석 입력 규모{% endif %}</p>
+      <p class="payload-summary-value">{{ input_count.value if input_count.value is not none else '알 수 없음' if input_count.status == 'unknown' else '미제공' }}</p>
+      <p class="payload-summary-meta">{% if input_count.unit == 'requests' %}제공된 요청 집계 기준{% elif input_count.unit == 'log_rows' %}추출된 로그 행 수{% else %}집계값 미제공{% endif %}</p>
     </article>
     <article class="payload-summary-card">
       <p class="payload-summary-label">주요 탐지 요청 <span class="payload-label-secondary">Findings</span></p>
@@ -257,6 +223,7 @@
       <p class="payload-summary-meta">Stage2 보고서 시각: {{ summary.get('stage2_generated_at') or '미제공' }} · 출처: {{ summary.get('stage2_generated_at_source') or '실제 Stage2 보고서 시각 미제공' }}</p>
     </article>
   </section>
+  <p class="payload-report-muted" role="note">표시된 집계는 이 보고서의 분석 입력과 결과 기준이며, 서버 전체 요청 현황을 뜻하지 않습니다.</p>
 
   <section class="section card payload-role-guide" aria-labelledby="payload-role-guide-title">
     <div class="payload-role-guide-head">
@@ -285,13 +252,14 @@
   {% if key_findings %}
   <section class="section card payload-key-findings" aria-labelledby="payload-key-findings-title">
     <details class="payload-report-details pd-details-group" open>
-      <summary class="pd-summary-header" id="payload-key-findings-title">핵심 발견사항 ({{ key_findings|length }}) <span class="payload-label-secondary">Key Findings</span></summary>
+      <summary class="pd-summary-header" id="payload-key-findings-title">보고서 핵심 요약 ({{ key_findings|length }}항목) <span class="payload-label-secondary">Key Findings</span></summary>
       <div class="pd-details-content payload-report-card-list">
+        <p class="payload-report-muted">보고서의 주요 분석 내용을 정리한 항목이며, 실제 검토 대상 요청 건수와는 다릅니다.</p>
         {% for item in key_findings %}
         {% if item is mapping %}
         <article class="payload-report-mini-card">
           <div class="payload-report-mini-card-head">
-            <strong>{{ item.get('title') or '제목 없는 Finding' }}</strong>
+            <strong>{{ item.get('title') or '제목 없는 요약 항목' }}</strong>
             {% if item.get('severity') %}
             <span class="badge payload-badge payload-badge-severity payload-badge-severity-{{ (item.get('severity') or 'unknown')|lower }}">{{ item.get('severity') }}</span>
             {% endif %}
@@ -393,6 +361,7 @@
               <span id="pd-badge-category" class="badge payload-badge payload-badge-default">unknown</span>
             </div>
           </div>
+          <p class="payload-detail-subtitle">중요도(Severity)는 의심 신호의 강도와 검토 필요성을 반영한 정성 등급입니다. 신뢰도(Confidence)는 분석 유형의 분류 판정에 대한 확신 수준이며, 공격이 성공할 확률을 뜻하지 않습니다.</p>
           <div class="payload-detail-badges payload-detail-guardrail-badges">
             <span class="badge payload-badge payload-badge-readonly">읽기 전용 <span class="payload-badge-secondary">read-only</span></span>
             <span class="badge payload-badge payload-badge-context">성공 여부 추론 안 함 <span class="payload-badge-secondary">no success inferred</span></span>
