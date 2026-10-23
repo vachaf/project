@@ -37,7 +37,7 @@ def test_dry_run_placeholder_preserves_optional_input_scope(tmp_path: Path) -> N
     ("time_range", "query_filter"),
     ("live_selected_logs", "selected_log_timestamp_envelope"),
 ])
-def test_dry_run_pipeline_passes_scope_through_stage2_without_changing_viewer(tmp_path: Path, kind: str, role: str) -> None:
+def test_dry_run_pipeline_passes_scope_through_viewer(tmp_path: Path, kind: str, role: str) -> None:
     export = load_json(FIXTURE)
     export["meta"]["input_kind"] = kind
     if kind == "live_selected_logs":
@@ -66,7 +66,8 @@ def test_dry_run_pipeline_passes_scope_through_stage2_without_changing_viewer(tm
     assert stage1["meta"]["source_input_scope"] == prepared["meta"]["input_scope"]
     assert stage2_input["analysis_context"]["input_scope"] == prepared["meta"]["input_scope"]
     assert stage2_report["meta"]["input_scope"] == prepared["meta"]["input_scope"]
-    assert "input_scope" not in viewer["meta"]
+    assert viewer["meta"]["input_scope"] == prepared["meta"]["input_scope"]
+    assert viewer["schema_version"] == "viewer_payload.v1"
 
     resumed_work = tmp_path / "resumed"
     resumed = subprocess.run([
@@ -78,6 +79,8 @@ def test_dry_run_pipeline_passes_scope_through_stage2_without_changing_viewer(tm
     assert resumed_stage1["meta"]["source_input_scope"] == prepared["meta"]["input_scope"]
     resumed_report = load_json(resumed_work / "reports/scope_resumed_stage2_report.json")
     assert resumed_report["meta"]["input_scope"] == prepared["meta"]["input_scope"]
+    resumed_viewer = load_json(resumed_work / "reports/scope_resumed_viewer_payload.json")
+    assert resumed_viewer["meta"]["input_scope"] == prepared["meta"]["input_scope"]
 
 
 def test_stage1_results_resume_rejects_scope_from_another_prepare_input(tmp_path: Path) -> None:

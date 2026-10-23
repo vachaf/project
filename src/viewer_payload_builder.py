@@ -20,6 +20,10 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from report_semantics import process_text, process_stage1, PROMPT_BOUNDARY, normalize_guardrail_warnings
+try:
+    from .input_scope_contract import validate_input_scope
+except ImportError:  # CLI execution from src/
+    from input_scope_contract import validate_input_scope
 
 
 CONTEXT_COLLECTIONS: List[Tuple[str, str]] = [
@@ -43,7 +47,7 @@ APACHE_GUARDRAILS = [
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Stage2 결과를 Web UI viewer payload 로 변환")
     parser.add_argument("--stage2-report", default=None, help="선택: <base>_stage2_report.json")
-    parser.add_argument("--stage2-report-input", required=True, help="필수: <base>_stage2_report_input.json")
+    parser.add_argument("--stage2-report-input", default=None, help="선택: <base>_stage2_report_input.json")
     parser.add_argument("--stage1-results", default=None, help="선택: <base>_stage1_results.json")
     parser.add_argument("--llm-input", default=None, help="선택: <base>_llm_input.json")
     parser.add_argument("--raw-export", default=None, help="선택: export_db_logs_cli.py raw export JSON")
@@ -87,6 +91,24 @@ def safe_int(value: Any, default: int = 0) -> int:
 
 def ensure_dict(value: Any) -> Dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+_MISSING_INPUT_SCOPE = object()
+
+
+def resolve_viewer_input_scope(stage2_report_input: Dict[str, Any], stage2_report: Dict[str, Any]) -> Any:
+    """Resolve only validated Stage2 scope metadata; reject conflicting artifacts."""
+    context = ensure_dict(stage2_report_input.get("analysis_context"))
+    report_meta = ensure_dict(stage2_report.get("meta"))
+    input_scope = (validate_input_scope(context["input_scope"])
+                   if "input_scope" in context else _MISSING_INPUT_SCOPE)
+    report_scope = (validate_input_scope(report_meta["input_scope"])
+                    if "input_scope" in report_meta else _MISSING_INPUT_SCOPE)
+    if input_scope is not _MISSING_INPUT_SCOPE and report_scope is not _MISSING_INPUT_SCOPE:
+        if input_scope != report_scope:
+            raise ValueError("input scope: Stage2 input and report metadata disagree")
+        return input_scope
+    return input_scope if input_scope is not _MISSING_INPUT_SCOPE else report_scope
 
 
 def ensure_list(value: Any) -> List[Any]:
@@ -584,12 +606,16 @@ def build_noise(
 def main() -> int:
     args = parse_args()
 
-    stage2_report_input_path = Path(args.stage2_report_input).expanduser().resolve()
-    if not stage2_report_input_path.exists():
-        raise FileNotFoundError(f"stage2_report_input 파일을 찾을 수 없습니다: {stage2_report_input_path}")
+    if not args.stage2_report_input and not args.stage2_report:
+        raise ValueError("stage2_report_input 또는 stage2_report 파일이 필요합니다")
+    if args.stage2_report_input:
+        stage2_report_input_path = Path(args.stage2_report_input).expanduser().resolve()
+        if not stage2_report_input_path.exists():
+            raise FileNotFoundError(f"stage2_report_input 파일을 찾을 수 없습니다: {stage2_report_input_path}")
 
     stage2_report_payload = ensure_dict(load_json(args.stage2_report)) if args.stage2_report else {}
-    stage2_report_input = ensure_dict(load_json(str(stage2_report_input_path)))
+    stage2_report_input = ensure_dict(load_json(args.stage2_report_input)) if args.stage2_report_input else {}
+    input_scope = resolve_viewer_input_scope(stage2_report_input, stage2_report_payload)
     stage1_results_payload = ensure_dict(load_json(args.stage1_results)) if args.stage1_results and Path(args.stage1_results).exists() else {}
     llm_input_payload = ensure_dict(load_json(args.llm_input)) if args.llm_input and Path(args.llm_input).exists() else {}
     noise_summary_payload: Any = None
@@ -718,6 +744,8 @@ def main() -> int:
     }
     if security_standards_summary is not None:
         payload["security_standards_summary"] = security_standards_summary
+    if input_scope is not _MISSING_INPUT_SCOPE:
+        payload["meta"]["input_scope"] = input_scope
 
     dump_json(args.out, payload, pretty=args.pretty)
     print(f"[OK] viewer_payload: {Path(args.out).expanduser().resolve()}")

@@ -23,6 +23,9 @@ class FakeJobRepository:
     def get_latest_report_for_job(self, job_id: int) -> Optional[dict[str, Any]]:
         return self.report
 
+    def get_job(self, job_id: int) -> Optional[dict[str, Any]]:
+        return {"input_kind": self.report.get("input_kind")} if self.report else None
+
 
 class FakeJobDetailRepository(FakeJobRepository):
     def __init__(self, report: Optional[dict[str, Any]], *, job: Optional[dict[str, Any]] = None) -> None:
@@ -431,6 +434,112 @@ def test_legacy_viewer_uses_cached_request_count_when_payload_is_missing(monkeyp
     body = render_response_body(report_routes.report_payload_detail(make_request(path="/report/old/payload"), "old"))
     assert "분석 입력 요청" in body
     assert '<p class="payload-summary-value">6</p>' in body
+
+
+@pytest.mark.parametrize("scope,label,phrase", [
+    ({"kind": "live_selected_logs", "window_role": "selected_log_timestamp_envelope",
+      "selected_id_count": 3, "window": None}, "선택 로그 분석", "해당 시간대 전체 조회"),
+    ({"kind": "time_range", "window_role": "query_filter", "window": None},
+     "시간 범위 분석", "시작 포함·종료 미포함"),
+    (None, "미확인", "서버 전체 요청 현황"),
+])
+@pytest.mark.parametrize("mask", [False, True])
+def test_both_viewers_explain_same_payload_scope(monkeypatch, tmp_path, scope, label, phrase, mask):
+    from types import SimpleNamespace
+
+    payload = make_viewer_payload(findings=[])
+    payload["meta"] = {"input_scope": scope}
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report(input_kind="time_range"))
+    query = b"mask_src_ip=1" if mask else b""
+    job = web_app_module.job_viewer_payload(make_request(query_string=query), 123)
+
+    report = SimpleNamespace(report_id="old-scope", filename="stage2_report.json", generated_at="", meta={})
+    report.to_detail = lambda: {"report_id": report.report_id, "filename": report.filename,
+                                "viewer_payload_summary": {}}
+    monkeypatch.setattr(report_routes, "loader", SimpleNamespace(
+        scan_reports=lambda: [report], load_viewer_payload=lambda _: (payload, "")))
+    monkeypatch.setattr(report_routes, "lint_for_report", lambda _: None)
+    legacy = report_routes.report_payload_detail(make_request(
+        path="/report/old-scope/payload", query_string=query), report.report_id)
+    for response in (job, legacy):
+        body = render_response_body(response)
+        assert f"입력 방식: {label}" in body
+        assert phrase in body
+        assert "분석 입력" in body
+        assert "주요 탐지 요청" in body
+        assert "selected_log_ids" not in body
+        assert response.context["input_scope"] == scope
+
+
+@pytest.mark.parametrize("meta", [{}, {"input_scope": None},
+                                     {"input_scope": {"kind": "time_range", "window_role": "query_filter",
+                                                       "window": None, "selected_log_ids": [1]}},
+                                     {"input_scope": {"kind": "<script>alert(1)</script>",
+                                                       "window_role": "query_filter", "window": None}}])
+def test_old_or_invalid_payload_scope_is_unknown(monkeypatch, tmp_path, meta):
+    payload = make_viewer_payload(findings=[])
+    payload["meta"] = meta
+    payload["summary"]["overall_assessment"] = "선택 로그 분석: 1ms 범위"
+    payload["summary"]["window"] = {"start": "2026-10-23T15:20:23.804+09:00",
+                                      "end_exclusive": "2026-10-23T15:20:23.805+09:00"}
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report())
+    response = web_app_module.job_viewer_payload(make_request(), 123)
+    assert response.context["input_scope"] is None
+    body = render_response_body(response)
+    assert "입력 방식: 미확인" in body
+    assert "<script>alert(1)</script>" not in body
+
+
+def test_job_scope_conflict_is_visible_without_overriding_payload(monkeypatch, tmp_path):
+    payload = make_viewer_payload(findings=[])
+    payload["meta"] = {"input_scope": {"kind": "live_selected_logs",
+                                         "window_role": "selected_log_timestamp_envelope",
+                                         "selected_id_count": 1, "window": None}}
+    write_payload(tmp_path, payload=payload)
+    install_repo(monkeypatch, tmp_path, make_report(input_kind="time_range"))
+    response = web_app_module.job_viewer_payload(make_request(), 123)
+    body = render_response_body(response)
+    assert response.context["input_scope_conflict"] is True
+    assert "입력 방식: 선택 로그 분석" in body
+    assert "범위 확인 필요" in body
+
+
+def test_legacy_viewer_uses_report_scope_only_without_payload(monkeypatch):
+    from types import SimpleNamespace
+
+    scope = {"kind": "time_range", "window_role": "query_filter", "window": None}
+    report = SimpleNamespace(report_id="standalone", filename="stage2_report.json", generated_at="",
+                             meta={"input_scope": scope})
+    report.to_detail = lambda: {"report_id": report.report_id, "filename": report.filename,
+                                "viewer_payload_summary": {}}
+    monkeypatch.setattr(report_routes, "loader", SimpleNamespace(
+        scan_reports=lambda: [report], load_viewer_payload=lambda _: (None, "missing")))
+    monkeypatch.setattr(report_routes, "lint_for_report", lambda _: None)
+    response = report_routes.report_payload_detail(make_request(path="/report/standalone/payload"), "standalone")
+    assert response.context["input_scope"] == scope
+    assert "입력 방식: 시간 범위 분석" in render_response_body(response)
+
+
+def test_report_loader_reads_saved_payload_scope_without_job_db(monkeypatch, tmp_path):
+    scope = {"kind": "live_selected_logs", "window_role": "selected_log_timestamp_envelope",
+             "selected_id_count": 1, "window": None}
+    payload = make_viewer_payload(findings=[])
+    payload["meta"] = {"input_scope": scope}
+    write_json_artifact(tmp_path, "fixture_stage2_report.json", {
+        "meta": {"input_scope": scope}, "report": {"report_title": "Saved report"}})
+    write_json_artifact(tmp_path, "fixture_viewer_payload.json", payload)
+    loader = ReportLoader(project_root=tmp_path, report_globs=["fixture_stage2_report.json"])
+    report = loader.scan_reports()[0]
+    loaded, error = loader.load_viewer_payload(report)
+    assert error is None and loaded["meta"]["input_scope"] == scope
+    monkeypatch.setattr(report_routes, "loader", loader)
+    monkeypatch.setattr(report_routes, "lint_for_report", lambda _: None)
+    response = report_routes.report_payload_detail(
+        make_request(path=f"/report/{report.report_id}/payload"), report.report_id)
+    assert response.context["input_scope"] == scope
+    assert "입력 방식: 선택 로그 분석" in render_response_body(response)
 
 
 def test_legacy_loader_preserves_explicit_zero_when_rows_exist(tmp_path):

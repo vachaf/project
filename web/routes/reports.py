@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from web.services.qa_runner import QARunner
 from web.services.report_comparator import compare_reports
 from web.services.report_loader import Report, ReportLoader
+from src.input_scope_contract import validate_input_scope
 
 router = APIRouter()
 loader = ReportLoader()
@@ -151,6 +152,7 @@ def report_payload_detail(request: Request, report_id: str):
     payload_error = payload_load_error or str(detail.get("viewer_payload_error") or "")
     if payload_obj is None:
         payload_obj = {}
+    input_scope = resolve_payload_input_scope(payload_obj, report.meta if not payload_obj else None)
     # Read timestamp provenance from the actual artifact also for legacy routes.
     from web.app import _build_job_viewer_payload_summary
     actual_summary = _build_job_viewer_payload_summary(payload_obj)
@@ -211,6 +213,7 @@ def report_payload_detail(request: Request, report_id: str):
             "payload": payload_obj,
             "payload_summary": payload_summary,
             "input_count": resolve_viewer_input_count(payload_summary, payload_obj),
+            "input_scope": input_scope,
             "payload_error": str(mask_value(payload_error)) if payload_error else "",
             "findings": findings,
             "findings_display": findings_display,
@@ -699,6 +702,19 @@ def sanitize_source_ip_items(rows: Any) -> List[Dict[str, str]]:
             }
         )
     return normalized
+
+
+def resolve_payload_input_scope(payload: Any, standalone_report_meta: Any = None) -> Optional[Dict[str, Any]]:
+    """Return a displayable structured scope, never infer it from prose or counts."""
+    meta = payload.get("meta") if isinstance(payload, dict) else None
+    if not payload and isinstance(standalone_report_meta, dict):
+        meta = standalone_report_meta
+    if not isinstance(meta, dict) or "input_scope" not in meta:
+        return None
+    try:
+        return validate_input_scope(meta["input_scope"])
+    except ValueError:
+        return None
 
 
 def sanitize_viewer_payload_summary(summary: Any) -> Dict[str, Any]:

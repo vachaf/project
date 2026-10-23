@@ -5,6 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
+from datetime import datetime, timedelta
+
+import pytest
 
 from src import viewer_payload_builder as viewer
 
@@ -256,6 +259,114 @@ def test_new_prepare_scope_does_not_change_viewer_payload_contract_in_b1(tmp_pat
     )
     assert payload["schema_version"] == "viewer_payload.v1"
     assert "input_scope" not in payload["meta"]
+
+
+def test_stage2_scopes_reach_viewer_payload(tmp_path: Path) -> None:
+    for kind, role in (("live_selected_logs", "selected_log_timestamp_envelope"),
+                       ("time_range", "query_filter")):
+        scope = {"kind": kind, "window_role": role, "window": None}
+        if kind == "live_selected_logs":
+            scope["selected_id_count"] = 3
+        stage2_input = base_stage2_report_input()
+        stage2_input["analysis_context"]["input_scope"] = scope
+        payload = run_builder(tmp_path / kind, stage2_report_input=stage2_input,
+                              stage2_report={"meta": {"input_scope": scope}, "report": {}})
+        assert payload["meta"]["input_scope"] == scope
+        assert payload["schema_version"] == "viewer_payload.v1"
+
+
+def test_input_scope_missing_null_and_invalid_are_distinct(tmp_path: Path) -> None:
+    base = base_stage2_report_input()
+    assert "input_scope" not in run_builder(tmp_path / "missing", stage2_report_input=base)["meta"]
+    base["analysis_context"]["input_scope"] = None
+    assert run_builder(tmp_path / "null", stage2_report_input=base)["meta"]["input_scope"] is None
+    base["analysis_context"]["input_scope"] = {"kind": "time_range", "window_role": "query_filter",
+                                               "window": None, "selected_log_ids": [1]}
+    with pytest.raises(ValueError, match="input scope"):
+        viewer.resolve_viewer_input_scope(base, {})
+
+
+def test_stage2_scope_sources_must_agree(tmp_path: Path) -> None:
+    selected = {"kind": "live_selected_logs", "window_role": "selected_log_timestamp_envelope",
+                "window": None, "selected_id_count": 1}
+    ranged = {"kind": "time_range", "window_role": "query_filter", "window": None}
+    stage2_input = base_stage2_report_input()
+    stage2_input["analysis_context"]["input_scope"] = selected
+    assert viewer.resolve_viewer_input_scope(stage2_input, {"meta": {"input_scope": selected}}) == selected
+    with pytest.raises(ValueError, match="disagree"):
+        viewer.resolve_viewer_input_scope(stage2_input, {"meta": {"input_scope": ranged}})
+    with pytest.raises(ValueError, match="disagree"):
+        viewer.resolve_viewer_input_scope(stage2_input, {"meta": {"input_scope": None}})
+
+    report_path = write_json(tmp_path, "report.json", {"meta": {"input_scope": ranged}})
+    input_path = write_json(tmp_path, "input.json", stage2_input)
+    output_path = tmp_path / "viewer.json"
+    completed = subprocess.run([sys.executable, str(BUILDER), "--stage2-report-input", str(input_path),
+                                "--stage2-report", str(report_path), "--out", str(output_path)],
+                               cwd=REPO_ROOT, capture_output=True, text=True)
+    assert completed.returncode != 0
+    assert "metadata disagree" in completed.stderr
+    assert not output_path.exists()
+
+
+def test_report_only_builder_uses_structured_scope(tmp_path: Path) -> None:
+    scope = {"kind": "time_range", "window_role": "query_filter", "window": None}
+    report = write_json(tmp_path, "stage2_report.json", {"meta": {"input_scope": scope},
+                                                         "report": {"report_title": "Standalone"}})
+    output = tmp_path / "viewer_payload.json"
+    completed = subprocess.run([sys.executable, str(BUILDER), "--stage2-report", str(report),
+                                "--out", str(output)], cwd=REPO_ROOT, capture_output=True, text=True)
+    assert completed.returncode == 0, completed.stderr
+    payload = load_json(output)
+    assert payload["meta"]["input_scope"] == scope
+    assert payload["report"]["report_title"] == "Standalone"
+
+
+@pytest.mark.parametrize("selected_count,start,end", [
+    (1, "2026-10-23T15:20:23.804+09:00", "2026-10-23T15:20:23.805+09:00"),
+    (2, "2026-10-23T15:20:23.804+09:00", "2026-10-23T15:20:23.805+09:00"),
+    (2, "2026-10-23T15:20:23.804+09:00", "2026-10-23T16:20:23.805+09:00"),
+])
+def test_selected_scope_preserves_only_validated_envelope(tmp_path: Path, selected_count, start, end) -> None:
+    scope = {"kind": "live_selected_logs", "window_role": "selected_log_timestamp_envelope",
+             "selected_id_count": selected_count,
+             "window": {"start": start, "end_exclusive": end, "timezone": "Asia/Seoul"}}
+    stage2_input = base_stage2_report_input()
+    stage2_input["analysis_context"].update({"input_scope": scope,
+                                              "selected_log_ids": [101, 202][:selected_count]})
+    payload = run_builder(tmp_path, stage2_report_input=stage2_input)
+    assert payload["meta"]["input_scope"] == scope
+    assert "selected_log_ids" not in json.dumps(payload)
+
+
+def test_selected_scope_keeps_count_separate_from_rows_and_findings(tmp_path: Path) -> None:
+    start = datetime.fromisoformat("2026-10-23T15:20:23.804+09:00")
+    scope = {"kind": "live_selected_logs", "window_role": "selected_log_timestamp_envelope",
+             "selected_id_count": 3,
+             "window": {"start": start.isoformat(timespec="milliseconds"),
+                        "end_exclusive": (start + timedelta(milliseconds=1)).isoformat(timespec="milliseconds"),
+                        "timezone": "Asia/Seoul"}}
+    stage2_input = base_stage2_report_input()
+    stage2_input["analysis_context"]["input_scope"] = scope
+    stage2_input["pipeline_counts"]["total_exported_rows"] = 2
+    stage2_input["top_incidents"] = [auth_finding([])]
+    payload = run_builder(tmp_path, stage2_report_input=stage2_input)
+    assert payload["meta"]["input_scope"] == scope
+    assert payload["summary"]["pipeline_counts"]["total_exported_rows"] == 2
+    assert payload["summary"]["finding_count"] == 1
+    assert "selected_log_ids" not in json.dumps(payload)
+
+
+def test_time_range_preserves_milliseconds_timezone_and_zero_rows(tmp_path: Path) -> None:
+    scope = {"kind": "time_range", "window_role": "query_filter",
+             "window": {"start": "2026-10-23T15:20:23.804+09:00",
+                        "end_exclusive": "2026-10-23T15:20:23.805+09:00", "timezone": "Asia/Seoul"}}
+    stage2_input = base_stage2_report_input()
+    stage2_input["analysis_context"]["input_scope"] = scope
+    stage2_input["pipeline_counts"]["total_exported_rows"] = 0
+    payload = run_builder(tmp_path, stage2_report_input=stage2_input)
+    assert payload["meta"]["input_scope"] == scope
+    assert payload["summary"]["pipeline_counts"]["total_exported_rows"] == 0
 
 
 def test_reason_hints_type_defense_list_string_none(tmp_path: Path) -> None:
